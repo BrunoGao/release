@@ -93,15 +93,20 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
      * @return 过滤后的设备序列号列表
      */
     private List<String> getFilteredDeviceSnList(String userId, String departmentInfo) {
-        // 如果指定了具体用户ID且不是"all"，直接查询该用户设备
-        if (ObjectUtils.isNotEmpty(userId) && !"all".equals(userId)) {
+        // 如果指定了具体用户ID且不是"all"、"0"或空，直接查询该用户设备
+        if (ObjectUtils.isNotEmpty(userId) && !"all".equals(userId) && !"0".equals(userId)) {
             return deviceUserMappingService.getDeviceSnList(userId, departmentInfo);
         }
         
         // 查询部门设备时，需要过滤管理员设备
         if (ObjectUtils.isNotEmpty(departmentInfo)) {
+            System.out.println("🔍 查询部门设备: departmentInfo=" + departmentInfo);
             List<String> allDeviceSnList = deviceUserMappingService.getDeviceSnList(null, departmentInfo);
-            if (allDeviceSnList.isEmpty()) return Collections.emptyList();
+            System.out.println("📱 部门所有设备数量: " + allDeviceSnList.size() + ", 设备列表: " + allDeviceSnList);
+            if (allDeviceSnList.isEmpty()) {
+                System.out.println("⚠️ 部门设备列表为空，返回空结果");
+                return Collections.emptyList();
+            }
             
             // 获取管理员设备列表
             List<String> adminDeviceSnList = getAdminDeviceSnList();
@@ -147,33 +152,44 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
 
     // 2. 拿到所有要查询的设备 SN - 自动过滤管理员设备
     System.out.println("🏥 健康数据查询 - userId: " + tUserHealthDataBO.getUserId() + ", departmentInfo: " + tUserHealthDataBO.getDepartmentInfo());
-    List<String> deviceSnList = getFilteredDeviceSnList(
-        tUserHealthDataBO.getUserId(),
-        tUserHealthDataBO.getDepartmentInfo()
-    );
-    if (deviceSnList.isEmpty()) {
-        System.out.println("⚠️ 未找到符合条件的设备，返回空结果");
-        return new HealthDataPageVO<>(
-            Collections.emptyList(),
-            0, pageQuery.getPageSize(), pageQuery.getPage(),
-            Collections.emptyList()
-        );
-    }
-    System.out.println("✅ 获取到设备列表: " + deviceSnList);
-
+    
     // 3. 基础 Wrapper
     LambdaQueryWrapper<TUserHealthData> query = new LambdaQueryWrapper<>();
-    query.ge(TUserHealthData::getTimestamp, startDate)
-         .le(TUserHealthData::getTimestamp, endDate);
-
-    // 4. 如果指定了 userId，则直接按分页、按时间、按设备SN 正常查询
-    if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getUserId())) {
-        query.in(TUserHealthData::getDeviceSn, deviceSnList);
-    }
-    // 5. 如果没有 userId，从分表中获取各设备最新数据
-    else {
-        List<TUserHealthData> latestData = getLatestDataFromShardedTables(deviceSnList, startDate, endDate);
-        if (latestData.isEmpty()) {
+    
+    // 如果指定了具体用户，获取该用户指定时间范围内的所有数据
+    if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getUserId()) && 
+        !"0".equals(tUserHealthDataBO.getUserId()) && 
+        !"all".equals(tUserHealthDataBO.getUserId())) {
+        
+        System.out.println("🔍 查询指定用户时间范围内所有数据: userId=" + tUserHealthDataBO.getUserId());
+        
+        List<String> deviceSnList = getFilteredDeviceSnList(
+            tUserHealthDataBO.getUserId(),
+            tUserHealthDataBO.getDepartmentInfo()
+        );
+        if (deviceSnList.isEmpty()) {
+            System.out.println("⚠️ 未找到符合条件的设备，返回空结果");
+            return new HealthDataPageVO<>(
+                Collections.emptyList(),
+                0, pageQuery.getPageSize(), pageQuery.getPage(),
+                Collections.emptyList()
+            );
+        }
+        System.out.println("✅ 获取到设备列表: " + deviceSnList);
+        
+        // 查询该用户指定时间范围内的所有数据
+        query.ge(TUserHealthData::getTimestamp, startDate)
+             .le(TUserHealthData::getTimestamp, endDate)
+             .in(TUserHealthData::getDeviceSn, deviceSnList);
+             
+    } else {
+        // 如果没有指定具体用户（userId为空、"0"或"all"），只查询部门下所有设备的最新数据
+        System.out.println("🔍 查询部门所有设备最新数据");
+        
+        // 获取部门下所有设备（已经过滤了管理员设备）
+        List<String> deviceSnList = getFilteredDeviceSnList(null, tUserHealthDataBO.getDepartmentInfo());
+        if (deviceSnList.isEmpty()) {
+            System.out.println("⚠️ 部门下未找到任何设备，返回空结果");
             return new HealthDataPageVO<>(
                 Collections.emptyList(),
                 0, pageQuery.getPageSize(), pageQuery.getPage(),
@@ -181,14 +197,53 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             );
         }
         
-        // 获取最新数据的ID列表
-        List<Long> latestIds = latestData.stream().map(TUserHealthData::getId).collect(Collectors.toList());
+        System.out.println("✅ 获取到部门设备列表: " + deviceSnList);
+        
+        // 先查询指定时间范围内的所有数据
+        LambdaQueryWrapper<TUserHealthData> tempQuery = new LambdaQueryWrapper<>();
+        tempQuery.ge(TUserHealthData::getTimestamp, startDate)
+                 .le(TUserHealthData::getTimestamp, endDate)
+                 .in(TUserHealthData::getDeviceSn, deviceSnList);
+                 
+        List<TUserHealthData> allData = baseMapper.selectList(tempQuery);
+        System.out.println("📊 查询到原始数据条数: " + allData.size());
+        
+        if (allData.isEmpty()) {
+            return new HealthDataPageVO<>(
+                Collections.emptyList(),
+                0, pageQuery.getPageSize(), pageQuery.getPage(),
+                Collections.emptyList()
+            );
+        }
+        
+        // 按设备分组，获取每个设备的最新数据
+        Map<String, TUserHealthData> latestByDevice = allData.stream()
+            .collect(Collectors.toMap(
+                TUserHealthData::getDeviceSn,
+                data -> data,
+                (existing, replacement) -> existing.getTimestamp().isAfter(replacement.getTimestamp()) ? existing : replacement
+            ));
+            
+        System.out.println("📱 设备数量: " + latestByDevice.size());
+        
+        // 获取最新数据的ID列表，重新构建查询条件
+        List<Long> latestIds = latestByDevice.values().stream()
+            .map(TUserHealthData::getId)
+            .collect(Collectors.toList());
+        query = new LambdaQueryWrapper<>();
         query.in(TUserHealthData::getId, latestIds);
     }
     
     query.orderByDesc(TUserHealthData::getTimestamp);
 
         IPage<TUserHealthData> page = baseMapper.selectPage(pageQuery.buildPage(), query);
+        
+        // 调试信息：显示查询结果统计
+        System.out.println("📋 分页查询结果统计:");
+        System.out.println("  总记录数: " + page.getTotal());
+        System.out.println("  当前页记录数: " + page.getRecords().size());
+        System.out.println("  当前页码: " + page.getCurrent());
+        System.out.println("  每页大小: " + page.getSize());
 
         // 获取所有不重复的deviceSn
         Set<String> deviceSns = page.getRecords().stream()
@@ -220,6 +275,20 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
                 .eq(THealthDataConfig::getCustomerId, tUserHealthDataBO.getDepartmentInfo())
         );
 
+        // 批量获取分表数据（避免n+1问题）
+        // 根据查询类型决定是否需要批量获取分表数据
+        final Map<String, Map<String, Object>> batchDailyData;
+        final Map<String, Map<String, Object>> batchWeeklyData;
+        
+        // 只有在查询结果不为空时才批量获取分表数据
+        if (!page.getRecords().isEmpty()) {
+            batchDailyData = getBatchDailyData(page.getRecords());
+            batchWeeklyData = getBatchWeeklyData(page.getRecords());
+        } else {
+            batchDailyData = new HashMap<>();
+            batchWeeklyData = new HashMap<>();
+        }
+
         List<Map<String, Object>> records = page.getRecords().stream()
     .map(record -> {
         Map<String, Object> filteredData = new HashMap<>();
@@ -238,9 +307,11 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             }
         }
 
-        // 获取分表数据
-        Map<String, Object> dailyData = getDailyData(record.getDeviceSn(), record.getTimestamp());
-        Map<String, Object> weeklyData = getWeeklyData(record.getDeviceSn(), record.getTimestamp());
+        // 批量获取分表数据（避免n+1问题）
+        // 这些数据会在后面统一批量获取
+        String cacheKey = record.getDeviceSn() + "_" + record.getTimestamp().toLocalDate();
+        Map<String, Object> dailyData = batchDailyData.getOrDefault(cacheKey, Collections.emptyMap());
+        Map<String, Object> weeklyData = batchWeeklyData.getOrDefault(cacheKey, Collections.emptyMap());
 
         // 启用字段动态处理
         for (THealthDataConfig config : enabledColumns) {
@@ -965,6 +1036,129 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             log.error("优化查询健康数据失败", e);
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * 批量获取每日数据（避免n+1问题）
+     */
+    private Map<String, Map<String, Object>> getBatchDailyData(List<TUserHealthData> records) {
+        Map<String, Map<String, Object>> result = new HashMap<>();
+        if (records.isEmpty()) return result;
+
+        try {
+            // 收集所有需要查询的设备和日期
+            Set<String> deviceSns = new HashSet<>();
+            Set<LocalDate> dates = new HashSet<>();
+            
+            for (TUserHealthData record : records) {
+                if (record.getDeviceSn() != null && record.getTimestamp() != null) {
+                    deviceSns.add(record.getDeviceSn());
+                    dates.add(record.getTimestamp().toLocalDate());
+                }
+            }
+
+            if (deviceSns.isEmpty() || dates.isEmpty()) return result;
+
+            // 批量查询每日数据
+            LambdaQueryWrapper<TUserHealthDataDaily> query = new LambdaQueryWrapper<>();
+            query.in(TUserHealthDataDaily::getDeviceSn, deviceSns);
+            
+            LocalDate minDate = dates.stream().min(LocalDate::compareTo).orElse(LocalDate.now());
+            LocalDate maxDate = dates.stream().max(LocalDate::compareTo).orElse(LocalDate.now());
+            
+            query.ge(TUserHealthDataDaily::getTimestamp, minDate.atStartOfDay())
+                 .lt(TUserHealthDataDaily::getTimestamp, maxDate.plusDays(1).atStartOfDay());
+
+            List<TUserHealthDataDaily> dailyDataList = dailyMapper.selectList(query);
+            log.info("✅ 批量查询每日数据: 条件设备数={}, 日期数={}, 查询结果数={}", 
+                deviceSns.size(), dates.size(), dailyDataList.size());
+
+            // 组装结果 - 为每个查询记录匹配对应的每日数据
+            for (TUserHealthData record : records) {
+                String recordCacheKey = record.getDeviceSn() + "_" + record.getTimestamp().toLocalDate();
+                
+                // 在批量查询结果中找到匹配的每日数据
+                for (TUserHealthDataDaily daily : dailyDataList) {
+                    if (record.getDeviceSn().equals(daily.getDeviceSn())) {
+                        LocalDate recordDate = record.getTimestamp().toLocalDate();
+                        // 假设daily的timestamp字段是LocalDate类型
+                        LocalDate dailyDate = (LocalDate) daily.getTimestamp();
+                        
+                        // 如果日期匹配，添加到结果中
+                        if (recordDate.equals(dailyDate)) {
+                            Map<String, Object> data = new HashMap<>();
+                            data.put("sleepData", daily.getSleepData());
+                            data.put("exerciseDailyData", daily.getExerciseDailyData());
+                            data.put("scientificSleepData", daily.getScientificSleepData());
+                            data.put("workoutData", daily.getWorkoutData());
+                            result.put(recordCacheKey, data);
+                            break; // 找到匹配的数据后跳出内层循环
+                        }
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("❌ 批量获取每日数据失败", e);
+        }
+        
+        return result;
+    }
+
+    /**
+     * 批量获取每周数据（避免n+1问题）
+     */
+    private Map<String, Map<String, Object>> getBatchWeeklyData(List<TUserHealthData> records) {
+        Map<String, Map<String, Object>> result = new HashMap<>();
+        if (records.isEmpty()) return result;
+
+        try {
+            // 收集所有需要查询的设备和周开始日期
+            Set<String> deviceSns = new HashSet<>();
+            Set<LocalDate> weekStarts = new HashSet<>();
+            
+            for (TUserHealthData record : records) {
+                if (record.getDeviceSn() != null && record.getTimestamp() != null) {
+                    deviceSns.add(record.getDeviceSn());
+                    LocalDate date = record.getTimestamp().toLocalDate();
+                    LocalDate weekStart = date.minusDays(date.getDayOfWeek().getValue() - 1);
+                    weekStarts.add(weekStart);
+                }
+            }
+
+            if (deviceSns.isEmpty() || weekStarts.isEmpty()) return result;
+
+            // 批量查询每周数据
+            LambdaQueryWrapper<TUserHealthDataWeekly> query = new LambdaQueryWrapper<>();
+            query.in(TUserHealthDataWeekly::getDeviceSn, deviceSns);
+            
+            LocalDate minWeekStart = weekStarts.stream().min(LocalDate::compareTo).orElse(LocalDate.now());
+            LocalDate maxWeekStart = weekStarts.stream().max(LocalDate::compareTo).orElse(LocalDate.now());
+            
+            query.ge(TUserHealthDataWeekly::getTimestamp, minWeekStart.minusDays(7))
+                 .le(TUserHealthDataWeekly::getTimestamp, maxWeekStart.plusDays(7));
+
+            List<TUserHealthDataWeekly> weeklyDataList = weeklyMapper.selectList(query);
+            log.info("✅ 批量查询每周数据: 条件设备数={}, 周数={}, 查询结果数={}", 
+                deviceSns.size(), weekStarts.size(), weeklyDataList.size());
+
+            // 组装结果 - 使用日期作为缓存键，因为周数据需要匹配到具体日期
+            for (TUserHealthDataWeekly weekly : weeklyDataList) {
+                for (TUserHealthData record : records) {
+                    if (record.getDeviceSn().equals(weekly.getDeviceSn())) {
+                        String cacheKey = record.getDeviceSn() + "_" + record.getTimestamp().toLocalDate();
+                        Map<String, Object> data = new HashMap<>();
+                        data.put("exerciseWeekData", weekly.getExerciseWeekData());
+                        result.put(cacheKey, data);
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("❌ 批量获取每周数据失败", e);
+        }
+        
+        return result;
     }
 
 

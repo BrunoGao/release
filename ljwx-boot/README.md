@@ -16,6 +16,36 @@
 发版后，精致的用户界面和一致的编码，所以得此顺势完善此项目。
 在市面上虽然存在众多出色的 Java 后端管理系统框架，但还是决定重复再造一个轮子。
 
+### 🚀 最新更新
+
+#### v1.0.6 - 健康数据查询优化 (2025-01-16)
+
+**重要改进：**
+- **智能查询策略**: 根据 `userId` 参数自动选择不同的查询逻辑
+  - `userId` 为空或 "all"：只查询部门下所有设备的**最新数据**
+  - `userId` 为具体值：查询该用户指定时间范围内的**所有数据**
+  
+- **性能优化**: 解决 n+1 查询问题
+  - 新增 `getBatchDailyData()` 和 `getBatchWeeklyData()` 批量查询方法
+  - 大幅减少数据库查询次数，提升系统响应速度
+  
+- **数据安全**: 严格的部门数据隔离
+  - 自动过滤管理员设备，防止数据泄露
+  - 基于 `departmentInfo` 确保只能访问本部门数据
+
+**API 使用示例：**
+```bash
+# 查询部门所有设备最新数据
+GET /t_user_health_data/page?userId=all&departmentInfo=1940374227169349634
+
+# 查询特定用户时间范围内所有数据  
+GET /t_user_health_data/page?userId=12345&departmentInfo=1940374227169349634&startDate=1751299200000&endDate=1755187199999
+```
+
+**影响模块：**
+- `TUserHealthDataServiceImpl.java` - 核心查询逻辑优化
+- `DeviceUserMappingServiceImpl.java` - 设备用户映射服务
+
 ### 技术选型
 
 | 技术           | 说明        | 版本         |
