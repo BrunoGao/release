@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { onMounted, ref, shallowRef, watch, watchEffect } from 'vue';
 import { NButton, NPopconfirm, NTooltip } from 'naive-ui';
+import { Icon } from '@iconify/vue';
 import type { Ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
@@ -49,7 +50,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center'
     },
     {
-      key: 'orgName' as any as any,
+      key: 'departmentInfo' as any as any,
       title: '部门信息',
       align: 'center',
       width: 200
@@ -229,11 +230,10 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
   ]
 });
 function handleAlertInfo(id: string) {
-  const bigscreenUrl = import.meta.env.VITE_BIGSCREEN_URL || 'http://localhost:5002';  // 使用环境变量配置
+  const bigscreenUrl = import.meta.env.VITE_BIGSCREEN_URL || 'http://localhost:5002';
   fetch(`${bigscreenUrl}/dealAlert?alertId=${id}`)
     .then(response => {
       if (response.ok) {
-        // Refresh the page if the request is successful
         location.reload();
       } else {
         console.error('Failed to process alert');
@@ -243,7 +243,73 @@ function handleAlertInfo(id: string) {
       console.error('Error processing alert:', error);
     });
 }
+
 const { drawerVisible, openDrawer, checkedRowKeys, onDeleted, onBatchDeleted } = useTableOperate(data, getData);
+
+async function handleBatchProcessAlert() {
+  if (checkedRowKeys.value.length < 2) {
+    window.$message?.warning('请选择至少两条告警记录进行批量处理');
+    return;
+  }
+
+  // 检查选中告警的状态
+  const selectedAlerts = data.value.filter(item => checkedRowKeys.value.includes(item.id));
+  const respondedAlerts = selectedAlerts.filter(item => item.alertStatus === 'responded');
+  
+  // 如果有已响应的告警，提示用户
+  if (respondedAlerts.length > 0) {
+    const message = `选中的告警中有 ${respondedAlerts.length} 条已经处理过，是否继续批量处理？`;
+    const confirmed = await new Promise(resolve => {
+      window.$dialog?.warning({
+        title: '确认批量处理',
+        content: message,
+        positiveText: '继续处理',
+        negativeText: '取消',
+        onPositiveClick: () => resolve(true),
+        onNegativeClick: () => resolve(false)
+      });
+    });
+    
+    if (!confirmed) {
+      return;
+    }
+  }
+
+  const bigscreenUrl = import.meta.env.VITE_BIGSCREEN_URL || 'http://localhost:5001';
+
+  try {
+    const response = await fetch(`${bigscreenUrl}/batchDealAlert`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        alertIds: checkedRowKeys.value
+      })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
+        let message = `批量处理成功：${result.successCount}条`;
+        if (result.failedCount > 0) {
+          message += `，失败${result.failedCount}条`;
+        }
+        if (respondedAlerts.length > 0) {
+          message += `（其中${respondedAlerts.length}条已处理过）`;
+        }
+        window.$message?.success(message);
+        await getData();
+      } else {
+        window.$message?.error(result.message || '批量处理失败');
+      }
+    } else {
+      window.$message?.error('批量处理请求失败');
+    }
+  } catch {
+    window.$message?.error('批量处理出现错误');
+  }
+}
 
 function handleAdd() {
   operateType.value = 'add';
@@ -330,7 +396,23 @@ onMounted(() => {
         @add="handleAdd"
         @delete="handleBatchDelete"
         @refresh="getData"
-      />
+      >
+        <template #suffix>
+          <NButton
+            v-if="hasAuth('t:alert:info:update')"
+            size="small"
+            ghost
+            type="success"
+            :disabled="checkedRowKeys.length < 2 || loading"
+            @click="handleBatchProcessAlert"
+          >
+            <template #icon>
+              <Icon icon="material-symbols:check-circle-outline" />
+            </template>
+            一键批量处理
+          </NButton>
+        </template>
+      </TableHeaderOperation>
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
         remote
