@@ -1,25 +1,7 @@
-/*
- * All Rights Reserved: Copyright [2024] [Zhuang Pan (brunoGao@gmail.com)]
- * Open Source Agreement: Apache License, Version 2.0
- * For educational purposes only, commercial use shall comply with the author's copyright information.
- * The author does not guarantee or assume any responsibility for the risks of using software.
- *
- * Licensed under the Apache License, Version 2.0 (the "License").
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.ljwx.admin.controller.system;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.stp.StpUtil;
 import com.ljwx.common.api.Result;
 import com.ljwx.infrastructure.page.PageQuery;
 import com.ljwx.infrastructure.page.RPage;
@@ -30,6 +12,7 @@ import com.ljwx.modules.system.domain.dto.org.units.SysOrgUnitsUpdateDTO;
 import com.ljwx.modules.system.domain.vo.SysOrgUnitsTreeVO;
 import com.ljwx.modules.system.domain.vo.SysOrgUnitsVO;
 import com.ljwx.modules.system.facade.ISysOrgUnitsFacade;
+import com.ljwx.modules.system.service.ISysUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,17 +33,20 @@ import java.util.List;
  */
 
 @RestController
-@Tag(name = "组织/部门/子部门管理")
+@Tag(name = "租户/部门管理")
 @RequiredArgsConstructor
 @RequestMapping("/sys_org_units")
 public class SysOrgUnitsController {
 
     @NonNull
     private ISysOrgUnitsFacade sysOrgUnitsFacade;
+    
+    @NonNull
+    private ISysUserService sysUserService;
 
     @GetMapping("/page")
     @SaCheckPermission("sys:org:units:page")
-    @Operation(operationId = "1", summary = "获取组织/部门/子部门管理列表")
+    @Operation(operationId = "1", summary = "获取租户/部门列表")
     public Result<RPage<SysOrgUnitsTreeVO>> page(@Parameter(description = "分页对象", required = true) @Valid PageQuery pageQuery,
                                                  @Parameter(description = "查询对象") SysOrgUnitsSearchDTO sysOrgUnitsSearchDTO) {
         return Result.data(sysOrgUnitsFacade.listSysOrgUnitsPage(pageQuery, sysOrgUnitsSearchDTO));
@@ -68,37 +54,61 @@ public class SysOrgUnitsController {
 
     @GetMapping("/{id}")
     @SaCheckPermission("sys:org:units:get")
-    @Operation(operationId = "2", summary = "根据ID获取组织/部门/子部门管理详细信息")
+    @Operation(operationId = "2", summary = "根据ID获取租户/部门详细信息")
     public Result<SysOrgUnitsVO> get(@Parameter(description = "ID") @PathVariable("id") Long id) {
         return Result.data(sysOrgUnitsFacade.get(id));
     }
 
     @PostMapping("/")
     @SaCheckPermission("sys:org:units:add")
-    @Operation(operationId = "3", summary = "新增组织/部门/子部门管理")
+    @Operation(operationId = "3", summary = "新增租户/部门")
     public Result<Boolean> add(@Parameter(description = "新增对象") @RequestBody SysOrgUnitsAddDTO sysOrgUnitsAddDTO) {
+        // 检查权限：只有管理员才能创建顶级租户（parentId为0或1）
+        if (isTopLevelOrg(sysOrgUnitsAddDTO.getParentId()) && !isAdminUser()) {
+            return Result.fail("只有管理员才能创建租户，普通用户只能在自己的租户下创建部门");
+        }
+        
         return Result.status(sysOrgUnitsFacade.add(sysOrgUnitsAddDTO));
     }
 
     @PutMapping("/")
     @SaCheckPermission("sys:org:units:update")
-    @Operation(operationId = "4", summary = "更新组织/部门/子部门管理信息")
+    @Operation(operationId = "4", summary = "更新租户/部门信息")
     public Result<Boolean> update(@Parameter(description = "更新对象") @RequestBody SysOrgUnitsUpdateDTO sysOrgUnitsUpdateDTO) {
         return Result.status(sysOrgUnitsFacade.update(sysOrgUnitsUpdateDTO));
     }
 
     @DeleteMapping("/")
     @SaCheckPermission("sys:org:units:delete")
-    @Operation(operationId = "5", summary = "批量删除组织/部门/子部门管理信息")
+    @Operation(operationId = "5", summary = "批量删除租户/部门信息")
     public Result<Boolean> batchDelete(@Parameter(description = "删除对象") @RequestBody SysOrgUnitsDeleteDTO sysOrgUnitsDeleteDTO) {
         return Result.status(sysOrgUnitsFacade.batchDelete(sysOrgUnitsDeleteDTO));
     }
 
     @GetMapping("/tree")
     @SaCheckPermission("sys:org:units:tree")
-    @Operation(operationId = "6", summary = "获取组织/部门/子部门管理树结构数据")
+    @Operation(operationId = "6", summary = "获取租户/部门树结构数据")
     public Result<List<SysOrgUnitsTreeVO>> tree(@RequestParam(value = "id", required = false) Long id) {
         return Result.data(sysOrgUnitsFacade.queryAllOrgUnitsListConvertToTree(id));
+    }
+    
+    /**
+     * 判断是否是顶级组织（租户）
+     */
+    private boolean isTopLevelOrg(Long parentId) {
+        return parentId == null || parentId == 0L || parentId == 1L;
+    }
+    
+    /**
+     * 判断当前用户是否是管理员
+     */
+    private boolean isAdminUser() {
+        try {
+            String loginId = StpUtil.getLoginIdAsString();
+            return sysUserService.isAdminUser(Long.parseLong(loginId));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
 }

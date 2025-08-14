@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { NButton, NPopconfirm } from 'naive-ui';
 import type { Ref } from 'vue';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useAuth } from '@/hooks/business/auth';
 import { useAuthStore } from '@/store/modules/auth';
 import { useTable, useTableOperate } from '@/hooks/common/table';
@@ -24,6 +24,11 @@ const { hasAuth } = useAuth();
 const authStore = useAuthStore();
 
 const { dictTag } = useDict();
+
+// 判断是否是管理员（可以创建租户）
+const isAdmin = computed(() => {
+  return authStore.userInfo?.userName === 'admin' || authStore.userInfo?.roleIds?.includes('admin');
+});
 
 const operateType = ref<OperateType>('add');
 
@@ -173,7 +178,7 @@ async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
         v-model:columns="columnChecks"
         :checked-row-keys="checkedRowKeys"
         :loading="loading"
-        add-auth="sys:org:units:add"
+        :add-auth="isAdmin ? 'sys:org:units:add' : false"
         delete-auth="sys:org:units:delete"
         @add="handleAdd"
         @delete="handleBatchDelete"

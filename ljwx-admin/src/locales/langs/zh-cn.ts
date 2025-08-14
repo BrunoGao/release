@@ -1349,25 +1349,25 @@ const local: App.I18n.Schema = {
         editDictItem: '编辑字典项'
       },
       orgUnits: {
-        title: '组织列表',
-        name: '组织名称',
-        code: '组织编码',
-        abbr: '组织简称',
-        description: '组织描述',
+        title: '租户列表',
+        name: '租户名称',
+        code: '租户编码',
+        abbr: '租户简称',
+        description: '租户描述',
         sort: '排序',
-        status: '组织状态',
+        status: '租户状态',
         form: {
-          name: '请输入组织名称',
-          code: '请输入组织编码',
-          abbr: '请输入组织简称',
-          description: '请输入组织描述',
+          name: '请输入租户名称',
+          code: '请输入租户编码',
+          abbr: '请输入租户简称',
+          description: '请输入租户描述',
           sort: '请输入排序',
-          status: '请选择组织状态'
+          status: '请选择租户状态'
         },
-        addOrgUnits: '新增组织',
-        editOrgUnits: '编辑组织',
-        addChildOrgUnits: '新增子组织',
-        unassigned: '未分配组织'
+        addOrgUnits: '新增租户',
+        editOrgUnits: '编辑租户',
+        addChildOrgUnits: '新增部门',
+        unassigned: '未分配租户'
       },
       notice: {
         category: '分类',
