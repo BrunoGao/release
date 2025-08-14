@@ -1,0 +1,2 @@
+/Users/bg/work/codes/springboot/ljwx/flutter/ljwx_health_new/android/app/.cxx/Debug/334t5h4y/x86_64/CMakeFiles/edit_cache.dir
+/Users/bg/work/codes/springboot/ljwx/flutter/ljwx_health_new/android/app/.cxx/Debug/334t5h4y/x86_64/CMakeFiles/rebuild_cache.dir

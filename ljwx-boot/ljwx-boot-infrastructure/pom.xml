@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.ljwx</groupId>
+        <artifactId>ljwx-boot</artifactId>
+        <version>1.0.6-SNAPSHOT</version>
+    </parent>
+
+    <version>1.0.6-SNAPSHOT</version>
+    <name>ljwx-boot-infrastructure</name>
+    <artifactId>ljwx-boot-infrastructure</artifactId>
+    <description>LjwxBoot 后台管理系统 - Infrastructure 基础配置</description>
+
+    <dependencies>
+        <!-- Common Core -->
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-common</artifactId>
+        </dependency>
+        <!-- SpringBoot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- LjwxBoot Starter Begin -->
+        <!-- MySQL -->
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-starter-database-mysql</artifactId>
+        </dependency>
+        <!-- MyBatis Plus -->
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-starter-code-generator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-starter-database-mybatis-plus</artifactId>
+        </dependency>
+        <!-- Redis -->
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-starter-database-redis</artifactId>
+        </dependency>
+        <!-- Sa-Token -->
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-starter-sa-token</artifactId>
+        </dependency>
+        <!-- Job Quartz -->
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-starter-job-quartz</artifactId>
+        </dependency>
+        <!-- OSS -->
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-starter-oss</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-core</artifactId>
+            <version>1.39.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-core</artifactId>
+            <version>3.5.8</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- LjwxBoot Starter End -->
+    </dependencies>
+
+</project>

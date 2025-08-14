@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+  bigscreen-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bigscreen-container
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - IS_DOCKER=true
+      - MYSQL_HOST=host.docker.internal
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER:-root}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-123456}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-lj-06}
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - APP_HOST=0.0.0.0
+      - APP_PORT=5001
+      - DEBUG=False
+      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://${MYSQL_USER:-root}:${MYSQL_PASSWORD:-123456}@host.docker.internal:${MYSQL_PORT:-3306}/${MYSQL_DATABASE:-lj-06}
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - bigscreen-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  bigscreen-network:
+    driver: bridge 

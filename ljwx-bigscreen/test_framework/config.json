@@ -1,0 +1,69 @@
+{
+  "api_base_url": "http://localhost:5001",
+  "db_config": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "root",
+    "password": "123456",
+    "database": "lj-06"
+  },
+  "test_timeout": 30,
+  "retry_count": 3,
+  "cleanup_test_data": true,
+  "parallel_execution": false,
+  "output_format": "detailed",
+  "report_formats": ["console", "file", "json"],
+  "test_suites": {
+    "upload_common_event": {
+      "enabled": true,
+      "test_events": [
+        {
+          "name": "SOS紧急求救",
+          "eventType": "SOS_EVENT",
+          "eventValue": "1",
+          "expect_alert": true,
+          "expect_message": true,
+          "expect_wechat": true,
+          "priority": "emergency"
+        },
+        {
+          "name": "跌倒检测",
+          "eventType": "FALLDOWN_EVENT",
+          "eventValue": "1",
+          "expect_alert": true,
+          "expect_message": true,
+          "expect_wechat": true,
+          "priority": "emergency"
+        },
+        {
+          "name": "一键报警",
+          "eventType": "ONE_KEY_ALARM",
+          "eventValue": "1",
+          "expect_alert": true,
+          "expect_message": true,
+          "expect_wechat": true,
+          "priority": "emergency"
+        },
+        {
+          "name": "穿戴状态变化",
+          "eventType": "com.tdtech.ohos.action.WEAR_STATUS_CHANGED",
+          "eventValue": "0",
+          "expect_alert": false,
+          "expect_message": true,
+          "expect_wechat": false,
+          "priority": "normal"
+        }
+      ]
+    }
+  },
+  "alert_mechanisms": {
+    "check_interval": 5,
+    "max_wait_time": 60,
+    "expected_tables": ["t_alert_info", "t_device_message", "t_user_health_data"]
+  },
+  "wechat_testing": {
+    "test_endpoint": "/api/test/wechat",
+    "timeout": 15,
+    "retry_attempts": 2
+  }
+} 

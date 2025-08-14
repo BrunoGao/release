@@ -1,0 +1,384 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ljwx-bigscreen
+  namespace: ${KUBE_NAMESPACE}
+  labels:
+    app: ljwx-bigscreen
+    version: "${IMAGE_TAG}"
+    environment: ${ENVIRONMENT}
+  annotations:
+    deployment.kubernetes.io/revision: "${DEPLOYMENT_ID}"
+    ljwx.com/build-date: "${BUILD_DATE}"
+spec:
+  replicas: ${REPLICAS:-3}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: ljwx-bigscreen
+      environment: ${ENVIRONMENT}
+  template:
+    metadata:
+      labels:
+        app: ljwx-bigscreen
+        version: "${IMAGE_TAG}"
+        environment: ${ENVIRONMENT}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5001"
+        prometheus.io/path: "/metrics"
+        ljwx.com/config-hash: "${CONFIG_HASH}"
+    spec:
+      # 多架构节点调度
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - ljwx-bigscreen
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+          - weight: 30
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - arm64
+
+      # 安全上下文
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
+      # 容器配置
+      containers:
+      - name: ljwx-bigscreen
+        image: ${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
+        imagePullPolicy: Always
+
+        # 端口配置
+        ports:
+        - name: http
+          containerPort: 5001
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+
+        # 环境变量
+        env:
+        - name: ENVIRONMENT
+          value: "${ENVIRONMENT}"
+        - name: APP_VERSION
+          value: "${IMAGE_TAG}"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+
+        # 从 ConfigMap 加载配置
+        envFrom:
+        - configMapRef:
+            name: ljwx-bigscreen-config
+        - secretRef:
+            name: ljwx-bigscreen-secrets
+
+        # 资源限制
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+
+        # 健康检查
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /api/ready
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+
+        startupProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30
+
+        # 数据卷挂载
+        volumeMounts:
+        - name: app-logs
+          mountPath: /app/logs
+        - name: app-cache
+          mountPath: /app/cache
+        - name: app-config
+          mountPath: /app/config
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+
+        # 安全上下文
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+
+      # 数据卷定义
+      volumes:
+      - name: app-logs
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: app-cache
+        emptyDir:
+          sizeLimit: 500Mi
+      - name: app-config
+        configMap:
+          name: ljwx-bigscreen-config
+      - name: tmp
+        emptyDir:
+          sizeLimit: 100Mi
+
+      # DNS 配置
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+
+      # 重启策略
+      restartPolicy: Always
+
+      # 终止优雅期
+      terminationGracePeriodSeconds: 30
+
+      # 镜像拉取策略
+      imagePullSecrets:
+      - name: aliyun-registry-secret
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ljwx-bigscreen-config
+  namespace: ${KUBE_NAMESPACE}
+  labels:
+    app: ljwx-bigscreen
+    environment: ${ENVIRONMENT}
+data:
+  # 数据库配置
+  MYSQL_HOST: "ljwx-mysql-service"
+  MYSQL_PORT: "3306"
+  MYSQL_DATABASE: "ljwx"
+  
+  # Redis 配置
+  REDIS_HOST: "ljwx-redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  
+  # 应用配置
+  FLASK_ENV: "production"
+  LOG_LEVEL: "INFO"
+  TZ: "Asia/Shanghai"
+  
+  # 性能配置
+  WORKERS: "4"
+  MAX_CONNECTIONS: "1000"
+  TIMEOUT: "120"
+  
+  # 功能开关
+  ENABLE_CACHE: "true"
+  ENABLE_MONITORING: "true"
+  ENABLE_DEBUG: "false"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ljwx-bigscreen-secrets
+  namespace: ${KUBE_NAMESPACE}
+  labels:
+    app: ljwx-bigscreen
+    environment: ${ENVIRONMENT}
+type: Opaque
+data:
+  # Base64 编码的敏感信息
+  MYSQL_USER: bGp3eF91c2Vy  # ljwx_user
+  MYSQL_PASSWORD: bGp3eF9zZWN1cmVfcGFzc18yMDI0  # ljwx_secure_pass_2024
+  REDIS_PASSWORD: cmVkaXNfc2VjdXJlX3Bhc3NfMjAyNA==  # redis_secure_pass_2024
+  SECRET_KEY: bGp3eC1iaWdzY3JlZW4tc2VjcmV0LWtleS0yMDI0  # ljwx-bigscreen-secret-key-2024
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ljwx-bigscreen-service
+  namespace: ${KUBE_NAMESPACE}
+  labels:
+    app: ljwx-bigscreen
+    environment: ${ENVIRONMENT}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5001"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP
+  selector:
+    app: ljwx-bigscreen
+    environment: ${ENVIRONMENT}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ljwx-bigscreen-ingress
+  namespace: ${KUBE_NAMESPACE}
+  labels:
+    app: ljwx-bigscreen
+    environment: ${ENVIRONMENT}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # 启用限流
+    nginx.ingress.kubernetes.io/rate-limit-connections: "50"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit-rpm: "300"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: bigscreen.ljwx.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ljwx-bigscreen-service
+            port:
+              number: 80
+  # TLS 配置 (可选)
+  # tls:
+  # - hosts:
+  #   - bigscreen.ljwx.local
+  #   secretName: ljwx-bigscreen-tls
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ljwx-bigscreen-hpa
+  namespace: ${KUBE_NAMESPACE}
+  labels:
+    app: ljwx-bigscreen
+    environment: ${ENVIRONMENT}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ljwx-bigscreen
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ljwx-bigscreen-pdb
+  namespace: ${KUBE_NAMESPACE}
+  labels:
+    app: ljwx-bigscreen
+    environment: ${ENVIRONMENT}
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: ljwx-bigscreen
+      environment: ${ENVIRONMENT}

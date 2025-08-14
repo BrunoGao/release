@@ -1,0 +1,242 @@
+name: LJWX BigScreen CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: 192.168.1.83:5000  # 内网Docker Registry
+  IMAGE_NAME: ljwx-bigscreen
+  K8S_NAMESPACE: ljwx-system
+
+jobs:
+  # 代码质量检查
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    - name: 安装依赖
+      run: |
+        pip install flake8 black pytest
+        pip install -r bigscreen/requirements-docker.txt
+    - name: 代码格式检查
+      run: |
+        black --check bigscreen/
+        flake8 bigscreen/ --max-line-length=88
+    - name: 运行测试
+      run: |
+        cd bigscreen && python -m pytest tests/ -v
+
+  # 多架构镜像构建
+  build-multiarch:
+    needs: code-quality
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: 设置Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      with:
+        platforms: linux/amd64,linux/arm64
+    
+    - name: 登录Docker Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: 提取元数据
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+    
+    - name: 构建并推送多架构镜像
+      id: build
+      uses: docker/build-push-action@v4
+      with:
+        context: ./bigscreen
+        file: ./bigscreen/Dockerfile.multiarch
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # 安全扫描
+  security-scan:
+    needs: build-multiarch
+    runs-on: ubuntu-latest
+    steps:
+    - name: 镜像安全扫描
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ needs.build-multiarch.outputs.image-tag }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: 上传扫描结果
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # 开发环境部署
+  deploy-dev:
+    needs: [build-multiarch, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment: development
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: 配置kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: 配置K8s集群访问
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+        kubectl config use-context ljwx-dev
+    
+    - name: 部署到开发环境
+      run: |
+        envsubst < k8s/dev/deployment.yaml | kubectl apply -f -
+        kubectl rollout status deployment/ljwx-bigscreen-dev -n ${{ env.K8S_NAMESPACE }}
+      env:
+        IMAGE_TAG: ${{ needs.build-multiarch.outputs.image-tag }}
+
+  # 生产环境灰度部署
+  deploy-canary:
+    needs: [build-multiarch, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: 配置kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: 配置K8s集群访问
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+        kubectl config use-context ljwx-prod
+    
+    - name: 灰度部署(10%流量)
+      run: |
+        # 部署Canary版本
+        envsubst < k8s/prod/canary-deployment.yaml | kubectl apply -f -
+        kubectl rollout status deployment/ljwx-bigscreen-canary -n ${{ env.K8S_NAMESPACE }}
+        
+        # 配置流量分割
+        kubectl apply -f k8s/prod/canary-service.yaml
+        kubectl apply -f k8s/prod/canary-ingress.yaml
+        
+        echo "灰度部署完成，10%流量已切换到新版本"
+      env:
+        IMAGE_TAG: ${{ needs.build-multiarch.outputs.image-tag }}
+    
+    - name: 健康检查
+      run: |
+        sleep 60  # 等待服务启动
+        kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=ljwx-bigscreen-canary
+        
+        # 检查健康状态
+        for i in {1..10}; do
+          if kubectl exec -n ${{ env.K8S_NAMESPACE }} deployment/ljwx-bigscreen-canary -- curl -f http://localhost:5001/api/health; then
+            echo "健康检查通过"
+            break
+          fi
+          echo "健康检查失败，重试中... ($i/10)"
+          sleep 30
+        done
+
+  # 生产环境全量部署
+  deploy-production:
+    needs: deploy-canary
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production-full
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: 配置kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: 配置K8s集群访问
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+        kubectl config use-context ljwx-prod
+    
+    - name: 全量部署
+      run: |
+        # 更新主要部署
+        envsubst < k8s/prod/deployment.yaml | kubectl apply -f -
+        kubectl rollout status deployment/ljwx-bigscreen -n ${{ env.K8S_NAMESPACE }}
+        
+        # 切换100%流量到新版本
+        kubectl apply -f k8s/prod/service.yaml
+        kubectl apply -f k8s/prod/ingress.yaml
+        
+        # 清理Canary部署
+        kubectl delete deployment ljwx-bigscreen-canary -n ${{ env.K8S_NAMESPACE }} --ignore-not-found
+        
+        echo "生产环境全量部署完成"
+      env:
+        IMAGE_TAG: ${{ needs.build-multiarch.outputs.image-tag }}
+
+  # 回滚作业
+  rollback:
+    runs-on: ubuntu-latest
+    if: failure() && github.ref == 'refs/heads/main'
+    needs: [deploy-canary, deploy-production]
+    environment: production
+    steps:
+    - name: 配置kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: 配置K8s集群访问
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+        kubectl config use-context ljwx-prod
+    
+    - name: 执行回滚
+      run: |
+        echo "检测到部署失败，执行自动回滚..."
+        kubectl rollout undo deployment/ljwx-bigscreen -n ${{ env.K8S_NAMESPACE }}
+        kubectl rollout status deployment/ljwx-bigscreen -n ${{ env.K8S_NAMESPACE }}
+        
+        # 清理失败的Canary部署
+        kubectl delete deployment ljwx-bigscreen-canary -n ${{ env.K8S_NAMESPACE }} --ignore-not-found
+        
+        echo "回滚完成" 

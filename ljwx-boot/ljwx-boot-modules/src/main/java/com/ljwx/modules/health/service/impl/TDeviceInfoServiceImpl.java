@@ -1,0 +1,125 @@
+/*
+ * All Rights Reserved: Copyright [2024] [Zhuang Pan (brunoGao@gmail.com)]
+ * Open Source Agreement: Apache License, Version 2.0
+ * For educational purposes only, commercial use shall comply with the author's copyright information.
+ * The author does not guarantee or assume any responsibility for the risks of using software.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.ljwx.modules.health.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.ljwx.infrastructure.page.PageQuery;
+import com.ljwx.modules.health.domain.bo.TDeviceInfoBO;
+import com.ljwx.modules.health.domain.entity.TDeviceInfo;
+import com.ljwx.modules.health.repository.mapper.TDeviceInfoMapper;
+import com.ljwx.modules.health.service.IDeviceUserMappingService;
+import com.ljwx.modules.health.service.ITDeviceInfoService;
+import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ *  Service 服务接口实现层
+ *
+ * @Author jjgao
+ * @ProjectName ljwx-boot
+ * @ClassName com.ljwx.modules.health.service.impl.TDeviceInfoServiceImpl
+ * @CreateTime 2024-12-14 - 21:31:16
+ */
+
+@Service
+public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDeviceInfo> implements ITDeviceInfoService {
+
+    @Autowired
+    private IDeviceUserMappingService deviceUserMappingService;
+
+    @Override
+    public IPage<TDeviceInfo> listTDeviceInfoPage(PageQuery pageQuery, TDeviceInfoBO tDeviceInfoBO) {
+        // 构建基本查询条件
+       // ... existing code ...
+        LambdaQueryWrapper<TDeviceInfo> queryWrapper = new LambdaQueryWrapper<TDeviceInfo>()
+        .eq(ObjectUtils.isNotEmpty(tDeviceInfoBO.getChargingStatus()), TDeviceInfo::getChargingStatus, tDeviceInfoBO.getChargingStatus())
+        .eq(ObjectUtils.isNotEmpty(tDeviceInfoBO.getWearableStatus()), TDeviceInfo::getWearableStatus, tDeviceInfoBO.getWearableStatus())
+        .eq(ObjectUtils.isNotEmpty(tDeviceInfoBO.getModel()), TDeviceInfo::getModel, tDeviceInfoBO.getModel())
+        .eq(ObjectUtils.isNotEmpty(tDeviceInfoBO.getStatus()), TDeviceInfo::getStatus, tDeviceInfoBO.getStatus())
+        .inSql(TDeviceInfo::getId, "SELECT id FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY serial_number ORDER BY timestamp DESC) as rn FROM t_device_info) t WHERE rn = 1")
+        .orderByDesc(TDeviceInfo::getTimestamp);
+// ... existing code ...
+        // 🔧 修复: departmentInfo=0时查询所有设备 #条件过滤优化
+        System.out.println("🔍 查询条件 - userIdStr: " + tDeviceInfoBO.getUserIdStr() + ", departmentInfo: " + tDeviceInfoBO.getDepartmentInfo());
+        
+        if (ObjectUtils.isNotEmpty(tDeviceInfoBO.getUserIdStr()) || 
+           (ObjectUtils.isNotEmpty(tDeviceInfoBO.getDepartmentInfo()) && !"0".equals(tDeviceInfoBO.getDepartmentInfo()))) {
+            
+            List<String> deviceSnList = deviceUserMappingService.getDeviceSnList(
+                tDeviceInfoBO.getUserIdStr(),
+                tDeviceInfoBO.getDepartmentInfo()
+            );
+
+            System.out.println("✅ 获取设备列表: " + deviceSnList.toString());
+            
+            if (deviceSnList == null || deviceSnList.isEmpty()) {
+                return pageQuery.buildPage();
+            }
+            
+            List<String> validDeviceSnList = deviceSnList.stream()
+                .filter(Objects::nonNull)
+                .filter(sn -> !sn.trim().isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+            
+            if (validDeviceSnList.isEmpty()) {
+                return pageQuery.buildPage();
+            }
+            
+            queryWrapper.in(TDeviceInfo::getSerialNumber, validDeviceSnList);
+        }
+
+        // 执行分页查询
+        IPage<TDeviceInfo> page = baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
+
+        // 获取所有不重复的deviceSn
+        Set<String> deviceSns = page.getRecords().stream()
+            .map(TDeviceInfo::getSerialNumber)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+        // 获取设备关联的用户和部门信息
+        Map<String, IDeviceUserMappingService.UserInfo> deviceUserMap = deviceUserMappingService.getDeviceUserInfo(deviceSns);
+
+        // 为每条记录添加用户和部门信息
+        page.getRecords().forEach(record -> {
+            if (record.getSerialNumber() != null) {
+                IDeviceUserMappingService.UserInfo userInfo = deviceUserMap.get(record.getSerialNumber());
+                if (userInfo != null) {
+                    record.setUserName(userInfo.getUserName());
+                    record.setDepartmentInfo(userInfo.getDepartmentName());
+                }
+            }
+        });
+
+        return page;
+    }
+
+}
+

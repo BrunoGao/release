@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ljwx.modules.geofence.repository.mapper.TGeofenceMapper">
+
+    <!-- SQL to select geofence data with pagination and query conditions -->
+    <select id="listGeofence" resultType="com.ljwx.modules.geofence.domain.entity.TGeofence">
+        SELECT * FROM t_geofence
+        <where>
+            <if test="ew != null">
+                ${ew.customSqlSegment}
+            </if>
+        </where>
+    </select>
+
+</mapper> 

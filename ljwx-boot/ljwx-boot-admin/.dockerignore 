@@ -1,0 +1,12 @@
+**/target/
+!ljwx-boot-admin/target/*.jar
+.git
+.gitignore
+.idea
+*.iml
+*.log
+*.log.*
+*.log.*.*
+*.log.*.*.*
+*.log.*.*.*.*
+*.log.*.*.*.*.*

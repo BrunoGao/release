@@ -1,0 +1,108 @@
+# 灵境万象系统 - Client Deployment Git忽略规则
+
+# ===== 通用规则 =====
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== Java/Spring Boot =====
+target/
+*.jar
+*.war
+*.ear
+*.class
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+mvnw
+mvnw.cmd
+
+# ===== Node.js/Vue.js =====
+node_modules/
+dist/
+.nuxt/
+.output/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ===== Python/Flask =====
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+.cache
+*.egg-info/
+
+# ===== Docker =====
+.env.local
+.env.production
+
+# ===== 数据库 =====
+*.sql.bak
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== 证书和密钥 =====
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+
+# ===== 备份文件 =====
+*.bak
+*.backup
+
+# ===== Client Deployment 特定忽略 =====
+# 忽略运行时生成的数据和日志目录
+backups/
+data/
+data1/
+logs/
+utils/
+
+# 忽略MySQL和Redis运行时文件
+*.ibd
+*.redo*
+*.undo*
+*.log.gz
+*.aof
+*.rdb
+binlog.*
+
+# 忽略plist配置文件
+*.plist
+
+# 忽略备份SQL文件
+data.sql
+data*.sql
+*backup*.sql
+
+# 忽略环境配置文件
+.env.local
+.env.production
+
+# 忽略临时配置文件
+*-adaptive.yml
+*-mysql-*.yml
+*.yml.bak
+
+# 忽略运行时报告
+environment-report.txt
+mysql-keepalive.log

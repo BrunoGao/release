@@ -1,0 +1,64 @@
+{
+    "juejin": {
+      "article_selector": {"item": "div", "class": "article-viewer"},
+      "title_selector": {"itemprop": "headline"},
+      "keywords_selector": {"itemprop": "keywords"},
+      "code_selector": {"item": "code", "class": "hljs"},
+      "author_info_selectors": {
+        "name": ".name",
+        "title": ".position",
+        "url": ".user-item[href]",
+        "image_url": ".avatar-img[src]"
+      }
+    },
+    "zhihu": {
+      "article_selector": {"item": "div", "class": "Post-RichTextContainer"},
+      "title_selector": {"data-rh": "true", "property": "og:title"},
+      "keywords_selector": {"name": "keywords"},
+      "code_selector": {"item": "code", "class": "language-text"},
+      "author_info_selectors": {
+        "name": "meta[itemprop='name'][content]",
+        "title": ".AuthorInfo-badge",
+        "url": "meta[itemprop='url'][content]",
+        "image_url": "meta[itemprop='image'][content]"
+      }
+    },
+    "csdn": {
+      "article_selector": {"item": "div", "class": "article_content"},
+      "title_selector": {"class": "title-article"},
+      "keywords_selector": {"name": "keywords"},
+      "code_selector": {"item": "code", "class": "highlight"},
+      "author_info_selectors": {
+        "name": ".follow-nickName",
+        "title": ".follow-nickName",
+        "url": ".follow-nickName[href]",
+        "image_url": ".article-type-img[src]"
+      }
+    },
+    "jianshu": {
+      "article_selector": {"item": "article", "class": "_2rhmJa"},
+      "title_selector": {"class": "_1RuRku"},
+      "keywords_selector": {"name": "keywords"},
+      "pblishdate_selector": {"time": "datetime"},
+      "code_selector": {"item": "div", "class": "_2Uzcx_"},
+      "author_info_selectors": {
+        "name": "._22gUMi",
+        "title": "._2WEj6j",
+        "url": ".qzhJKO[href]",
+        "image_url": "._13D2Eh"
+      }
+    },
+    "cnblogs": {
+      "article_selector": {"item": "div", "class": "blogpost-body"},
+      "title_selector": {"id": "cb_post_title_url"},
+      "keywords_selector": {"div": "#EntryTag > a"},
+      "code_selector": {"item": "div", "class": "highlight"},
+      "author_info_selectors": {
+        "name": ".headermaintitle",
+        "title": "#blogTitle > h2",
+        "url": ".headermaintitle[href]",
+        "image_url": ".headermaintitle img[src]"
+      }
+    }
+
+  }

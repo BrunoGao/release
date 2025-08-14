@@ -1,0 +1,32 @@
+🚀 生产环境配置已加载 - 调试输出已禁用
+2025-06-02 15:47:14,262 [[32mINFO[0m] ljwx.system.enable_all_prints:22 - 已启用所有print调试输出
+2025-06-02 15:47:14,263 [[32mINFO[0m] ljwx.system.<module>:12 - 🚀 启动Bigscreen应用
+🚀 启动Bigscreen应用
+📊 数据库: 127.0.0.1:3306/lj-06
+🔧 Redis: 127.0.0.1:6379
+🌐 端口: 8001
+--------------------------------------------------
+📦 开始导入bigScreen模块...
+✅ bigScreen.app 导入成功
+Access Token: 92__oeTY3N5WbNaBnpoHYT_dt-VTcGEi_BkYzItZs9xiunVLoMBDfWct7JeEhOBoLYNxdZ0PhqgXYoTe0pVlVYtJRel5w9hqJkeIGKrV9DePIApkpBaoO9gCbTP2j4ZAAhAEACDD
+Expires in: 7200 seconds
+2025-06-02 15:47:15,310 [[32mINFO[0m] ljwx.system.<module>:83 - Redis连接成功
+🔧 Redis监听器已临时禁用，避免认证错误
+✅ bigScreen.bigScreen 导入成功
+🚀 应用启动准备完成
+🌟 启动Web服务器...
+ * Serving Flask app 'bigScreen.bigScreen'
+ * Debug mode: on
+🚀 生产环境配置已加载 - 调试输出已禁用
+2025-06-02 15:47:15,513 [[32mINFO[0m] ljwx.system.enable_all_prints:22 - 已启用所有print调试输出
+2025-06-02 15:47:15,515 [[32mINFO[0m] ljwx.system.<module>:12 - 🚀 启动Bigscreen应用
+🚀 启动Bigscreen应用
+📊 数据库: 127.0.0.1:3306/lj-06
+🔧 Redis: 127.0.0.1:6379
+🌐 端口: 8001
+--------------------------------------------------
+📦 开始导入bigScreen模块...
+✅ bigScreen.app 导入成功
+Access Token: 92__oeTY3N5WbNaBnpoHYT_dt-VTcGEi_BkYzItZs9xiunVLoMBDfWct7JeEhOBoLYNxdZ0PhqgXYoTe0pVlVYtJRel5w9hqJkeIGKrV9DePIApkpBaoO9gCbTP2j4FJQhAEABFM
+Expires in: 7200 seconds
+2025-06-02 15:47:16,294 [[32mINFO[0m] ljwx.system.<module>:83 - Redis连接成功

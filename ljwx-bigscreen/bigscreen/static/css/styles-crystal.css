@@ -1,0 +1,86 @@
+
+.profile-card {
+    background: rgba(255, 255, 255, 0.05); /* Semi-transparent background */
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Light border for crystal effect */
+    border-radius: 15px;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+    width: 400px;
+    padding: 20px;
+    backdrop-filter: blur(15px); /* Background blur for crystal effect */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: glow 1.5s infinite alternate; /* Add a glowing animation */
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+    }
+    to {
+        box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+    }
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin-right: 20px;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+.basic-info h2 {
+    margin: 0;
+    font-size: 1.8em;
+    color: #00ffff;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+}
+
+.basic-info p {
+    margin: 5px 0;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+}
+
+.body {
+    width: 100%;
+}
+
+.section {
+    background: rgba(0, 0, 50, 0.3); /* Deep blue background with transparency */
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.section h3 {
+    margin: 0 0 10px;
+    color: #00ffff;
+    font-size: 1.2em;
+}
+
+.section p {
+    margin: 5px 0;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7); /* Enhance readability */
+}
+
+.metric {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.metric .icon {
+    width: 30px;
+    height: 30px;
+    margin-right: 10px;
+    filter: drop-shadow(0 0 5px #00ffff);
+}

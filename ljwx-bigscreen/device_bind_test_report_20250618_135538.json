@@ -1,0 +1,51 @@
+[
+  {
+    "test": "二维码生成",
+    "status": "❌ 失败",
+    "message": "HTTP状态码: 404",
+    "data": null,
+    "time": "13:55:38"
+  },
+  {
+    "test": "绑定申请提交",
+    "status": "❌ 失败",
+    "message": "HTTP状态码: 404",
+    "data": null,
+    "time": "13:55:38"
+  },
+  {
+    "test": "获取申请列表",
+    "status": "❌ 失败",
+    "message": "HTTP状态码: 404",
+    "data": null,
+    "time": "13:55:38"
+  },
+  {
+    "test": "手动绑定设备",
+    "status": "❌ 失败",
+    "message": "HTTP状态码: 404",
+    "data": null,
+    "time": "13:55:38"
+  },
+  {
+    "test": "解绑设备",
+    "status": "❌ 失败",
+    "message": "HTTP状态码: 404",
+    "data": null,
+    "time": "13:55:38"
+  },
+  {
+    "test": "绑定日志查询",
+    "status": "❌ 失败",
+    "message": "HTTP状态码: 404",
+    "data": null,
+    "time": "13:55:38"
+  },
+  {
+    "test": "管理页面访问",
+    "status": "❌ 失败",
+    "message": "HTTP状态码: 404",
+    "data": null,
+    "time": "13:55:38"
+  }
+]

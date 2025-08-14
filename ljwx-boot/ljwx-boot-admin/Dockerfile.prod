@@ -1,0 +1,27 @@
+# 多阶段构建
+FROM maven:3-eclipse-temurin-21 AS builder
+WORKDIR /app
+
+# 先复制并构建ljwx-boot-starter
+COPY ljwx-boot-starter ./ljwx-boot-starter
+WORKDIR /app/ljwx-boot-starter
+RUN mvn clean install -DskipTests
+
+# 然后构建ljwx-boot
+WORKDIR /app
+COPY ljwx-boot/pom.xml .
+COPY ljwx-boot/ljwx-boot-admin ./ljwx-boot-admin
+COPY ljwx-boot/ljwx-boot-common ./ljwx-boot-common
+COPY ljwx-boot/ljwx-boot-infrastructure ./ljwx-boot-infrastructure
+COPY ljwx-boot/ljwx-boot-modules ./ljwx-boot-modules
+RUN mvn clean package -DskipTests -pl ljwx-boot-admin -am
+
+# 运行阶段 - 使用Alpine JRE镜像优化大小
+FROM eclipse-temurin:21-jre-alpine
+LABEL maintainer="gaojunivas@gmail.com"
+ENV TZ='Asia/Shanghai'
+RUN apk add --no-cache tzdata && ln -snf /usr/share/zoneinfo/"$TZ" /etc/localtime && echo "$TZ" > /etc/timezone
+WORKDIR /app
+COPY --from=builder /app/ljwx-boot-admin/target/*.jar app.jar
+EXPOSE 9998
+ENTRYPOINT ["java","-Xms256m","-Xmx512m","-jar","app.jar"] 

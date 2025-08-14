@@ -1,0 +1,453 @@
+<!-- 在现有的 CSS 部分添加新样式 -->
+<style>
+/* 告警滚动条样式 */
+.marquee-container {
+    width: 100%;
+    height: 40px;
+    overflow: hidden;
+    background: rgba(0, 15, 29, 0.8);
+    border-radius: 4px;
+    margin: 10px 0;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.marquee-content {
+    display: flex;
+    animation: marquee 20s linear infinite;
+}
+
+.alert-item {
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    color: #fff;
+    white-space: nowrap;
+    gap: 10px;
+}
+
+.alert-item.critical {
+    color: #ff4757;
+}
+
+.alert-item.medium {
+    color: #ffa502;
+}
+
+.alert-item .time {
+    color: #00f0ff;
+    font-family: 'Digital-7', monospace;
+}
+
+@keyframes marquee {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+}
+
+/* 统计面板轮播样式 */
+.slide-container {
+    position: relative;
+    height: 300px;
+    overflow: hidden;
+    background: rgba(0, 15, 29, 0.8);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.slide {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.slide.active {
+    opacity: 1;
+}
+
+/* 更新现有的面板样式 */
+.left-panel, .center-panel, .right-panel {
+    background: rgba(0, 15, 29, 0.8);
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.chart-title {
+    color: #fff;
+    font-size: 16px;
+    margin-bottom: 10px;
+    padding-left: 10px;
+    border-left: 4px solid #00f0ff;
+}
+</style>
+
+<!-- 在主要内容区域添加新的结构 -->
+<div class="marquee-container">
+    <div class="marquee-content" id="alertMarquee"></div>
+</div>
+
+<!-- 修改现有的面板结构 -->
+<div class="panel-container">
+    <!-- 左侧面板 -->
+    <div class="left-panel">
+        <div class="chart-title">告警趋势分析</div>
+        <div id="alertTrendChart" style="height: 300px;"></div>
+        <div class="chart-title">健康指标趋势</div>
+        <div id="healthTrendChart" style="height: 300px;"></div>
+    </div>
+
+    <!-- 中间面板 -->
+    <div class="center-panel">
+        <div class="slide-container" id="slideContainer">
+            <div class="slide active" data-index="0">
+                <div class="chart-title">部门概览</div>
+                <div id="departmentOverviewChart" style="height: 280px;"></div>
+            </div>
+            <div class="slide" data-index="1">
+                <div class="chart-title">设备状态统计</div>
+                <div id="deviceStatusChart" style="height: 280px;"></div>
+            </div>
+            <div class="slide" data-index="2">
+                <div class="chart-title">健康指标统计</div>
+                <div id="healthStatsChart" style="height: 280px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧面板 -->
+    <div class="right-panel">
+        <div class="chart-title">告警状态监控</div>
+        <div id="alertStatusChart" style="height: 300px;"></div>
+        <div class="chart-title">设备实时监控</div>
+        <div id="deviceMonitorChart" style="height: 300px;"></div>
+    </div>
+</div>
+
+<!-- 在现有的 JavaScript 部分添加新的函数 -->
+<script>
+// 全局数据对象
+let globalData = null;
+
+// 获取并更新数据
+async function fetchAndUpdateData() {
+    try {
+        const response = await fetch('/get_total_info?customer_id=1');
+        const data = await response.json();
+        if (data.success) {
+            globalData = data.data;
+            updateAllCharts();
+            updateAlertMarquee();
+        }
+    } catch (error) {
+        console.error('Error fetching data:', error);
+    }
+}
+
+// 更新告警滚动信息
+function updateAlertMarquee() {
+    const marquee = document.getElementById('alertMarquee');
+    const alerts = globalData.alert_info.alerts;
+    
+    marquee.innerHTML = alerts.map(alert => `
+        <div class="alert-item ${alert.severity_level}">
+            <span class="time">${alert.alert_timestamp}</span>
+            <span class="type">[${alert.alert_type}]</span>
+            <span class="dept">${alert.dept_name}</span>
+            <span class="user">${alert.user_name}</span>
+            <span class="desc">${alert.alert_desc}</span>
+        </div>
+    `).join('');
+}
+
+// 更新所有图表
+function updateAllCharts() {
+    updateAlertTrendChart();
+    updateHealthTrendChart();
+    updateDepartmentOverview();
+    updateDeviceStatus();
+    updateHealthStats();
+    updateAlertStatus();
+    updateDeviceMonitor();
+}
+
+// 告警趋势图表
+function updateAlertTrendChart() {
+    const chart = echarts.init(document.getElementById('alertTrendChart'));
+    const alertTypes = Object.keys(globalData.alert_info.alertTypeCount);
+    const alertCounts = Object.values(globalData.alert_info.alertTypeCount);
+    
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow'
+            }
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: alertTypes,
+            axisLabel: {
+                color: '#fff',
+                rotate: 45
+            }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                color: '#fff'
+            }
+        },
+        series: [{
+            name: '告警数量',
+            type: 'bar',
+            data: alertCounts,
+            itemStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    {offset: 0, color: '#00f0ff'},
+                    {offset: 1, color: '#0066ff'}
+                ])
+            }
+        }]
+    };
+    
+    chart.setOption(option);
+}
+
+// 健康趋势图表
+function updateHealthTrendChart() {
+    const chart = echarts.init(document.getElementById('healthTrendChart'));
+    const healthData = globalData.health_data.statistics.averageStats;
+    
+    const option = {
+        tooltip: {
+            trigger: 'axis'
+        },
+        radar: {
+            indicator: [
+                { name: '心率', max: 100 },
+                { name: '血氧', max: 100 },
+                { name: '体温', max: 40 },
+                { name: '步数', max: 100 },
+                { name: '卡路里', max: 2 }
+            ]
+        },
+        series: [{
+            type: 'radar',
+            data: [{
+                value: [
+                    healthData.avgHeartRate,
+                    healthData.avgBloodOxygen,
+                    healthData.avgTemperature,
+                    healthData.avgStep,
+                    healthData.avgCalorie
+                ],
+                name: '健康指标',
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        {offset: 0, color: 'rgba(0, 240, 255, 0.3)'},
+                        {offset: 1, color: 'rgba(0, 102, 255, 0.1)'}
+                    ])
+                }
+            }]
+        }]
+    };
+    
+    chart.setOption(option);
+}
+
+// 部门概览图表
+function updateDepartmentOverview() {
+    const chart = echarts.init(document.getElementById('departmentOverviewChart'));
+    const deptStats = globalData.health_data.departmentStats;
+    
+    const option = {
+        tooltip: {
+            trigger: 'item'
+        },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            data: Object.entries(deptStats).map(([dept, stats]) => ({
+                name: dept,
+                value: stats.deviceCount
+            })),
+            label: {
+                color: '#fff'
+            }
+        }]
+    };
+    
+    chart.setOption(option);
+}
+
+// 设备状态统计
+function updateDeviceStatus() {
+    const chart = echarts.init(document.getElementById('deviceStatusChart'));
+    const deviceStats = globalData.device_info.statistics.by_status;
+    
+    const option = {
+        tooltip: {
+            trigger: 'item'
+        },
+        series: [{
+            type: 'pie',
+            radius: '60%',
+            data: Object.entries(deviceStats).map(([status, count]) => ({
+                name: status,
+                value: count
+            })),
+            label: {
+                color: '#fff'
+            }
+        }]
+    };
+    
+    chart.setOption(option);
+}
+
+// 健康指标统计
+function updateHealthStats() {
+    const chart = echarts.init(document.getElementById('healthStatsChart'));
+    const stats = globalData.health_data.statistics.averageStats;
+    
+    const option = {
+        tooltip: {
+            trigger: 'axis'
+        },
+        xAxis: {
+            type: 'category',
+            data: ['心率', '血氧', '体温', '步数', '卡路里'],
+            axisLabel: {
+                color: '#fff'
+            }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                color: '#fff'
+            }
+        },
+        series: [{
+            type: 'bar',
+            data: [
+                stats.avgHeartRate,
+                stats.avgBloodOxygen,
+                stats.avgTemperature,
+                stats.avgStep,
+                stats.avgCalorie
+            ],
+            itemStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    {offset: 0, color: '#00f0ff'},
+                    {offset: 1, color: '#0066ff'}
+                ])
+            }
+        }]
+    };
+    
+    chart.setOption(option);
+}
+
+// 告警状态监控
+function updateAlertStatus() {
+    const chart = echarts.init(document.getElementById('alertStatusChart'));
+    const alertStatus = globalData.alert_info.alertStatusCount;
+    
+    const option = {
+        tooltip: {
+            trigger: 'item'
+        },
+        series: [{
+            type: 'pie',
+            radius: ['50%', '70%'],
+            data: Object.entries(alertStatus).map(([status, count]) => ({
+                name: status,
+                value: count
+            })),
+            label: {
+                color: '#fff'
+            }
+        }]
+    };
+    
+    chart.setOption(option);
+}
+
+// 设备实时监控
+function updateDeviceMonitor() {
+    const chart = echarts.init(document.getElementById('deviceMonitorChart'));
+    const deviceStatus = globalData.device_info.deviceStatusCount;
+    
+    const option = {
+        tooltip: {
+            trigger: 'axis'
+        },
+        xAxis: {
+            type: 'category',
+            data: Object.keys(deviceStatus),
+            axisLabel: {
+                color: '#fff'
+            }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                color: '#fff'
+            }
+        },
+        series: [{
+            type: 'bar',
+            data: Object.values(deviceStatus),
+            itemStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    {offset: 0, color: '#00f0ff'},
+                    {offset: 1, color: '#0066ff'}
+                ])
+            }
+        }]
+    };
+    
+    chart.setOption(option);
+}
+
+// 轮播控制
+let currentSlide = 0;
+function rotateSlides() {
+    const slides = document.querySelectorAll('.slide');
+    slides.forEach(slide => slide.classList.remove('active'));
+    slides[currentSlide].classList.add('active');
+    currentSlide = (currentSlide + 1) % slides.length;
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    fetchAndUpdateData();
+    setInterval(fetchAndUpdateData, 30000); // 每30秒更新一次数据
+    setInterval(rotateSlides, 5000); // 每5秒切换一次统计图表
+});
+
+// 窗口大小改变时重绘图表
+window.addEventListener('resize', () => {
+    const charts = [
+        'alertTrendChart',
+        'healthTrendChart',
+        'departmentOverviewChart',
+        'deviceStatusChart',
+        'healthStatsChart',
+        'alertStatusChart',
+        'deviceMonitorChart'
+    ];
+    
+    charts.forEach(chartId => {
+        const chart = echarts.init(document.getElementById(chartId));
+        chart.resize();
+    });
+});
+</script> 

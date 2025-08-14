@@ -1,0 +1,2 @@
+{"timestamp":"2025-06-08T17:02:22.418046","level":"\u001b[32mINFO\u001b[0m","logger":"ljwx.system","module":"bigScreen","function":"<module>","line":121,"message":"Redis连接成功","thread_id":8816713472,"process_id":87223}
+{"timestamp":"2025-06-08T17:02:22.421003","level":"\u001b[32mINFO\u001b[0m","logger":"ljwx.system","module":"debug_control","function":"enable_all_prints","line":22,"message":"已启用所有print调试输出","thread_id":8816713472,"process_id":87223}

@@ -1,0 +1,167 @@
+# ===== 第一阶段：源码编译阶段 =====
+FROM python:3.9-slim AS builder
+WORKDIR /app
+
+# 安装编译依赖和Nuitka
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ pkg-config libmariadb-dev \
+    ccache patchelf upx-ucl \
+    && pip install --no-cache-dir --upgrade pip \
+    && pip install nuitka ordered-set
+
+# 复制依赖文件并安装
+COPY requirements-docker.txt .
+RUN pip install --no-cache-dir -r requirements-docker.txt
+
+# 复制源代码
+COPY . .
+
+# 创建编译脚本
+RUN cat > compile_app.py << 'EOF'
+#!/usr/bin/env python3
+import os
+import subprocess
+import shutil
+
+def compile_main():
+    """编译主应用为二进制"""
+    print("🔧 开始编译主应用...")
+    
+    # Nuitka编译参数
+    cmd = [
+        "python", "-m", "nuitka",
+        "--standalone",
+        "--onefile", 
+        "--assume-yes-for-downloads",
+        "--enable-plugin=pylint-warnings",
+        "--python-flag=no_site",
+        "--python-flag=no_warnings",
+        "--remove-output",
+        "--output-filename=ljwx_bigscreen",
+        "run.py"
+    ]
+    
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"❌ 编译失败: {result.stderr}")
+        return False
+    
+    print("✅ 主应用编译成功")
+    return True
+
+def compile_modules():
+    """编译核心模块为.so文件"""
+    print("🔧 编译核心模块...")
+    
+    # 需要编译的核心模块
+    modules = [
+        "config.py",
+        "wechat_config.py", 
+        "metrics.py",
+        "alert_webhook.py"
+    ]
+    
+    for module in modules:
+        if os.path.exists(module):
+            print(f"编译 {module}...")
+            # 使用Cython编译为.so
+            cmd = [
+                "python", "-c",
+                f"import py_compile; py_compile.compile('{module}', doraise=True)"
+            ]
+            subprocess.run(cmd)
+    
+    print("✅ 模块编译完成")
+
+def cleanup_source():
+    """清理源代码文件"""
+    print("🧹 清理源代码...")
+    
+    # 删除.py源文件（保留编译结果）
+    for root, dirs, files in os.walk("."):
+        # 跳过虚拟环境和缓存目录
+        dirs[:] = [d for d in dirs if d not in ['venv', '__pycache__', '.git', 'myenv']]
+        
+        for file in files:
+            filepath = os.path.join(root, file)
+            # 删除源码文件但保留必要配置
+            if file.endswith(('.py', '.pyx')) and not file.startswith('__'):
+                if file not in ['__init__.py']:  # 保留__init__.py
+                    try:
+                        os.remove(filepath)
+                        print(f"删除源文件: {filepath}")
+                    except:
+                        pass
+    
+    # 清理其他敏感文件
+    sensitive_patterns = ['.git', '*.log', 'logs/', 'cache/', '__pycache__']
+    for pattern in sensitive_patterns:
+        try:
+            if os.path.isdir(pattern):
+                shutil.rmtree(pattern)
+            elif os.path.isfile(pattern):
+                os.remove(pattern)
+        except:
+            pass
+    
+    print("✅ 源代码清理完成")
+
+if __name__ == "__main__":
+    if compile_main():
+        compile_modules()
+        cleanup_source()
+        print("🎉 编译流程完成！")
+    else:
+        exit(1)
+EOF
+
+# 执行编译
+RUN python compile_app.py
+
+# ===== 第二阶段：安全运行阶段 =====
+FROM python:3.9-slim AS runtime
+WORKDIR /app
+
+# 创建非特权用户
+RUN groupadd -r ljwx && useradd -r -g ljwx -s /bin/false ljwx
+
+# 只安装运行时必需的库
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libmariadb3 tzdata \
+    && ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 从构建阶段复制编译后的二进制文件
+COPY --from=builder /app/ljwx_bigscreen /app/ljwx_bigscreen
+COPY --from=builder /app/static /app/static
+COPY --from=builder /app/templates /app/templates
+
+# 复制必要的配置文件（非源码）
+COPY --from=builder /app/*.json /app/ 2>/dev/null || true
+COPY --from=builder /app/*.txt /app/ 2>/dev/null || true
+
+# 设置权限
+RUN chmod +x /app/ljwx_bigscreen \
+    && chown -R ljwx:ljwx /app \
+    && chmod -R 755 /app
+
+# 创建日志目录
+RUN mkdir -p /app/logs && chown ljwx:ljwx /app/logs
+
+# 切换到非特权用户
+USER ljwx
+
+# 设置环境变量
+ENV PYTHONPATH=/app
+ENV APP_PORT=8001
+ENV IS_DOCKER=true
+
+# 暴露端口
+EXPOSE 8001
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8001/health || exit 1
+
+# 启动编译后的二进制文件
+CMD ["./ljwx_bigscreen"] 

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.ljwx</groupId>
+        <artifactId>ljwx-boot</artifactId>
+        <version>1.0.6-SNAPSHOT</version>
+    </parent>
+
+    <version>1.0.6-SNAPSHOT</version>
+    <name>ljwx-boot-admin</name>
+    <artifactId>ljwx-boot-admin</artifactId>
+    <description>灵境万象系统 - 后台管理 Application 模块</description>
+
+    <dependencies>
+        <!-- Modules -->
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-modules</artifactId>
+        </dependency>
+
+
+        <!-- Spring Boot Actuator 监控端点 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        
+        <!-- Micrometer Prometheus Registry -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

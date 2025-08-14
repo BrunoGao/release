@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # 前端服务
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ljwx-admin-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/packages
+    environment:
+      - NODE_ENV=development
+      - VITE_USER_NODE_ENV=development
+      - VITE_API_URL=http://localhost:9999 # 后端API地址
+    command: pnpm run dev
+    depends_on:
+      - backend
+
+  # 后端服务
+  backend:
+    build:
+      context: ../ljwx-boot/ljwx-boot-admin  # 假设后端项目在同级目录
+      dockerfile: Dockerfile
+    container_name: ljwx-boot
+    ports:
+      - "9999:9999"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SERVER_PORT=9999
+      # 添加其他需要的环境变量，比如数据库配置等
+    volumes:
+      - ../ljwx-boot/ljwx-boot-admin/logs:/app/logs  # 日志持久化
+    networks:
+      - ljwx-network
+
+networks:
+  ljwx-network:
+    driver: bridge

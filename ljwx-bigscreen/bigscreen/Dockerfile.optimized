@@ -1,0 +1,129 @@
+# 多阶段构建优化的 Dockerfile
+# 版本: 1.3.1
+# 支持架构: AMD64, ARM64
+
+# 第一阶段：构建环境
+FROM python:3.9-slim as builder
+
+# 构建参数
+ARG VERSION=1.3.1
+ARG BUILD_DATE
+ARG VCS_REF
+
+# 设置构建时区
+ENV TZ=Asia/Shanghai
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    default-libmysqlclient-dev \
+    pkg-config \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /app
+
+# 使用国内 pip 源
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip config set install.trusted-host mirrors.aliyun.com && \
+    pip config set global.timeout 300 && \
+    pip config set global.retries 3
+
+# 升级 pip 和安装基础工具
+RUN pip install --upgrade pip wheel setuptools
+
+# 复制依赖文件
+COPY requirements-docker.txt .
+
+# 安装 Python 依赖到临时目录
+RUN pip install --user --no-cache-dir --timeout=300 --retries=3 \
+    -r requirements-docker.txt
+
+# 第二阶段：运行环境
+FROM python:3.9-slim as runtime
+
+# 构建参数
+ARG VERSION=1.3.1
+ARG BUILD_DATE
+ARG VCS_REF
+
+# 添加镜像标签
+LABEL maintainer="LJWX BigScreen Team" \
+      version="${VERSION}" \
+      description="LJWX BigScreen Multi-Architecture Application" \
+      build-date="${BUILD_DATE}" \
+      vcs-ref="${VCS_REF}" \
+      architecture="multi" \
+      base-image="python:3.9-slim"
+
+# 设置环境变量
+ENV TZ=Asia/Shanghai \
+    PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    APP_VERSION=${VERSION}
+
+# 创建非 root 用户
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    default-libmysqlclient-dev \
+    tzdata \
+    curl \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/cache/apt/*
+
+# 设置工作目录
+WORKDIR /app
+
+# 从构建阶段复制 Python 包
+COPY --from=builder /root/.local /home/appuser/.local
+
+# 复制应用代码
+COPY --chown=appuser:appuser . .
+
+# 创建必要的目录
+RUN mkdir -p /app/logs /app/static /app/templates \
+    && chown -R appuser:appuser /app
+
+# 设置环境变量，支持容器化部署
+ENV MYSQL_HOST=${MYSQL_HOST:-db} \
+    MYSQL_PORT=${MYSQL_PORT:-3306} \
+    MYSQL_USER=${MYSQL_USER:-root} \
+    MYSQL_PASSWORD=${MYSQL_PASSWORD:-password} \
+    MYSQL_DATABASE=${MYSQL_DATABASE:-ljwx} \
+    REDIS_HOST=${REDIS_HOST:-redis} \
+    REDIS_PORT=${REDIS_PORT:-6379} \
+    REDIS_DB=${REDIS_DB:-0} \
+    FLASK_ENV=${FLASK_ENV:-production} \
+    LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+# 切换到非 root 用户
+USER appuser
+
+# 设置 PATH
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# 暴露应用端口
+EXPOSE 5001
+
+# 健康检查
+HEALTHCHECK --interval=30s \
+    --timeout=10s \
+    --start-period=60s \
+    --retries=3 \
+    CMD curl -f http://localhost:5001/api/health || exit 1
+
+# 启动脚本
+COPY --chown=appuser:appuser docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["python3", "run.py"]

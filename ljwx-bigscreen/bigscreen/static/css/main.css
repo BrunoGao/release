@@ -1,0 +1,362 @@
+/*大屏*/
+*{
+    margin: 0;
+    padding: 0;
+}
+body{
+    background: url("../images/bj.png") no-repeat center;
+    background-size:100% 100%;
+    background-attachment:fixed;
+    -webkit-background-size: cover;
+
+}
+
+/*a,p,h1,h2,h3,h4,h5,h6,body,span,label,div{padding:0;margin:0;font-family:'瀵邦喛钂嬮梿鍛寸拨';}
+div{font-family:'瀵邦喛钂嬮梿鍛寸拨';}
+ul{padding:0;margin:0;}
+a{text-decoration:none !important;}*/
+@font-face{
+    font-family: yjsz;
+    src:url('../fonts/yjsz.ttf');
+   /* url('../fonts/yjsz.eot'); *//* IE9+,可以是具体的实际链接 */
+}
+
+.fl{
+    float: left;
+}
+.fr{
+    float: right;
+}
+
+/*头部*/
+#header{
+    width: 100%;
+    height: 105px;
+    position: relative;
+    /*border-bottom: 1px solid #00fbfe;*/
+    background: url("../images/head_bg.png") no-repeat center center;
+    background-size: 100%;
+    box-shadow: 0 0 25px #037581;
+    min-width: 1366px;
+}
+#header .header{
+    width: 400px;
+    height: 105px;
+    /*background: red;*/
+    margin: 0 auto;
+    text-align: center;
+    line-height: 80px;
+    font-size: 24px;
+
+}
+#header .header h1{
+    color: #ffffff;
+    text-shadow: 0 0 25px #00d8ff;
+    font-size: 46px;
+    font-family:"Adobe 楷体 Std R";
+
+}
+.title-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.title-container h1 {
+    color: #00FF00;
+    text-shadow: 2px 2px 4px #000;
+    font-size: 36px;
+}
+/*#data_content {
+    width: 100%;
+    height: calc(100% - 105px);
+    padding-top: 20px;
+    background: red;
+}*/
+.data_content {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch; /* Ensure children stretch to the same height */
+    height: 100vh;
+    background-color: transparent; /* 背景设置为透明 */
+}
+
+.data_left, .data_right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: transparent; /* 设置背景色为半透明 */
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.data_left {
+    width: 24%;
+}
+
+.data_right {
+    width: 30%;
+}
+
+
+#data_content  .data_info{
+    width: calc(100% - 80px);
+    height: 10px;
+    /*background: red;*/
+    margin-left: 20px;
+    margin-bottom: 30px;
+    margin-top: 20px;
+    min-width: 1366px;
+
+}
+
+.data_info img {
+    margin-left: 40px;
+}
+
+/*左边*/
+.data_content .data_left{
+    width: 24%;
+    height: 100%;
+
+    /*background: green;*/
+}
+.data_content .data_left .left_top{
+    width: 100% ;
+    height: 100% ;
+    /*background: green;*/
+
+}
+
+/*四个角的*/
+.public:before,
+.public:after{ position:absolute; width: 20px; height: 20px; content: "";  border-top: 2px solid #02a6b5; top: 0;}
+.public:before,.boxfoot:before{border-left: 2px solid #02a6b5;left: 0;}
+.public:after,.boxfoot:after{border-right: 2px solid #02a6b5; right: 0;}
+
+
+.boxfoot{ position:absolute; bottom: 0; width: 100%; left: 0;}
+.boxfoot:before,
+.boxfoot:after{ position:absolute; width: 20px; height: 20px;  content: "";border-bottom: 2px solid #02a6b5; bottom: 0;}
+/*四个角的*/
+
+
+
+
+
+/*左边第一部分*/
+.data_content .data_left .left_top .info{
+    width: 100%;
+    height: 100%;
+    background:  rgba(1,33,44,0.3);
+    border: 1px solid #0c1629 ;
+    position: relative;
+    margin-bottom: 35px;
+    /*box-shadow: -10px 0px 15px #034c6a inset, !*å·¦è¾¹é˜´å½±*!
+    0px -10px 15px #034c6a inset, !*ä¸Šè¾¹é˜´å½±*!
+    10px 0px 15px #034c6a inset, !*å³è¾¹é˜´å½±*!
+    0px 10px 15px #034c6a inset;*/
+}
+
+.min-title{
+    width: 200px;
+    height: 40px;
+    background: #0c1629;
+    /*margin: 0 auto;*/
+    top: -20px;
+    position: absolute;
+    left: 50%;
+    border-radius: 20px;
+    text-align: center;
+    margin-left: -90px;
+
+}
+.min-title span{
+    display: inline-block;
+    line-height: 40px;
+    color: white;
+}
+
+/*左边第二部分*/
+.data_content .data_left .left_top .top_bottom{
+    width: 100%;
+    height: calc(50% - 20px);
+    /*background: purple;*/
+    border: 1px solid #20558b ;
+    position: relative;
+    margin-bottom: 35px;
+}
+/*左边第三部分*/
+.data_content .data_left .left_top .left_bottom{
+    width: 100%;
+    height: calc(50% - 20px);
+    /*background: purple;*/
+    border: 1px solid #20558b ;
+    position: relative;
+    margin-bottom: 35px;
+}
+/*中间*/
+.data_content .data_c{
+    width: 52%;
+    height: 100%;
+/*
+    padding:0 20px;*/
+}
+.data_content .data_c .data_c_1{
+    width: calc(100% - 50px);
+    height: calc(70% - 15px);
+    /*background: red;*/
+    /*border: 1px solid #20558b ;*/
+    position: relative;
+    margin-bottom: 35px;
+    margin-left: 25px;
+}
+
+.data_content .data_c .data_c_1 .dzimg{
+    width: 800px;
+    height: 100%;
+    margin: 0 auto;
+    position: relative;
+    background: url("../images/page1_3.jpg") no-repeat center;
+    background-size: cover;
+}
+.data_content .data_c .data_c_1 .dzimg img{
+    top: 25%;
+    left: 50px;
+    width: 500px;
+    height: 600px;
+    position: absolute;
+    transition: transform 1s ease 1s;
+    transform-style: preserve-3d;
+    transform: rotateY(0deg) translateZ(240px);
+}
+
+.data_content .data_c .data_c_2{
+    width: calc(100% - 50px);
+    height: calc(28% - 10px);
+    border: 1px solid #20558b ;
+    position: relative;
+    margin-left: 25px;
+}
+.data_content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100vh;
+    background-color: transparent; /* 背景设置为透明 */
+}
+
+.data_right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 30%;
+    height: 100%;
+    background-color: transparent; /* 设置背景色为半透明 */
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.right_top {
+    width: 100%;
+}
+#map {
+    background-color: #f0f0f0; /* 设置地图背景颜色 */
+}
+.right_info {
+    width: 100%;
+    border-width: 2.125rem 1.583rem 0.875rem 5.5rem;
+    box-sizing: border-box;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: transparent; /* 设置内部容器为半透明 */
+    margin-bottom: 20px; /* Add margin to separate the elements */
+}
+
+.right_info_second {
+    width: 100%;
+    border-width: 2.125rem 1.583rem 0.875rem 5.5rem;
+    box-sizing: border-box;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: transparent; /* 设置内部容器为半透明 */
+    margin-bottom: 20px; /* Add margin to separate the elements */
+}
+
+.right_info_third {
+    width: 100%;
+    border-width: 2.125rem 1.583rem 0.875rem 5.5rem;
+    box-sizing: border-box;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: transparent; /* 设置内部容器为半透明 */
+    margin-bottom: 20px; /* Add margin to separate the elements */
+}
+
+
+.right_info img {
+   
+    margin-top: 20px; 
+    width: 100%; /* 确保图片宽度与容器一致 */
+    height: auto;
+}
+
+#FontScroll{
+    width: 100%;
+    height: 300px;
+    overflow: hidden;
+    /*float: left;*/
+    margin-top: 10px;
+    /*margin: 0 5%;*/
+    /*margin-left: 50px;*/
+
+    /*background: gold;*/
+
+}
+#FontScroll ul li{
+    height: 38px;
+    width: 100%;
+    color: #ffffff;
+    text-align: center;
+    line-height: 38px;
+    border-bottom: 1px dashed #404040;
+    /*width:33.3%;*/
+    overflow: hidden;
+
+    /*background: red;
+    margin: 0 2%;*/
+
+}
+#FontScroll ul li:nth-child(1){
+    /*background-color: #072951;*/
+    box-shadow: -10px 0px 15px #034c6a inset, /*左边阴影*/
+    10px 0px 15px #034c6a inset;
+
+}
+#FontScroll ul li:hover{
+    box-shadow: -10px 0px 15px #034c6a inset, /*左边阴影*/
+    10px 0px 15px #034c6a inset;
+    cursor: pointer;
+}
+
+.fontInner span{
+    display:inline-block;
+    /*float: left;*/
+    /*height: 20px;*/
+    width:31%;
+
+    /*background: red;*/
+
+}
+
+
+
+
+
+
+

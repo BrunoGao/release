@@ -1,0 +1,76 @@
+{
+  "api": {
+    "base_url": "http://localhost:5001",
+    "timeout": 30,
+    "retry_count": 3,
+    "retry_delay": 1
+  },
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "root",
+    "password": "123456",
+    "database": "lj-06",
+    "charset": "utf8mb4",
+    "autocommit": true
+  },
+  "test_data": {
+    "device_sn": "A5GTQ24B26000732",
+    "user_id": 1,
+    "org_id": 1,
+    "test_device_sn": "TEST_DEVICE_001"
+  },
+  "test_suites": {
+    "upload_common_event": {
+      "name": "通用事件上传测试",
+      "description": "验证通用事件上传接口的完整流程",
+      "module": "tests.suites.test_upload_common_event",
+      "class": "UploadCommonEventTest",
+      "timeout": 60,
+      "enabled": true,
+      "priority": 1
+    },
+    "upload_health_data": {
+      "name": "健康数据上传测试",
+      "description": "验证健康数据上传接口的数据处理",
+      "module": "tests.suites.test_upload_health_data",
+      "class": "UploadHealthDataTest",
+      "timeout": 30,
+      "enabled": true,
+      "priority": 2
+    },
+    "upload_device_info": {
+      "name": "设备信息上传测试",
+      "description": "验证设备信息上传和状态更新",
+      "module": "tests.suites.test_upload_device_info",
+      "class": "UploadDeviceInfoTest",
+      "timeout": 30,
+      "enabled": true,
+      "priority": 3
+    }
+  },
+  "web_server": {
+    "host": "0.0.0.0",
+    "port": 5003,
+    "debug": false,
+    "auto_reload": false
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+    "file": "tests/logs/test.log",
+    "max_bytes": 10485760,
+    "backup_count": 5
+  },
+  "report": {
+    "output_dir": "tests/reports",
+    "formats": ["json", "html"],
+    "include_screenshots": false,
+    "retention_days": 30
+  },
+  "notifications": {
+    "enabled": false,
+    "webhook_url": "",
+    "channels": ["email", "slack"]
+  }
+} 

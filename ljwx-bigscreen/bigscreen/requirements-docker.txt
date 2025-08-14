@@ -1,0 +1,18 @@
+redis
+flask
+flask_sqlalchemy
+mysql-connector-python
+pymysql
+flask_socketio
+flask_cors
+requests
+numpy==1.24.3
+cryptography
+python-dotenv
+psutil
+pytz 
+qrcode[pil]==7.4.2
+pandas==2.0.3
+prometheus-client==0.20.0
+schedule>=1.2.0  # 定时任务调度器
+numpy>=1.24.0  # 数值计算，用于基线统计 

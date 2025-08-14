@@ -1,0 +1,122 @@
+<script setup lang="ts">
+import { computed, reactive, watch } from 'vue';
+import { useFormRules, useNaiveForm } from '@/hooks/common/form';
+import { $t } from '@/locales';
+import { fetchAddAlertConfigWechat, fetchUpdateAlertConfigWechatInfo } from '@/service/api';
+import { useDict } from '@/hooks/business/dict';
+
+defineOptions({
+  name: 'TWechatAlertConfigOperateDrawer'
+});
+
+interface Props {
+  /** the type of operation */
+  operateType: NaiveUI.TableOperateType;
+  /** the edit row data */
+  rowData?: Api.Health.AlertConfigWechat | null;
+}
+
+const props = defineProps<Props>();
+
+interface Emits {
+  (e: 'submitted'): void;
+}
+
+const emit = defineEmits<Emits>();
+
+const visible = defineModel<boolean>('visible', {
+  default: false
+});
+
+const { dictOptions } = useDict();
+const { formRef, validate, restoreValidation } = useNaiveForm();
+
+const title = computed(() => {
+  const titles: Record<NaiveUI.TableOperateType, string> = {
+    add: $t('common.add'),
+    edit: $t('common.edit')
+  };
+  return titles[props.operateType];
+});
+
+type Model = Api.Health.AlertConfigWechat;
+
+const model: Model = reactive(createDefaultModel());
+
+function createDefaultModel(): Model {
+  return {
+    appId: '',
+    appSecret: '',
+    templateId: '',
+    userOpenid: '',
+    createUser: '',
+    createTime: '',
+    id: '',
+    updateUser: '',
+    updateTime: ''
+  };
+}
+
+function handleInitModel() {
+  Object.assign(model, createDefaultModel());
+
+  if (!props.rowData) return;
+
+  if (props.operateType === 'edit' && props.rowData) {
+    Object.assign(model, props.rowData);
+  }
+}
+
+function closeDrawer() {
+  visible.value = false;
+}
+
+const isAdd = computed(() => props.operateType === 'add');
+
+async function handleSubmit() {
+  await validate();
+  const func = isAdd.value ? fetchAddAlertConfigWechat : fetchUpdateAlertConfigWechatInfo;
+  const { error, data } = await func(model);
+  if (!error && data) {
+    window.$message?.success(isAdd.value ? $t('common.addSuccess') : $t('common.updateSuccess'));
+    closeDrawer();
+    emit('submitted');
+  }
+}
+
+watch(visible, () => {
+  if (visible.value) {
+    handleInitModel();
+    restoreValidation();
+  }
+});
+</script>
+
+<template>
+  <NDrawer v-model:show="visible" display-directive="show" :width="360">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+      <NForm ref="formRef" :model="model">
+        <NFormItem label="微信 App ID" path="appId">
+          <NInput v-model:value="model.appId" />
+        </NFormItem>
+        <NFormItem label="微信 App Secret" path="appSecret">
+          <NInput v-model:value="model.appSecret" />
+        </NFormItem>
+        <NFormItem label="微信 Template ID" path="templateId">
+          <NInput v-model:value="model.templateId" />
+        </NFormItem>
+        <NFormItem label="微信 User OpenID" path="userOpenid">
+          <NInput v-model:value="model.userOpenid" />
+        </NFormItem>
+      </NForm>
+      <template #footer>
+        <NSpace>
+          <NButton quaternary @click="closeDrawer">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" @click="handleSubmit">{{ $t('common.confirm') }}</NButton>
+        </NSpace>
+      </template>
+    </NDrawerContent>
+  </NDrawer>
+</template>
+
+<style scoped></style>

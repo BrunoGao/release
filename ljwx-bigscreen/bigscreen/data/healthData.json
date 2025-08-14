@@ -1,0 +1,23 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.01506371056043,
+                    22.5403449980684
+                ]
+            },
+            "properties": {
+                "deviceSn": "A5GTQ23621000564",
+                "heartRate": 63.0,
+                "pressureHigh": 104.0,
+                "pressureLow": 72.0,
+                "bloodOxygen": 0.0,
+                "temperature": 0.0
+            }
+        }
+    ]
+}

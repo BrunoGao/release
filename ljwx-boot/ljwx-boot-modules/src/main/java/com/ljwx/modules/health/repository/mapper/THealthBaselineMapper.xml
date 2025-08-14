@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+ All Rights Reserved: Copyright [2024] [Zhuang Pan]
+ Open Source Agreement: Apache License, Version 2.0
+ For educational purposes only, commercial use shall comply with the author's copyright information.
+ The author does not guarantee or assume any responsibility for the risks of using software.
+
+ Licensed under the Apache License, Version 2.0 (the "License").
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<mapper namespace="com.ljwx.modules.health.repository.mapper.THealthBaselineMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="THealthBaselineResultMap" type="com.ljwx.modules.health.domain.entity.THealthBaseline">
+        <id column="baseline_id" property="baselineId" />
+        <result column="user_id" property="userId"/>
+        <result column="device_sn" property="deviceSn"/>
+        <result column="period_type" property="periodType"/>
+        <result column="period_start" property="periodStart"/>
+        <result column="period_end" property="periodEnd"/>
+        <result column="feature_name" property="featureName"/>
+        <result column="mean_value" property="meanValue"/>
+        <result column="std_value" property="stdValue"/>
+        <result column="min_value" property="minValue"/>
+        <result column="max_value" property="maxValue"/>
+        <result column="is_current" property="rrent"/>
+        <result column="create_user" property="createUser"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_user" property="updateUser"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="THealthBaselineColumnList">
+        create_user,
+        create_user_id,
+        create_time,
+        update_user,
+        update_user_id,
+        update_time,
+        baseline_id, user_id, device_sn, period_type, period_start, period_end, feature_name, mean_value, std_value, min_value, max_value, is_current
+    </sql>
+
+</mapper>

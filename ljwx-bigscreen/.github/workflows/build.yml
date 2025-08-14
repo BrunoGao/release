@@ -1,0 +1,93 @@
+name: Build and Push Multi-Architecture Docker Images
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com
+  NAMESPACE: ljwx
+  IMAGE_NAME: ljwx-bigscreen
+  VERSION: 1.3.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout代码
+      uses: actions/checkout@v4
+      
+    - name: 设置QEMU (支持多架构模拟)
+      uses: docker/setup-qemu-action@v3
+      
+    - name: 设置Docker Buildx (支持多架构构建)
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 登录阿里云镜像仓库
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: brunogao
+        password: admin123
+        
+    - name: 提取镜像元数据
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=${{ env.VERSION }}
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=sha,prefix={{branch}}-
+        
+    - name: 构建并推送多架构Docker镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: ./bigscreen
+        file: ./bigscreen/Dockerfile.multiarch
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VERSION=${{ env.VERSION }}
+          BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          VCS_REF=${{ github.sha }}
+        
+    - name: 验证多架构镜像
+      run: |
+        echo "✅ 多架构镜像构建并推送成功!"
+        echo "🏗️  支持架构: AMD64, ARM64"
+        echo "🐳 镜像地址: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}"
+        echo "📦 拉取命令: docker pull ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}"
+        
+        # 验证镜像manifest
+        docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        
+    - name: 镜像安全扫描 (Trivy)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        format: 'table'
+        exit-code: '0'  # 不因安全问题中断构建
+        
+    - name: 发送构建通知
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "🎉 构建成功通知"
+          echo "多架构镜像已成功推送到阿里云容器镜像服务"
+          echo "镜像支持 AMD64 和 ARM64 架构"
+        else
+          echo "❌ 构建失败通知"
+          echo "请检查构建日志"
+        fi

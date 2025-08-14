@@ -1,0 +1,60 @@
+{
+  "test_time": "2025-05-26 14:03:06",
+  "test_type": "常规性能测试",
+  "total_rounds": 3,
+  "max_qps": 77.42316575404772,
+  "overall_success_rate": 100.0,
+  "avg_response_time": 1253.4713384575314,
+  "p95_response_time": 1686.9035561879475,
+  "p99_response_time": 1888.3289496103923,
+  "total_requests": 3000,
+  "total_success": 3000,
+  "total_errors": 0,
+  "detailed_results": [
+    {
+      "name": "第1轮测试",
+      "devices": 1000,
+      "workers": 100,
+      "elapsed": 13.428700923919678,
+      "success": 1000,
+      "error": 0,
+      "qps": 74.46736699741109,
+      "success_rate": 100.0,
+      "avg_response": 1265.24063539505,
+      "p95_response": 1685.196876525879,
+      "p99_response": 1861.802101135254,
+      "error_counts": {},
+      "timestamp": "2025-05-26 14:02:34"
+    },
+    {
+      "name": "第2轮测试",
+      "devices": 1000,
+      "workers": 100,
+      "elapsed": 12.916030883789062,
+      "success": 1000,
+      "error": 0,
+      "qps": 77.42316575404772,
+      "success_rate": 100.0,
+      "avg_response": 1249.072301864624,
+      "p95_response": 1692.065954208374,
+      "p99_response": 1929.8267364501953,
+      "error_counts": {},
+      "timestamp": "2025-05-26 14:02:49"
+    },
+    {
+      "name": "第3轮测试",
+      "devices": 1000,
+      "workers": 100,
+      "elapsed": 13.076185703277588,
+      "success": 1000,
+      "error": 0,
+      "qps": 76.47490045582228,
+      "success_rate": 100.0,
+      "avg_response": 1246.10107811292,
+      "p95_response": 1683.4478378295898,
+      "p99_response": 1873.3580112457275,
+      "error_counts": {},
+      "timestamp": "2025-05-26 14:03:04"
+    }
+  ]
+}

@@ -1,0 +1,263 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/${MYSQL_DATABASE:test}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&autoReconnect=true&failOverReadOnly=false&maxReconnects=3&initialTimeout=2&connectTimeout=60000&socketTimeout=60000&allowMultiQueries=true&rewriteBatchedStatements=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:123456}
+    hikari: #宿主机优化配置
+      maximum-pool-size: 20 #宿主机环境提升连接数
+      minimum-idle: 5 #最小空闲连接优化
+      connection-timeout: 30000 #连接超时30秒
+      idle-timeout: 600000 #空闲超时10分钟
+      max-lifetime: 1800000 #连接最大生命周期30分钟
+      leak-detection-threshold: 60000 #连接泄漏检测60秒
+      validation-timeout: 3000 #连接验证超时3秒
+      connection-test-query: SELECT 1 #连接测试查询
+      auto-commit: true #自动提交优化
+      connection-init-sql: SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci #字符集初始化
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost} #支持环境变量配置
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456} #宿主机Redis密码
+      database: ${REDIS_DB:0}
+      connect-timeout: 5000ms #连接超时优化
+      timeout: 10000ms #命令超时优化
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 15 #宿主机环境提升连接数
+          max-idle: 8 #最大空闲连接优化
+          min-idle: 3 #最小空闲连接优化
+          max-wait: 5000ms #等待时间优化
+        shutdown-timeout: 100ms #关闭超时优化
+        cluster:
+          refresh:
+            adaptive: true #自适应刷新
+            period: 30s #刷新周期
+  jpa:
+    show-sql: ${JPA_SHOW_SQL:false} #支持环境变量控制SQL显示
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate} #支持环境变量控制DDL
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        connection:
+          provider_disables_autocommit: false
+          handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION
+        hbm2ddl:
+          auto: ${JPA_DDL_AUTO:validate}
+        jdbc:
+          batch_size: 50 #批处理优化
+          order_inserts: true #插入排序优化
+          order_updates: true #更新排序优化
+        cache:
+          use_second_level_cache: true #二级缓存
+          use_query_cache: true #查询缓存
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  jackson:
+    serialization:
+      ORDER_MAP_ENTRIES_BY_KEYS: false
+      write-dates-as-timestamps: false #日期格式优化
+    deserialization:
+      fail-on-unknown-properties: false #忽略未知属性
+  quartz:
+    job-store-type: jdbc #宿主机使用数据库存储定时任务
+    wait-for-jobs-to-complete-on-shutdown: true
+    overwrite-existing-jobs: true
+    jdbc:
+      initialize-schema: never #不初始化，使用现有表结构
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: LjwxScheduler
+            instanceId: AUTO
+            skipUpdateCheck: true #跳过更新检查
+          threadPool:
+            threadCount: 10 #线程池大小
+            threadPriority: 5
+            threadsInheritContextClassLoaderOfInitializingThread: true
+          jobStore:
+            misfireThreshold: 60000
+            clusterCheckinInterval: 5000
+            acquireTriggersWithinLock: true
+  ai:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        enabled: ${OLLAMA_ENABLED:false} #默认禁用AI功能
+        model: ${OLLAMA_MODEL:qwen2.5:7b}
+        options:
+          temperature: 0.7
+          timeout: 120s #AI响应超时
+
+# 宿主机服务器配置
+server:
+  port: ${SERVER_PORT:9998}
+  servlet:
+    context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  tomcat:
+    uri-encoding: UTF-8
+    max-threads: 200 #线程池大小
+    min-spare-threads: 10 #最小空闲线程
+    max-connections: 8192 #最大连接数
+    accept-count: 100 #等待队列长度
+    connection-timeout: 20000 #连接超时
+    keep-alive-timeout: 60000 #Keep-Alive超时
+    max-keep-alive-requests: 100 #Keep-Alive最大请求数
+  compression:
+    enabled: true #启用压缩
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml
+    min-response-size: 1024 #最小压缩大小
+
+# 宿主机监控配置
+management:
+  server:
+    port: ${MANAGEMENT_PORT:9999} #监控端口
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,env,beans #扩展监控端点
+      base-path: /actuator
+    enabled-by-default: true
+  endpoint:
+    health:
+      show-details: when-authorized #仅授权时显示详情
+      show-components: always #显示组件状态
+    metrics:
+      enabled: true
+    env:
+      show-values: when-authorized #仅授权时显示环境变量值
+  metrics:
+    export:
+      prometheus:
+        enabled: ${PROMETHEUS_ENABLED:false} #默认禁用Prometheus
+    tags:
+      application: ljwx-boot
+      environment: host
+      version: ${PROJECT_VERSION:1.0.0}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+  security:
+    enabled: false #宿主机运行禁用安全认证
+  health:
+    redis:
+      enabled: true
+    diskspace:
+      enabled: true
+      threshold: 10GB #磁盘空间阈值
+
+# 宿主机日志配置
+logging:
+  level:
+    com.ljwx: ${LOG_LEVEL:info} #支持环境变量控制日志级别
+    com.zaxxer.hikari: warn #连接池警告级别
+    org.springframework.jdbc: warn #JDBC警告级别
+    org.springframework.web: info #Web信息级别
+    org.mybatis: warn #MyBatis警告级别
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:warn} #SQL日志级别
+    org.hibernate.type.descriptor.sql.BasicBinder: ${SQL_PARAM_LOG_LEVEL:warn} #SQL参数日志
+    root: info
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+  file:
+    name: ${LOG_FILE:logs/ljwx-boot-host.log} #支持环境变量控制日志文件
+    max-size: 100MB
+    max-history: 30 #保留30天日志
+    total-size-cap: 10GB #总日志大小限制
+  logback:
+    rollingpolicy:
+      clean-history-on-start: true #启动时清理历史日志
+
+# MyBatis-Plus宿主机配置
+mybatis-plus:
+  type-handlers-package: com.ljwx.modules.geofence.util
+  configuration:
+    log-impl: ${MYBATIS_LOG_IMPL:org.apache.ibatis.logging.nop.NopImpl} #支持环境变量控制
+    cache-enabled: true #启用缓存
+    lazy-loading-enabled: true #启用懒加载
+    aggressive-lazy-loading: false #关闭积极懒加载
+    multiple-result-sets-enabled: true #启用多结果集
+    use-column-label: true #使用列标签
+    use-generated-keys: true #使用生成键
+    auto-mapping-behavior: partial #部分自动映射
+    default-executor-type: reuse #重用执行器
+    default-statement-timeout: 30 #默认语句超时30秒
+  global-config:
+    db-config:
+      id-type: auto #主键自增
+      logic-delete-field: deleted #逻辑删除字段
+      logic-delete-value: 1 #逻辑删除值
+      logic-not-delete-value: 0 #逻辑未删除值
+      insert-strategy: not_null #插入策略
+      update-strategy: not_null #更新策略
+      select-strategy: not_empty #查询策略
+
+# 宿主机OSS配置
+oss:
+  name: ${OSS_NAME:local}
+  endpoint: ${OSS_ENDPOINT:}
+  access-key: ${OSS_ACCESS_KEY:}
+  secret-key: ${OSS_SECRET_KEY:}
+  bucket-name: ${OSS_BUCKET_NAME:ljwx}
+  local-path: ${OSS_LOCAL_PATH:./data/uploads} #本地上传路径
+  sync-delete: false #宿主机不删除文件
+  expiry: 3600
+  max-file-size: 100MB #最大文件大小
+  allowed-extensions: jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,zip,rar #允许的文件扩展名
+
+# 宿主机AI配置
+ollama:
+  base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+  model: ${OLLAMA_MODEL:qwen2.5:7b}
+  max-tokens: 4096
+  temperature: 0.7
+  top-p: 1
+  stream: false
+  timeout: 120000ms #AI请求超时2分钟
+  retry-attempts: 3 #重试次数
+  retry-delay: 1000ms #重试延迟
+
+# 宿主机向量数据库配置
+vector-store:
+  pgvector:
+    url: jdbc:postgresql://${PGVECTOR_HOST:localhost}:${PGVECTOR_PORT:5432}/${PGVECTOR_DB:vector_db}
+    username: ${PGVECTOR_USER:postgres}
+    password: ${PGVECTOR_PASSWORD:postgres}
+    max-pool-size: 10
+    connection-timeout: 30000
+    idle-timeout: 300000
+
+# 宿主机环境标识和性能配置
+ljwx:
+  env: host
+  debug: ${DEBUG_MODE:false} #支持环境变量控制调试模式
+  async:
+    core-pool-size: 5 #异步任务核心线程数
+    max-pool-size: 20 #异步任务最大线程数
+    queue-capacity: 100 #任务队列容量
+    keep-alive-seconds: 300 #线程存活时间
+  cache:
+    redis:
+      default-expiration: 3600 #默认缓存过期时间1小时
+      topic: ljwx:cache #缓存主题
+  security:
+    jwt:
+      expire-time: 7200 #JWT过期时间2小时
+      refresh-expire-time: 86400 #刷新令牌过期时间24小时
+  upload:
+    max-size: 100MB #上传文件最大大小
+    temp-dir: ${java.io.tmpdir}/ljwx-uploads #临时目录
+  monitor:
+    enabled: ${MONITOR_ENABLED:true} #启用监控
+    interval: 60 #监控间隔60秒 

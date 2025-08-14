@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健康基线图表测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
+    <style>
+        body { margin: 20px; background: #002B4A; color: #fff; font-family: Arial, sans-serif; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #0094FF; border-radius: 8px; }
+        #trendChart { width: 100%; height: 400px; background: rgba(0,21,41,0.4); border: 1px solid rgba(0,228,255,0.3); }
+        .info { margin: 10px 0; padding: 10px; background: rgba(0,100,200,0.1); }
+        .debug { font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; }
+        button { padding: 10px 20px; margin: 5px; background: #0094FF; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0078CC; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 健康基线图表测试</h1>
+        
+        <div class="test-section">
+            <h2>📊 API测试</h2>
+            <button onclick="testBaselineAPI()">测试Baseline API</button>
+            <button onclick="renderTestChart()">渲染测试图表</button>
+            <button onclick="clearResults()">清空结果</button>
+            
+            <div class="info">
+                <strong>API状态:</strong> <span id="apiStatus">未测试</span><br>
+                <strong>数据结构:</strong> <span id="dataStructure">无</span><br>
+                <strong>指标数量:</strong> <span id="metricsCount">0</span><br>
+                <strong>日期范围:</strong> <span id="dateRange">无</span>
+            </div>
+            
+            <div class="debug">
+                <h4>调试信息:</h4>
+                <pre id="debugInfo">等待测试...</pre>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📈 图表测试</h2>
+            <div id="trendChart"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+        
+        async function testBaselineAPI() {
+            const debugEl = document.getElementById('debugInfo');
+            const statusEl = document.getElementById('apiStatus');
+            
+            try {
+                debugEl.textContent = '正在请求API...';
+                statusEl.textContent = '请求中...';
+                statusEl.style.color = '#FFB800';
+                
+                const endDate = getPastDateStr(0);
+                const startDate = getPastDateStr(6);
+                const url = `/health_data/chart/baseline?orgId=1&startDate=${startDate}&endDate=${endDate}`;
+                
+                debugEl.textContent += `\n\n📡 请求URL: ${url}`;
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                currentData = result;
+                
+                debugEl.textContent += `\n\n✅ 响应状态: ${response.status}`;
+                debugEl.textContent += `\n📦 响应数据: ${JSON.stringify(result, null, 2)}`;
+                
+                // 更新状态信息
+                if (result.success) {
+                    statusEl.textContent = '成功';
+                    statusEl.style.color = '#00FF9D';
+                    
+                    document.getElementById('dataStructure').textContent = result.dates ? '有效' : '无效';
+                    document.getElementById('metricsCount').textContent = result.metrics ? result.metrics.length : 0;
+                    document.getElementById('dateRange').textContent = result.dates ? `${result.dates[0]} ~ ${result.dates[result.dates.length-1]}` : '无';
+                } else {
+                    statusEl.textContent = '失败';
+                    statusEl.style.color = '#FF6B6B';
+                }
+                
+            } catch (error) {
+                debugEl.textContent += `\n\n❌ 错误: ${error.message}`;
+                statusEl.textContent = '错误';
+                statusEl.style.color = '#FF6B6B';
+            }
+        }
+        
+        function renderTestChart() {
+            const debugEl = document.getElementById('debugInfo');
+            
+            if (!currentData) {
+                alert('请先测试API获取数据');
+                return;
+            }
+            
+            try {
+                debugEl.textContent += '\n\n🎨 开始渲染图表...';
+                
+                const {dates, metrics, health_summary} = currentData;
+                
+                debugEl.textContent += `\n📊 解构数据: dates=${dates?.length}, metrics=${metrics?.length}`;
+                
+                // 检查图表容器
+                const container = document.getElementById('trendChart');
+                if (!container) {
+                    throw new Error('找不到图表容器');
+                }
+                
+                // 销毁旧图表
+                const oldChart = echarts.getInstanceByDom(container);
+                if (oldChart) {
+                    oldChart.dispose();
+                }
+                
+                // 初始化图表
+                const chart = echarts.init(container);
+                
+                // 处理数据
+                const mainMetrics = ['心率', '血氧', '体温', '压力', '睡眠'];
+                const metricColors = {
+                    '心率': '#ff6b6b',
+                    '血氧': '#00ff9d', 
+                    '体温': '#ffbb00',
+                    '压力': '#ff9500',
+                    '睡眠': '#7ecfff'
+                };
+                
+                const series = [];
+                
+                if (metrics && metrics.length > 0) {
+                    mainMetrics.forEach(metricName => {
+                        const metric = metrics.find(m => m.name === metricName);
+                        if (metric && metric.values) {
+                            debugEl.textContent += `\n✅ 添加指标 ${metricName}: [${metric.values.join(', ')}]`;
+                            series.push({
+                                name: metric.name,
+                                type: 'line',
+                                data: metric.values,
+                                smooth: true,
+                                symbol: 'circle',
+                                symbolSize: 6,
+                                lineStyle: { 
+                                    width: 3, 
+                                    color: metricColors[metric.name] || '#00e4ff'
+                                },
+                                itemStyle: { 
+                                    color: metricColors[metric.name] || '#00e4ff'
+                                }
+                            });
+                        } else {
+                            debugEl.textContent += `\n⚠️ 指标 ${metricName} 无数据`;
+                        }
+                    });
+                }
+                
+                // 配置选项
+                const option = {
+                    backgroundColor: 'transparent',
+                    title: {
+                        text: '健康基线趋势图测试',
+                        textStyle: { color: '#fff', fontSize: 16 },
+                        top: 10
+                    },
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(10,24,48,0.98)',
+                        borderColor: '#00e4ff',
+                        borderWidth: 1,
+                        textStyle: { color: '#fff', fontSize: 12 }
+                    },
+                    legend: {
+                        show: true,
+                        top: 40,
+                        textStyle: { color: '#fff', fontSize: 11 }
+                    },
+                    grid: { 
+                        top: 80, 
+                        left: 40, 
+                        right: 30, 
+                        bottom: 40, 
+                        containLabel: true 
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: dates || ['05-28', '05-29', '05-30', '05-31', '06-01', '06-02', '06-03'],
+                        axisLabel: { color: '#7ecfff', fontSize: 10 },
+                        axisLine: { lineStyle: { color: 'rgba(0,228,255,0.3)' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { color: '#7ecfff', fontSize: 10 },
+                        splitLine: { 
+                            lineStyle: { 
+                                color: 'rgba(0,228,255,0.15)', 
+                                type: 'dashed' 
+                            } 
+                        }
+                    },
+                    series: series.length > 0 ? series : [
+                        {
+                            name: '暂无数据',
+                            type: 'line',
+                            data: [0, 0, 0, 0, 0, 0, 0],
+                            lineStyle: { color: '#666' }
+                        }
+                    ]
+                };
+                
+                chart.setOption(option);
+                
+                debugEl.textContent += `\n🎉 图表渲染完成！共 ${series.length} 个数据系列`;
+                
+                // 自适应
+                setTimeout(() => {
+                    chart.resize();
+                }, 100);
+                
+            } catch (error) {
+                debugEl.textContent += `\n❌ 渲染错误: ${error.message}`;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('debugInfo').textContent = '调试信息已清空';
+            document.getElementById('apiStatus').textContent = '未测试';
+            document.getElementById('dataStructure').textContent = '无';
+            document.getElementById('metricsCount').textContent = '0';
+            document.getElementById('dateRange').textContent = '无';
+            currentData = null;
+        }
+        
+        function getPastDateStr(daysAgo) {
+            const date = new Date();
+            date.setDate(date.getDate() - daysAgo);
+            return date.getFullYear() + '-' + 
+                   String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+                   String(date.getDate()).padStart(2, '0');
+        }
+        
+        // 页面加载后自动测试
+        window.addEventListener('load', () => {
+            setTimeout(testBaselineAPI, 1000);
+        });
+    </script>
+</body>
+</html> 

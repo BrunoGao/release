@@ -1,0 +1,107 @@
+package com.ljwx.modules.system.listener;
+
+import com.ljwx.modules.customer.domain.entity.TCustomerConfig;
+import com.ljwx.modules.customer.domain.entity.THealthDataConfig;
+import com.ljwx.modules.customer.domain.entity.TInterface;
+import com.ljwx.modules.customer.service.ITCustomerConfigService;
+import com.ljwx.modules.customer.service.ITHealthDataConfigService;
+import com.ljwx.modules.customer.service.ITInterfaceService;
+import com.ljwx.modules.system.domain.entity.SysOrgUnits;
+import com.ljwx.modules.system.event.SysOrgUnitsChangeEvent;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Component
+@Slf4j
+public class OrgUnitsChangeListener {
+    
+    @Autowired
+    private ITCustomerConfigService customerConfigService;
+    
+    @Autowired
+    private ITInterfaceService interfaceService;
+    
+    @Autowired
+    private ITHealthDataConfigService healthDataConfigService;
+    
+    @Transactional(rollbackFor = Exception.class)
+    @EventListener(SysOrgUnitsChangeEvent.class)
+    public void handleOrgUnitsChange(SysOrgUnitsChangeEvent event) {
+        SysOrgUnits orgUnit = event.getOrgUnit();
+        log.warn("OrgUnitsChangeListener event triggered, orgId={}, isDeleted={}, parentId={}, hash={}", 
+            orgUnit.getId(), orgUnit.getIsDeleted(), orgUnit.getParentId(), System.identityHashCode(this));
+        if (orgUnit.getParentId() == 0 && orgUnit.getIsDeleted() == 0) {
+            cloneCustomerConfig(orgUnit);
+            cloneInterface(orgUnit);
+            cloneHealthDataConfig(orgUnit);
+            log.info("Cloned config for new orgId={}", orgUnit.getId());
+        }
+        if (orgUnit.getParentId() == 0 && orgUnit.getIsDeleted() == 1) {
+            customerConfigService.lambdaUpdate().eq(TCustomerConfig::getId, orgUnit.getId()).set(TCustomerConfig::getIsDeleted, 1).update();
+            interfaceService.lambdaUpdate().eq(TInterface::getCustomerId, orgUnit.getId()).set(TInterface::getDeleted, 1).update();
+            healthDataConfigService.lambdaUpdate().eq(THealthDataConfig::getCustomerId, orgUnit.getId()).set(THealthDataConfig::getIsDeleted, 1).update();
+            log.info("Deleted org and related config for orgId={}", orgUnit.getId());
+        }
+    }
+    
+    private void cloneCustomerConfig(SysOrgUnits o) { // 复制客户配置
+        customerConfigService.list(new QueryWrapper<TCustomerConfig>().eq("id", 1)).forEach(c -> {
+            TCustomerConfig n = new TCustomerConfig();
+            n.setId(o.getId()); n.setCustomerName(o.getName());
+            n.setLicenseKey(c.getLicenseKey()); n.setCreateTime(c.getCreateTime()); n.setUpdateTime(c.getUpdateTime());
+            n.setIsSupportLicense(c.getIsSupportLicense()); n.setUploadMethod(c.getUploadMethod());
+            n.setIsDeleted(0);
+            n.setEnableResume(c.getEnableResume());
+            n.setUploadRetryCount(c.getUploadRetryCount());
+            n.setCacheMaxCount(c.getCacheMaxCount());
+            n.setUploadRetryInterval(c.getUploadRetryInterval());
+            customerConfigService.saveOrUpdate(n);
+        });
+    }
+    
+    private void cloneInterface(SysOrgUnits o) { // 复制接口配置
+        log.warn("cloneInterface called for orgId={}", o.getId());
+        interfaceService.remove(new QueryWrapper<TInterface>().eq("customer_id", o.getId())); // 先清理
+        List<TInterface> exists = interfaceService.list(new QueryWrapper<TInterface>().eq("customer_id", o.getId()));
+        Set<String> existNames = exists.stream().map(TInterface::getName).collect(Collectors.toSet());
+        interfaceService.list(new QueryWrapper<TInterface>().eq("customer_id", 1).eq("is_deleted", 0)).stream()
+            .filter(i -> !existNames.contains(i.getName()))
+            .forEach(i -> {
+                log.warn("Inserting interface name={} for orgId={}", i.getName(), o.getId());
+                log.warn("i.getApiAuth()={}", i.getApiAuth());
+                log.warn("i.getApiId()={}", i.getApiId());
+                System.out.println("i.getApiAuth()={}" + i.getApiAuth());
+                System.out.println("i.getApiId()={}" + i.getApiId());
+                TInterface n = new TInterface();
+                n.setName(i.getName()); n.setUrl(i.getUrl()); n.setCallInterval(i.getCallInterval());
+                n.setMethod(i.getMethod()); n.setDescription(i.getDescription()); n.setEnabled(i.getEnabled());
+                n.setCustomerId(o.getId()); n.setDeleted(0); n.setCreateTime(i.getCreateTime()); n.setUpdateTime(i.getUpdateTime());
+                n.setApiAuth(i.getApiAuth()); 
+                n.setApiId(i.getApiId());
+                interfaceService.saveOrUpdate(n);
+            });
+    }
+    
+    private void cloneHealthDataConfig(SysOrgUnits o) { // 复制健康数据配置
+        log.warn("cloneHealthDataConfig called for orgId={}", o.getId());
+        healthDataConfigService.remove(new QueryWrapper<THealthDataConfig>().eq("customer_id", o.getId())); // 先清理
+        healthDataConfigService.list(new QueryWrapper<THealthDataConfig>().eq("customer_id", 1)).forEach(h -> {
+            THealthDataConfig n = new THealthDataConfig();
+            n.setCustomerId(o.getId()); n.setDataType(h.getDataType()); n.setFrequencyInterval(h.getFrequencyInterval());
+            n.setIsRealtime(h.getIsRealtime()); n.setIsEnabled(h.getIsEnabled()); n.setIsDefault(h.getIsDefault());
+            n.setWarningHigh(h.getWarningHigh()); n.setWarningLow(h.getWarningLow()); n.setWarningCnt(h.getWarningCnt());
+            n.setIsDeleted(0); n.setCreateTime(h.getCreateTime()); n.setUpdateTime(h.getUpdateTime()); n.setWeight(h.getWeight());
+            healthDataConfigService.saveOrUpdate(n);
+        });
+    }
+
+} 

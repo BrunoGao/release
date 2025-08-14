@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>性能测试报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body{font-family:'Microsoft YaHei',sans-serif;margin:0;padding:20px;background:linear-gradient(135deg,#0c1445,#1e3c72,#2a5298);color:#fff;}
+        .container{max-width:1400px;margin:0 auto;}
+        .header{text-align:center;margin-bottom:30px;padding:20px;background:rgba(255,255,255,0.05);border-radius:15px;}
+        .header h1{color:#64ffda;text-shadow:0 0 20px rgba(100,255,218,0.5);margin-bottom:10px;}
+        .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:25px;}
+        .card{background:rgba(255,255,255,0.08);border:1px solid rgba(100,255,218,0.2);border-radius:12px;padding:15px;text-align:center;}
+        .card h3{color:#64ffda;margin:0 0 8px 0;font-size:1em;}
+        .metric{font-size:1.8em;font-weight:bold;color:#fff;}
+        .charts{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:25px;}
+        .chart-container{background:rgba(255,255,255,0.08);border-radius:12px;padding:15px;height:350px;}
+        .chart-title{color:#64ffda;text-align:center;margin-bottom:10px;}
+        .table{width:100%;border-collapse:collapse;background:rgba(255,255,255,0.08);border-radius:8px;overflow:hidden;}
+        .table th,.table td{padding:6px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.1);font-size:0.85em;}
+        .table th{background:rgba(100,255,218,0.2);color:#64ffda;}
+        .status-pass{color:#4caf50;}
+        .status-fail{color:#f44336;}
+        .error-info{background:rgba(255,152,0,0.1);border:1px solid rgba(255,152,0,0.3);border-radius:8px;padding:12px;margin:15px 0;}
+        .error-info h4{color:#ff9800;margin:0 0 8px 0;font-size:1.1em;}
+        @media(max-width:768px){.charts{grid-template-columns:1fr;}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 常规性能测试报告</h1>
+            <p>测试时间: 2025-05-26 14:03:06</p>
+        </div>
+        
+        <div class="summary">
+            <div class="card">
+                <h3>最高QPS</h3>
+                <div class="metric">77</div>
+            </div>
+            <div class="card">
+                <h3>最大并发</h3>
+                <div class="metric">1,000</div>
+            </div>
+            <div class="card">
+                <h3>平均成功率</h3>
+                <div class="metric">100.0%</div>
+            </div>
+            <div class="card">
+                <h3>测试轮次</h3>
+                <div class="metric">3</div>
+            </div>
+        </div>
+        
+        <div class="error-info">
+            <h4>🔍 错误类型统计</h4>
+            <p>无错误</p>
+            <small>TIMEOUT:请求超时 | BROKEN_PIPE:连接断开 | CONN_ERROR:连接错误 | HTTP_xxx:HTTP状态码错误</small>
+        </div>
+        
+        <div class="charts">
+            <div class="chart-container">
+                <div class="chart-title">QPS性能曲线</div>
+                <canvas id="qpsChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">响应时间分析</div>
+                <canvas id="responseChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3>详细测试结果</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>测试名称</th>
+                        <th>设备数</th>
+                        <th>线程数</th>
+                        <th>耗时(s)</th>
+                        <th>QPS</th>
+                        <th>成功率</th>
+                        <th>平均响应(ms)</th>
+                        <th>P95响应(ms)</th>
+                        <th>主要错误</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>第1轮测试</td>
+                        <td>1,000</td>
+                        <td>100</td>
+                        <td>13.43</td>
+                        <td>74.5</td>
+                        <td>100.0%</td>
+                        <td>1265</td>
+                        <td>1685</td>
+                        <td style="font-size:0.8em;">无</td>
+                        <td class="status-pass">
+                            ✅通过
+                        </td>
+                    </tr><tr>
+                        <td>第2轮测试</td>
+                        <td>1,000</td>
+                        <td>100</td>
+                        <td>12.92</td>
+                        <td>77.4</td>
+                        <td>100.0%</td>
+                        <td>1249</td>
+                        <td>1692</td>
+                        <td style="font-size:0.8em;">无</td>
+                        <td class="status-pass">
+                            ✅通过
+                        </td>
+                    </tr><tr>
+                        <td>第3轮测试</td>
+                        <td>1,000</td>
+                        <td>100</td>
+                        <td>13.08</td>
+                        <td>76.5</td>
+                        <td>100.0%</td>
+                        <td>1246</td>
+                        <td>1683</td>
+                        <td style="font-size:0.8em;">无</td>
+                        <td class="status-pass">
+                            ✅通过
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        //数据准备和验证
+        const testResults=[{"name": "\u7b2c1\u8f6e\u6d4b\u8bd5", "devices": 1000, "workers": 100, "elapsed": 13.428700923919678, "success": 1000, "error": 0, "qps": 74.46736699741109, "success_rate": 100.0, "avg_response": 1265.24063539505, "p95_response": 1685.196876525879, "p99_response": 1861.802101135254, "error_counts": {}, "timestamp": "2025-05-26 14:02:34"}, {"name": "\u7b2c2\u8f6e\u6d4b\u8bd5", "devices": 1000, "workers": 100, "elapsed": 12.916030883789062, "success": 1000, "error": 0, "qps": 77.42316575404772, "success_rate": 100.0, "avg_response": 1249.072301864624, "p95_response": 1692.065954208374, "p99_response": 1929.8267364501953, "error_counts": {}, "timestamp": "2025-05-26 14:02:49"}, {"name": "\u7b2c3\u8f6e\u6d4b\u8bd5", "devices": 1000, "workers": 100, "elapsed": 13.076185703277588, "success": 1000, "error": 0, "qps": 76.47490045582228, "success_rate": 100.0, "avg_response": 1246.10107811292, "p95_response": 1683.4478378295898, "p99_response": 1873.3580112457275, "error_counts": {}, "timestamp": "2025-05-26 14:03:04"}];
+        console.log('测试结果数据:',testResults);
+        
+        if(testResults && testResults.length>0){
+            const qpsData=testResults.map(r=>Math.round(r.qps*10)/10);
+            const responseData=testResults.map(r=>[Math.round(r.avg_response),Math.round(r.p95_response),Math.round(r.p99_response||0)]);
+            const labels=testResults.map(r=>r.name);
+            
+            //QPS图表
+            new Chart(document.getElementById('qpsChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'QPS性能',
+                        data: qpsData,
+                        borderColor: '#64ffda',
+                        backgroundColor: 'rgba(100,255,218,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#64ffda',
+                        pointBorderColor: '#fff',
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {labels: {color: '#fff',fontSize: 12}},
+                        title: {display: true,text: 'QPS性能趋势',color: '#64ffda',fontSize: 14}
+                    },
+                    scales: {
+                        x: {ticks: {color: '#fff',fontSize: 10},grid: {color: 'rgba(255,255,255,0.2)'}},
+                        y: {ticks: {color: '#fff',fontSize: 10},grid: {color: 'rgba(255,255,255,0.2)'}}
+                    }
+                }
+            });
+            
+            //响应时间图表
+            new Chart(document.getElementById('responseChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '平均响应时间',
+                            data: responseData.map(r=>r[0]),
+                            backgroundColor: 'rgba(76,175,80,0.8)',
+                            borderColor: 'rgba(76,175,80,1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'P95响应时间',
+                            data: responseData.map(r=>r[1]),
+                            backgroundColor: 'rgba(255,193,7,0.8)',
+                            borderColor: 'rgba(255,193,7,1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'P99响应时间',
+                            data: responseData.map(r=>r[2]),
+                            backgroundColor: 'rgba(244,67,54,0.8)',
+                            borderColor: 'rgba(244,67,54,1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {labels: {color: '#fff',fontSize: 10}},
+                        title: {display: true,text: '响应时间分布',color: '#64ffda',fontSize: 14}
+                    },
+                    scales: {
+                        x: {ticks: {color: '#fff',fontSize: 9},grid: {color: 'rgba(255,255,255,0.2)'}},
+                        y: {ticks: {color: '#fff',fontSize: 9},grid: {color: 'rgba(255,255,255,0.2)'}}
+                    }
+                }
+            });
+        }else{
+            //无数据时显示提示
+            document.getElementById('qpsChart').parentElement.innerHTML='<div style="text-align:center;color:#ff9800;padding:40px;">📊 暂无QPS数据</div>';
+            document.getElementById('responseChart').parentElement.innerHTML='<div style="text-align:center;color:#ff9800;padding:40px;">📈 暂无响应时间数据</div>';
+        }
+    </script>
+</body>
+</html>

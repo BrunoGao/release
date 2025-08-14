@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+ All Rights Reserved: Copyright [2024] [Zhuang Pan]
+ Open Source Agreement: Apache License, Version 2.0
+ For educational purposes only, commercial use shall comply with the author's copyright information.
+ The author does not guarantee or assume any responsibility for the risks of using software.
+
+ Licensed under the Apache License, Version 2.0 (the "License").
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<mapper namespace="com.ljwx.modules.health.repository.mapper.TDeviceConfigMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="TDeviceConfigResultMap" type="com.ljwx.modules.health.domain.entity.TDeviceConfig">
+        <result column="spo2MeasurePeriod" property="spo2MeasurePeriod"/>
+        <result column="stressMeasurePeriod" property="stressMeasurePeriod"/>
+        <result column="bodyTemperatureMeasurePeriod" property="bodyTemperatureMeasurePeriod"/>
+        <result column="heartRateWarningHigh" property="heartRateWarningHigh"/>
+        <result column="heartRateWarningLow" property="heartRateWarningLow"/>
+        <result column="spo2Warning" property="spo2Warning"/>
+        <result column="stressWarning" property="stressWarning"/>
+        <result column="bodyTemperatureHighWarning" property="bodyTemperatureHighWarning"/>
+        <result column="bodyTemperatureLowWarning" property="bodyTemperatureLowWarning"/>
+        <result column="httpUrl" property="httpUrl"/>
+        <result column="logo" property="logo"/>
+        <result column="uiType" property="uiType"/>
+        <result column="bodyTemperatureWarningCnt" property="bodyTemperatureWarningCnt"/>
+        <result column="heartWarningCnt" property="heartWarningCnt"/>
+        <result column="heartRateMeasurePeriod" property="heartRateMeasurePeriod"/>
+        <result column="spo2WarningCnt" property="spo2WarningCnt"/>
+        <result column="stressMonitoringEnabled" property="stressMonitoringEnabled"/>
+        <result column="stepsMonitoringEnabled" property="stepsMonitoringEnabled"/>
+        <result column="distanceMonitoringEnabled" property="distanceMonitoringEnabled"/>
+        <result column="calorieMonitoringEnabled" property="calorieMonitoringEnabled"/>
+        <result column="sleepMonitoringEnabled" property="sleepMonitoringEnabled"/>
+        <result column="ecgMonitoringEnabled" property="ecgMonitoringEnabled"/>
+        <result column="locationMonitoringEnabled" property="locationMonitoringEnabled"/>
+        <result column="sosEventListenerEnabled" property="sosEventListenerEnabled"/>
+        <result column="doubleClickEventListenerEnabled" property="doubleClickEventListenerEnabled"/>
+        <result column="temperatureAbnormalListenerEnabled" property="temperatureAbnormalListenerEnabled"/>
+        <result column="heartRateAbnormalListenerEnabled" property="heartRateAbnormalListenerEnabled"/>
+        <result column="stressAbnormalListenerEnabled" property="stressAbnormalListenerEnabled"/>
+        <result column="fallEventListenerEnabled" property="fallEventListenerEnabled"/>
+        <result column="spo2AbnormalListenerEnabled" property="spo2AbnormalListenerEnabled"/>
+        <result column="oneClickAlarmListenerEnabled" property="oneClickAlarmListenerEnabled"/>
+        <result column="wearingStatusListenerEnabled" property="wearingStatusListenerEnabled"/>
+        <result column="id" property="id"/>
+        <result column="create_user" property="createUser"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_user" property="updateUser"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="TDeviceConfigColumnList">
+        id,
+        create_user,
+        create_user_id,
+        create_time,
+        update_user,
+        update_user_id,
+        update_time,
+        spo2MeasurePeriod, stressMeasurePeriod, bodyTemperatureMeasurePeriod, heartRateWarningHigh, heartRateWarningLow, spo2Warning, stressWarning, bodyTemperatureHighWarning, bodyTemperatureLowWarning, httpUrl, logo, uiType, bodyTemperatureWarningCnt, heartWarningCnt, heartRateMeasurePeriod, spo2WarningCnt, stressMonitoringEnabled, stepsMonitoringEnabled, distanceMonitoringEnabled, calorieMonitoringEnabled, sleepMonitoringEnabled, ecgMonitoringEnabled, locationMonitoringEnabled, sosEventListenerEnabled, doubleClickEventListenerEnabled, temperatureAbnormalListenerEnabled, heartRateAbnormalListenerEnabled, stressAbnormalListenerEnabled, fallEventListenerEnabled, spo2AbnormalListenerEnabled, oneClickAlarmListenerEnabled, wearingStatusListenerEnabled
+    </sql>
+
+</mapper>

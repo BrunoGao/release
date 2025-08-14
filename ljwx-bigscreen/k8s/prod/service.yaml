@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ljwx-bigscreen-service
+  namespace: ljwx-system
+  labels:
+    app: ljwx-bigscreen
+    env: prod
+spec:
+  selector:
+    app: ljwx-bigscreen
+    env: prod
+  ports:
+  - name: http
+    port: 80
+    targetPort: 5001
+    protocol: TCP
+  type: ClusterIP
+  sessionAffinity: None 

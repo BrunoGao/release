@@ -1,0 +1,137 @@
+version: '3.8'
+
+# 本地开发环境 - 仅启动依赖服务
+services:
+  mysql-local:
+    image: mysql:8.0
+    container_name: ljwx-mysql-local
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-123456}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lj-06}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306" #映射到宿主机端口
+    volumes:
+      - mysql_local_data:/var/lib/mysql
+      - mysql_local_logs:/var/log/mysql
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro #SQL初始化脚本
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_connections=100 #本地开发降低连接数
+      - --wait_timeout=28800
+      - --interactive_timeout=28800
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD:-123456}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ljwx-local-network
+
+  redis-local:
+    image: redis:7-alpine
+    container_name: ljwx-redis-local
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-123456} --appendonly yes
+    ports:
+      - "6379:6379" #映射到宿主机端口
+    volumes:
+      - redis_local_data:/data
+      - redis_local_logs:/var/log/redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-123456}", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - ljwx-local-network
+
+  # 本地MinIO对象存储服务
+  minio-local:
+    image: minio/minio:latest
+    container_name: ljwx-minio-local
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${OSS_ACCESS_KEY:-admin}
+      MINIO_ROOT_PASSWORD: ${OSS_SECRET_KEY:-admin123}
+    ports:
+      - "9000:9000" #API端口
+      - "9001:9001" #控制台端口
+    volumes:
+      - minio_local_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    networks:
+      - ljwx-local-network
+
+  # 本地PostgreSQL向量数据库
+  postgres-local:
+    image: pgvector/pgvector:pg16
+    container_name: ljwx-postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vector_db
+      POSTGRES_USER: ${PGVECTOR_USER:-postgres}
+      POSTGRES_PASSWORD: ${PGVECTOR_PASSWORD:-postgres}
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432" #映射到宿主机端口
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+      - ./init-vector-db.sql:/docker-entrypoint-initdb.d/init-vector-db.sql:ro #向量数据库初始化
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGVECTOR_USER:-postgres} -d vector_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ljwx-local-network
+
+  # 本地Ollama AI服务 (可选)
+  ollama-local:
+    image: ollama/ollama:latest
+    container_name: ljwx-ollama-local
+    restart: unless-stopped
+    ports:
+      - "11434:11434" #映射到宿主机端口
+    volumes:
+      - ollama_local_data:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS=* #允许跨域访问
+    networks:
+      - ljwx-local-network
+    # 健康检查和模型下载在启动后手动执行
+
+volumes:
+  mysql_local_data:
+    name: ljwx_mysql_local_data
+  mysql_local_logs:
+    name: ljwx_mysql_local_logs
+  redis_local_data:
+    name: ljwx_redis_local_data
+  redis_local_logs:
+    name: ljwx_redis_local_logs
+  minio_local_data:
+    name: ljwx_minio_local_data
+  postgres_local_data:
+    name: ljwx_postgres_local_data
+  ollama_local_data:
+    name: ljwx_ollama_local_data
+
+networks:
+  ljwx-local-network:
+    name: ljwx-local-network
+    driver: bridge 

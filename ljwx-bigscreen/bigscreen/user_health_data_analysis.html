@@ -1,0 +1,86 @@
+/* 添加新的样式 */
+.health-profile {
+    background: linear-gradient(180deg, rgba(16, 24, 39, 0.8) 0%, rgba(16, 24, 39, 0.9) 100%);
+    border: 1px solid rgba(99, 179, 237, 0.2);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.radar-chart {
+    position: relative;
+    height: 500px;
+    background: rgba(16, 24, 39, 0.6);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.radar-chart::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(99, 179, 237, 0.05), rgba(66, 153, 225, 0.1));
+    pointer-events: none;
+}
+
+.health-score {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 2.5rem;
+    background: linear-gradient(90deg, #63B3ED, #4299E1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 10px 0;
+}
+
+.health-insights {
+    background: rgba(26, 32, 44, 0.8);
+    border-left: 4px solid #4299E1;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 0 8px 8px 0;
+    transition: all 0.3s ease;
+}
+
+.health-insights:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.2);
+}
+
+/* 图表标题样式 */
+.chart-title {
+    font-size: 1.2rem;
+    color: #E2E8F0;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-title::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(180deg, #63B3ED, #4299E1);
+    border-radius: 2px;
+}
+
+/* 数值显示优化 */
+.metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    color: #A0AEC0;
+}
+
+/* 添加动画效果 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+    animation: fadeIn 0.5s ease-out forwards;
+} 

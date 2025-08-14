@@ -1,0 +1,88 @@
+{
+  "report_title": "ljwx接口综合自动化测试报告",
+  "test_summary": {
+    "start_time": "2025-06-18T07:46:26.029924",
+    "end_time": "2025-06-18T07:46:46.292530",
+    "total_time": "0:00:20.262606",
+    "total_tests": 4,
+    "passed_tests": 3,
+    "failed_tests": 1,
+    "success_rate": 75.0
+  },
+  "test_results": [
+    {
+      "test_id": "upload_common_event",
+      "test_name": "upload_common_event接口测试",
+      "status": "PASS",
+      "execution_time": "5.85s",
+      "details": {
+        "api_response": true,
+        "health_data": true,
+        "alert_generation": true,
+        "message_delivery": true,
+        "wechat_notification": true,
+        "passed_events": [
+          "SOS_EVENT",
+          "FALLDOWN_EVENT",
+          "ONE_KEY_ALARM",
+          "WEAR_STATUS_CHANGED"
+        ],
+        "total_events": 4
+      },
+      "error": null
+    },
+    {
+      "test_id": "health_data_sync",
+      "test_name": "健康数据同步测试",
+      "status": "FAIL",
+      "execution_time": "0.00s",
+      "details": {},
+      "error": "测试文件不存在: test_health_sync.py"
+    },
+    {
+      "test_id": "upload_health_data",
+      "test_name": "健康数据上传接口测试",
+      "status": "PASS",
+      "execution_time": "3.20s",
+      "details": {
+        "api_response": true,
+        "data_storage": true,
+        "data_validation": true,
+        "passed_events": [
+          "HEALTH_DATA_UPLOAD"
+        ],
+        "total_events": 1
+      },
+      "error": null
+    },
+    {
+      "test_id": "upload_device_info",
+      "test_name": "设备信息上传接口测试",
+      "status": "PASS",
+      "execution_time": "3.19s",
+      "details": {
+        "api_response": true,
+        "device_registration": true,
+        "status_update": true,
+        "network_info": true,
+        "passed_events": [
+          "DEVICE_INFO_UPLOAD"
+        ],
+        "total_events": 1
+      },
+      "error": null
+    }
+  ],
+  "interface_coverage": {
+    "upload_common_event": true,
+    "upload_health_data": true,
+    "upload_device_info": true,
+    "health_data_sync": true
+  },
+  "recommendations": [
+    "修复线程池关闭时的清理逻辑",
+    "添加更多边界条件测试",
+    "实现接口性能监控",
+    "增加错误重试机制测试"
+  ]
+}

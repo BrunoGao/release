@@ -1,0 +1,33 @@
+spring:
+  jackson:
+    serialization:
+      ORDER_MAP_ENTRIES_BY_KEYS: false
+  mybatis-plus:
+    type-handlers-package: com.ljwx.modules.geofence.util
+  
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DATASOURCE_URL:jdbc:mysql://localhost:3306/lj-06}
+    username: ${DATASOURCE_USERNAME:root}
+    password: ${DATASOURCE_PASSWORD:123456}
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:${REDIS_HOST:redis}}
+      port: ${SPRING_REDIS_PORT:${REDIS_PORT:6379}}
+      password: ${REDIS_PASSWORD:123456}
+      database: ${REDIS_DB:1}
+      connect-timeout: 10000ms
+      lettuce:
+        pool:
+          enabled: true
+oss:
+  name: minio
+  bucket-name: ${OSS_BUCKET_NAME:panis}
+  endpoint: ${OSS_ENDPOINT:http://127.0.0.1:9000}
+  access-key: ${OSS_ACCESS_KEY:X8TyWsvQMK7CSlYIStbD}
+  secret-key: ${OSS_SECRET_KEY:X8TyWsvQMK7CSlYIStbD}
+  sync-delete: true
+  expiry: 3600
+logging:
+  level:
+    root: debug
