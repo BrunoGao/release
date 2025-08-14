@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖥️ 系统实时监控中心</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Microsoft YaHei',sans-serif;background:linear-gradient(135deg,#0c1445,#1e3c72,#2a5298);color:#fff;min-height:100vh;overflow-x:hidden;}
+        
+        .container{max-width:1600px;margin:0 auto;padding:20px;}
+        
+        /*头部*/
+        .header{text-align:center;margin-bottom:30px;padding:20px;background:rgba(255,255,255,0.05);backdrop-filter:blur(20px);border-radius:15px;border:1px solid rgba(100,255,218,0.3);}
+        .header h1{font-size:2.5em;color:#64ffda;text-shadow:0 0 20px rgba(100,255,218,0.8);margin-bottom:10px;}
+        .header p{color:#a0c4ff;font-size:1.1em;}
+        .last-update{color:#64ffda;font-size:0.9em;margin-top:10px;}
+        
+        /*监控网格*/
+        .monitor-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px;}
+        .monitor-card{background:rgba(255,255,255,0.08);backdrop-filter:blur(15px);border-radius:15px;padding:20px;border:1px solid rgba(100,255,218,0.2);transition:all 0.3s ease;}
+        .monitor-card:hover{transform:translateY(-5px);box-shadow:0 15px 35px rgba(100,255,218,0.2);}
+        .monitor-title{color:#64ffda;font-size:1.3em;margin-bottom:15px;display:flex;align-items:center;gap:10px;}
+        .monitor-icon{font-size:1.5em;animation:pulse 2s infinite;}
+        @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+        
+        /*指标网格*/
+        .metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;}
+        .metric-item{background:rgba(255,255,255,0.05);padding:12px;border-radius:10px;text-align:center;transition:all 0.3s ease;}
+        .metric-item:hover{background:rgba(100,255,218,0.1);transform:scale(1.05);}
+        .metric-label{color:#a0c4ff;font-size:0.85em;margin-bottom:5px;}
+        .metric-value{font-size:1.6em;font-weight:bold;color:#fff;}
+        .metric-good{color:#4caf50;}
+        .metric-warning{color:#ff9800;}
+        .metric-danger{color:#f44336;}
+        .metric-unit{font-size:0.7em;color:#a0c4ff;margin-left:2px;}
+        
+        /*慢查询面板*/
+        .slow-queries-panel{background:rgba(255,255,255,0.08);border-radius:15px;padding:20px;margin-bottom:20px;border:1px solid rgba(255,152,0,0.3);}
+        .slow-queries-title{color:#ff9800;font-size:1.3em;margin-bottom:15px;display:flex;align-items:center;gap:10px;}
+        .query-list{max-height:400px;overflow-y:auto;}
+        .query-item{background:rgba(255,255,255,0.05);margin:10px 0;padding:15px;border-radius:10px;border-left:4px solid #ff9800;transition:all 0.3s ease;}
+        .query-item:hover{background:rgba(255,152,0,0.1);transform:translateX(5px);}
+        .query-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+        .query-time{color:#ff9800;font-weight:bold;}
+        .query-duration{color:#f44336;font-size:0.9em;}
+        .query-sql{background:rgba(0,0,0,0.3);padding:10px;border-radius:5px;font-family:monospace;font-size:0.85em;color:#e0e0e0;margin:8px 0;word-break:break-all;}
+        .query-details{display:none;margin-top:10px;padding:10px;background:rgba(255,255,255,0.05);border-radius:5px;}
+        .query-suggestion{background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.3);padding:10px;border-radius:5px;margin-top:8px;}
+        .suggestion-title{color:#4caf50;font-weight:bold;margin-bottom:5px;}
+        .suggestion-text{color:#e0e0e0;font-size:0.9em;}
+        
+        /*按钮*/
+        .btn{padding:8px 15px;border:none;border-radius:6px;cursor:pointer;font-size:0.9em;transition:all 0.3s ease;margin:5px;}
+        .btn-info{background:linear-gradient(45deg,#2196f3,#03a9f4);color:#fff;}
+        .btn-warning{background:linear-gradient(45deg,#ff9800,#ffc107);color:#fff;}
+        .btn:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(0,0,0,0.3);}
+        
+        /*图表区域*/
+        .charts-section{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px;}
+        .chart-card{background:rgba(255,255,255,0.08);border-radius:15px;padding:20px;height:350px;}
+        .chart-title{color:#64ffda;text-align:center;margin-bottom:15px;font-size:1.2em;}
+        .chart-container{height:280px;position:relative;}
+        
+        /*状态指示器*/
+        .status-indicator{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:15px;font-size:0.8em;font-weight:bold;}
+        .status-healthy{background:rgba(76,175,80,0.2);color:#4caf50;border:1px solid rgba(76,175,80,0.5);}
+        .status-warning{background:rgba(255,152,0,0.2);color:#ff9800;border:1px solid rgba(255,152,0,0.5);}
+        .status-critical{background:rgba(244,67,54,0.2);color:#f44336;border:1px solid rgba(244,67,54,0.5);}
+        
+        /*响应式*/
+        @media(max-width:768px){
+            .monitor-grid,.charts-section{grid-template-columns:1fr;}
+            .metrics-grid{grid-template-columns:repeat(2,1fr);}
+            .container{padding:15px;}
+        }
+        
+        /*加载动画*/
+        .loading-spinner{width:40px;height:40px;border:3px solid rgba(100,255,218,0.2);border-top:3px solid #64ffda;border-radius:50%;animation:spin 1s linear infinite;margin:20px auto;}
+        @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!--头部-->
+        <div class="header">
+            <h1>🖥️ 系统实时监控中心</h1>
+            <p>实时监控系统性能指标 · 慢查询分析 · 智能优化建议</p>
+            <div class="last-update" id="lastUpdate">最后更新: --</div>
+        </div>
+        
+        <!--监控面板-->
+        <div class="monitor-grid">
+            <!--服务器性能-->
+            <div class="monitor-card">
+                <div class="monitor-title">
+                    <span class="monitor-icon">🖥️</span>
+                    服务器性能
+                    <span class="status-indicator status-healthy" id="serverStatus">
+                        <span>●</span> 正常
+                    </span>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">CPU使用率</div>
+                        <div class="metric-value" id="cpuUsage">--<span class="metric-unit">%</span></div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">内存使用率</div>
+                        <div class="metric-value" id="memoryUsage">--<span class="metric-unit">%</span></div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">网络连接</div>
+                        <div class="metric-value" id="connections">--</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">磁盘I/O</div>
+                        <div class="metric-value" id="diskIO">--<span class="metric-unit">MB/s</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!--数据库性能-->
+            <div class="monitor-card">
+                <div class="monitor-title">
+                    <span class="monitor-icon">🗄️</span>
+                    数据库性能
+                    <span class="status-indicator status-healthy" id="dbStatus">
+                        <span>●</span> 正常
+                    </span>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">连接数</div>
+                        <div class="metric-value" id="dbConnections">--</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">QPS</div>
+                        <div class="metric-value" id="dbQPS">--</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">缓存命中率</div>
+                        <div class="metric-value" id="cacheHitRate">--<span class="metric-unit">%</span></div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">慢查询</div>
+                        <div class="metric-value" id="slowQueries">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!--图表区域-->
+        <div class="charts-section">
+            <div class="chart-card">
+                <div class="chart-title">📈 系统负载趋势</div>
+                <div class="chart-container">
+                    <canvas id="systemChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">🗄️ 数据库性能趋势</div>
+                <div class="chart-container">
+                    <canvas id="databaseChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!--慢查询分析-->
+        <div class="slow-queries-panel">
+            <div class="slow-queries-title">
+                <span class="monitor-icon">🐌</span>
+                慢查询分析与优化建议
+                <span class="status-indicator status-warning" id="slowQueryStatus">
+                    <span>●</span> <span id="slowQueryCount">0</span> 条慢查询
+                </span>
+            </div>
+            <div class="query-list" id="queryList">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        //全局变量
+        let systemChart=null;
+        let databaseChart=null;
+        let monitorInterval=null;
+        let chartData={
+            system:{labels:[],cpu:[],memory:[],connections:[]},
+            database:{labels:[],qps:[],connections:[],hitRate:[]}
+        };
+        
+        //初始化图表
+        function initCharts(){
+            //系统负载图表
+            const systemCtx=document.getElementById('systemChart');
+            systemChart=new Chart(systemCtx,{
+                type:'line',
+                data:{
+                    labels:[],
+                    datasets:[
+                        {label:'CPU使用率(%)',data:[],borderColor:'#f44336',backgroundColor:'rgba(244,67,54,0.1)',tension:0.4},
+                        {label:'内存使用率(%)',data:[],borderColor:'#ff9800',backgroundColor:'rgba(255,152,0,0.1)',tension:0.4},
+                        {label:'网络连接数',data:[],borderColor:'#2196f3',backgroundColor:'rgba(33,150,243,0.1)',tension:0.4,yAxisID:'y1'}
+                    ]
+                },
+                options:{
+                    responsive:true,maintainAspectRatio:false,
+                    plugins:{legend:{labels:{color:'#fff',fontSize:10}}},
+                    scales:{
+                        x:{ticks:{color:'#a0c4ff',fontSize:9},grid:{color:'rgba(160,196,255,0.1)'}},
+                        y:{ticks:{color:'#a0c4ff',fontSize:9},grid:{color:'rgba(160,196,255,0.1)'},max:100},
+                        y1:{type:'linear',display:true,position:'right',ticks:{color:'#a0c4ff',fontSize:9},grid:{drawOnChartArea:false}}
+                    }
+                }
+            });
+            
+            //数据库性能图表
+            const dbCtx=document.getElementById('databaseChart');
+            databaseChart=new Chart(dbCtx,{
+                type:'line',
+                data:{
+                    labels:[],
+                    datasets:[
+                        {label:'QPS',data:[],borderColor:'#4caf50',backgroundColor:'rgba(76,175,80,0.1)',tension:0.4},
+                        {label:'连接数',data:[],borderColor:'#9c27b0',backgroundColor:'rgba(156,39,176,0.1)',tension:0.4,yAxisID:'y1'},
+                        {label:'缓存命中率(%)',data:[],borderColor:'#64ffda',backgroundColor:'rgba(100,255,218,0.1)',tension:0.4,yAxisID:'y2'}
+                    ]
+                },
+                options:{
+                    responsive:true,maintainAspectRatio:false,
+                    plugins:{legend:{labels:{color:'#fff',fontSize:10}}},
+                    scales:{
+                        x:{ticks:{color:'#a0c4ff',fontSize:9},grid:{color:'rgba(160,196,255,0.1)'}},
+                        y:{ticks:{color:'#a0c4ff',fontSize:9},grid:{color:'rgba(160,196,255,0.1)'}},
+                        y1:{type:'linear',display:true,position:'right',ticks:{color:'#a0c4ff',fontSize:9},grid:{drawOnChartArea:false}},
+                        y2:{type:'linear',display:false,max:100}
+                    }
+                }
+            });
+        }
+        
+        //更新图表数据
+        function updateCharts(time,serverData,dbData){
+            const maxPoints=20;
+            
+            //系统图表
+            chartData.system.labels.push(time);
+            chartData.system.cpu.push(serverData.cpu);
+            chartData.system.memory.push(serverData.memory);
+            chartData.system.connections.push(Math.round(serverData.connections/10));//缩放显示
+            
+            if(chartData.system.labels.length>maxPoints){
+                chartData.system.labels.shift();
+                chartData.system.cpu.shift();
+                chartData.system.memory.shift();
+                chartData.system.connections.shift();
+            }
+            
+            systemChart.data.labels=chartData.system.labels;
+            systemChart.data.datasets[0].data=chartData.system.cpu;
+            systemChart.data.datasets[1].data=chartData.system.memory;
+            systemChart.data.datasets[2].data=chartData.system.connections;
+            systemChart.update('none');
+            
+            //数据库图表
+            chartData.database.labels.push(time);
+            chartData.database.qps.push(Math.round(dbData.qps/10));//缩放显示
+            chartData.database.connections.push(dbData.connections);
+            chartData.database.hitRate.push(dbData.cache_hit_rate);
+            
+            if(chartData.database.labels.length>maxPoints){
+                chartData.database.labels.shift();
+                chartData.database.qps.shift();
+                chartData.database.connections.shift();
+                chartData.database.hitRate.shift();
+            }
+            
+            databaseChart.data.labels=chartData.database.labels;
+            databaseChart.data.datasets[0].data=chartData.database.qps;
+            databaseChart.data.datasets[1].data=chartData.database.connections;
+            databaseChart.data.datasets[2].data=chartData.database.hitRate;
+            databaseChart.update('none');
+        }
+        
+        //更新指标显示
+        function updateMetric(id,value,numValue,unit=''){
+            const element=document.getElementById(id);
+            if(element){
+                element.innerHTML=`${value}<span class="metric-unit">${unit}</span>`;
+                element.className='metric-value';
+                
+                //根据指标类型设置颜色
+                if(id.includes('Usage')||id==='slowQueries'){
+                    if(numValue>80)element.classList.add('metric-danger');
+                    else if(numValue>60)element.classList.add('metric-warning');
+                    else element.classList.add('metric-good');
+                }else if(id==='cacheHitRate'){
+                    if(numValue>95)element.classList.add('metric-good');
+                    else if(numValue>85)element.classList.add('metric-warning');
+                    else element.classList.add('metric-danger');
+                }else{
+                    element.classList.add('metric-good');
+                }
+            }
+        }
+        
+        //更新状态指示器
+        function updateStatus(id,status,text){
+            const element=document.getElementById(id);
+            if(element){
+                element.className=`status-indicator status-${status}`;
+                element.innerHTML=`<span>●</span> ${text}`;
+            }
+        }
+        
+        //获取系统指标
+        async function getSystemMetrics(){
+            try{
+                const response=await fetch('/api/system_monitor/metrics');
+                if(response.ok){
+                    const result=await response.json();
+                    if(result.success){
+                        return result;
+                    }
+                }
+            }catch(error){
+                console.error('获取系统指标失败:',error);
+            }
+            
+            //降级到模拟数据
+            return{
+                success:true,
+                server:{
+                    cpu:Math.round(Math.random()*80+10),
+                    memory:Math.round(Math.random()*70+20),
+                    connections:Math.floor(Math.random()*500)+100,
+                    disk_io:Math.round(Math.random()*50+5)
+                },
+                database:{
+                    connections:Math.floor(Math.random()*150)+50,
+                    qps:Math.floor(Math.random()*1500)+500,
+                    cache_hit_rate:Math.round(Math.random()*15+85),
+                    slow_queries:Math.floor(Math.random()*8)
+                },
+                slow_queries:generateMockSlowQueries()
+            };
+        }
+        
+        //生成模拟慢查询数据
+        function generateMockSlowQueries(){
+            const queries=[
+                {sql:'SELECT * FROM user_health_data WHERE created_at > "2025-01-01" ORDER BY id DESC',duration:2.5,connection:'conn_123',table:'user_health_data'},
+                {sql:'SELECT COUNT(*) FROM device_info d JOIN user_info u ON d.user_id = u.id WHERE d.status = "active"',duration:1.8,connection:'conn_456',table:'device_info'},
+                {sql:'UPDATE alert_info SET status = "processed" WHERE severity = "high" AND created_at < NOW() - INTERVAL 1 DAY',duration:3.2,connection:'conn_789',table:'alert_info'}
+            ];
+            return queries.slice(0,Math.floor(Math.random()*4));
+        }
+        
+                 //生成优化建议
+         function generateOptimizationSuggestion(query){
+             let suggestions=[];
+             const sql=query.sql.toLowerCase();
+             const efficiency=query.rows_examined&&query.rows_sent?(query.rows_sent/query.rows_examined)*100:0;
+             
+             //基于SQL类型的建议
+             if(sql.includes('select * from')){
+                 suggestions.push('🔍 避免使用SELECT *，指定具体需要的字段，减少数据传输量');
+             }
+             
+             if(sql.includes('order by')&&!sql.includes('limit')){
+                 suggestions.push('📄 ORDER BY查询建议添加LIMIT限制结果集大小');
+             }
+             
+             if(sql.includes('join')&&!sql.includes('index')){
+                 suggestions.push('🔗 JOIN查询建议在关联字段上创建索引提升性能');
+             }
+             
+             if(sql.includes('where')&&sql.includes('created_at')){
+                 suggestions.push('📅 时间字段查询建议创建索引: CREATE INDEX idx_created_at ON '+query.table+'(created_at)');
+             }
+             
+             if(sql.includes('count(*)')&&sql.includes('join')){
+                 suggestions.push('🔢 COUNT查询建议使用覆盖索引或考虑缓存结果');
+             }
+             
+             if(sql.includes('update')&&sql.includes('where')){
+                 suggestions.push('✏️ UPDATE语句建议分批执行，避免长时间锁表影响其他查询');
+             }
+             
+             //基于扫描效率的建议
+             if(efficiency<1){
+                 suggestions.push('⚡ 扫描效率过低('+efficiency.toFixed(2)+'%)，强烈建议添加合适的索引');
+             }else if(efficiency<10){
+                 suggestions.push('📈 扫描效率较低('+efficiency.toFixed(2)+'%)，考虑优化WHERE条件或添加索引');
+             }
+             
+             //基于执行时间的建议
+             if(query.duration>3){
+                 suggestions.push('🚨 执行时间过长('+query.duration+'s)，建议立即优化此查询');
+             }else if(query.duration>2){
+                 suggestions.push('⏰ 执行时间较长('+query.duration+'s)，建议优化查询逻辑');
+             }
+             
+             //基于表名的具体建议
+             if(query.table==='user_health_data'){
+                 suggestions.push('💊 健康数据表建议: 按时间分区，创建复合索引(user_id,created_at)');
+             }else if(query.table==='device_info'){
+                 suggestions.push('📱 设备信息表建议: 在status字段创建索引，考虑软删除策略');
+             }else if(query.table==='alert_info'){
+                 suggestions.push('🚨 告警表建议: 创建复合索引(severity,created_at,status)');
+             }
+             
+             //默认建议
+             if(suggestions.length===0){
+                 suggestions.push('🔍 建议使用EXPLAIN分析查询执行计划，识别性能瓶颈');
+                 suggestions.push('📊 考虑添加适当索引，优化WHERE条件，避免全表扫描');
+             }
+             
+             return suggestions.join('<br>');
+         }
+        
+        //显示慢查询详情
+        function showQueryDetails(index){
+            const details=document.getElementById(`details_${index}`);
+            if(details){
+                details.style.display=details.style.display==='none'?'block':'none';
+            }
+        }
+        
+        //更新慢查询列表
+        function updateSlowQueries(queries){
+            const queryList=document.getElementById('queryList');
+            const slowQueryCount=document.getElementById('slowQueryCount');
+            
+            slowQueryCount.textContent=queries.length;
+            
+            if(queries.length===0){
+                queryList.innerHTML='<div style="text-align:center;color:#4caf50;padding:20px;">🎉 当前无慢查询</div>';
+                updateStatus('slowQueryStatus','healthy','无慢查询');
+                return;
+            }
+            
+            updateStatus('slowQueryStatus',queries.length>5?'critical':'warning',`${queries.length} 条慢查询`);
+            
+            queryList.innerHTML=queries.map((query,index)=>`
+                <div class="query-item">
+                    <div class="query-header">
+                        <span class="query-time">连接: ${query.connection}</span>
+                        <span class="query-duration">耗时: ${query.duration}s</span>
+                    </div>
+                    <div class="query-sql">${query.sql}</div>
+                    <button class="btn btn-info" onclick="showQueryDetails(${index})">查看详情</button>
+                    <button class="btn btn-warning" onclick="explainQuery('${query.sql}')">执行计划</button>
+                                         <div class="query-details" id="details_${index}">
+                         <strong>表名:</strong> ${query.table}<br>
+                         <strong>连接ID:</strong> ${query.connection}<br>
+                         <strong>执行时间:</strong> ${query.duration}秒<br>
+                         <strong>扫描行数:</strong> ${query.rows_examined || '未知'}<br>
+                         <strong>返回行数:</strong> ${query.rows_sent || '未知'}<br>
+                         <strong>扫描效率:</strong> ${query.rows_examined && query.rows_sent ? ((query.rows_sent/query.rows_examined)*100).toFixed(2)+'%' : '未知'}<br>
+                         <strong>影响:</strong> 可能导致数据库响应变慢，影响用户体验<br>
+                         <strong>建议优先级:</strong> <span style="color:${query.duration>3?'#f44336':(query.duration>2?'#ff9800':'#4caf50')}">${query.duration>3?'高':'中'}</span>
+                     </div>
+                    <div class="query-suggestion">
+                        <div class="suggestion-title">💡 优化建议:</div>
+                        <div class="suggestion-text">${generateOptimizationSuggestion(query)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        //解释查询执行计划
+        function explainQuery(sql){
+            alert(`执行计划分析:\n\nSQL: ${sql}\n\n建议:\n1. 检查是否使用了索引\n2. 避免全表扫描\n3. 优化JOIN条件\n4. 考虑分页查询\n\n详细分析请在数据库中执行: EXPLAIN ${sql}`);
+        }
+        
+        //更新监控数据
+        async function updateMonitorData(){
+            try{
+                const metrics=await getSystemMetrics();
+                if(metrics&&metrics.server&&metrics.database){
+                    const serverData=metrics.server;
+                    const dbData=metrics.database;
+                    const time=new Date().toLocaleTimeString();
+                    
+                    //更新服务器指标
+                    updateMetric('cpuUsage',serverData.cpu,serverData.cpu,'%');
+                    updateMetric('memoryUsage',serverData.memory,serverData.memory,'%');
+                    updateMetric('connections',serverData.connections,serverData.connections);
+                    updateMetric('diskIO',serverData.disk_io,serverData.disk_io,'MB/s');
+                    
+                    //更新数据库指标
+                    updateMetric('dbConnections',dbData.connections,dbData.connections);
+                    updateMetric('dbQPS',dbData.qps,dbData.qps);
+                    updateMetric('cacheHitRate',dbData.cache_hit_rate.toFixed(1),dbData.cache_hit_rate,'%');
+                    updateMetric('slowQueries',dbData.slow_queries,dbData.slow_queries);
+                    
+                    //更新状态
+                    const serverHealth=serverData.cpu<80&&serverData.memory<80?'healthy':(serverData.cpu>90||serverData.memory>90?'critical':'warning');
+                    const dbHealth=dbData.cache_hit_rate>90&&dbData.slow_queries<5?'healthy':(dbData.cache_hit_rate<80||dbData.slow_queries>10?'critical':'warning');
+                    
+                    updateStatus('serverStatus',serverHealth,serverHealth==='healthy'?'正常':(serverHealth==='critical'?'严重':'警告'));
+                    updateStatus('dbStatus',dbHealth,dbHealth==='healthy'?'正常':(dbHealth==='critical'?'严重':'警告'));
+                    
+                    //更新图表
+                    updateCharts(time,serverData,dbData);
+                    
+                    //更新慢查询
+                    if(metrics.slow_queries){
+                        updateSlowQueries(metrics.slow_queries);
+                    }
+                    
+                    //更新时间
+                    document.getElementById('lastUpdate').textContent=`最后更新: ${new Date().toLocaleString()}`;
+                }
+            }catch(error){
+                console.error('更新监控数据失败:',error);
+            }
+        }
+        
+        //启动监控
+        function startMonitoring(){
+            updateMonitorData();//立即更新一次
+            monitorInterval=setInterval(updateMonitorData,3000);//每3秒更新
+        }
+        
+        //停止监控
+        function stopMonitoring(){
+            if(monitorInterval){
+                clearInterval(monitorInterval);
+                monitorInterval=null;
+            }
+        }
+        
+        //页面初始化
+        document.addEventListener('DOMContentLoaded',()=>{
+            initCharts();
+            startMonitoring();
+        });
+        
+        //页面卸载时清理
+        window.addEventListener('beforeunload',()=>{
+            stopMonitoring();
+        });
+    </script>
+</body>
+</html> 

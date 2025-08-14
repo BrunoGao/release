@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>3D智能健康人体模型大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script> <!-- Three.js核心库 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/controls/OrbitControls.js"></script> <!-- 轨道控制器 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/loaders/GLTFLoader.js"></script> <!-- GLTF模型加载器 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script> <!-- ECharts图表库 -->
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box} /* 重置样式 */
+        body{background:linear-gradient(135deg,#0a0e27,#162447,#1f4037);color:#fff;font-family:'Microsoft YaHei';overflow:hidden;height:100vh} /* 深蓝渐变背景 */
+        
+        /* 3D人体模型容器 */
+        .human-3d-container{position:relative;width:600px;height:700px;margin:0 auto;border:2px solid rgba(0,228,255,0.3);border-radius:20px;background:rgba(0,21,41,0.2);backdrop-filter:blur(10px)} /* 3D容器 */
+        #human3d{width:100%;height:100%;border-radius:18px} /* 3D画布 */
+        
+        /* 3D健康数据点 */
+        .health-point-3d{position:absolute;width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,rgba(0,228,255,0.9),rgba(0,255,157,0.7));border:3px solid #00e4ff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;animation:pulse3d 2s infinite;backdrop-filter:blur(15px);z-index:100;transition:all 0.3s ease} /* 3D数据点样式 */
+        .health-point-3d:hover{transform:scale(1.3);box-shadow:0 0 40px rgba(0,228,255,1)} /* 悬停效果 */
+        .health-value-3d{font-size:16px;font-weight:bold;color:#fff;text-shadow:0 0 8px rgba(0,228,255,1)} /* 3D数值样式 */
+        .health-label-3d{font-size:11px;color:#a0c4ff;margin-top:3px;text-shadow:0 0 5px rgba(0,228,255,0.8)} /* 3D标签样式 */
+        
+        /* 3D数据点动态位置(根据3D模型自动计算) */
+        .heart-rate-3d{top:25%;left:50%;transform:translate(-50%,-50%)} /* 心脏位置 */
+        .blood-oxygen-3d{top:22%;left:35%;transform:translate(-50%,-50%)} /* 肺部位置 */
+        .temperature-3d{top:12%;left:50%;transform:translate(-50%,-50%)} /* 头部位置 */
+        .stress-3d{top:10%;left:60%;transform:translate(-50%,-50%)} /* 大脑位置 */
+        .steps-3d{top:70%;left:40%;transform:translate(-50%,-50%)} /* 左腿位置 */
+        .distance-3d{top:70%;right:40%;transform:translate(50%,-50%)} /* 右腿位置 */
+        .calorie-3d{top:30%;left:20%;transform:translate(-50%,-50%)} /* 左臂位置 */
+        .sleep-3d{top:8%;left:40%;transform:translate(-50%,-50%)} /* 睡眠中心位置 */
+        
+        /* 3D告警状态 */
+        .alert-critical-3d{border-color:#ff4444;background:linear-gradient(135deg,rgba(255,68,68,0.9),rgba(255,100,100,0.7));animation:alertPulse3d 1s infinite} /* 严重告警 */
+        .alert-medium-3d{border-color:#ffd700;background:linear-gradient(135deg,rgba(255,215,0,0.9),rgba(255,235,59,0.7))} /* 中等告警 */
+        .alert-normal-3d{border-color:#00ff9d;background:linear-gradient(135deg,rgba(0,255,157,0.9),rgba(0,255,200,0.7))} /* 正常状态 */
+        
+        /* 3D动画效果 */
+        @keyframes pulse3d{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.1)}} /* 3D脉冲动画 */
+        @keyframes alertPulse3d{0%,100%{box-shadow:0 0 30px rgba(255,68,68,0.8)}50%{box-shadow:0 0 60px rgba(255,68,68,1)}} /* 3D告警脉冲 */
+        
+        /* 3D控制面板 */
+        .control-panel-3d{position:absolute;top:20px;left:20px;background:rgba(0,21,41,0.9);border:1px solid rgba(0,228,255,0.3);border-radius:10px;padding:15px;backdrop-filter:blur(10px);z-index:200} /* 3D控制面板 */
+        .control-item{margin:8px 0;color:#a0c4ff;font-size:14px} /* 控制项 */
+        .control-btn{background:rgba(0,228,255,0.2);border:1px solid #00e4ff;color:#00e4ff;padding:5px 10px;border-radius:5px;cursor:pointer;transition:all 0.3s ease} /* 控制按钮 */
+        .control-btn:hover{background:rgba(0,228,255,0.4);transform:scale(1.05)} /* 按钮悬停 */
+        
+        /* 3D信息提示 */
+        .info-tooltip-3d{position:absolute;background:rgba(0,21,41,0.95);border:1px solid rgba(0,228,255,0.5);border-radius:8px;padding:10px;color:#fff;font-size:12px;pointer-events:none;z-index:300;display:none;backdrop-filter:blur(15px)} /* 3D提示框 */
+        
+        /* 模型加载状态 */
+        .model-loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#00e4ff;font-size:18px;text-align:center;z-index:150} /* 模型加载状态 */
+        .loading-spinner{width:50px;height:50px;border:4px solid rgba(0,228,255,0.3);border-radius:50%;border-top-color:#00e4ff;animation:spin 1s linear infinite;margin:0 auto 15px} /* 加载动画 */
+        
+        /* 模型切换器 */
+        .model-switcher{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:200} /* 模型切换器 */
+        .model-option{background:rgba(0,228,255,0.2);border:1px solid #00e4ff;color:#00e4ff;padding:8px 15px;border-radius:15px;cursor:pointer;transition:all 0.3s ease;font-size:12px} /* 模型选项 */
+        .model-option.active{background:rgba(0,228,255,0.6);color:#fff} /* 激活状态 */
+        .model-option:hover{background:rgba(0,228,255,0.4)} /* 悬停状态 */
+        
+        /* 器官高亮 */
+        .organ-highlight{box-shadow:0 0 50px rgba(0,255,157,1);border-width:4px;animation:organGlow 1.5s infinite} /* 器官高亮效果 */
+        @keyframes organGlow{0%,100%{box-shadow:0 0 50px rgba(0,255,157,1)}50%{box-shadow:0 0 80px rgba(0,255,157,1)}} /* 器官发光动画 */
+        
+        /* 其他样式保持与原版相同 */
+        .container{position:relative;width:100vw;height:100vh;display:flex;justify-content:center;align-items:center} /* 全屏容器 */
+        .chart-modal{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.8);display:none;z-index:2000;backdrop-filter:blur(10px)} /* 图表弹窗 */
+        .chart-container{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;height:600px;background:linear-gradient(135deg,rgba(0,21,41,0.95),rgba(0,255,157,0.1));border:2px solid rgba(0,228,255,0.6);border-radius:20px;backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,21,41,0.8)} /* 图表容器 */
+        .chart-header{padding:20px;border-bottom:1px solid rgba(0,228,255,0.3);display:flex;justify-content:space-between;align-items:center} /* 头部 */
+        .chart-title{color:#00e4ff;font-size:24px;font-weight:bold;text-shadow:0 0 10px rgba(0,228,255,0.8)} /* 标题 */
+        .close-btn{width:40px;height:40px;border-radius:50%;background:rgba(255,68,68,0.8);border:none;color:#fff;font-size:20px;cursor:pointer;transition:all 0.3s ease} /* 关闭按钮 */
+        .close-btn:hover{background:rgba(255,68,68,1);transform:scale(1.1)} /* 关闭按钮悬停 */
+        .chart-content{display:flex;height:520px} /* 内容区域 */
+        .chart-main{flex:2;padding:20px} /* 主图表区域 */
+        .chart-sidebar{flex:1;padding:20px;border-left:1px solid rgba(0,228,255,0.3);overflow-y:auto} /* 侧边栏 */
+        .chart-canvas{width:100%;height:100%;background:rgba(0,21,41,0.3);border-radius:10px} /* 图表画布 */
+        .stat-card{background:rgba(0,21,41,0.8);border:1px solid rgba(0,228,255,0.3);border-radius:10px;padding:15px;margin:10px 0;transition:all 0.3s ease} /* 统计卡片 */
+        .stat-card:hover{background:rgba(0,228,255,0.1);transform:translateX(5px)} /* 卡片悬停 */
+        .stat-title{color:#00e4ff;font-size:16px;font-weight:bold;margin-bottom:10px} /* 统计标题 */
+        .stat-value{color:#00ff9d;font-size:20px;font-weight:bold;text-shadow:0 0 5px rgba(0,255,157,0.8)} /* 统计数值 */
+        .stat-unit{color:#a0c4ff;font-size:14px;margin-left:5px} /* 单位 */
+        .stat-desc{color:#a0c4ff;font-size:12px;margin-top:5px} /* 描述 */
+        .baseline-info{background:rgba(0,21,41,0.6);border-left:3px solid #00e4ff;padding:10px;margin:10px 0;border-radius:5px} /* 基线信息 */
+        .baseline-title{color:#00e4ff;font-size:14px;font-weight:bold} /* 基线标题 */
+        .baseline-range{color:#00ff9d;font-size:12px;margin-top:5px} /* 基线范围 */
+        .info-panel{position:absolute;width:300px;height:80vh;background:linear-gradient(135deg,rgba(0,21,41,0.9),rgba(0,255,157,0.1));border:1px solid rgba(0,228,255,0.3);border-radius:15px;backdrop-filter:blur(15px);padding:20px} /* 信息面板样式 */
+        .left-panel{left:50px;top:10vh} /* 左侧面板 */
+        .right-panel{right:50px;top:10vh} /* 右侧面板 */
+        .panel-title{color:#00e4ff;font-size:18px;font-weight:bold;text-align:center;margin-bottom:15px;text-shadow:0 0 10px rgba(0,228,255,0.8)} /* 面板标题 */
+        .info-list{max-height:calc(80vh - 100px);overflow-y:auto} /* 信息列表 */
+        .info-item{background:rgba(0,21,41,0.6);border:1px solid rgba(0,228,255,0.2);border-radius:8px;padding:10px;margin:8px 0;transition:all 0.3s ease} /* 列表项 */
+        .info-item:hover{background:rgba(0,228,255,0.1);transform:translateX(5px)} /* 列表项悬停 */
+        .info-item-title{color:#00e4ff;font-size:14px;font-weight:bold} /* 项目标题 */
+        .info-item-desc{color:#a0c4ff;font-size:12px;margin-top:5px} /* 项目描述 */
+        .info-item-time{color:#666;font-size:10px;margin-top:3px} /* 时间信息 */
+        .device-status{position:absolute;top:20px;right:20px;display:flex;gap:15px} /* 设备状态容器 */
+        .status-item{display:flex;flex-direction:column;align-items:center;color:#a0c4ff;font-size:12px} /* 状态项 */
+        .status-indicator{width:20px;height:20px;border-radius:50%;margin-bottom:5px;box-shadow:0 0 10px;animation:breathe 2s infinite} /* 状态指示器 */
+        .status-online{background:#00ff9d;box-shadow:0 0 10px rgba(0,255,157,0.8)} /* 在线状态 */
+        .status-offline{background:#ff4444;box-shadow:0 0 10px rgba(255,68,68,0.8)} /* 离线状态 */
+        .status-charging{background:#ffd700;box-shadow:0 0 10px rgba(255,215,0,0.8)} /* 充电状态 */
+        @keyframes breathe{0%,100%{opacity:1}50%{opacity:0.6}} /* 呼吸动画 */
+        .main-title{position:absolute;top:30px;left:50%;transform:translateX(-50%);color:#00e4ff;font-size:32px;font-weight:bold;text-shadow:0 0 20px rgba(0,228,255,1);animation:titleGlow 3s infinite} /* 主标题 */
+        @keyframes titleGlow{0%,100%{text-shadow:0 0 20px rgba(0,228,255,1)}50%{text-shadow:0 0 40px rgba(0,255,157,1)}} /* 标题发光 */
+        .battery-display{position:absolute;top:20px;left:20px;display:flex;align-items:center;gap:10px;color:#a0c4ff} /* 电池显示容器 */
+        .battery-icon{width:40px;height:20px;border:2px solid #00e4ff;border-radius:3px;position:relative} /* 电池图标 */
+        .battery-level{height:100%;background:linear-gradient(90deg,#ff4444,#ffd700,#00ff9d);border-radius:1px;transition:width 0.3s ease} /* 电池电量 */
+        .battery-tip{position:absolute;right:-5px;top:6px;width:3px;height:8px;background:#00e4ff;border-radius:0 1px 1px 0} /* 电池正极 */
+        .loading{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#00e4ff;font-size:16px;z-index:1000} /* 加载状态 */
+        .loading::after{content:'';display:inline-block;width:20px;height:20px;border:3px solid rgba(0,228,255,0.3);border-radius:50%;border-top-color:#00e4ff;animation:spin 1s ease-in-out infinite;margin-left:10px} /* 加载动画 */
+        @keyframes spin{to{transform:rotate(360deg)}} /* 旋转动画 */
+        
+        /* 响应式适配 */
+        @media(max-width:1600px){.human-3d-container{width:500px;height:600px}.health-point-3d{width:70px;height:70px}.health-value-3d{font-size:14px}.chart-container{width:800px;height:500px}} /* 1600px以下适配 */
+        @media(max-width:1366px){.human-3d-container{width:450px;height:550px}.health-point-3d{width:60px;height:60px}.health-value-3d{font-size:12px}.chart-container{width:700px;height:450px}} /* 1366px以下适配 */
+    </style>
+</head>
+<body>
+    <div class="main-title">{{ BIGSCREEN_TITLE or '3D智能健康监控大屏' }}</div> <!-- 主标题 -->
+    
+    <div class="battery-display"> <!-- 电池显示 -->
+        <div class="battery-icon">
+            <div class="battery-level" id="batteryLevel"></div>
+            <div class="battery-tip"></div>
+        </div>
+        <span id="batteryText">0%</span>
+    </div>
+    
+    <div class="device-status"> <!-- 设备状态 -->
+        <div class="status-item">
+            <div class="status-indicator" id="onlineStatus"></div>
+            <span>在线</span>
+        </div>
+        <div class="status-item">
+            <div class="status-indicator" id="chargingStatus"></div>
+            <span>充电</span>
+        </div>
+        <div class="status-item">
+            <div class="status-indicator" id="wearStatus"></div>
+            <span>佩戴</span>
+        </div>
+    </div>
+
+    <!-- 3D模型控制面板 -->
+    <div class="control-panel-3d">
+        <div class="control-item">
+            <span>3D控制</span>
+        </div>
+        <div class="control-item">
+            <button class="control-btn" onclick="resetCamera()">重置视角</button>
+        </div>
+        <div class="control-item">
+            <button class="control-btn" onclick="toggleRotation()">自动旋转</button>
+        </div>
+        <div class="control-item">
+            <button class="control-btn" onclick="toggleOrganView()">器官模式</button>
+        </div>
+        <div class="control-item">
+            <button class="control-btn" onclick="toggleWireframe()">线框模式</button>
+        </div>
+    </div>
+
+    <!-- 模型切换器 -->
+    <div class="model-switcher">
+        <div class="model-option active" data-model="default">标准模型</div>
+        <div class="model-option" data-model="anatomy">解剖模型</div>
+        <div class="model-option" data-model="skeleton">骨骼模型</div>
+        <div class="model-option" data-model="organs">器官模型</div>
+    </div>
+
+    <!-- HUB风格图表弹窗 -->
+    <div class="chart-modal" id="chartModal">
+        <div class="chart-container">
+            <div class="chart-header">
+                <div class="chart-title" id="chartTitle">健康趋势图</div>
+                <button class="close-btn" onclick="closeChart()">&times;</button>
+            </div>
+            <div class="chart-content">
+                <div class="chart-main">
+                    <div class="chart-canvas" id="chartCanvas"></div>
+                    <div class="loading" id="chartLoading">加载中...</div>
+                </div>
+                <div class="chart-sidebar" id="chartSidebar">
+                    <!-- 动态内容 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3D信息提示 -->
+    <div class="info-tooltip-3d" id="tooltip3d"></div>
+
+    <div class="container">
+        <!-- 左侧告警面板 -->
+        <div class="info-panel left-panel">
+            <div class="panel-title">健康告警</div>
+            <div class="info-list" id="alertList"></div>
+        </div>
+
+        <!-- 3D人体模型容器 -->
+        <div class="human-3d-container">
+            <!-- 模型加载状态 -->
+            <div class="model-loading" id="modelLoading">
+                <div class="loading-spinner"></div>
+                <div>正在加载3D人体模型...</div>
+            </div>
+            
+            <!-- 3D画布 -->
+            <canvas id="human3d"></canvas>
+
+            <!-- 3D健康数据点 -->
+            <div class="health-point-3d heart-rate-3d alert-normal-3d" id="heartRate3d" data-metric="heart_rate">
+                <div class="health-value-3d">--</div>
+                <div class="health-label-3d">心率</div>
+            </div>
+
+            <div class="health-point-3d blood-oxygen-3d alert-normal-3d" id="bloodOxygen3d" data-metric="blood_oxygen">
+                <div class="health-value-3d">--%</div>
+                <div class="health-label-3d">血氧</div>
+            </div>
+
+            <div class="health-point-3d temperature-3d alert-normal-3d" id="temperature3d" data-metric="temperature">
+                <div class="health-value-3d">--°C</div>
+                <div class="health-label-3d">体温</div>
+            </div>
+
+            <div class="health-point-3d stress-3d alert-normal-3d" id="stress3d" data-metric="stress">
+                <div class="health-value-3d">--</div>
+                <div class="health-label-3d">压力</div>
+            </div>
+
+            <div class="health-point-3d steps-3d alert-normal-3d" id="steps3d" data-metric="step">
+                <div class="health-value-3d">--</div>
+                <div class="health-label-3d">步数</div>
+            </div>
+
+            <div class="health-point-3d distance-3d alert-normal-3d" id="distance3d" data-metric="distance">
+                <div class="health-value-3d">--km</div>
+                <div class="health-label-3d">距离</div>
+            </div>
+
+            <div class="health-point-3d calorie-3d alert-normal-3d" id="calorie3d" data-metric="calorie">
+                <div class="health-value-3d">--</div>
+                <div class="health-label-3d">卡路里</div>
+            </div>
+
+            <div class="health-point-3d sleep-3d alert-normal-3d" id="sleep3d" data-metric="sleep">
+                <div class="health-value-3d">--h</div>
+                <div class="health-label-3d">睡眠</div>
+            </div>
+        </div>
+
+        <!-- 右侧消息面板 -->
+        <div class="info-panel right-panel">
+            <div class="panel-title">系统消息</div>
+            <div class="info-list" id="messageList"></div>
+        </div>
+    </div>
+
+    <script>
+        // 3D场景变量
+        let scene,camera,renderer,controls,humanModel,mixer;
+        let healthData={},currentChart=null;
+        let isAutoRotating=false,isOrganMode=false,isWireframe=false;
+        
+        // 初始化3D场景
+        function init3DScene(){
+            const container=document.getElementById('human3d');
+            const rect=container.parentElement.getBoundingClientRect();
+            
+            // 创建场景
+            scene=new THREE.Scene();
+            scene.background=new THREE.Color(0x0a0e27); // 深蓝背景
+            
+            // 创建相机
+            camera=new THREE.PerspectiveCamera(75,rect.width/rect.height,0.1,1000);
+            camera.position.set(0,0,5);
+            
+            // 创建渲染器
+            renderer=new THREE.WebGLRenderer({canvas:container,antialias:true,alpha:true});
+            renderer.setSize(rect.width,rect.height);
+            renderer.shadowMap.enabled=true;
+            renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+            
+            // 创建轨道控制器
+            controls=new THREE.OrbitControls(camera,renderer.domElement);
+            controls.enableDamping=true;
+            controls.dampingFactor=0.05;
+            controls.enableZoom=true;
+            controls.enablePan=true;
+            controls.maxDistance=10;
+            controls.minDistance=2;
+            
+            // 添加光源
+            addLights();
+            
+            // 加载3D人体模型
+            loadHumanModel();
+            
+            // 开始渲染循环
+            animate();
+        }
+        
+        // 添加光源
+        function addLights(){
+            // 环境光
+            const ambientLight=new THREE.AmbientLight(0x404040,0.6);
+            scene.add(ambientLight);
+            
+            // 主光源
+            const directionalLight=new THREE.DirectionalLight(0xffffff,1);
+            directionalLight.position.set(10,10,5);
+            directionalLight.castShadow=true;
+            directionalLight.shadow.camera.near=0.1;
+            directionalLight.shadow.camera.far=50;
+            directionalLight.shadow.camera.left=-10;
+            directionalLight.shadow.camera.right=10;
+            directionalLight.shadow.camera.top=10;
+            directionalLight.shadow.camera.bottom=-10;
+            scene.add(directionalLight);
+            
+            // 补光
+            const fillLight=new THREE.DirectionalLight(0x00e4ff,0.4);
+            fillLight.position.set(-10,0,10);
+            scene.add(fillLight);
+            
+            // 点光源(模拟健康数据发光)
+            const pointLight=new THREE.PointLight(0x00ff9d,0.8,20);
+            pointLight.position.set(0,2,2);
+            scene.add(pointLight);
+        }
+        
+        // 加载3D人体模型
+        function loadHumanModel(){
+            const loader=new THREE.GLTFLoader();
+            
+            // 使用免费的人体模型资源
+            // 这里可以替换为您选择的3D模型URL
+            const modelUrl='https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb'; // 示例模型
+            
+            loader.load(modelUrl,
+                function(gltf){
+                    humanModel=gltf.scene;
+                    humanModel.scale.setScalar(1.5);
+                    humanModel.position.y=-1;
+                    
+                    // 启用阴影
+                    humanModel.traverse(function(child){
+                        if(child.isMesh){
+                            child.castShadow=true;
+                            child.receiveShadow=true;
+                            
+                            // 添加发光材质效果
+                            if(child.material){
+                                child.material.emissive=new THREE.Color(0x001122);
+                                child.material.emissiveIntensity=0.1;
+                            }
+                        }
+                    });
+                    
+                    scene.add(humanModel);
+                    
+                    // 设置动画混合器
+                    if(gltf.animations.length>0){
+                        mixer=new THREE.AnimationMixer(humanModel);
+                        const action=mixer.clipAction(gltf.animations[0]);
+                        action.play();
+                    }
+                    
+                    // 隐藏加载状态
+                    document.getElementById('modelLoading').style.display='none';
+                    
+                    // 开始更新健康数据
+                    fetchHealthData();
+                },
+                function(progress){
+                    console.log('模型加载进度:',progress.loaded/progress.total*100+'%');
+                },
+                function(error){
+                    console.error('模型加载失败:',error);
+                    // 降级到基础几何体
+                    createBasicHumanModel();
+                }
+            );
+        }
+        
+        // 创建基础几何体人体模型(降级方案)
+        function createBasicHumanModel(){
+            const group=new THREE.Group();
+            
+            // 头部
+            const headGeometry=new THREE.SphereGeometry(0.3,32,32);
+            const headMaterial=new THREE.MeshPhongMaterial({
+                color:0x00e4ff,
+                transparent:true,
+                opacity:0.8,
+                emissive:0x001122
+            });
+            const head=new THREE.Mesh(headGeometry,headMaterial);
+            head.position.y=1.5;
+            head.castShadow=true;
+            group.add(head);
+            
+            // 躯干
+            const bodyGeometry=new THREE.CylinderGeometry(0.3,0.4,1.2,8);
+            const bodyMaterial=new THREE.MeshPhongMaterial({
+                color:0x00e4ff,
+                transparent:true,
+                opacity:0.7,
+                emissive:0x001122
+            });
+            const body=new THREE.Mesh(bodyGeometry,bodyMaterial);
+            body.position.y=0.5;
+            body.castShadow=true;
+            group.add(body);
+            
+            // 手臂
+            const armGeometry=new THREE.CylinderGeometry(0.08,0.12,0.8,8);
+            const armMaterial=new THREE.MeshPhongMaterial({
+                color:0x00e4ff,
+                transparent:true,
+                opacity:0.6,
+                emissive:0x001122
+            });
+            
+            const leftArm=new THREE.Mesh(armGeometry,armMaterial);
+            leftArm.position.set(-0.5,0.7,0);
+            leftArm.rotation.z=Math.PI/6;
+            leftArm.castShadow=true;
+            group.add(leftArm);
+            
+            const rightArm=new THREE.Mesh(armGeometry,armMaterial);
+            rightArm.position.set(0.5,0.7,0);
+            rightArm.rotation.z=-Math.PI/6;
+            rightArm.castShadow=true;
+            group.add(rightArm);
+            
+            // 腿部
+            const legGeometry=new THREE.CylinderGeometry(0.12,0.15,1,8);
+            const legMaterial=new THREE.MeshPhongMaterial({
+                color:0x00e4ff,
+                transparent:true,
+                opacity:0.6,
+                emissive:0x001122
+            });
+            
+            const leftLeg=new THREE.Mesh(legGeometry,legMaterial);
+            leftLeg.position.set(-0.2,-0.5,0);
+            leftLeg.castShadow=true;
+            group.add(leftLeg);
+            
+            const rightLeg=new THREE.Mesh(legGeometry,legMaterial);
+            rightLeg.position.set(0.2,-0.5,0);
+            rightLeg.castShadow=true;
+            group.add(rightLeg);
+            
+            humanModel=group;
+            scene.add(humanModel);
+            
+            // 隐藏加载状态
+            document.getElementById('modelLoading').style.display='none';
+            
+            // 开始更新健康数据
+            fetchHealthData();
+        }
+        
+        // 渲染循环
+        function animate(){
+            requestAnimationFrame(animate);
+            
+            if(controls) controls.update();
+            if(mixer) mixer.update(0.016); // 假设60fps
+            
+            if(isAutoRotating && humanModel){
+                humanModel.rotation.y+=0.005; // 自动旋转
+            }
+            
+            renderer.render(scene,camera);
+        }
+        
+        // 3D控制函数
+        function resetCamera(){
+            camera.position.set(0,0,5);
+            controls.reset();
+        }
+        
+        function toggleRotation(){
+            isAutoRotating=!isAutoRotating;
+        }
+        
+        function toggleOrganView(){
+            isOrganMode=!isOrganMode;
+            if(humanModel){
+                humanModel.traverse(function(child){
+                    if(child.isMesh && child.material){
+                        if(isOrganMode){
+                            child.material.transparent=true;
+                            child.material.opacity=0.3;
+                        }else{
+                            child.material.opacity=0.8;
+                        }
+                    }
+                });
+            }
+        }
+        
+        function toggleWireframe(){
+            isWireframe=!isWireframe;
+            if(humanModel){
+                humanModel.traverse(function(child){
+                    if(child.isMesh && child.material){
+                        child.material.wireframe=isWireframe;
+                    }
+                });
+            }
+        }
+        
+        // 更新3D健康数据点
+        function updateHealthPoint3D(id,value,unit='',alertLevel='normal'){
+            const el=document.getElementById(id+'3d');
+            if(!el)return;
+            
+            el.querySelector('.health-value-3d').textContent=value+unit;
+            el.className=el.className.replace(/alert-\w+-3d/,'alert-'+alertLevel+'-3d');
+            
+            // 添加器官高亮效果
+            if(alertLevel!=='normal'){
+                el.classList.add('organ-highlight');
+                setTimeout(()=>el.classList.remove('organ-highlight'),3000);
+            }
+        }
+        
+        // 获取健康数据
+        async function fetchHealthData(){
+            try{
+                const deviceSn='{{deviceSn}}';
+                const response=await fetch(`./get_personal_info?deviceSn=${deviceSn}`);
+                const data=await response.json();
+                
+                if(data.success && data.data.health_data){
+                    const healthInfo=data.data.health_data.data;
+                    if(healthInfo && healthInfo.healthData){
+                        updateAllHealthPoints3D(healthInfo.healthData);
+                        updateDeviceStatus3D(data.data.device_info);
+                        updateAlertsList(data.data.alert_info);
+                        updateMessagesList(data.data.message_info);
+                    }
+                }
+            }catch(error){
+                console.error('获取健康数据失败:',error);
+            }
+        }
+        
+        // 更新所有3D健康数据点
+        function updateAllHealthPoints3D(healthData){
+            if(!healthData.length) return;
+            const latest=healthData[0]; // 最新数据
+            
+            // 更新各项健康指标
+            updateHealthPoint3D('heartRate',latest.heartRate||'--','',getAlertLevel('heart_rate',latest.heartRate));
+            updateHealthPoint3D('bloodOxygen',latest.bloodOxygen||'--','%',getAlertLevel('blood_oxygen',latest.bloodOxygen));
+            updateHealthPoint3D('temperature',latest.temperature||'--','°C',getAlertLevel('temperature',latest.temperature));
+            updateHealthPoint3D('stress',latest.stress||'--','',getAlertLevel('stress',latest.stress));
+            updateHealthPoint3D('steps',latest.step||'--','');
+            updateHealthPoint3D('distance',(latest.distance||0),'km');
+            updateHealthPoint3D('calorie',latest.calorie||'--','');
+            updateHealthPoint3D('sleep',latest.sleep||'--','h');
+            
+            // 更新电池显示
+            if(latest.batteryLevel) updateBattery(latest.batteryLevel);
+        }
+        
+        // 健康数据点点击事件
+        document.querySelectorAll('.health-point-3d').forEach(point=>{
+            point.addEventListener('click',function(){
+                const metric=this.dataset.metric;
+                if(metric) showHealthChart(metric);
+            });
+            
+            // 鼠标悬停提示
+            point.addEventListener('mouseenter',function(e){
+                const tooltip=document.getElementById('tooltip3d');
+                const metric=this.dataset.metric;
+                const value=this.querySelector('.health-value-3d').textContent;
+                const label=this.querySelector('.health-label-3d').textContent;
+                
+                tooltip.innerHTML=`<strong>${label}</strong><br>当前值: ${value}<br>点击查看详细趋势`;
+                tooltip.style.display='block';
+                tooltip.style.left=e.pageX+10+'px';
+                tooltip.style.top=e.pageY-10+'px';
+            });
+            
+            point.addEventListener('mouseleave',function(){
+                document.getElementById('tooltip3d').style.display='none';
+            });
+        });
+        
+        // 模型切换
+        document.querySelectorAll('.model-option').forEach(option=>{
+            option.addEventListener('click',function(){
+                document.querySelectorAll('.model-option').forEach(o=>o.classList.remove('active'));
+                this.classList.add('active');
+                
+                const modelType=this.dataset.model;
+                switchModel(modelType);
+            });
+        });
+        
+        function switchModel(type){
+            console.log('切换模型:',type);
+            // 这里可以实现不同模型的切换逻辑
+            // 例如加载不同的GLTF模型或调整现有模型的显示方式
+        }
+        
+        // 保持原有的图表功能
+        async function showHealthChart(metric){
+            // ... 保持原有的图表显示逻辑不变
+            const modal=document.getElementById('chartModal');
+            modal.style.display='block';
+            // 这里复用原有的图表显示代码
+        }
+        
+        function closeChart(){
+            document.getElementById('chartModal').style.display='none';
+            if(currentChart){
+                currentChart.dispose();
+                currentChart=null;
+            }
+        }
+        
+        // 保持原有的其他函数
+        function updateDeviceStatus3D(deviceInfo){
+            // 设备状态更新逻辑
+        }
+        
+        function updateAlertsList(alertInfo){
+            // 告警列表更新逻辑
+        }
+        
+        function updateMessagesList(messageInfo){
+            // 消息列表更新逻辑
+        }
+        
+        function updateBattery(level){
+            const batteryEl=document.getElementById('batteryLevel');
+            const textEl=document.getElementById('batteryText');
+            batteryEl.style.width=level+'%';
+            textEl.textContent=level+'%';
+        }
+        
+        function getAlertLevel(type,value){
+            const thresholds={
+                heart_rate:[60,100],
+                blood_oxygen:[95,100],
+                temperature:[36,37.5],
+                stress:[0,50]
+            };
+            
+            if(!thresholds[type])return 'normal';
+            const[min,max]=thresholds[type];
+            if(value<min||value>max)return 'critical';
+            if(value<min*1.1||value>max*0.9)return 'medium';
+            return 'normal';
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load',function(){
+            init3DScene();
+            
+            // 定时更新数据
+            setInterval(fetchHealthData,5000);
+        });
+        
+        // 键盘事件
+        document.addEventListener('keydown',function(e){
+            if(e.key==='Escape') closeChart();
+            if(e.key===' ') toggleRotation(); // 空格键切换旋转
+            if(e.key==='r'||e.key==='R') resetCamera(); // R键重置视角
+        });
+        
+        // 窗口大小调整
+        window.addEventListener('resize',function(){
+            if(camera && renderer){
+                const container=document.getElementById('human3d');
+                const rect=container.parentElement.getBoundingClientRect();
+                camera.aspect=rect.width/rect.height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(rect.width,rect.height);
+            }
+        });
+    </script>
+</body>
+</html> 

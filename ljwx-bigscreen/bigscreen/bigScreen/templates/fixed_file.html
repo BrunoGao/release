@@ -1,0 +1,2357 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>智能健康数据分析平台</title>
+
+
+<style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #001529;
+        color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        overflow: hidden;
+      }
+
+      .container {
+        display: grid;
+        grid-template-columns: 350px 1fr 350px;
+        grid-gap: 20px;
+        padding: 0 20px 20px 20px;
+        height: calc(100vh - 60px); /* 减去标题栏高度 */
+    overflow: hidden;
+      }
+
+      .panel {
+        background: rgba(0, 21, 41, 0.7);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        border-radius: 4px;
+        padding: 12px;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .side-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        height: 100%;
+      }
+
+      .panel:nth-child(1) {
+        height: 30%;
+      }
+
+      .panel:nth-child(2) {
+        height: 35%;
+      }
+
+      .panel:nth-child(3) {
+        height: 35%;
+      }
+
+      .panel-header {
+        color: #00e4ff;
+        font-size: 16px;
+        margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+      }
+
+      .panel-content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .map-container {
+        height: calc(100% - 20px);
+        margin-top: 20px;
+        background: rgba(0, 21, 41, 0.7);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        border-radius: 4px;
+        position: relative;
+      }
+
+      /* 数据卡片样式 */
+      .data-card {
+        background: rgba(0, 228, 255, 0.1);
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+
+      .data-card-value {
+        font-size: 24px;
+        color: #00e4ff;
+        margin: 5px 0;
+      }
+
+      /* 滚动条美化 */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgba(0, 228, 255, 0.1);
+        border-radius: 3px;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgba(0, 228, 255, 0.3);
+        border-radius: 3px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 228, 255, 0.5);
+      }
+
+      /* 图表容器样式 */
+      .chart-container {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    height: calc(100% - 40px); /* 减少高度偏移，给图表更多空间 */
+    min-height: 200px; /* 设置最小高度 */
+}
+
+      /* 告警图表专用样式 */
+      #alertTypeChart, #alertLevelChart, #alertStatusChart, #alertTrendChart {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 120px !important;
+      }
+
+      /* 告警面板网格布局优化 */
+      .alert-charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 8px;
+        height: calc(100% - 60px);
+        min-height: 250px;
+      }
+
+      /* 响应式调整 */
+      @media screen and (max-width: 1600px) {
+        .container {
+          grid-template-columns: 300px 1fr 300px;
+        }
+      }
+
+      @media screen and (max-width: 1200px) {
+        .container {
+          grid-template-columns: 250px 1fr 250px;
+        }
+      }
+
+      /* 在已有的 style 标签中添加 */
+      .header-title {
+    position: relative;
+    width: 100%;
+        height: 60px;
+        background: linear-gradient(90deg, rgba(0,21,41,0.8) 0%, rgba(0,91,171,0.8) 50%, rgba(0,21,41,0.8) 100%);
+    display: flex;
+        justify-content: center;
+    align-items: center;
+        border-bottom: 1px solid rgba(0,228,255,0.3);
+    margin-bottom: 20px;
+}
+
+      .header-title h1 {
+        color: #00e4ff;
+        font-size: 28px;
+        font-weight: normal;
+        text-shadow: 0 0 10px rgba(0,228,255,0.5);
+        letter-spacing: 2px;
+      }
+
+      .header-title::before,
+      .header-title::after {
+        content: '';
+        position: absolute;
+        width: 200px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #00e4ff, transparent);
+        bottom: -1px;
+      }
+
+      .header-title::before {
+        left: 0;
+      }
+
+      .header-title::after {
+        right: 0;
+      }
+
+      /* 添加装饰元素 */
+      .header-decoration {
+    position: absolute;
+        width: 120px;
+        height: 30px;
+    top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .header-decoration.left {
+        left: 50px;
+        background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMzAiPjxwYXRoIGQ9Ik0wIDE1aDEyME0zMCAwdjMwTTYwIDB2MzBNOTAgMHYzMCIgc3Ryb2tlPSIjMDBlNGZmIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuMyIvPjwvc3ZnPg==');
+      }
+
+      .header-decoration.right {
+        right: 50px;
+        background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMzAiPjxwYXRoIGQ9Ik0wIDE1aDEyME0zMCAwdjMwTTYwIDB2MzBNOTAgMHYzMCIgc3Ryb2tlPSIjMDBlNGZmIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuMyIvPjwvc3ZnPg==');
+        transform: translateY(-50%) scaleX(-1);
+      }
+
+      /* 添加人员管理面板特殊调整 */
+      .personnel-management {
+        background: rgba(1, 19, 38, 0.8);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+      }
+
+      .personnel-management:hover {
+        border-color: rgba(0, 228, 255, 0.4);
+        box-shadow: 0 0 15px rgba(0, 228, 255, 0.2);
+      }
+
+      .personnel-management .panel-content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .personnel-management .data-overview {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 20px;
+        margin-bottom: 5px;
+        border-bottom: 1px solid rgba(0, 228, 255, 0.1);
+      }
+
+      .personnel-management .overview-item {
+        text-align: center;
+    display: flex;
+    align-items: center;
+        gap: 8px;
+      }
+
+      .personnel-management .overview-item .label {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 0;
+      }
+
+      .personnel-management .overview-item .number {
+        font-size: 20px;
+        color: #00e4ff;
+        font-weight: 600;
+      }
+
+      .personnel-management .department-chart {
+    flex: 1;
+        height: calc(100% - 50px); /* 给图表更多空间 */
+        min-height: 0;
+      }
+
+      /* 响应式调整 */
+      @media screen and (max-height: 800px) {
+        .personnel-management .overview-item .number {
+          font-size: 20px;
+        }
+        
+        .personnel-management .overview-item .label {
+          font-size: 11px;
+        }
+}
+
+/* 在已有的style标签中添加 */
+.message-count {
+    font-size: 14px;
+    color: #00e4ff;
+    background: rgba(0, 228, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 10px;
+}
+
+.message-list {
+    height: 100%;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.message-item {
+    background: rgba(0, 228, 255, 0.05);
+    border-left: 3px solid #00e4ff;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 0 4px 4px 0;
+    transition: all 0.3s ease;
+}
+
+.message-item:hover {
+    background: rgba(0, 228, 255, 0.1);
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.message-time {
+    color: #00e4ff;
+}
+
+.message-content {
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.4;
+    word-break: break-all;
+}
+
+/* 自定义滚动条样式 */
+.message-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.message-list::-webkit-scrollbar-track {
+    background: rgba(0, 228, 255, 0.05);
+}
+
+.message-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 228, 255, 0.3);
+    border-radius: 2px;
+}
+
+.message-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 228, 255, 0.5);
+}
+
+.device-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 8px;
+    margin-bottom: 10px;
+    height: auto;
+}
+
+.device-stat-item {
+    background: rgba(0, 228, 255, 0.1);
+    border-radius: 4px;
+    padding: 8px;
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 18px;
+    color: #00e4ff;
+    font-weight: 600;
+}
+
+.total-score {
+    font-size: 16px;
+    color: #00e4ff;
+    background: rgba(0, 228, 255, 0.1);
+    padding: 4px 12px;
+    border-radius: 12px;
+}
+
+/* 在 <style> 标签中添加以下样式 */
+.modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-content {
+    position: relative;
+    width: 90%;
+    height: 90%;
+    background: rgba(0, 21, 41, 0.95);
+    border: 1px solid rgba(0, 228, 255, 0.3);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 228, 255, 0.2);
+}
+
+.modal-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: #00e4ff;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 9999;
+    padding: 5px 10px;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    transform: scale(1.1);
+    color: #ff4444;
+}
+
+.user-view-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 4px;
+    background: rgba(1, 19, 38, 0.8);
+}
+
+/* 添加动画效果 */
+.modal-container {
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+    opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.filter-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: rgba(0, 21, 41, 0.9);
+    backdrop-filter: blur(8px);
+    padding: 15px;
+    border-radius: 8px;
+    width: 280px;
+    border: 1px solid rgba(0, 228, 255, 0.2);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.filter-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 228, 255, 0.2);
+}
+
+.filter-header span {
+    color: #00e4ff;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.filter-select {
+    font-family: monospace;
+    white-space: pre;
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.filter-select:hover {
+    border-color: rgba(0, 228, 255, 0.4);
+}
+
+.filter-select:focus {
+    border-color: rgba(0, 228, 255, 0.6);
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 228, 255, 0.2);
+}
+
+.filter-select option {
+    font-family: monospace;
+    white-space: pre;
+    background: #1a1a1a;
+    color: #fff;
+    padding: 8px;
+}
+
+/* 添加美化的弹出框样式 */
+.custom-alert {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 21, 41, 0.95);
+    border: 1px solid rgba(0, 228, 255, 0.3);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    min-width: 300px;
+    text-align: center;
+    animation: alertFadeIn 0.3s ease;
+}
+
+.custom-alert-content {
+    color: #fff;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+.custom-alert-button {
+    background: rgba(0, 228, 255, 0.2);
+    border: 1px solid rgba(0, 228, 255, 0.4);
+    color: #00e4ff;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.custom-alert-button:hover {
+    background: rgba(0, 228, 255, 0.3);
+    border-color: rgba(0, 228, 255, 0.6);
+}
+
+@keyframes alertFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+/* 添加遮罩层样式 */
+.custom-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 9999;
+    animation: overlayFadeIn 0.3s ease;
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* 现代科技风格信息面板 */
+.info-panel {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 360px;
+  background: rgba(13, 17, 38, 0.95);
+  border: 1px solid rgba(0, 234, 255, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0, 234, 255, 0.2);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.info-panel-header {
+  padding: 15px 20px;
+  background: linear-gradient(90deg, rgba(0, 234, 255, 0.1), rgba(0, 234, 255, 0.05));
+  border-bottom: 1px solid rgba(0, 234, 255, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-panel-title {
+  color: #00eaff;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-panel-close {
+  background: none;
+  border: none;
+  color: #00eaff;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px;
+  transition: all 0.2s ease;
+}
+
+.info-panel-close:hover {
+  color: #fff;
+  transform: rotate(90deg);
+}
+
+.info-panel-content {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.info-item {
+  background: rgba(0, 234, 255, 0.05);
+  border: 1px solid rgba(0, 234, 255, 0.1);
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.info-item:hover {
+  background: rgba(0, 234, 255, 0.1);
+  transform: translateX(-5px);
+}
+
+.info-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.info-item-title {
+  color: #00eaff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.info-item-time {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+.info-item-content {
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.info-item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 234, 255, 0.1);
+}
+
+.info-item-location {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.info-item-action {
+  background: #00eaff;
+  color: #0d1126;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.info-item-action:hover {
+  background: #38f9d7;
+}
+
+/* 健康信息样式 */
+.health-info {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.health-item {
+  background: rgba(0, 234, 255, 0.05);
+  padding: 8px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.health-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.health-value {
+  color: #00eaff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* 滚动条样式 */
+.info-panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.info-panel-content::-webkit-scrollbar-track {
+  background: rgba(0, 234, 255, 0.05);
+}
+
+.info-panel-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 234, 255, 0.3);
+  border-radius: 3px;
+}
+
+.info-panel-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 234, 255, 0.5);
+}
+
+.info-item-highlight { border:2px solid #ffbb00; box-shadow:0 0 12px #ffbb0088; }
+
+      /* 人员管理面板专用样式 */
+      .personnel-management .panel-header h3 {
+        color: #00e4ff;
+        font-size: 16px;
+        margin: 0;
+        font-weight: 600;
+      }
+
+      /* 统计概览卡片样式 */
+      .personnel-management .panel-content > div:first-child {
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      .personnel-management .panel-content > div:first-child:hover {
+        background: rgba(0, 228, 255, 0.15) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 228, 255, 0.2);
+      }
+
+      /* 图表容器优化 */
+      #departmentDistribution, #userStatusChart {
+        transition: all 0.3s ease;
+      }
+
+      #departmentDistribution:hover, #userStatusChart:hover {
+        border-color: rgba(0, 228, 255, 0.6) !important;
+        box-shadow: 0 4px 15px rgba(0, 228, 255, 0.2) !important;
+      }
+</style>
+  </head>
+  <body>
+    <!-- 添加标题栏 -->
+    <div class="header-title">
+        <div class="header-decoration left"></div>
+        <h1>{{ BIGSCREEN_TITLE }}</h1>
+      
+        <div class="header-decoration right"></div>
+          </div>
+
+    <div class="container">
+      <!-- 左侧面板 -->
+      <div class="side-container">
+        <div class="panel">
+          <div class="panel-header">
+            <span>健康评分</span>
+            <span class="total-score">总分：88.9</span>
+                  </div>
+          <div class="panel-content">
+            <div id="healthScoreChart" class="chart-container"></div>
+                  </div>
+                </div>
+        <div class="panel personnel-management">
+          <div class="panel-header">
+              <h3>人员管理</h3>
+          </div>
+          <div class="panel-content">
+              <!-- 统计概览卡片 -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px 12px; background: rgba(0,228,255,0.1); border-radius: 6px; border-left: 4px solid #00e4ff;">
+                  <div style="display: flex; align-items: center; gap: 20px;">
+                      <div style="text-align: center;">
+                          <div style="color: #00e4ff; font-size: 18px; font-weight: bold;" id="totalUsers">0</div>
+                          <div style="color: rgba(255,255,255,0.8); font-size: 11px;">总人数</div>
+                      </div>
+                      <div style="text-align: center;">
+                          <div style="color: #00ff9d; font-size: 18px; font-weight: bold;" id="totalBindDevices">0</div>
+                          <div style="color: rgba(255,255,255,0.8); font-size: 11px;">已绑定设备</div>
+                      </div>
+                      <div style="text-align: center;">
+                          <div style="color: #ffbb00; font-size: 18px; font-weight: bold;" id="onlineRate">0%</div>
+                          <div style="color: rgba(255,255,255,0.8); font-size: 11px;">在线率</div>
+                      </div>
+                  </div>
+                  <div style="color: rgba(255,255,255,0.6); font-size: 12px; cursor: pointer;" onclick="showPersonnelDetails()">
+                      详情 →
+                  </div>
+              </div>
+              
+              <!-- 快速统计卡片 -->
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; height: 45px;">
+                  <div style="background: rgba(0,228,255,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #00e4ff; cursor: pointer; transition: all 0.3s ease;" onclick="filterByDepartment()" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,228,255,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                      <div style="color: #00e4ff; font-size: 14px; font-weight: bold;" id="activeDeptCount">0</div>
+                      <div style="color: #fff; font-size: 9px;">活跃部门</div>
+                  </div>
+                  <div style="background: rgba(0,255,157,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #00ff9d; cursor: pointer; transition: all 0.3s ease;" onclick="filterByOnlineStatus()" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,255,157,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                      <div style="color: #00ff9d; font-size: 14px; font-weight: bold;" id="onlineUsers">0</div>
+                      <div style="color: #fff; font-size: 9px;">在线人员</div>
+                  </div>
+                  <div style="background: rgba(255,187,0,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #ffbb00; cursor: pointer; transition: all 0.3s ease;" onclick="filterByDeviceStatus()" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,187,0,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                      <div style="color: #ffbb00; font-size: 14px; font-weight: bold;" id="boundDevices">0</div>
+                      <div style="color: #fff; font-size: 9px;">绑定设备</div>
+                  </div>
+                  <div style="background: rgba(255,68,68,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #ff4444; cursor: pointer; transition: all 0.3s ease;" onclick="filterByAlertStatus()" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,68,68,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                      <div style="color: #ff4444; font-size: 14px; font-weight: bold;" id="alertUsers">0</div>
+                      <div style="color: #fff; font-size: 9px;">告警人员</div>
+                  </div>
+              </div>
+              
+              <!-- 图表区域 -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: calc(100% - 120px);">
+                  <div id="departmentDistribution" style="background: rgba(0,21,41,0.4); border: 1px solid rgba(0,228,255,0.3); border-radius: 6px; position: relative; transition: all 0.3s ease;" onmouseover="this.style.borderColor='rgba(0,228,255,0.6)'; this.style.boxShadow='0 4px 15px rgba(0,228,255,0.2)'" onmouseout="this.style.borderColor='rgba(0,228,255,0.3)'; this.style.boxShadow='none'">
+                      <div style="position: absolute; top: 5px; left: 8px; color: #00e4ff; font-size: 12px; font-weight: bold; z-index: 10;">部门分布</div>
+                  </div>
+                  <div id="userStatusChart" style="background: rgba(0,21,41,0.4); border: 1px solid rgba(0,228,255,0.3); border-radius: 6px; position: relative; transition: all 0.3s ease;" onmouseover="this.style.borderColor='rgba(0,228,255,0.6)'; this.style.boxShadow='0 4px 15px rgba(0,228,255,0.2)'" onmouseout="this.style.borderColor='rgba(0,228,255,0.3)'; this.style.boxShadow='none'">
+                      <div style="position: absolute; top: 5px; left: 8px; color: #00e4ff; font-size: 12px; font-weight: bold; z-index: 10;">在线状态</div>
+                  </div>
+              </div>
+            </div>
+          </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span>告警信息</span>
+              </div>
+          <div class="panel-content">
+            <div id="alertList" class="chart-container"></div>
+            </div>
+              </div>
+            </div>
+
+      <!-- 中间地图区域 -->
+      <div class="map-container" id="map-container">
+            <!-- 筛选面板 -->
+            <div class="filter-panel">
+                <div class="filter-header">
+                    <span>人员筛选</span>
+                    
+                </div>
+                <div class="filter-container">
+                    <select id="deptSelect" class="filter-select">
+                        <option value="">选择部门</option>
+                    </select>
+                    <select id="userSelect" class="filter-select">
+                        <option value="">选择用户</option>
+                    </select>
+                </div>
+            </div>
+        <!-- 保留原有地图代码 -->
+        </div>
+
+      <!-- 右侧面板 -->
+      <div class="side-container">
+        <div class="panel">
+          <div class="panel-header">
+            <span>手表管理</span>
+            <span class="label">手表总数</span>
+            <span class="number" id="totalWatchDevices">35</span>
+              </div>
+          <div class="panel-content">
+     
+            <div id="statsChart" class="chart-container"></div>
+                </div>
+              </div>
+        <!-- 将原来的健康指标面板改为消息信息面板 -->
+        <div class="panel">
+          <div class="panel-header">
+              <span>消息信息</span>
+              <span class="message-count" id="messageCount">0</span>
+            </div>
+          <div class="panel-content">
+              <!-- 消息统计概览 -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px 12px; background: rgba(0,228,255,0.1); border-radius: 6px; border-left: 4px solid #00e4ff;">
+                  <div style="display: flex; align-items: center; gap: 20px;">
+                      <div style="text-align: center;">
+                          <div style="color: #00e4ff; font-size: 18px; font-weight: bold;" id="totalMessages">0</div>
+                          <div style="color: rgba(255,255,255,0.8); font-size: 11px;">总消息</div>
+                      </div>
+                      <div style="text-align: center;">
+                          <div style="color: #ff4444; font-size: 18px; font-weight: bold;" id="urgentMessages">0</div>
+                          <div style="color: rgba(255,255,255,0.8); font-size: 11px;">紧急消息</div>
+                      </div>
+                      <div style="text-align: center;">
+                          <div style="color: #ffbb00; font-size: 18px; font-weight: bold;" id="pendingMessages">0</div>
+                          <div style="color: rgba(255,255,255,0.8); font-size: 11px;">待处理</div>
+                      </div>
+                  </div>
+                  <div style="color: rgba(255,255,255,0.6); font-size: 12px; cursor: pointer;" onclick="showMessageDetails()">
+                      详情 →
+                  </div>
+              </div>
+              
+              <!-- 快速统计卡片 -->
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; height: 45px;">
+                  <div style="background: rgba(0,228,255,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #00e4ff; cursor: pointer; transition: all 0.3s ease;" onclick="filterByMessageType('system')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,228,255,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                      <div style="color: #00e4ff; font-size: 14px; font-weight: bold;" id="systemMessages">0</div>
+                      <div style="color: #fff; font-size: 9px;">系统消息</div>
+                  </div>
+                  <div style="background: rgba(0,255,157,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #00ff9d; cursor: pointer; transition: all 0.3s ease;" onclick="filterByMessageType('alert')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,255,157,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                      <div style="color: #00ff9d; font-size: 14px; font-weight: bold;" id="alertMessages">0</div>
+                      <div style="color: #fff; font-size: 9px;">告警消息</div>
+                  </div>
+                  <div style="background: rgba(255,187,0,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #ffbb00; cursor: pointer; transition: all 0.3s ease;" onclick="filterByMessageType('notice')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,187,0,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                      <div style="color: #ffbb00; font-size: 14px; font-weight: bold;" id="noticeMessages">0</div>
+                      <div style="color: #fff; font-size: 9px;">通知消息</div>
+                  </div>
+                  <div style="background: rgba(255,68,68,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #ff4444; cursor: pointer; transition: all 0.3s ease;" onclick="filterByMessageType('urgent')" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,68,68,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                      <div style="color: #ff4444; font-size: 14px; font-weight: bold;" id="urgentCount">0</div>
+                      <div style="color: #fff; font-size: 9px;">紧急处理</div>
+                  </div>
+              </div>
+              
+              <!-- 图表区域 -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: calc(100% - 120px);">
+                  <div id="messageTypeChart" style="background: rgba(0,21,41,0.4); border: 1px solid rgba(0,228,255,0.3); border-radius: 6px; position: relative; transition: all 0.3s ease;" onmouseover="this.style.borderColor='rgba(0,228,255,0.6)'; this.style.boxShadow='0 4px 15px rgba(0,228,255,0.2)'" onmouseout="this.style.borderColor='rgba(0,228,255,0.3)'; this.style.boxShadow='none'">
+                      <div style="position: absolute; top: 5px; left: 8px; color: #00e4ff; font-size: 12px; font-weight: bold; z-index: 10;">消息类型分布</div>
+                  </div>
+                  <div id="messageTrendChart" style="background: rgba(0,21,41,0.4); border: 1px solid rgba(0,228,255,0.3); border-radius: 6px; position: relative; transition: all 0.3s ease;" onmouseover="this.style.borderColor='rgba(0,228,255,0.6)'; this.style.boxShadow='0 4px 15px rgba(0,228,255,0.2)'" onmouseout="this.style.borderColor='rgba(0,228,255,0.3)'; this.style.boxShadow='none'">
+                      <div style="position: absolute; top: 5px; left: 8px; color: #00e4ff; font-size: 12px; font-weight: bold; z-index: 10;">24小时趋势</div>
+                  </div>
+              </div>
+          </div>
+                </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span>健康数据分析</span>
+              </div>
+          <div class="panel-content">
+            <div id="trendChart" class="chart-container"></div>
+                </div>
+              </div>
+
+          </div>
+          </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        window.difyChatbotConfig = {
+         token: 'CdVhQIms3fZkQuTW',
+         baseUrl: 'http://192.168.1.83',
+         systemVariables: {
+           // user_id: 'YOU CAN DEFINE USER ID HERE',
+           // conversation_id: 'YOU CAN DEFINE CONVERSATION ID HERE, IT MUST BE A VALID UUID',
+         },
+        }
+       </script>
+       <script
+        src="http://192.168.1.83/embed.min.js"
+        id="CdVhQIms3fZkQuTW"
+        defer>
+       </script>
+       <style>
+         #dify-chatbot-bubble-button {
+           background-color: #1C64F2 !important;
+         }
+         #dify-chatbot-bubble-window {
+           width: 24rem !important;
+           height: 40rem !important;
+         }
+       </style>
+    <script>
+      // 在全局作用域声明图表变量
+      let globalCharts = null;
+      let currentDept = '', currentUser = '';
+      const ALERT_TYPE_MAP = {
+        heart_rate: '心率',
+        blood_pressure: '血压',
+        stress: '压力',
+        blood_oxygen: '血氧',
+        temperature: '体温',
+        one_key_alarm: '一键报警',
+        fall_down: '跌倒',
+        sleep: '睡眠'
+      };
+      const ALERT_SEVERITY_MAP = {
+        critical: '严重',
+        high: '高',
+        medium: '中',
+        low: '低'
+      };
+      const ALERT_STATUS_MAP = {
+        pending: '待处理',
+        responded: '已响应',
+        resolved: '已解决'
+      };
+      function translateAlertType(type) {
+        return ALERT_TYPE_MAP[type] || type;
+      }
+      function translateAlertSeverity(severity) {
+        return ALERT_SEVERITY_MAP[severity] || severity;
+      }
+      function translateAlertStatus(status) {
+        return ALERT_STATUS_MAP[status] || status;
+      }
+      const ALERT_TYPE_COLOR = {
+        heart_rate: '#ff6b6b',
+        blood_pressure: '#ffb347',
+        stress: '#f7b731',
+        blood_oxygen: '#00e4ff',
+        temperature: '#ffd700',
+        one_key_alarm: '#ffe066',
+        fall_down: '#00cfff',
+        sleep: '#7ecfff'
+      };
+      const ALERT_SEVERITY_COLOR = {    
+        critical: '#ff6b6b',
+        high: '#ffb347',
+        medium: '#f7b731',
+        low: '#00e4ff'
+      };
+      const ALERT_STATUS_COLOR = {
+        pending: '#ff6b6b',
+        responded: '#ffb347',
+        resolved: '#00e4ff'
+      };
+      function getAlertTypeColor(type) {
+        return ALERT_TYPE_COLOR[type] || '#7ecfff';
+      }
+      function getAlertSeverityColor(severity) {
+        return ALERT_SEVERITY_COLOR[severity] || '#7ecfff';
+      }
+      function getAlertStatusColor(status) {
+        return ALERT_STATUS_COLOR[status] || '#7ecfff';
+      }
+
+      // 添加日期格式化函数
+      function formatDate(date) {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+      }
+
+      // 修改initCharts函数
+      function initCharts() {
+        try {
+            let charts = {
+                healthScore: null,
+                stats: null,
+                trend: null,
+                alert: null
+            };
+
+            // 检查并初始化健康评分图表
+            const healthScoreContainer = document.getElementById('healthScoreChart');
+            if (healthScoreContainer) {
+                charts.healthScore = echarts.init(healthScoreContainer);
+                
+                // 从URL获取customerId参数
+                const urlParams = new URLSearchParams(window.location.search);
+                const customerId = urlParams.get('customerId') || '1';
+                
+                // 获取日期范围
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 7);
+                
+                const startDate = formatDate(yesterday);
+                const endDate = formatDate(today);
+                
+                // 调用接口获取健康评分数据
+                fetch(`/health_data/score?orgId=${customerId}&startDate=${startDate}&endDate=${endDate}`)
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success && result.data && result.data.healthScores) {
+                            const factors = result.data.healthScores.factors;
+                            
+                            // 更新总分显示
+                            const totalScoreElement = document.querySelector('.total-score');
+                            if (totalScoreElement) {
+                                totalScoreElement.textContent = `总分：${result.data.summary.overallScore}`;
+                            }
+                            
+                            const healthScoreOption = {
+                                tooltip: {
+                                    trigger: 'axis',
+                                    formatter: function(params) {
+                                        return params[0].name + '<br/>' +
+                                               params[0].marker + params[0].seriesName + '：' + params[0].value;
+                                    }
+                                },
+                                radar: {
+                                    radius: '65%',
+                                    center: ['50%', '55%'],
+                                    indicator: [
+                                        { name: `心率 ${factors.heartRate?.score || 0}分`, max: 100 },
+                                        { name: `血氧 ${factors.bloodOxygen?.score || 0}分`, max: 100 },
+                                        { name: `体温 ${factors.temperature?.score || 0}分`, max: 100 },
+                                        { name: `步数 ${factors.step?.score || 0}分`, max: 100 },
+                                        { name: `卡路里 ${factors.calorie?.score || 0}分`, max: 100 },
+                                        { name: `收缩压 ${factors.pressureHigh?.score || 0}分`, max: 100 },
+                                        { name: `舒张压 ${factors.pressureLow?.score || 0}分`, max: 100 },
+                                        { name: `压力 ${factors.stress?.score || 0}分`, max: 100 }
+                                    ],
+                                    name: {
+                                        textStyle: {
+                                            color: '#00e4ff',
+                                            fontSize: 12,
+                                            padding: [3, 5]
+                                        },
+                                        rich: {
+                                            value: {
+                                                color: '#00e4ff',
+                                                fontSize: 12,
+                                                fontWeight: 'normal'
+                                            }
+                                        }
+                                    },
+                                    splitArea: {
+                                        show: true,
+                                        areaStyle: {
+                                            color: ['rgba(0,228,255,0.1)', 'rgba(0,228,255,0.2)']
+                                        }
+                                    },
+                                    axisLine: {
+                                        lineStyle: {
+                                            color: 'rgba(0,228,255,0.5)'
+                                        }
+                                    },
+                                    splitLine: {
+                                        lineStyle: {
+                                            color: 'rgba(0,228,255,0.3)'
+                                        }
+                                    }
+                                },
+                                series: [{
+                                    name: '健康指标',
+                                    type: 'radar',
+                                    data: [{
+                                        value: [
+                                            factors.heartRate?.score || 0,
+                                            factors.bloodOxygen?.score || 0,
+                                            factors.temperature?.score || 0,
+                                            factors.step?.score || 0,
+                                            factors.calorie?.score || 0,
+                                            factors.pressureHigh?.score || 0,
+                                            factors.pressureLow?.score || 0,
+                                            factors.stress?.score || 0
+                                        ],
+                                        name: '当前状态',
+                                        itemStyle: {
+                                            color: '#00e4ff'
+                                        },
+                                        areaStyle: {
+                                            color: 'rgba(0,228,255,0.4)'
+                                        }
+                                    }]
+                                }]
+                            };
+                            charts.healthScore.setOption(healthScoreOption);
+                        } else {
+                            // 如果没有数据，显示0分
+                            const totalScoreElement = document.querySelector('.total-score');
+                            if (totalScoreElement) {
+                                totalScoreElement.textContent = '总分：0';
+                            }
+                            
+                            const healthScoreOption = {
+                                tooltip: {
+                                    trigger: 'axis',
+                                    formatter: function(params) {
+                                        return params[0].name + '<br/>' +
+                                               params[0].marker + params[0].seriesName + '：' + params[0].value;
+                                    }
+                                },
+                                radar: {
+                                    radius: '65%',
+                                    center: ['50%', '55%'],
+                                    indicator: [
+                                        { name: '心率 0分', max: 100 },
+                                        { name: '血氧 0分', max: 100 },
+                                        { name: '体温 0分', max: 100 },
+                                        { name: '步数 0分', max: 100 },
+                                        { name: '卡路里 0分', max: 100 },
+                                        { name: '收缩压 0分', max: 100 },
+                                        { name: '舒张压 0分', max: 100 },
+                                        { name: '压力 0分', max: 100 }
+                                    ],
+                                    name: {
+                                        textStyle: {
+                                            color: '#00e4ff',
+                                            fontSize: 12,
+                                            padding: [3, 5]
+                                        },
+                                        rich: {
+                                            value: {
+                                                color: '#00e4ff',
+                                                fontSize: 12,
+                                                fontWeight: 'normal'
+                                            }
+                                        }
+                                    },
+                                    splitArea: {
+                                        show: true,
+                                        areaStyle: {
+                                            color: ['rgba(0,228,255,0.1)', 'rgba(0,228,255,0.2)']
+                                        }
+                                    },
+                                    axisLine: {
+                                        lineStyle: {
+                                            color: 'rgba(0,228,255,0.5)'
+                                        }
+                                    },
+                                    splitLine: {
+                                        lineStyle: {
+                                            color: 'rgba(0,228,255,0.3)'
+                                        }
+                                    }
+                                },
+                                series: [{
+                                    name: '健康指标',
+                                    type: 'radar',
+                                    data: [{
+                                        value: [0, 0, 0, 0, 0, 0, 0, 0],
+                                        name: '当前状态',
+                                        itemStyle: {
+                                            color: '#00e4ff'
+                                        },
+                                        areaStyle: {
+                                            color: 'rgba(0,228,255,0.4)'
+                                        }
+                                    }]
+                                }]
+                            };
+                            charts.healthScore.setOption(healthScoreOption);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching health data:', error);
+                        // 发生错误时也显示0分
+                        const totalScoreElement = document.querySelector('.total-score');
+                        if (totalScoreElement) {
+                            totalScoreElement.textContent = '总分：0';
+                        }
+                        // 设置默认的0分图表
+                        const healthScoreOption = {
+                            tooltip: {
+                                trigger: 'axis',
+                                formatter: function(params) {
+                                    return params[0].name + '<br/>' +
+                                           params[0].marker + params[0].seriesName + '：' + params[0].value;
+                                }
+                            },
+                            radar: {
+                                radius: '65%',
+                                center: ['50%', '55%'],
+                                indicator: [
+                                    { name: '心率 0分', max: 100 },
+                                    { name: '血氧 0分', max: 100 },
+                                    { name: '体温 0分', max: 100 },
+                                    { name: '步数 0分', max: 100 },
+                                    { name: '卡路里 0分', max: 100 },
+                                    { name: '收缩压 0分', max: 100 },
+                                    { name: '舒张压 0分', max: 100 },
+                                    { name: '压力 0分', max: 100 }
+                                ],
+                                name: {
+                                    textStyle: {
+                                        color: '#00e4ff',
+                                        fontSize: 12,
+                                        padding: [3, 5]
+                                    },
+                                    rich: {
+                                        value: {
+                                            color: '#00e4ff',
+                                            fontSize: 12,
+                                            fontWeight: 'normal'
+                                        }
+                                    }
+                                },
+                                splitArea: {
+                                    show: true,
+                                    areaStyle: {
+                                        color: ['rgba(0,228,255,0.1)', 'rgba(0,228,255,0.2)']
+                                    }
+                                },
+                                axisLine: {
+                                    lineStyle: {
+                                        color: 'rgba(0,228,255,0.5)'
+                                    }
+                                },
+                                splitLine: {
+                                    lineStyle: {
+                                        color: 'rgba(0,228,255,0.3)'
+                                    }
+                                }
+                            },
+                            series: [{
+                                name: '健康指标',
+                                type: 'radar',
+                                data: [{
+                                    value: [0, 0, 0, 0, 0, 0, 0, 0],
+                                    name: '当前状态',
+                                    itemStyle: {
+                                        color: '#00e4ff'
+                                    },
+                                    areaStyle: {
+                                        color: 'rgba(0,228,255,0.4)'
+                                    }
+                                }]
+                            }]
+                        };
+                        charts.healthScore.setOption(healthScoreOption);
+                    });
+            }
+
+            // 检查并初始化数据统计图表
+            const statsContainer = document.getElementById('statsChart');
+            if (statsContainer) {
+                charts.stats = echarts.init(statsContainer);
+                const statsOption = {
+                    tooltip: {
+                        trigger: 'item'
+                    },
+                    legend: {
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'center',
+                        textStyle: {
+                            color: '#fff'
+                        }
+                    },
+                    series: [{
+                        name: '设备状态',
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['40%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: {
+                            borderColor: '#fff',
+                            borderWidth: 1
+                        },
+                        label: {
+                            show: true,
+                            color: '#fff'
+                        },
+                        data: [
+                            { value: 35, name: '在线' },
+                            { value: 10, name: '离线' },
+                            { value: 15, name: '充电中' },
+                            { value: 20, name: '佩戴中' }
+                        ],
+                        color: ['#00e4ff', '#ff4444', '#ffbb00', '#00ff9d']
+                    }]
+                };
+                charts.stats.setOption(statsOption);
+            }
+
+           
+
+            // 检查并初始化趋势分析图表
+            
+
+            // 检查并初始化预警信息图表
+            const alertContainer = document.getElementById('alertList');
+            if (alertContainer) {
+                charts.alert = echarts.init(alertContainer);
+                const alertOption = {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,21,41,0.9)',
+                        borderColor: 'rgba(0,228,255,0.2)',
+                        textStyle: {
+                            color: '#fff'
+                        }
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        show: false
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: ['心率', '血氧', '体温', '步数', '卡路里', '距离'],
+                        axisLabel: {
+                            color: '#fff',
+                            fontSize: 12
+                        },
+                        axisLine: {
+                            show: false
+                        },
+                        axisTick: {
+                            show: false
+                        }
+                    },
+                    series: [{
+                        type: 'bar',
+                        data: [
+                            {value: 8.02, itemStyle: {color: '#00e4ff'}},
+                            {value: 8.09, itemStyle: {color: '#00e4ff'}},
+                            {value: 2.87, itemStyle: {color: '#3498db'}},
+                            {value: 0.85, itemStyle: {color: '#f39c12'}},
+                            {value: 80.44, itemStyle: {color: '#00e4ff'}},
+                            {value: 2.56, itemStyle: {color: '#e74c3c'}}
+                        ],
+                        barWidth: '60%',
+                        label: {
+                            show: true,
+                            position: 'right',
+                            color: '#fff',
+                            formatter: '{c}%'
+                        }
+                    }]
+                };
+                charts.alert.setOption(alertOption);
+            }
+
+            // 添加窗口resize事件监听
+            window.addEventListener('resize', () => {
+                Object.values(charts).forEach(chart => {
+                    if (chart) {
+                        chart.resize();
+                    }
+                });
+            });
+
+            // 返回图表实例对象，以便其他地方可能需要使用
+            return charts;
+
+        } catch (error) {
+            console.error('Error initializing charts:', error);
+        }
+    }
+
+    // 修改初始化调用
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            globalCharts = initCharts(); // 存储图表实例
+            refreshData(); // 初始加载数据
+            // 每分钟刷新一次数据
+            setInterval(refreshData, 60000);
+        }, 100);
+    });
+
+    // 修改消息列表初始化 - 专业版
+    function initMessageList(data) {
+        console.log('initMessageList 开始执行，数据:', data); // 调试信息
+        
+        const messageInfo = data.message_info || {};
+        const messages = messageInfo.messages || [];
+        
+        // 更新消息计数
+        const messageCount = document.getElementById('messageCount');
+        if (messageCount) {
+            messageCount.textContent = messages.length;
+        }
+        
+        // 统计消息数据
+        const totalMessages = messages.length;
+        const pendingMessages = messages.filter(msg => msg.message_status === 'pending' || msg.message_status === '1').length;
+        const urgentMessages = messages.filter(msg => msg.priority === 'urgent' || msg.message_type === 'urgent').length;
+        
+        // 按类型统计消息
+        const messageTypeCount = {};
+        const messageStatusCount = {};
+        
+        messages.forEach(msg => {
+            // 统计消息类型
+            const type = msg.message_type || 'system';
+            messageTypeCount[type] = (messageTypeCount[type] || 0) + 1;
+            
+            // 统计消息状态
+            const status = msg.message_status || 'pending';
+            messageStatusCount[status] = (messageStatusCount[status] || 0) + 1;
+        });
+        
+        // 更新统计数据
+        document.getElementById('totalMessages').textContent = totalMessages;
+        document.getElementById('urgentMessages').textContent = urgentMessages;
+        document.getElementById('pendingMessages').textContent = pendingMessages;
+        document.getElementById('systemMessages').textContent = messageTypeCount.system || 0;
+        document.getElementById('alertMessages').textContent = messageTypeCount.alert || 0;
+        document.getElementById('noticeMessages').textContent = messageTypeCount.notice || 0;
+        document.getElementById('urgentCount').textContent = urgentMessages;
+
+        // 1. 消息类型分布图 - 环形图
+        const typeChart = echarts.init(document.getElementById('messageTypeChart'));
+        
+        // 处理消息类型数据
+        const typeData = Object.entries(messageTypeCount)
+            .map(([type, count]) => ({
+                name: translateMessageType(type),
+                value: count,
+                originalType: type
+            }))
+            .sort((a, b) => b.value - a.value);
+
+        // 如果没有数据，显示默认状态
+        const hasTypeData = typeData.length > 0 && typeData.some(d => d.value > 0);
+        const displayTypeData = hasTypeData ? typeData : [
+            { name: '暂无消息', value: 1 }
+        ];
+
+        const typeColors = {
+            'system': '#00e4ff',
+            'alert': '#ff4444',
+            'notice': '#ffbb00',
+            'urgent': '#ff6666',
+            'info': '#00ff9d'
+        };
+
+        const typeOption = {
+            tooltip: {
+                trigger: 'item',
+                backgroundColor: 'rgba(0,21,41,0.95)',
+                borderColor: '#00e4ff',
+                borderWidth: 1,
+                textStyle: { color: '#fff', fontSize: 11 },
+                formatter: function(params) {
+                    if (!hasTypeData) return '暂无数据';
+                    return `${params.name}<br/>数量: ${params.value}条<br/>占比: ${params.percent}%`;
+                }
+            },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '75%'],
+                center: ['50%', '60%'],
+                avoidLabelOverlap: true,
+                itemStyle: {
+                    borderColor: 'rgba(0,21,41,0.8)',
+                    borderWidth: 2,
+                    shadowBlur: 8,
+                    shadowColor: 'rgba(0,228,255,0.3)'
+                },
+                label: {
+                    show: true,
+                    position: 'outside',
+                    color: '#fff',
+                    fontSize: 9,
+                    formatter: function(params) {
+                        if (!hasTypeData) return '';
+                        return params.value > 0 ? `${params.name}\n${params.value}条` : '';
+                    },
+                    lineHeight: 10
+                },
+                labelLine: {
+                    show: true,
+                    length: 6,
+                    length2: 4,
+                    lineStyle: { color: 'rgba(255,255,255,0.5)', width: 1 }
+                },
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 15,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0,228,255,0.6)',
+                        scale: 1.05
+                    }
+                },
+                data: displayTypeData.map((item, index) => ({
+                    ...item,
+                    itemStyle: { 
+                        color: typeColors[item.originalType] || ['#00e4ff', '#00a8ff', '#0080ff', '#48cae4', '#90e0ef'][index % 5]
+                    }
+                }))
+            }]
+        };
+        typeChart.setOption(typeOption);
+
+        // 2. 24小时消息趋势图 - 面积图
+        const trendChart = echarts.init(document.getElementById('messageTrendChart'));
+        
+        // 处理时间数据，按小时统计
+        const hourlyData = {};
+        const now = new Date();
+        
+        // 初始化24小时数据
+        for (let i = 0; i < 24; i++) {
+            hourlyData[i] = 0;
+        }
+        
+        // 统计消息数据
+        if (messages && messages.length > 0) {
+            messages.forEach(msg => {
+                try {
+                    let msgTime;
+                    if (msg.received_time) {
+                        msgTime = new Date(msg.received_time);
+                        if (isNaN(msgTime.getTime())) {
+                            msgTime = new Date(msg.received_time.replace(/-/g, '/'));
+                        }
+                    } else if (msg.timestamp) {
+                        msgTime = new Date(msg.timestamp);
+                    } else {
+                        msgTime = now; // 默认当前时间
+                    }
+                    
+                    if (!isNaN(msgTime.getTime())) {
+                        const hour = msgTime.getHours();
+                        hourlyData[hour] = (hourlyData[hour] || 0) + 1;
+                    }
+                } catch (e) {
+                    console.warn('解析消息时间失败:', msg, e);
+                }
+            });
+        }
+        
+        const hours = Array.from({length: 24}, (_, i) => i);
+        const hourlyValues = hours.map(h => hourlyData[h] || 0);
+        const maxValue = Math.max(...hourlyValues, 1);
+
+        const trendOption = {
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(0,21,41,0.95)',
+                borderColor: '#00e4ff',
+                textStyle: { color: '#fff', fontSize: 11 },
+                formatter: function(params) {
+                    if (!params || !params[0]) return '';
+                    const data = params[0];
+                    return `${data.name}:00<br/>消息数量: ${data.value}条`;
+                }
+            },
+            grid: { top: 25, left: 25, right: 15, bottom: 20 },
+            xAxis: {
+                type: 'category',
+                data: hours.map(h => h.toString().padStart(2, '0')),
+                axisLabel: { 
+                    color: '#7ecfff', 
+                    fontSize: 9,
+                    interval: 3
+                },
+                axisLine: { lineStyle: { color: 'rgba(126,207,255,0.3)' } },
+                axisTick: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                max: Math.max(maxValue + 1, 3),
+                axisLabel: { color: '#7ecfff', fontSize: 9 },
+                splitLine: { lineStyle: { color: 'rgba(126,207,255,0.1)', type: 'dashed' } },
+                axisLine: { show: false }
+            },
+            series: [{
+                type: 'line',
+                data: hourlyValues,
+                smooth: true,
+                lineStyle: { 
+                    color: '#00e4ff', 
+                    width: 2,
+                    shadowColor: 'rgba(0,228,255,0.3)',
+                    shadowBlur: 5
+                },
+                itemStyle: { 
+                    color: '#00e4ff',
+                    borderColor: '#fff',
+                    borderWidth: 1
+                },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(0,228,255,0.4)' },
+                        { offset: 1, color: 'rgba(0,228,255,0.05)' }
+                    ])
+                },
+                symbol: 'circle',
+                symbolSize: function(value) {
+                    return value > 0 ? 4 : 2;
+                },
+                emphasis: {
+                    itemStyle: { 
+                        color: '#fff', 
+                        borderColor: '#00e4ff', 
+                        borderWidth: 2,
+                        shadowColor: 'rgba(0,228,255,0.6)',
+                        shadowBlur: 8
+                    },
+                    scale: 1.2
+                }
+            }]
+        };
+        trendChart.setOption(trendOption);
+
+        // 自适应大小
+        const resizeCharts = () => {
+            try {
+                typeChart && typeChart.resize();
+                trendChart && trendChart.resize();
+            } catch (e) {
+                console.warn('消息图表resize失败:', e);
+            }
+        };
+        
+        window.addEventListener('resize', resizeCharts);
+
+        // 延迟执行确保图表正确渲染
+        setTimeout(() => {
+            resizeCharts();
+            console.log('消息图表初始化完成');
+        }, 200);
+
+        // 图表点击交互
+        typeChart.on('click', function(params) {
+            if (hasTypeData && params.data && params.data.value > 0) {
+                const filteredMessages = messages.filter(msg => 
+                    translateMessageType(msg.message_type || 'system') === params.data.name
+                );
+                showMessageTypeDetails(params.data.name, filteredMessages);
+            }
+        });
+
+        return { typeChart, trendChart };
+    }
+
+    // 修改趋势分析图表，增加预测数据
+    function updateTrendChart(data) {
+        const trendContainer = document.getElementById('trendChart');
+        if (!trendContainer) return;
+
+        const trendChart = echarts.init(trendContainer);
+        
+        const trendOption = {
+            title: {
+                text: '健康指标趋势及预测',
+                textStyle: {
+                    color: '#fff',
+                    fontSize: 16
+                }
+            },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(0,21,41,0.9)',
+                borderColor: 'rgba(0,228,255,0.2)',
+                textStyle: { color: '#fff' }
+            },
+            legend: {
+                data: ['心率', '血压', '压力指数', '距离', '卡路里', '步数', '预测值'],
+                textStyle: { color: '#fff' },
+                top: 30
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '预测'],
+                axisLabel: { color: '#fff' },
+                axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: { color: '#fff' },
+                splitLine: {
+                    lineStyle: {
+                        color: 'rgba(255,255,255,0.1)',
+                        type: 'dashed'
+                    }
+                }
+            },
+            series: [
+                {
+                    name: '心率',
+                    type: 'line',
+                    smooth: true,
+                    data: [75, 72, 78, 85, 80, 75, 77],
+                    itemStyle: { color: '#ff4444' }
+                },
+                {
+                    name: '血压',
+                    type: 'line',
+                    smooth: true,
+                    data: [120, 118, 122, 125, 121, 119, 120],
+                    itemStyle: { color: '#00e4ff' }
+                },
+                {
+                    name: '压力指数',
+                    type: 'line',
+                    smooth: true,
+                    data: [45, 48, 52, 55, 50, 47, 49],
+                    itemStyle: { color: '#ffbb00' }
+                },
+                {
+                    name: '距离',
+                    type: 'line',
+                    smooth: true,
+                    data: [2.1, 2.3, 2.8, 3.2, 3.5, 3.8, 4.0],
+                    itemStyle: { color: '#00ff9d' }
+                },
+                {
+                    name: '卡路里',
+                    type: 'line',
+                    smooth: true,
+                    data: [150, 180, 220, 280, 320, 350, 380],
+                    itemStyle: { color: '#ff7777' }
+                },
+                {
+                    name: '步数',
+                    type: 'line',
+                    smooth: true,
+                    data: [2000, 2500, 3000, 3800, 4200, 4500, 4800],
+                    itemStyle: { color: '#7777ff' }
+                }
+            ]
+        };
+
+        // 为每个系列添加预测区域
+        trendOption.series.forEach(series => {
+            const lastIndex = series.data.length - 1;
+            series.markArea = {
+                itemStyle: {
+
+
+   
+  </script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  $(document).ready(function() {
+    // 获取部门数据
+    $.ajax({
+        url: `/get_departments?orgId={{ customerId }}`,
+        method: 'GET',
+        success: function(response) {
+            console.log('response', response);
+            if (response.success && response.data) {
+                updateDepartmentSelect(response.data);
+            } else {
+                console.error('Invalid response format:', response);
+            }
+        },
+        error: function(error) {
+            console.error('Failed to fetch departments:', error);
+        }
+    });
+
+    // 部门选择变化时更新用户列表
+    $('#deptSelect').change(function() {
+        const selectedDeptId = $(this).val();
+        currentDept=selectedDeptId
+        console.log('currentDept',currentDept);
+        updateUsers(selectedDeptId);
+    });
+
+    // 用户选择变化时刷新地图
+    $('#userSelect').change(function() {
+        currentUser=$(this).val()
+       //console.log('currentUser',currentUser);
+        // 调用 initializeMap 刷新数据
+        //initializeMap(selectedDeptId, selectedUserId);
+        updateMapData(lastTotalInfo);
+    });
+
+
+
+    // 更新部门选择框
+    function updateDepartmentSelect(departments) {
+        const deptSelect = document.getElementById('deptSelect');
+        if (!deptSelect) return;
+
+        // 清空现有选项
+        deptSelect.innerHTML = '<option value="">选择部门</option>';
+
+        // 递归添加部门选项
+        function addDepartmentOptions(departments, level = 0) {
+            departments.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.id;
+                const indent = '　'.repeat(level);
+                option.textContent = indent + dept.name;
+                deptSelect.appendChild(option);
+
+                if (dept.children && dept.children.length > 0) {
+                    addDepartmentOptions(dept.children, level + 1);
+                }
+            });
+        }
+
+        addDepartmentOptions(departments);
+        deptSelect.style.fontFamily = 'monospace';
+    }
+
+    // 更新用户选择框
+    async function updateUsers(deptId) {
+        try {
+            const userSelect = document.getElementById('userSelect');
+            if (!userSelect) return;
+
+            // 清空现有选项
+            userSelect.innerHTML = '<option value="">选择用户</option>';
+
+            if (!deptId) return;
+
+            const response = await fetch(`/fetch_users?orgId=${deptId}`);
+            const data = await response.json();
+            console.log('updateUsers.data', data);
+
+            if (data) {
+                data.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    let displayText = user.user_name;
+                    // 如果有职位信息，添加到显示文本中
+                    if (user.position) {
+                        displayText += ` (${user.position})`;
+                    }
+                    option.textContent = displayText;
+                    userSelect.appendChild(option);
+                });
+                const option = document.createElement('option');
+                option.value = 'all';
+                option.textContent = '全部用户';
+                userSelect.appendChild(option);
+            }
+        } catch (error) {
+            console.error('获取用户列表失败:', error);
+        }
+    }
+
+    // 添加样式
+    const style = document.createElement('style');
+    style.textContent = `
+        .filter-select {
+            font-family: monospace;
+            white-space: pre;
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        .filter-select option {
+            font-family: monospace;
+            white-space: pre;
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        .filter-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 21, 41, 0.9);
+            backdrop-filter: blur(8px);
+            padding: 15px;
+            border-radius: 8px;
+            width: 280px;
+            border: 1px solid rgba(0, 228, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .filter-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 228, 255, 0.2);
+        }
+
+        .filter-header span {
+            color: #00e4ff;
+            font-size: 14px;
+        }
+
+        .filter-toggle {
+            background: transparent;
+            border: none;
+            color: #00e4ff;
+            cursor: pointer;
+            padding: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-toggle:hover {
+            transform: scale(1.1);
+        }
+    `;
+    document.head.appendChild(style);
+  });
+</script>
+
+<div id="infoPanel" class="info-panel" style="display: none;">
+  <div class="info-panel-header">
+    <div class="info-panel-title">
+      <i class="fas fa-info-circle"></i>
+      <span>实时信息</span>
+    </div>
+    <button class="info-panel-close" onclick="toggleInfoPanel()">×</button>
+  </div>
+  <div class="info-panel-content" id="infoPanelContent">
+    <!-- 内容将通过JavaScript动态填充 -->
+  </div>
+</div>
+
+<script>
+// 全局变量
+let infoPanelVisible = false;
+let lastTotalInfo = null;
+
+// 切换信息面板显示状态
+function toggleInfoPanel() {
+  const panel = document.getElementById('infoPanel');
+  infoPanelVisible = !infoPanelVisible;
+  panel.style.display = infoPanelVisible ? 'block' : 'none';
+}
+
+// 添加键盘快捷键切换信息面板
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'i' && e.ctrlKey) {
+    toggleInfoPanel();
+  }
+});
+
+function openInfoPanelWithAlertId(alertId) {
+  infoPanelVisible = true;
+  document.getElementById('infoPanel').style.display = 'block';
+  updateInfoPanel(lastTotalInfo, alertId);
+}
+function showCustomMapInfo(f){
+  removeCustomMapInfo();
+  const d=f.properties,toStr=x=>x===undefined||x===null?'':String(x);
+  const get=(...k)=>k.map(x=>d[x]).find(x=>x!==undefined&&x!==null&&x!=='')||'-';
+  // 判断是否为告警点：有alert_id/alertId且有alert_type/alertType，且type不是health
+  const isAlert=!!(get('alert_id','alertId')&&get('alert_type','alertType')&&d.type!=='health');
+  console.log('showCustomMapInfo.d',d);
+  console.log('showCustomMapInfo.isAlert',isAlert);
+  const level=get('severity_level','severityLevel');
+  const levelColor=level==='critical'?'#ff4d4f':level==='high'?'#ffbb00':'#ffe066';
+  const avatarUrl=d.avatar||'/static/images/avatar-tech.svg';
+  const div=document.createElement('div');
+  div.className='custom-map-info';
+  div.style.cssText='position:absolute;z-index:9999;min-width:360px;max-width:420px;background:rgba(10,24,48,0.98);border:1.5px solid #00e4ff;border-radius:16px;box-shadow:0 0 24px #00e4ff44;padding:22px 28px 18px 28px;color:#fff;top:120px;left:50%;transform:translateX(-50%);font-size:15px;font-family:Roboto,Arial,sans-serif;backdrop-filter:blur(6px);';
+  // 获取位置信息
+      const longitude = get('longitude');
+      const latitude = get('latitude');
+      if(longitude && latitude){
+        reverseGeocode(longitude, latitude)
+          .then(address => {
+            const locationInfo = document.getElementById('locationInfo');
+            if(locationInfo){
+              locationInfo.textContent = address || '未知位置';
+            }
+          })
+          .catch(error => {
+            console.error('获取位置信息失败:', error);
+            const locationInfo = document.getElementById('locationInfo');
+            if(locationInfo){
+              locationInfo.textContent = '获取位置信息失败';
+            }
+          });
+      }
+  if(isAlert){
+    
+    // 告警点内容
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;gap:18px;margin-bottom:12px;">
+        <img src="${avatarUrl}" style="width:56px;height:56px;border-radius:50%;border:2px solid #00e4ff;box-shadow:0 0 8px #00e4ff44;object-fit:cover;background:#001529;">
+        <div>
+          <div style="font-size:18px;font-weight:700;letter-spacing:1px;">${get('dept_name','deptName')}</div>
+          <div style="font-size:16px;color:#00e4ff;font-weight:500;margin-top:2px;">${get('user_name','userName')}</div>
+        </div>
+      </div>
+    
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px;">
+        <div><span style="color:#7ecfff;">告警类别：</span><span style="color:${getAlertTypeColor(get('alert_type','alertType','-'))};font-weight:700;">${translateAlertType(get('alert_type','alertType','-'))}</span></div>
+        <div><span style="color:#7ecfff;">级别：</span><span style="color:${getAlertSeverityColor(level||'-')};font-weight:700;">${translateAlertSeverity(level||'-')}</span></div>
+        <div><span style="color:#7ecfff;">状态：</span><span style="color:${getAlertStatusColor(get('alert_status','status','-'))};font-weight:700;">${translateAlertStatus(get('alert_status','status','-'))}</span></div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <span style="color:#7ecfff;">健康信息：</span>
+        <a href="javascript:void(0)" onclick="showHealthProfile('${get('health_id','healthId')}')" style="color:#00e4ff;text-decoration:underline;font-family:monospace;font-size:15px;">${get('health_id','healthId')}</a>
+      </div>
+    <div style="margin-bottom:8px;">
+        <span style="color:#7ecfff;">位置信息：</span><span id="locationInfo">正在获取...</span>
+      </div>
+      <div style="margin-bottom:8px;">
+        <span style="color:#7ecfff;">告警时间：</span>${get('alert_timestamp','timestamp','-')}
+      </div>
+
+      <div style="display:flex;gap:18px;align-items:center;">
+        <button onclick="handleAlert('${get('alert_id','alertId')}')" style="padding:7px 22px;background:${levelColor};color:#001529;border:none;border-radius:6px;cursor:pointer;font-weight:700;box-shadow:0 2px 8px ${levelColor}44;transition:.2s;">一键处理</button>
+        <span style="flex:1"></span>
+        <span style="color:#00e4ff;cursor:pointer;font-size:22px;font-weight:700;" onclick="removeCustomMapInfo()">×</span>
+      </div>
+    `;
+    document.body.appendChild(div);
+    
+
+  } else {
+    // 健康点内容
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;gap:18px;margin-bottom:12px;">
+        <img src="${avatarUrl}" style="width:56px;height:56px;border-radius:50%;border:2px solid #00e4ff;box-shadow:0 0 8px #00e4ff44;object-fit:cover;background:#001529;">
+        <div>
+          <div style="font-size:18px;font-weight:700;letter-spacing:1px;">${get('dept_name','deptName')}</div>
+          <div style="font-size:16px;color:#00e4ff;font-weight:500;margin-top:2px;">${get('user_name','userName')}</div>
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <span style="color:#7ecfff;">心率：</span>${get('heartRate','heart_rate')}
+        <span style="color:#7ecfff;margin-left:18px;">血压：</span>${get('pressureHigh','pressure_high')}/${get('pressureLow','pressure_low')} mmHg
+      </div>
+      <div style="margin-bottom:8px;">
+        <span style="color:#7ecfff;">血氧：</span>${get('bloodOxygen','blood_oxygen')}
+        <span style="color:#7ecfff;margin-left:18px;">体温：</span>${get('temperature','temp')} ℃
+      </div>
+      <div style="margin-bottom:8px;">
+        <span style="color:#7ecfff;">步数：</span>${get('step','steps')} 步
+        <span style="color:#7ecfff;margin-left:18px;">卡路里：</span>${get('calorie','calories')} kcal
+        <span style="color:#7ecfff;margin-left:18px;">距离：</span>${get('distance','distance')} 米
+      </div>
+      <div style="margin-bottom:8px;">
+        <span style="color:#7ecfff;">压力：</span>${get('stress','pressure')}
+        <span style="color:#7ecfff;margin-left:18px;">睡眠：</span>${get('sleepData','scientificSleepData')}
+      </div>
+      <div style="margin-bottom:8px;">
+        <span style="color:#7ecfff;">位置信息：</span><span id="locationInfo">正在获取...</span>
+      </div>
+      <div style="margin-bottom:8px;">
+        <span style="color:#7ecfff;">采集时间：</span>${get('timestamp')}
+      </div>
+      <div style="display:flex;gap:18px;align-items:center;">
+        <span style="flex:1"></span>
+        <span style="color:#00e4ff;cursor:pointer;font-size:22px;font-weight:700;" onclick="removeCustomMapInfo()">×</span>
+      </div>
+    `;
+    document.body.appendChild(div);
+    
+    // 获取位置信息
+    const longitude = get('longitude');
+    const latitude = get('latitude');
+    if(longitude && latitude){
+      reverseGeocode(longitude, latitude)
+        .then(address => {
+          const locationInfo = document.getElementById('locationInfo');
+          if(locationInfo){
+            locationInfo.textContent = address || '未知位置';
+          }
+        })
+        .catch(error => {
+          console.error('获取位置信息失败:', error);
+          const locationInfo = document.getElementById('locationInfo');
+          if(locationInfo){
+            locationInfo.textContent = '获取位置信息失败';
+          }
+        });
+    }
+  }
+}
+function showHealthProfile(healthId){
+  fetch(`/fetchHealthDataById?id=${healthId}`).then(r=>r.json()).then(j=>{
+    if(!j.success||!j.data)return showCustomAlert('无健康数据');
+    const d=j.data,g=(...k)=>k.map(x=>d[x]).find(x=>x!==undefined&&x!==null&&x!=='')||'-';
+    let sleepStr=g('sleepData','scientificSleepData'),sleep='-';
+    try{
+      if(typeof sleepStr==='string'&&sleepStr.startsWith('{')){
+        const o=JSON.parse(sleepStr),arr=o.data||[];
+        if(arr.length){
+          const s=arr[0],fmt=m=>m?`${Math.floor(m/60)}h${m%60}m`:'-';
+          sleep=`总:${fmt(s.total)} 深:${fmt(s.deep)} 浅:${fmt(s.light)} 醒:${fmt(s.awake)}`;
+        }
+      }
+    }catch(e){sleep='-';}
+    const html=`
+      <div style="font-size:20px;font-weight:700;color:#00e4ff;margin-bottom:12px;text-align:center;">健康数据</div>
+      <div style="display:grid;grid-template-columns:100px 1fr;row-gap:8px;column-gap:10px;">
+        <span>心率</span><span style="text-align:right;font-weight:600;color:#7ecfff;">${g('heartRate','heart_rate')||'-'} <span style="color:#888;font-weight:400;">bpm</span></span>
+        <span>血压</span><span style="text-align:right;">${(g('pressureHigh','pressure_high')||'-')+'/'+(g('pressureLow','pressure_low')||'-')} <span style="color:#888;font-weight:400;">mmHg</span></span>
+        <span>血氧</span><span style="text-align:right;">${g('bloodOxygen','blood_oxygen')||'-'} <span style="color:#888;font-weight:400;">%</span></span>
+        <span>体温</span><span style="text-align:right;">${g('temperature','temp')||'-'} <span style="color:#888;font-weight:400;">℃</span></span>
+        <span>步数</span><span style="text-align:right;">${g('step','steps')||'-'} <span style="color:#888;font-weight:400;">步</span></span>
+        <span>距离</span><span style="text-align:right;">${g('distance','distance')||'-'} <span style="color:#888;font-weight:400;">米</span></span>
+        <span>卡路里</span><span style="text-align:right;">${g('calorie','calories')||'-'} <span style="color:#888;font-weight:400;">kcal</span></span>
+        <span>压力</span><span style="text-align:right;">${g('stress','pressure')||'-'} <span style="color:#888;font-weight:400;">分</span></span>
+        <span>睡眠</span><span style="text-align:right;">${sleep}</span>
+        <span>采集时间</span><span style="text-align:right;">${g('timestamp')||'-'}</span>
+      </div>
+    `;
+    const m=document.createElement('div');
+    m.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,21,41,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    m.innerHTML=`<div style="background:rgba(10,24,48,0.98);border-radius:14px;box-shadow:0 0 24px #00e4ff44;padding:32px 38px;min-width:320px;max-width:420px;color:#fff;position:relative;">
+      <span style="position:absolute;right:18px;top:12px;cursor:pointer;font-size:22px;color:#00e4ff;" onclick="this.parentNode.parentNode.remove()">×</span>
+      ${html}
+    </div>`;
+    document.body.appendChild(m);
+  }).catch(()=>showCustomAlert('获取健康数据失败'));
+}
+
+function removeCustomMapInfo(){const old=document.querySelector('.custom-map-info');if(old)old.remove();}
+
+function filterData(data){
+    //console.log('filterData.data',currentDept,currentUser);
+
+    //console.log('filterData.data.healthData',data.healthData);
+  const toStr=x=>x===undefined||x===null?'':String(x);
+  const dept=toStr(currentDept),user=toStr(currentUser);
+  const alerts=(data.alert_info?.alerts||[]).filter(a=>
+    (!dept||[a.dept_id,a.deptId].some(v=>toStr(v)===dept))&&
+    (!user||[a.user_id,a.userId].some(v=>toStr(v)===user))&&
+    (['pending','1'].includes(toStr(a.alert_status||a.status)))
+  );
+  const healths=(data.health_data?.healthData||[]).filter(h=>
+    (!dept||[h.dept_id,h.deptId].some(v=>toStr(v)===dept))&&
+    (!user||[h.user_id,h.userId].some(v=>toStr(v)===user))
+  );
+  //console.log('filterData.alerts',alerts);
+  //console.log('filterData.healths',healths);
+  return {alerts,healths};
+}
+
+window.updateMapData = function(data){
+    //console.log('updateMapData.data',data);
+  if(!data||!map||!loca)return;
+  const {alerts,healths}=filterData(data);
+  const f=[];
+  // 处理告警数据
+  alerts.forEach(a=>{
+    if((a.longitude||a.longitude===0)&&(a.latitude||a.latitude===0)){
+      f.push({
+        type:'Feature',
+        geometry:{type:'Point',coordinates:[+a.longitude,+a.latitude]},
+        properties:{
+          ...a,
+          alert_id: a.alert_id,
+          alert_type: a.alert_type,
+          alert_status: a.alert_status,
+          severity_level: a.severity_level,
+          dept_name: a.dept_name,
+          user_name: a.user_name,
+          health_id: a.health_id,
+          device_sn: a.device_sn,
+          alert_timestamp: a.alert_timestamp,
+          type: 'alert'
+        }
+      });
+    }
+  });
+  // 处理健康数据
+  healths.forEach(h=>{
+    if((h.longitude||h.longitude===0)&&(h.latitude||h.latitude===0)){
+      f.push({
+        type:'Feature',
+        geometry:{type:'Point',coordinates:[+h.longitude,+h.latitude]},
+        properties:{
+          ...h,
+          dept_name: h.deptName,
+          user_name: h.userName,
+          heart_rate: h.heartRate,
+          blood_oxygen: h.bloodOxygen,
+          temperature: h.temperature,
+          pressure_high: h.pressureHigh,
+          pressure_low: h.pressureLow,
+          step: h.step,
+          stress: h.stress,
+          device_sn: h.deviceSn,
+          timestamp: h.timestamp,
+          avatar: h.avatar,
+          sleepData: h.sleepData,
+          timestamp: h.timestamp,
+          type: 'health'
+        }
+      });
+    }
+  });
+  
+  const geoJSON={type:'FeatureCollection',features:f};
+  const criticalAlerts={type:'FeatureCollection',features:geoJSON.features.filter(f=>f.properties.severity_level==='critical')};
+  const highAlerts={type:'FeatureCollection',features:geoJSON.features.filter(f=>f.properties.severity_level==='high'||f.properties.severity_level==='medium')};
+  const healthData={type:'FeatureCollection',features:geoJSON.features.filter(f=>f.properties.type==='health')};
+  
+  breathRed.setSource(new Loca.GeoJSONSource({data:criticalAlerts}));
+  breathYellow.setSource(new Loca.GeoJSONSource({data:highAlerts}));
+  breathGreen.setSource(new Loca.GeoJSONSource({data:healthData}));
+  
+  // 设置地图中心
+  let center=null;
+  const getCoord=f=>f&&f.geometry&&f.geometry.coordinates;
+  const findFirst=(arr,cond)=>{for(let i=0;i<arr.length;i++)if(cond(arr[i]))return arr[i];return null;};
+  const cAlert=findFirst(geoJSON.features,f=>f.properties.type==='alert'&&['critical','high','medium'].includes(f.properties.severity_level));
+  const cHealth=findFirst(geoJSON.features,f=>f.properties.type==='health');
+  if(cAlert)center=getCoord(cAlert);
+  else if(cHealth)center=getCoord(cHealth);
+  if(center&&center.length>=2)map.setCenter([center[0],center[1]]);
+  else if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      map.setCenter([pos.coords.longitude,pos.coords.latitude]);
+    });
+  }
+}
+</script>
+  </body>
+</html>
+

@@ -1,0 +1,18 @@
+            // 获取URL参数中的customerId，用于地图初始化
+            const urlParams = new URLSearchParams(window.location.search);
+            const customerId = urlParams.get('customerId') || '1';
+            
+            // 初始化3D地图模块
+            if (typeof initializeMap === 'function') {
+                initializeMap(customerId, '-1'); // 初始化地图，显示所有用户
+                console.log('✅ 3D地图模块已初始化');
+                
+                // 每8秒刷新地图数据
+                setInterval(() => {
+                    if (typeof refreshMapData === 'function') {
+                        refreshMapData();
+                    }
+                }, 8000);
+            } else {
+                console.warn('⚠️ 3D地图模块未加载');
+            } 

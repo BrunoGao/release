@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>告警图表测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #001529;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            width: 350px;
+            height: 400px;
+            background: rgba(0, 21, 41, 0.7);
+            border: 1px solid rgba(0, 228, 255, 0.2);
+            border-radius: 4px;
+            padding: 12px;
+        }
+        
+        .panel-header {
+            color: #00e4ff;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .panel-content {
+            height: calc(100% - 30px);
+        }
+        
+        #alertList {
+            width: 100%;
+            height: 100%;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        
+        .alert-stat-item {
+            display: flex;
+            align-items: baseline;
+            transition: all 0.3s ease;
+        }
+        
+        .alert-stat-item:hover {
+            transform: translateY(-2px);
+        }
+        
+        #alertBadge {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #alertBadge:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(0,228,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <h1>告警图表优化效果测试</h1>
+    
+    <div class="container">
+        <div class="panel-header">
+            <span>告警信息</span>
+        </div>
+        <div class="panel-content">
+            <div id="alertList"></div>
+        </div>
+    </div>
+
+    <script>
+        // 告警类型翻译
+        const ALERT_TYPE_MAP = {
+            heart_rate: '心率',
+            blood_pressure: '血压',
+            stress: '压力',
+            blood_oxygen: '血氧',
+            temperature: '体温'
+        };
+        
+        function translateAlertType(type) {
+            return ALERT_TYPE_MAP[type] || type;
+        }
+        
+        // 告警类型颜色
+        const ALERT_TYPE_COLOR = {
+            heart_rate: '#ff6b6b',
+            blood_pressure: '#ffb347',
+            stress: '#f7b731',
+            blood_oxygen: '#00e4ff',
+            temperature: '#ffd700'
+        };
+        
+        function getAlertTypeColor(type) {
+            return ALERT_TYPE_COLOR[type] || '#7ecfff';
+        }
+        
+        // 模拟告警数据
+        const mockAlertData = {
+            alert_info: {
+                alertLevelCount: {
+                    critical: 1,
+                    medium: 8
+                },
+                alertStatusCount: {
+                    pending: 1,
+                    responded: 8
+                },
+                alertTypeCount: {
+                    blood_oxygen: 1,
+                    blood_pressure: 1,
+                    heart_rate: 1,
+                    stress: 4,
+                    temperature: 2
+                },
+                alerts: [
+                    {
+                        alert_desc: "体温低于35或者高于37.5告警",
+                        alert_id: "1209",
+                        alert_status: "responded",
+                        alert_timestamp: "2025-02-14 19:35:31",
+                        alert_type: "temperature",
+                        dept_id: "1",
+                        dept_name: "煤矿集团总部",
+                        device_sn: "A5GTQ24603000537",
+                        health_id: "240014",
+                        severity_level: "critical",
+                        user_id: "1877884715116072962",
+                        user_name: "user7"
+                    },
+                    {
+                        alert_desc: "",
+                        alert_id: "1921075162350915586",
+                        alert_status: "pending",
+                        alert_timestamp: "2025-05-10 13:29:45",
+                        alert_type: "stress",
+                        dept_id: "1",
+                        dept_name: "煤矿集团总部",
+                        device_sn: "A5GTQ24A17000135",
+                        severity_level: "medium",
+                        user_id: "1904782222680711169",
+                        user_name: "test1"
+                    }
+                ]
+            }
+        };
+        
+        // 初始化告警信息图表 - 专业版
+        function initAlertChart(data) {
+            const alertContainer = document.getElementById('alertList');
+            if (!alertContainer) return;
+
+            // 清空容器并创建专业布局
+            alertContainer.innerHTML = `
+                <div style="position: relative; height: 100%; padding: 8px;">
+                    <!-- 告警状态总览 -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 8px 12px; background: rgba(0,228,255,0.1); border-radius: 6px; border-left: 4px solid #00e4ff;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="alert-stat-item">
+                                <span style="color: #ff4444; font-size: 20px; font-weight: bold;" id="criticalCount">0</span>
+                                <span style="color: #fff; font-size: 12px; margin-left: 4px;">严重</span>
+                            </div>
+                            <div class="alert-stat-item">
+                                <span style="color: #ffbb00; font-size: 18px; font-weight: bold;" id="mediumCount">0</span>
+                                <span style="color: #fff; font-size: 12px; margin-left: 4px;">中等</span>
+                            </div>
+                            <div class="alert-stat-item">
+                                <span style="color: #ff6666; font-size: 16px; font-weight: bold;" id="pendingCount">0</span>
+                                <span style="color: #fff; font-size: 12px; margin-left: 4px;">待处理</span>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255,68,68,0.2); padding: 4px 8px; border-radius: 12px; animation: pulse 2s infinite;" id="alertBadge">
+                            <span style="color: #ff4444; font-size: 11px; font-weight: bold;">🚨 实时监控</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 图表区域 -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; height: calc(100% - 60px);">
+                        <div id="alertTypeChart" style="background: rgba(0,21,41,0.4); border: 1px solid rgba(0,228,255,0.3); border-radius: 6px; position: relative;">
+                            <div style="position: absolute; top: 5px; left: 8px; color: #00e4ff; font-size: 12px; font-weight: bold; z-index: 10;">告警类型分布</div>
+                        </div>
+                        <div id="alertLevelChart" style="background: rgba(0,21,41,0.4); border: 1px solid rgba(0,228,255,0.3); border-radius: 6px; position: relative;">
+                            <div style="position: absolute; top: 5px; left: 8px; color: #00e4ff; font-size: 12px; font-weight: bold; z-index: 10;">严重程度分析</div>
+                        </div>
+                        <div id="alertStatusChart" style="background: rgba(0,21,41,0.4); border: 1px solid rgba(0,228,255,0.3); border-radius: 6px; position: relative;">
+                            <div style="position: absolute; top: 5px; left: 8px; color: #00e4ff; font-size: 12px; font-weight: bold; z-index: 10;">处理状态</div>
+                        </div>
+                        <div id="alertTrendChart" style="background: rgba(0,21,41,0.4); border: 1px solid rgba(0,228,255,0.3); border-radius: 6px; position: relative;">
+                            <div style="position: absolute; top: 5px; left: 8px; color: #00e4ff; font-size: 12px; font-weight: bold; z-index: 10;">24小时趋势</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const alertInfo = data.alert_info || {};
+            const alerts = alertInfo.alerts || [];
+            
+            // 更新统计数据
+            const criticalCount = alertInfo.alertLevelCount?.critical || 0;
+            const mediumCount = alertInfo.alertLevelCount?.medium || 0;
+            const pendingCount = alertInfo.alertStatusCount?.pending || 0;
+            
+            document.getElementById('criticalCount').textContent = criticalCount;
+            document.getElementById('mediumCount').textContent = mediumCount;
+            document.getElementById('pendingCount').textContent = pendingCount;
+            
+            // 更新告警徽章
+            const badge = document.getElementById('alertBadge');
+            if (criticalCount > 0) {
+                badge.innerHTML = '<span style="color: #ff4444; font-size: 11px; font-weight: bold;">🔴 严重告警</span>';
+                badge.style.background = 'rgba(255,68,68,0.3)';
+            } else if (pendingCount > 0) {
+                badge.innerHTML = '<span style="color: #ffbb00; font-size: 11px; font-weight: bold;">⚠️ 待处理</span>';
+                badge.style.background = 'rgba(255,187,0,0.3)';
+            } else {
+                badge.innerHTML = '<span style="color: #00ff9d; font-size: 11px; font-weight: bold;">✅ 正常</span>';
+                badge.style.background = 'rgba(0,255,157,0.3)';
+            }
+
+            // 1. 告警类型分布图
+            const typeChart = echarts.init(document.getElementById('alertTypeChart'));
+            const alertTypes = Object.keys(alertInfo.alertTypeCount || {});
+            const alertValues = Object.values(alertInfo.alertTypeCount || {});
+
+            const typeOption = {
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(0,21,41,0.95)',
+                    borderColor: '#00e4ff',
+                    borderWidth: 1,
+                    textStyle: { color: '#fff', fontSize: 11 }
+                },
+                grid: { top: 25, left: 45, right: 15, bottom: 15 },
+                xAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#7ecfff', fontSize: 10 },
+                    splitLine: { lineStyle: { color: 'rgba(126,207,255,0.1)' } },
+                    axisLine: { show: false }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: alertTypes.map(t => translateAlertType(t)),
+                    axisLabel: { color: '#fff', fontSize: 10 },
+                    axisLine: { show: false },
+                    axisTick: { show: false }
+                },
+                series: [{
+                    type: 'bar',
+                    data: alertTypes.map((type, index) => ({
+                        value: alertValues[index],
+                        itemStyle: { 
+                            color: getAlertTypeColor(type),
+                            borderRadius: [0, 3, 3, 0]
+                        }
+                    })),
+                    barWidth: '65%',
+                    label: { 
+                        show: true, 
+                        position: 'right', 
+                        color: '#fff', 
+                        fontSize: 10,
+                        formatter: '{c}'
+                    }
+                }]
+            };
+            typeChart.setOption(typeOption);
+
+            // 2. 告警级别分布图
+            const levelChart = echarts.init(document.getElementById('alertLevelChart'));
+            const levelData = Object.entries(alertInfo.alertLevelCount || {}).map(([level, count]) => ({
+                name: level === 'critical' ? '严重' : '中等',
+                value: count,
+                itemStyle: { 
+                    color: level === 'critical' ? '#ff4444' : '#ffbb00'
+                }
+            }));
+
+            const levelOption = {
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: 'rgba(0,21,41,0.95)',
+                    borderColor: '#00e4ff',
+                    textStyle: { color: '#fff', fontSize: 11 }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['35%', '65%'],
+                    center: ['50%', '55%'],
+                    data: levelData,
+                    label: {
+                        show: true,
+                        position: 'outside',
+                        color: '#fff',
+                        fontSize: 10,
+                        formatter: function(params) {
+                            return `${params.name}\n${params.value}次`;
+                        }
+                    }
+                }]
+            };
+            levelChart.setOption(levelOption);
+
+            // 3. 告警状态仪表盘
+            const statusChart = echarts.init(document.getElementById('alertStatusChart'));
+            const totalAlerts = (alertInfo.alertStatusCount?.pending || 0) + (alertInfo.alertStatusCount?.responded || 0);
+            const pendingPercent = totalAlerts > 0 ? ((alertInfo.alertStatusCount?.pending || 0) / totalAlerts * 100).toFixed(1) : 0;
+
+            const statusOption = {
+                series: [{
+                    type: 'gauge',
+                    radius: '75%',
+                    center: ['50%', '55%'],
+                    startAngle: 180,
+                    endAngle: 0,
+                    min: 0,
+                    max: 100,
+                    axisLine: {
+                        lineStyle: {
+                            width: 8,
+                            color: [
+                                [0.3, '#00e4ff'],
+                                [0.7, '#ffbb00'],
+                                [1, '#ff4444']
+                            ]
+                        }
+                    },
+                    pointer: {
+                        icon: 'circle',
+                        length: '60%',
+                        width: 4,
+                        itemStyle: { color: '#fff' }
+                    },
+                    axisTick: { show: false },
+                    splitLine: { show: false },
+                    axisLabel: {
+                        show: true,
+                        distance: -25,
+                        color: '#7ecfff',
+                        fontSize: 9,
+                        formatter: function(value) {
+                            if (value === 0) return '正常';
+                            if (value === 50) return '中等';
+                            if (value === 100) return '严重';
+                            return '';
+                        }
+                    },
+                    detail: {
+                        valueAnimation: true,
+                        formatter: `{value|${pendingPercent}%}\n{name|待处理率}`,
+                        rich: {
+                            value: {
+                                fontSize: 16,
+                                fontWeight: 'bold',
+                                color: pendingPercent > 70 ? '#ff4444' : pendingPercent > 30 ? '#ffbb00' : '#00e4ff'
+                            },
+                            name: {
+                                fontSize: 10,
+                                color: '#7ecfff',
+                                padding: [5, 0, 0, 0]
+                            }
+                        },
+                        offsetCenter: [0, '20%']
+                    },
+                    data: [{ value: pendingPercent }]
+                }]
+            };
+            statusChart.setOption(statusOption);
+
+            // 4. 24小时趋势图
+            const trendChart = echarts.init(document.getElementById('alertTrendChart'));
+            const hourlyData = {};
+            alerts.forEach(alert => {
+                const hour = new Date(alert.alert_timestamp).getHours();
+                hourlyData[hour] = (hourlyData[hour] || 0) + 1;
+            });
+            
+            const hours = Array.from({length: 24}, (_, i) => i);
+            const hourlyValues = hours.map(h => hourlyData[h] || 0);
+
+            const trendOption = {
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(0,21,41,0.95)',
+                    borderColor: '#00e4ff',
+                    textStyle: { color: '#fff', fontSize: 11 }
+                },
+                grid: { top: 25, left: 25, right: 15, bottom: 20 },
+                xAxis: {
+                    type: 'category',
+                    data: hours.map(h => h.toString().padStart(2, '0')),
+                    axisLabel: { color: '#7ecfff', fontSize: 9, interval: 3 },
+                    axisLine: { lineStyle: { color: 'rgba(126,207,255,0.3)' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#7ecfff', fontSize: 9 },
+                    splitLine: { lineStyle: { color: 'rgba(126,207,255,0.1)', type: 'dashed' } }
+                },
+                series: [{
+                    type: 'line',
+                    data: hourlyValues,
+                    smooth: true,
+                    lineStyle: { color: '#00e4ff', width: 2 },
+                    itemStyle: { color: '#00e4ff' },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(0,228,255,0.4)' },
+                            { offset: 1, color: 'rgba(0,228,255,0.05)' }
+                        ])
+                    },
+                    symbol: 'circle',
+                    symbolSize: 4
+                }]
+            };
+            trendChart.setOption(trendOption);
+
+            return { typeChart, levelChart, statusChart, trendChart };
+        }
+        
+        // 初始化图表
+        document.addEventListener('DOMContentLoaded', () => {
+            initAlertChart(mockAlertData);
+        });
+    </script>
+</body>
+</html> 

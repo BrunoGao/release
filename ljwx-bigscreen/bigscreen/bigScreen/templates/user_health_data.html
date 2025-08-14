@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>用户健康数据详情</title>
+    <script src="{{ url_for('static', filename='js/echarts.min.js') }}"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: transparent;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 健康数据卡片 */
+        .health-card {
+            background: rgba(1, 19, 38, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(0, 228, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .health-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .metric {
+            padding: 15px;
+            background: rgba(0, 228, 255, 0.1);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            color: #00e4ff;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* 图表网格 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .chart-container {
+            background: rgba(1, 19, 38, 0.8);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid rgba(0, 228, 255, 0.2);
+            height: 300px;
+        }
+
+        /* 关闭按钮 */
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 健康状态指示器 */
+        .health-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-normal { 
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        .status-warning {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+        }
+
+        .status-danger {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <button class="close-btn" onclick="closePanel()">关闭</button>
+    <div class="container">
+        <!-- 健康数据概览 -->
+        <div class="health-card">
+            <div class="health-metrics" id="healthMetrics"></div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div id="healthTrendChart" style="width: 100%; height: 100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="bloodPressureChart" style="width: 100%; height: 100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="activityChart" style="width: 100%; height: 100%;"></div>
+            </div>
+            <div class="chart-container">
+                <div id="locationChart" style="width: 100%; height: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chartInstances = new Map();
+
+        async function fetchHealthData(deviceSn) {
+            try {
+                const response = await fetch(`http://localhost:5001/get_health_data_by_orgIdAndUserId?orgId=1`);
+                console.log(response);
+                const result = await response.json();
+                if (result.success) {
+                    // 过滤出特定设备的数据
+                    const data = result.data;
+                    data.healthData = data.healthData.filter(item => item.deviceSn === deviceSn);
+                    return data;
+                }
+                throw new Error('Failed to fetch health data');
+            } catch (error) {
+                console.error('Error fetching health data:', error);
+                return null;
+            }
+        }
+
+        function getHealthStatus(value, type) {
+            switch(type) {
+                case 'heartRate':
+                    return value < 60 ? 'warning' : value > 100 ? 'danger' : 'normal';
+                case 'temperature':
+                    return value < 36 ? 'warning' : value > 37.5 ? 'danger' : 'normal';
+                case 'bloodOxygen':
+                    return value < 95 ? 'danger' : value < 97 ? 'warning' : 'normal';
+                case 'calorie':
+                    // 假设正常成年人每日消耗1800-3000卡路里
+                    return value < 1800 ? 'warning' : value > 3000 ? 'warning' : 'normal';
+                case 'sleepData':
+                    // 假设正常睡眠时间6-9小时（以分钟为单位）
+                    return value < 360 ? 'warning' : value > 540 ? 'warning' : 'normal';
+                case 'pressureHigh':
+                    // 收缩压：正常范围90-140
+                    return value < 90 ? 'warning' : value > 140 ? 'danger' : 'normal';
+                case 'pressureLow':
+                    // 舒张压：正常范围60-90
+                    return value < 60 ? 'warning' : value > 90 ? 'danger' : 'normal';
+                case 'step':
+                    // 假设每日建议步数6000-10000步
+                    return value < 6000 ? 'warning' : value > 15000 ? 'warning' : 'normal';
+                case 'distance':
+                    // 假设每日建议运动距离3-8公里
+                    return value < 3 ? 'warning' : value > 8 ? 'warning' : 'normal';
+                default:
+                    return 'normal';
+            }
+        }
+
+        function updateHealthMetrics(healthData) {
+            const data = healthData[0];
+            const metrics = [
+                { label: '心率', value: `${data.heartRate} bpm`, type: 'heartRate' },
+                { label: '血氧', value: `${data.bloodOxygen}%`, type: 'bloodOxygen' },
+                { label: '体温', value: `${data.temperature}°C`, type: 'temperature' },
+                { label: '血压', value: `${data.pressureHigh}/${data.pressureLow}`, type: 'pressureHigh' },
+                { label: '步数', value: data.step ,type:'step'},
+                { label: '卡路里', value: data.calorie.toFixed(2),type:'calorie'},
+                { label: '距离', value: `${(data.distance * 1000).toFixed(0)}m`,type:'distance'},
+                { label: '压力', value: `${data.stress}`,type:'stress'}
+            ];
+
+            const container = document.getElementById('healthMetrics');
+            container.innerHTML = metrics.map(metric => `
+                <div class="metric">
+                    <div class="metric-value ${metric.type ? `status-${getHealthStatus(parseFloat(data[metric.type]), metric.type)}` : ''}">
+                        ${metric.value}
+                    </div>
+                    <div class="metric-label">${metric.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateHealthTrendChart(healthData) {
+            const chart = chartInstances.get('healthTrendChart');
+            
+            chart.setOption({
+                title: {
+                    text: '健康指标趋势',
+                    textStyle: { color: '#fff' }
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['心率', '血氧', '体温'],
+                    textStyle: { color: '#fff' }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: healthData.map(d => d.timestamp),
+                    axisLabel: { color: '#fff' }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '心率/血氧',
+                        nameTextStyle: { color: '#fff' },
+                        axisLabel: { color: '#fff' }
+                    },
+                    {
+                        type: 'value',
+                        name: '体温',
+                        nameTextStyle: { color: '#fff' },
+                        axisLabel: { color: '#fff' }
+                    }
+                ],
+                series: [
+                    {
+                        name: '心率',
+                        type: 'line',
+                        data: healthData.map(d => d.heartRate),
+                        itemStyle: { color: '#ff9800' }
+                    },
+                    {
+                        name: '血氧',
+                        type: 'line',
+                        data: healthData.map(d => d.bloodOxygen),
+                        itemStyle: { color: '#2196f3' }
+                    },
+                    {
+                        name: '体温',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: healthData.map(d => d.temperature),
+                        itemStyle: { color: '#f44336' }
+                    }
+                ]
+            });
+        }
+
+        function updateBloodPressureChart(healthData) {
+            const chart = chartInstances.get('bloodPressureChart');
+            
+            chart.setOption({
+                title: {
+                    text: '血压趋势',
+                    textStyle: { color: '#fff' }
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['收缩压', '舒张压'],
+                    textStyle: { color: '#fff' }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: healthData.map(d => d.timestamp),
+                    axisLabel: { color: '#fff' }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '血压',
+                    nameTextStyle: { color: '#fff' },
+                    axisLabel: { color: '#fff' }
+                },
+                series: [
+                    {
+                        name: '收缩压',
+                        type: 'line',
+                        data: healthData.map(d => d.pressureHigh),
+                        itemStyle: { color: '#e91e63' }
+                    },
+                    {
+                        name: '舒张压',
+                        type: 'line',
+                        data: healthData.map(d => d.pressureLow),
+                        itemStyle: { color: '#9c27b0' }
+                    }
+                ]
+            });
+        }
+
+        function updateActivityChart(healthData) {
+            const chart = chartInstances.get('activityChart');
+            
+            chart.setOption({
+                title: {
+                    text: '活动数据',
+                    textStyle: { color: '#fff' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' }
+                },
+                legend: {
+                    data: ['步数', '卡路里'],
+                    textStyle: { color: '#fff' }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: healthData.map(d => d.timestamp),
+                    axisLabel: { color: '#fff' }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '步数',
+                        nameTextStyle: { color: '#fff' },
+                        axisLabel: { color: '#fff' }
+                    },
+                    {
+                        type: 'value',
+                        name: '卡路里',
+                        nameTextStyle: { color: '#fff' },
+                        axisLabel: { color: '#fff' }
+                    }
+                ],
+                series: [
+                    {
+                        name: '步数',
+                        type: 'bar',
+                        data: healthData.map(d => d.step),
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: '#83bff6' },
+                                { offset: 0.5, color: '#188df0' },
+                                { offset: 1, color: '#188df0' }
+                            ])
+                        }
+                    },
+                    {
+                        name: '卡路里',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: healthData.map(d => d.calorie),
+                        itemStyle: { color: '#4caf50' }
+                    }
+                ]
+            });
+        }
+
+        function updateLocationChart(healthData) {
+            const chart = chartInstances.get('locationChart');
+            
+            chart.setOption({
+                title: {
+                    text: '位置信息',
+                    textStyle: { color: '#fff' }
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['海拔'],
+                    textStyle: { color: '#fff' }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: healthData.map(d => d.timestamp),
+                    axisLabel: { color: '#fff' }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '海拔(m)',
+                    nameTextStyle: { color: '#fff' },
+                    axisLabel: { color: '#fff' }
+                },
+                series: [
+                    {
+                        name: '海拔',
+                        type: 'line',
+                        data: healthData.map(d => d.altitude),
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(128, 255, 165, 0.3)' },
+                                { offset: 1, color: 'rgba(1, 191, 236, 0)' }
+                            ])
+                        },
+                        itemStyle: { color: '#01bfec' }
+                    }
+                ]
+            });
+        }
+
+        function initCharts() {
+            const chartIds = [
+                'healthTrendChart', 'bloodPressureChart',
+                'activityChart', 'locationChart'
+            ];
+            
+            chartIds.forEach(id => {
+                chartInstances.set(id, echarts.init(document.getElementById(id)));
+            });
+        }
+
+        function closePanel() {
+            window.parent.postMessage({ type: 'closePanel' }, '*');
+        }
+
+        async function initDashboard(deviceSn) {
+            initCharts();
+            const data = await fetchHealthData(deviceSn);
+            if (data && data.healthData.length > 0) {
+                updateHealthMetrics(data.healthData);
+                updateHealthTrendChart(data.healthData);
+                updateBloodPressureChart(data.healthData);
+                updateActivityChart(data.healthData);
+                updateLocationChart(data.healthData);
+            }
+        }
+
+        // 监听来自父窗口的消息
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'init' && event.data.deviceSn) {
+                initDashboard(event.data.deviceSn);
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            chartInstances.forEach(chart => chart.resize());
+        });
+    </script>
+</body>
+</html> 

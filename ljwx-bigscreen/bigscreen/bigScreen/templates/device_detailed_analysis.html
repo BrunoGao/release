@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备深度分析中心</title>
+    <script src="{{ url_for('static', filename='js/echarts.min.js') }}"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; 
+            background: linear-gradient(135deg, #0c1426 0%, #1a2332 50%, #0f1419 100%);
+            color: #fff; 
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        /* 页面容器 */
+        .page-container {
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+        
+        /* 顶部导航 */
+        .nav-header {
+            background: linear-gradient(135deg, rgba(0,228,255,0.1) 0%, rgba(0,168,255,0.05) 100%);
+            border: 1px solid rgba(0,228,255,0.3);
+            border-radius: 12px;
+            padding: 15px 30px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-title {
+            color: #00e4ff;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .nav-controls {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .control-label {
+            font-size: 12px;
+            color: #7ecfff;
+        }
+        
+        .control-select {
+            background: rgba(0,228,255,0.1);
+            border: 1px solid rgba(0,228,255,0.3);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        /* 主要内容区域 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        /* 概览卡片 */
+        .overview-section {
+            grid-column: span 2;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        
+        .overview-card {
+            background: linear-gradient(135deg, rgba(1,19,38,0.9) 0%, rgba(0,33,64,0.7) 100%);
+            border: 1px solid rgba(0,228,255,0.2);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .overview-card:hover {
+            border-color: rgba(0,228,255,0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,228,255,0.2);
+        }
+        
+        .overview-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .overview-number {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-shadow: 0 0 15px currentColor;
+        }
+        
+        .overview-label {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .overview-trend {
+            font-size: 12px;
+            opacity: 0.6;
+        }
+        
+        /* 图表容器 */
+        .chart-container {
+            background: linear-gradient(135deg, rgba(1,19,38,0.9) 0%, rgba(0,33,64,0.7) 100%);
+            border: 1px solid rgba(0,228,255,0.2);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00e4ff, #0099ff);
+            opacity: 0.8;
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .chart-title {
+            color: #00e4ff;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chart-options {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chart-btn {
+            background: rgba(0,228,255,0.1);
+            border: 1px solid rgba(0,228,255,0.3);
+            color: #7ecfff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .chart-btn.active {
+            background: rgba(0,228,255,0.3);
+            color: #00e4ff;
+        }
+        
+        .chart-content {
+            height: 300px;
+            width: 100%;
+        }
+        
+        /* 详细分析区域 */
+        .detailed-analysis {
+            grid-column: span 2;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        
+        /* 表格样式 */
+        .data-table {
+            background: rgba(1,19,38,0.9);
+            border: 1px solid rgba(0,228,255,0.2);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .table-header {
+            background: linear-gradient(90deg, rgba(0,228,255,0.2), rgba(0,168,255,0.1));
+            padding: 15px;
+            border-bottom: 1px solid rgba(0,228,255,0.2);
+        }
+        
+        .table-title {
+            color: #00e4ff;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .table-content {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .table-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(0,228,255,0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .table-row:hover {
+            background: rgba(0,228,255,0.05);
+        }
+        
+        .table-cell {
+            font-size: 13px;
+            color: #fff;
+        }
+        
+        .table-cell.status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .status-online { background: #52c41a; }
+        .status-offline { background: #f5222d; }
+        .status-charging { background: #1890ff; }
+        .status-low-battery { background: #fa8c16; }
+        
+        /* 侧边栏统计 */
+        .sidebar-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .stat-panel {
+            background: linear-gradient(135deg, rgba(1,19,38,0.9) 0%, rgba(0,33,64,0.7) 100%);
+            border: 1px solid rgba(0,228,255,0.2);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .stat-panel-title {
+            color: #00e4ff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,228,255,0.1);
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #fff;
+        }
+        
+        .stat-value {
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        /* 进度条 */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0,228,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00e4ff, #0099ff);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1400px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .overview-section {
+                grid-column: span 1;
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .detailed-analysis {
+                grid-column: span 1;
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <!-- 顶部导航 -->
+        <div class="nav-header">
+            <div class="nav-title">🔍 设备深度分析中心</div>
+            <div class="nav-controls">
+                <div class="control-group">
+                    <div class="control-label">设备筛选</div>
+                    <select class="control-select" id="deviceFilter">
+                        <option value="all">全部设备</option>
+                        <option value="online">在线设备</option>
+                        <option value="offline">离线设备</option>
+                        <option value="low-battery">低电量设备</option>
+                        <option value="charging">充电设备</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">时间范围</div>
+                    <select class="control-select" id="timeRange">
+                        <option value="1h">近1小时</option>
+                        <option value="6h">近6小时</option>
+                        <option value="24h" selected>近24小时</option>
+                        <option value="7d">近7天</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">分析维度</div>
+                    <select class="control-select" id="analysisType">
+                        <option value="overview">总览分析</option>
+                        <option value="battery">电池分析</option>
+                        <option value="usage">使用分析</option>
+                        <option value="health">健康分析</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 主要内容 -->
+        <div class="main-grid">
+            <!-- 概览统计 -->
+            <div class="overview-section">
+                <div class="overview-card">
+                    <div class="overview-icon">📱</div>
+                    <div class="overview-number stat-primary" id="totalDevices">0</div>
+                    <div class="overview-label">设备总数</div>
+                    <div class="overview-trend" id="deviceTrend">较昨日 --</div>
+                </div>
+                
+                <div class="overview-card">
+                    <div class="overview-icon">⚡</div>
+                    <div class="overview-number stat-info" id="avgBattery">0%</div>
+                    <div class="overview-label">平均电量</div>
+                    <div class="overview-trend" id="batteryTrend">较昨日 --</div>
+                </div>
+                
+                <div class="overview-card">
+                    <div class="overview-icon">⏱️</div>
+                    <div class="overview-number stat-warning" id="avgUsage">0h</div>
+                    <div class="overview-label">日均使用</div>
+                    <div class="overview-trend" id="usageTrend">较昨日 --</div>
+                </div>
+                
+                <div class="overview-card">
+                    <div class="overview-icon">💚</div>
+                    <div class="overview-number stat-positive" id="healthScore">0</div>
+                    <div class="overview-label">健康评分</div>
+                    <div class="overview-trend" id="healthTrend">较昨日 --</div>
+                </div>
+            </div>
+            
+            <!-- 电池分析图表 -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">
+                        <span>🔋</span>
+                        电池状态分析
+                    </div>
+                    <div class="chart-options">
+                        <button class="chart-btn active" onclick="switchBatteryView('level')">电量分布</button>
+                        <button class="chart-btn" onclick="switchBatteryView('health')">健康度</button>
+                        <button class="chart-btn" onclick="switchBatteryView('cycles')">充电周期</button>
+                    </div>
+                </div>
+                <div class="chart-content" id="batteryAnalysisChart"></div>
+            </div>
+            
+            <!-- 使用行为分析 -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">
+                        <span>📊</span>
+                        使用行为分析
+                    </div>
+                    <div class="chart-options">
+                        <button class="chart-btn active" onclick="switchUsageView('daily')">日使用</button>
+                        <button class="chart-btn" onclick="switchUsageView('weekly')">周使用</button>
+                        <button class="chart-btn" onclick="switchUsageView('pattern')">使用模式</button>
+                    </div>
+                </div>
+                <div class="chart-content" id="usageAnalysisChart"></div>
+            </div>
+            
+            <!-- 详细设备数据 -->
+            <div class="detailed-analysis">
+                <div class="data-table">
+                    <div class="table-header">
+                        <div class="table-title">🏷️ 设备详细信息</div>
+                    </div>
+                    <div class="table-content">
+                        <div class="table-row" style="font-weight: bold; background: rgba(0,228,255,0.1);">
+                            <div class="table-cell">设备编号</div>
+                            <div class="table-cell">状态</div>
+                            <div class="table-cell">电量</div>
+                            <div class="table-cell">最后更新</div>
+                        </div>
+                        <div id="deviceTableBody">
+                            <!-- 设备数据将动态加载 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 侧边栏统计 -->
+                <div class="sidebar-stats">
+                    <!-- 状态统计 -->
+                    <div class="stat-panel">
+                        <div class="stat-panel-title">
+                            <span>📈</span>
+                            状态统计
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">在线率</span>
+                            <span class="stat-value stat-positive" id="onlineRate">--</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="onlineProgress" style="width: 0%"></div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <span class="stat-label">佩戴率</span>
+                            <span class="stat-value stat-info" id="wearRate">--</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="wearProgress" style="width: 0%"></div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <span class="stat-label">充电率</span>
+                            <span class="stat-value stat-warning" id="chargeRate">--</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="chargeProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 版本分布 -->
+                    <div class="stat-panel">
+                        <div class="stat-panel-title">
+                            <span>💻</span>
+                            版本分布
+                        </div>
+                        <div id="versionStats">
+                            <!-- 版本统计将动态加载 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 告警信息 -->
+                    <div class="stat-panel">
+                        <div class="stat-panel-title">
+                            <span>🚨</span>
+                            设备告警
+                        </div>
+                        <div id="alertStats">
+                            <!-- 告警统计将动态加载 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const charts = {};
+        let currentData = null;
+        let currentFilter = 'all';
+        let currentTimeRange = '24h';
+        let currentAnalysisType = 'overview';
+        
+        // 初始化图表
+        function initCharts() {
+            charts.batteryAnalysis = echarts.init(document.getElementById('batteryAnalysisChart'));
+            charts.usageAnalysis = echarts.init(document.getElementById('usageAnalysisChart'));
+        }
+        
+        // 获取设备分析数据
+        async function fetchAnalysisData() {
+            try {
+                const response = await fetch(`/api/devices/analysis?orgId=1&timeRange=${currentTimeRange}&filter=${currentFilter}`);
+                const result = await response.json();
+                return result.success ? result.data : generateMockAnalysisData();
+            } catch (error) {
+                console.error('获取分析数据失败:', error);
+                return generateMockAnalysisData();
+            }
+        }
+        
+        // 生成模拟分析数据
+        function generateMockAnalysisData() {
+            const deviceCount = 1076;
+            return {
+                overview: {
+                    totalDevices: deviceCount,
+                    avgBattery: 78,
+                    avgUsage: 8.5,
+                    healthScore: 87,
+                    trends: {
+                        device: '+12台',
+                        battery: '+3%',
+                        usage: '+0.2h',
+                        health: '+2分'
+                    }
+                },
+                devices: Array.from({length: 50}, (_, i) => ({
+                    sn: `WS${String(i + 1).padStart(4, '0')}`,
+                    status: Math.random() > 0.15 ? 'online' : 'offline',
+                    battery: Math.floor(Math.random() * 80) + 20,
+                    lastUpdate: new Date(Date.now() - Math.random() * 3600000).toLocaleString()
+                })),
+                statistics: {
+                    onlineRate: 89.5,
+                    wearRate: 76.3,
+                    chargeRate: 12.8
+                },
+                versions: {
+                    'v2.1.0': 45,
+                    'v2.0.8': 32,
+                    'v2.0.6': 18,
+                    'v1.9.2': 5
+                },
+                alerts: [
+                    { type: '低电量', count: 24, level: 'warning' },
+                    { type: '离线设备', count: 8, level: 'error' },
+                    { type: '传感器异常', count: 3, level: 'error' },
+                    { type: '充电异常', count: 12, level: 'warning' }
+                ]
+            };
+        }
+        
+        // 更新概览统计
+        function updateOverview(data) {
+            const { overview } = data;
+            
+            document.getElementById('totalDevices').textContent = overview.totalDevices;
+            document.getElementById('avgBattery').textContent = overview.avgBattery + '%';
+            document.getElementById('avgUsage').textContent = overview.avgUsage + 'h';
+            document.getElementById('healthScore').textContent = overview.healthScore;
+            
+            document.getElementById('deviceTrend').textContent = `较昨日 ${overview.trends.device}`;
+            document.getElementById('batteryTrend').textContent = `较昨日 ${overview.trends.battery}`;
+            document.getElementById('usageTrend').textContent = `较昨日 ${overview.trends.usage}`;
+            document.getElementById('healthTrend').textContent = `较昨日 ${overview.trends.health}`;
+        }
+        
+        // 更新电池分析图表
+        function updateBatteryChart(data, viewType = 'level') {
+            const options = {
+                level: {
+                    title: '电量分布',
+                    data: [
+                        { name: '0-20%', value: 24, itemStyle: { color: '#f5222d' } },
+                        { name: '21-50%', value: 156, itemStyle: { color: '#fa8c16' } },
+                        { name: '51-80%', value: 432, itemStyle: { color: '#faad14' } },
+                        { name: '81-100%', value: 464, itemStyle: { color: '#52c41a' } }
+                    ]
+                },
+                health: {
+                    title: '电池健康度',
+                    data: [
+                        { name: '优秀', value: 650, itemStyle: { color: '#52c41a' } },
+                        { name: '良好', value: 320, itemStyle: { color: '#faad14' } },
+                        { name: '一般', value: 86, itemStyle: { color: '#fa8c16' } },
+                        { name: '较差', value: 20, itemStyle: { color: '#f5222d' } }
+                    ]
+                },
+                cycles: {
+                    title: '充电周期分布',
+                    data: [
+                        { name: '0-100次', value: 180, itemStyle: { color: '#52c41a' } },
+                        { name: '101-300次', value: 420, itemStyle: { color: '#faad14' } },
+                        { name: '301-500次', value: 356, itemStyle: { color: '#fa8c16' } },
+                        { name: '500+次', value: 120, itemStyle: { color: '#f5222d' } }
+                    ]
+                }
+            };
+            
+            const config = options[viewType];
+            
+            charts.batteryAnalysis.setOption({
+                title: {
+                    text: config.title,
+                    textStyle: { color: '#00e4ff', fontSize: 16 },
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c}台 ({d}%)',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    borderColor: '#00e4ff',
+                    textStyle: { color: '#fff' }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    center: ['50%', '60%'],
+                    data: config.data,
+                    label: {
+                        show: true,
+                        color: '#fff'
+                    }
+                }]
+            });
+        }
+        
+        // 更新使用行为图表
+        function updateUsageChart(data, viewType = 'daily') {
+            const hourData = Array.from({length: 24}, (_, i) => ({
+                hour: i,
+                usage: Math.floor(Math.random() * 200) + 50 + (i >= 8 && i <= 18 ? 100 : 0)
+            }));
+            
+            charts.usageAnalysis.setOption({
+                title: {
+                    text: viewType === 'daily' ? '24小时使用分布' : '使用模式分析',
+                    textStyle: { color: '#00e4ff', fontSize: 16 },
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    borderColor: '#00e4ff',
+                    textStyle: { color: '#fff' }
+                },
+                grid: { left: '10%', right: '10%', bottom: '15%', top: '20%' },
+                xAxis: {
+                    type: 'category',
+                    data: hourData.map(d => d.hour + ':00'),
+                    axisLabel: { color: '#7ecfff' },
+                    axisLine: { lineStyle: { color: '#00e4ff' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#7ecfff' },
+                    splitLine: { lineStyle: { color: 'rgba(0,228,255,0.1)' } }
+                },
+                series: [{
+                    type: 'bar',
+                    data: hourData.map(d => d.usage),
+                    itemStyle: { color: '#1890ff' },
+                    emphasis: { itemStyle: { color: '#40a9ff' } }
+                }]
+            });
+        }
+        
+        // 更新设备表格
+        function updateDeviceTable(data) {
+            const tbody = document.getElementById('deviceTableBody');
+            const devices = data.devices.slice(0, 20); // 显示前20台设备
+            
+            tbody.innerHTML = devices.map(device => `
+                <div class="table-row">
+                    <div class="table-cell">${device.sn}</div>
+                    <div class="table-cell status">
+                        <div class="status-dot status-${device.status}"></div>
+                        ${device.status === 'online' ? '在线' : '离线'}
+                    </div>
+                    <div class="table-cell">${device.battery}%</div>
+                    <div class="table-cell">${device.lastUpdate}</div>
+                </div>
+            `).join('');
+        }
+        
+        // 更新侧边栏统计
+        function updateSidebarStats(data) {
+            const { statistics, versions, alerts } = data;
+            
+            // 状态统计
+            document.getElementById('onlineRate').textContent = statistics.onlineRate + '%';
+            document.getElementById('wearRate').textContent = statistics.wearRate + '%';
+            document.getElementById('chargeRate').textContent = statistics.chargeRate + '%';
+            
+            document.getElementById('onlineProgress').style.width = statistics.onlineRate + '%';
+            document.getElementById('wearProgress').style.width = statistics.wearRate + '%';
+            document.getElementById('chargeProgress').style.width = statistics.chargeRate + '%';
+            
+            // 版本分布
+            const versionStats = document.getElementById('versionStats');
+            versionStats.innerHTML = Object.entries(versions).map(([version, count]) => `
+                <div class="stat-item">
+                    <span class="stat-label">${version}</span>
+                    <span class="stat-value stat-primary">${count}%</span>
+                </div>
+            `).join('');
+            
+            // 告警统计
+            const alertStats = document.getElementById('alertStats');
+            alertStats.innerHTML = alerts.map(alert => `
+                <div class="stat-item">
+                    <span class="stat-label">${alert.type}</span>
+                    <span class="stat-value ${alert.level === 'error' ? 'stat-negative' : 'stat-warning'}">${alert.count}</span>
+                </div>
+            `).join('');
+        }
+        
+        // 切换电池视图
+        function switchBatteryView(viewType) {
+            document.querySelectorAll('#batteryAnalysisChart').forEach(chart => {
+                chart.parentNode.querySelectorAll('.chart-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+            });
+            event.target.classList.add('active');
+            
+            if (currentData) {
+                updateBatteryChart(currentData, viewType);
+            }
+        }
+        
+        // 切换使用视图
+        function switchUsageView(viewType) {
+            document.querySelectorAll('#usageAnalysisChart').forEach(chart => {
+                chart.parentNode.querySelectorAll('.chart-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+            });
+            event.target.classList.add('active');
+            
+            if (currentData) {
+                updateUsageChart(currentData, viewType);
+            }
+        }
+        
+        // 更新分析数据
+        async function updateAnalysis() {
+            const data = await fetchAnalysisData();
+            if (data) {
+                currentData = data;
+                updateOverview(data);
+                updateBatteryChart(data);
+                updateUsageChart(data);
+                updateDeviceTable(data);
+                updateSidebarStats(data);
+            }
+        }
+        
+        // 事件监听
+        document.getElementById('deviceFilter').addEventListener('change', (e) => {
+            currentFilter = e.target.value;
+            updateAnalysis();
+        });
+        
+        document.getElementById('timeRange').addEventListener('change', (e) => {
+            currentTimeRange = e.target.value;
+            updateAnalysis();
+        });
+        
+        document.getElementById('analysisType').addEventListener('change', (e) => {
+            currentAnalysisType = e.target.value;
+            updateAnalysis();
+        });
+        
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            Object.values(charts).forEach(chart => chart.resize());
+        });
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            updateAnalysis();
+            
+            // 每30秒自动更新
+            setInterval(updateAnalysis, 30000);
+        });
+    </script>
+</body>
+</html> 

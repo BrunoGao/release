@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>筛选面板测试</title>
+    <style>
+        body{margin:0;padding:20px;background:#000;color:#fff;font-family:Arial;}
+        .filter-panel{position:absolute;top:20px;right:20px;z-index:1000;background:rgba(0,21,41,0.9);
+            backdrop-filter:blur(8px);border-radius:50%;border:1px solid rgba(0,228,255,0.2);
+            box-shadow:0 0 20px rgba(0,0,0,0.3);transition:all 0.3s ease;overflow:hidden;
+            width:36px;height:36px;}
+        .filter-panel.expanded{width:320px;height:auto;padding:15px;border-radius:8px;}
+        .filter-toggle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+            background:transparent;border:none;width:32px;height:32px;cursor:pointer;
+            display:flex;align-items:center;justify-content:center;color:#00e4ff;
+            font-size:16px;transition:all 0.3s ease;z-index:10;}
+        .filter-panel.expanded .filter-toggle{position:absolute;top:15px;right:15px;transform:none;
+            background:rgba(0,228,255,0.2);border:1px solid rgba(0,228,255,0.4);
+            border-radius:50%;width:30px;height:30px;font-size:14px;}
+        .filter-toggle:hover{color:#fff;transform:translate(-50%,-50%) scale(1.1);}
+        .filter-panel.expanded .filter-toggle:hover{background:rgba(0,228,255,0.3);
+            border-color:rgba(0,228,255,0.6);transform:scale(1.1);}
+        .filter-content{opacity:0;transform:translateY(-10px);transition:all 0.3s ease;pointer-events:none;}
+        .filter-panel.expanded .filter-content{opacity:1;transform:translateY(0);pointer-events:auto;}
+        .filter-container{display:flex;flex-direction:column;gap:10px;margin-top:40px;}
+        .filter-header{display:flex;justify-content:space-between;align-items:center;
+            margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid rgba(0,228,255,0.2);}
+        .filter-header span{color:#00e4ff;font-size:14px;font-weight:bold;}
+        .filter-search{width:100%;padding:8px 12px;margin-bottom:10px;background:rgba(0,0,0,0.3);
+            color:#fff;border:1px solid rgba(255,255,255,0.1);border-radius:4px;
+            transition:all 0.3s ease;font-size:12px;}
+        .filter-search:hover{border-color:rgba(0,228,255,0.4);}
+        .filter-search:focus{border-color:rgba(0,228,255,0.6);outline:none;box-shadow:0 0 5px rgba(0,228,255,0.2);}
+        .filter-search::placeholder{color:rgba(255,255,255,0.5);}
+        .filter-select{font-family:monospace;white-space:pre;width:100%;padding:8px;margin-bottom:10px;
+            background:rgba(0,0,0,0.3);color:#fff;border:1px solid rgba(255,255,255,0.1);
+            border-radius:4px;transition:all 0.3s ease;}
+        .filter-select:hover{border-color:rgba(0,228,255,0.4);}
+        .filter-select:focus{border-color:rgba(0,228,255,0.6);outline:none;box-shadow:0 0 5px rgba(0,228,255,0.2);}
+        .filter-select option{font-family:monospace;white-space:pre;background:#1a1a1a;color:#fff;padding:8px;}
+        .demo-area{margin-top:200px;padding:20px;background:rgba(0,21,41,0.5);border-radius:8px;}
+        .result{margin-top:20px;padding:10px;background:rgba(0,228,255,0.1);border-radius:4px;}
+    </style>
+</head>
+<body>
+    <h1>筛选面板功能测试</h1>
+    
+    <div class="filter-panel" id="filterPanel">
+        <div class="filter-toggle" id="filterToggle">🔍</div>
+        <div class="filter-content">
+            <div class="filter-header">
+                <span>人员筛选</span>
+            </div>
+            <div class="filter-container">
+                <input type="text" id="searchInput" class="filter-search" placeholder="🔍 模糊搜索用户...">
+                <select id="deptSelect" class="filter-select">
+                    <option value="">选择部门</option>
+                    <option value="1">技术部</option>
+                    <option value="2">运营部</option>
+                    <option value="3">人事部</option>
+                </select>
+                <select id="userSelect" class="filter-select">
+                    <option value="">选择用户</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="demo-area">
+        <h2>测试说明</h2>
+        <p>1. 右上角筛选面板默认收缩状态，点击⚙按钮展开</p>
+        <p>2. 展开后可测试模糊搜索功能和部门用户联动</p>
+        <p>3. 支持用户名、部门名、设备号模糊查询</p>
+        
+        <div class="result" id="resultArea">
+            <strong>搜索结果：</strong><span id="searchResult">无</span>
+        </div>
+    </div>
+
+    <script>
+                 // 筛选面板伸缩功能
+         function toggleFilter(){
+             const p=document.getElementById('filterPanel'),t=document.getElementById('filterToggle');
+             if(p.classList.contains('expanded')){p.classList.remove('expanded');t.textContent='🔍';}
+             else{p.classList.add('expanded');t.textContent='✕';}
+         }
+        
+        // 模拟用户数据
+        let allUsers=[
+            {user_id:'1',user_name:'张三',dept_name:'技术部',device_sn:'DEV001'},
+            {user_id:'2',user_name:'李四',dept_name:'技术部',device_sn:'DEV002'},
+            {user_id:'3',user_name:'王五',dept_name:'运营部',device_sn:'DEV003'},
+            {user_id:'4',user_name:'赵六',dept_name:'运营部',device_sn:'DEV004'},
+            {user_id:'5',user_name:'钱七',dept_name:'人事部',device_sn:'DEV005'}
+        ],filteredUsers=[];
+        
+        // 模糊搜索功能
+        function initSearchFilter(){
+            const searchInput=document.getElementById('searchInput'),userSelect=document.getElementById('userSelect'),deptSelect=document.getElementById('deptSelect');
+            
+            searchInput.addEventListener('input',e=>{
+                const q=e.target.value.toLowerCase().trim();
+                if(!q){filteredUsers=allUsers;updateUserSelect();}
+                else{
+                    filteredUsers=allUsers.filter(u=>u.user_name?.toLowerCase().includes(q)||u.dept_name?.toLowerCase().includes(q)||u.device_sn?.toLowerCase().includes(q));
+                    updateUserSelect();
+                }
+                updateResult(q,filteredUsers.length);
+            });
+            
+            deptSelect.addEventListener('change',e=>{
+                const dept=e.target.value;
+                if(dept==='1')filteredUsers=allUsers.filter(u=>u.dept_name==='技术部');
+                else if(dept==='2')filteredUsers=allUsers.filter(u=>u.dept_name==='运营部');
+                else if(dept==='3')filteredUsers=allUsers.filter(u=>u.dept_name==='人事部');
+                else filteredUsers=allUsers;
+                updateUserSelect();
+                searchInput.value='';
+                updateResult('部门筛选',filteredUsers.length);
+            });
+        }
+        
+        function updateUserSelect(){
+            const s=document.getElementById('userSelect');
+            s.innerHTML='<option value="">选择用户</option>';
+            filteredUsers.forEach(u=>s.innerHTML+=`<option value="${u.user_id}">${u.user_name}${u.device_sn?' - '+u.device_sn:''}</option>`);
+        }
+        
+        function setUsersData(users){
+            allUsers=users||[];filteredUsers=allUsers;updateUserSelect();
+        }
+        
+        function updateResult(query,count){
+            document.getElementById('searchResult').textContent=`"${query}" 找到 ${count} 个用户`;
+        }
+        
+        // 初始化
+        document.getElementById('filterToggle').addEventListener('click',toggleFilter);
+        initSearchFilter();
+        setUsersData(allUsers);
+    </script>
+</body>
+</html> 

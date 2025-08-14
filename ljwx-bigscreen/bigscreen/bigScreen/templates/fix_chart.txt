@@ -1,0 +1,11 @@
+// 检查是否已存在图表实例，如果存在则复用，否则创建新的
+let statsChart;
+if (globalCharts && globalCharts.stats) {
+    statsChart = globalCharts.stats;
+} else {
+    statsChart = echarts.init(statsContainer);
+    // 将图表实例保存到全局变量
+    if (globalCharts) {
+        globalCharts.stats = statsChart;
+    }
+} 

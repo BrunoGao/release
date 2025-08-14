@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级智能健康监测大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        * {margin:0;padding:0;box-sizing:border-box;}
+        body {font-family:'Microsoft YaHei',Arial,sans-serif;background:#000;color:#fff;overflow:hidden;height:100vh;position:relative;}
+        .dashboard {display:grid;grid-template-columns:320px 1fr 320px;grid-template-rows:100px 1fr 100px;height:100vh;gap:8px;padding:8px;position:relative;z-index:10;}
+        .bg-canvas {position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;opacity:0.3;}
+        .header {grid-column:1/4;background:linear-gradient(135deg,#001122 0%,#003366 50%,#001122 100%);border:2px solid #00ccff;display:flex;align-items:center;justify-content:space-between;padding:0 40px;border-radius:12px;position:relative;overflow:hidden;}
+        .header::before {content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(0,204,255,0.3),transparent);animation:shine 3s infinite;}
+        .logo {color:#00ccff;font-size:32px;font-weight:bold;text-shadow:0 0 20px #00ccff;}
+        .header-stats {display:flex;gap:30px;}
+        .stat-item {text-align:center;}
+        .stat-value {font-size:24px;font-weight:bold;color:#00ff88;}
+        .stat-label {font-size:12px;color:#ccc;}
+        .left-panel,.right-panel {background:linear-gradient(135deg,#001122 0%,#002244 100%);border:1px solid #00ccff;border-radius:12px;padding:15px;overflow:hidden;position:relative;}
+        .main-panel {background:linear-gradient(135deg,#000811 0%,#001a33 50%,#000811 100%);border:2px solid #00ccff;border-radius:12px;position:relative;overflow:hidden;}
+        .footer {grid-column:1/4;background:linear-gradient(135deg,#001122 0%,#003366 50%,#001122 100%);border:2px solid #00ccff;border-radius:12px;display:flex;align-items:center;justify-content:space-around;padding:10px;}
+        .panel-title {color:#00ccff;font-size:18px;margin-bottom:15px;padding:10px;background:rgba(0,204,255,0.1);border-radius:8px;text-align:center;position:relative;}
+        .vital-card {background:linear-gradient(135deg,#001a33 0%,#003366 100%);border:1px solid #00ccff;border-radius:12px;padding:20px;margin-bottom:20px;position:relative;overflow:hidden;transition:all 0.3s ease;}
+        .vital-card:hover {transform:translateY(-5px);box-shadow:0 10px 30px rgba(0,204,255,0.3);}
+        .vital-card::before {content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#00ccff,#00ff88,#ffaa00,#ff4757);animation:gradient 2s linear infinite;}
+        .vital-title {color:#00ccff;font-size:16px;margin-bottom:15px;display:flex;align-items:center;gap:10px;}
+        .vital-value {font-size:36px;font-weight:bold;color:#fff;text-shadow:0 0 15px #00ccff;animation:pulse 2s ease-in-out infinite;margin-bottom:10px;}
+        .vital-unit {font-size:16px;color:#ccc;margin-left:8px;}
+        .vital-status {font-size:14px;color:#00ff88;margin-bottom:15px;padding:5px 10px;background:rgba(0,255,136,0.2);border-radius:15px;text-align:center;}
+        .chart-mini {height:80px;position:relative;overflow:hidden;}
+        .main-display {position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;}
+        .health-ring {width:280px;height:280px;margin:0 auto 30px;position:relative;}
+        .ring-svg {width:100%;height:100%;transform:rotate(-90deg);}
+        .ring-bg {fill:none;stroke:rgba(0,204,255,0.2);stroke-width:8;}
+        .ring-progress {fill:none;stroke:#00ccff;stroke-width:8;stroke-linecap:round;transition:stroke-dasharray 1s ease;}
+        .ring-glow {fill:none;stroke:#00ccff;stroke-width:12;opacity:0.5;filter:blur(4px);}
+        .score-display {position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;}
+        .score-main {font-size:64px;font-weight:bold;color:#00ccff;text-shadow:0 0 30px #00ccff;margin-bottom:10px;}
+        .score-label {font-size:18px;color:#ccc;margin-bottom:20px;}
+        .status-badges {display:flex;justify-content:center;gap:15px;flex-wrap:wrap;}
+        .status-badge {padding:8px 15px;border-radius:20px;font-size:12px;font-weight:bold;animation:float 3s ease-in-out infinite;}
+        .badge-excellent {background:linear-gradient(45deg,#00ff88,#00ccff);color:#000;}
+        .badge-good {background:linear-gradient(45deg,#ffaa00,#ff6b35);color:#000;}
+        .badge-warning {background:linear-gradient(45deg,#ff4757,#ff3838);color:#fff;}
+        .data-grid {display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px;}
+        .data-card {background:linear-gradient(135deg,#001a33,#003366);border:1px solid #00ccff;border-radius:8px;padding:15px;text-align:center;position:relative;overflow:hidden;}
+        .data-card::before {content:'';position:absolute;top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,#00ccff,#00ff88);animation:slide 2s linear infinite;}
+        .data-value {font-size:28px;font-weight:bold;color:#fff;text-shadow:0 0 10px #00ccff;margin-bottom:5px;}
+        .data-label {font-size:12px;color:#ccc;}
+        .trend-container {height:200px;margin-bottom:20px;border:1px solid #00ccff;border-radius:8px;overflow:hidden;}
+        .recommendations {max-height:300px;overflow-y:auto;}
+        .rec-item {background:linear-gradient(90deg,rgba(0,255,136,0.1),rgba(0,204,255,0.1));border-left:4px solid #00ff88;padding:15px;margin-bottom:10px;border-radius:8px;animation:slideInRight 0.5s ease;}
+        .rec-title {color:#00ff88;font-size:14px;font-weight:bold;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+        .rec-text {color:#ccc;font-size:12px;line-height:1.5;}
+        .footer-item {text-align:center;color:#00ccff;cursor:pointer;transition:all 0.3s ease;}
+        .footer-item:hover {color:#00ff88;transform:scale(1.1);}
+        .footer-value {font-size:20px;font-weight:bold;margin-bottom:5px;}
+        .footer-label {font-size:12px;}
+        @keyframes shine {0%{left:-100%;}100%{left:100%;}}
+        @keyframes pulse {0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.05);opacity:0.8;}}
+        @keyframes gradient {0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+        @keyframes float {0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+        @keyframes slide {0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+        @keyframes slideInRight {from{transform:translateX(20px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+        .glow-effect {position:absolute;width:100%;height:100%;background:radial-gradient(circle,rgba(0,204,255,0.1) 0%,transparent 70%);animation:breathe 4s ease-in-out infinite;}
+        @keyframes breathe {0%,100%{opacity:0.3;transform:scale(1);}50%{opacity:0.8;transform:scale(1.1);}}
+    </style>
+</head>
+<body>
+    <canvas class="bg-canvas" id="bgCanvas"></canvas>
+    <div class="glow-effect"></div>
+    
+    <div class="dashboard">
+        <header class="header">
+            <div class="logo">🏥 企业级智能健康监测大屏</div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="onlineDevices">156</div>
+                    <div class="stat-label">在线设备</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="alertCount">3</div>
+                    <div class="stat-label">实时告警</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="currentTime"></div>
+                    <div class="stat-label">当前时间</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="left-panel">
+            <div class="panel-title">🫀 实时生命体征</div>
+            
+            <div class="vital-card">
+                <div class="vital-title">💓 心率监测</div>
+                <div class="vital-value" id="heartRate">82<span class="vital-unit">bpm</span></div>
+                <div class="vital-status" id="heartRateStatus">正常范围</div>
+                <div class="chart-mini" id="heartRateChart"></div>
+            </div>
+
+            <div class="vital-card">
+                <div class="vital-title">🩸 血氧饱和度</div>
+                <div class="vital-value" id="bloodOxygen">98<span class="vital-unit">%</span></div>
+                <div class="vital-status" id="bloodOxygenStatus">优秀状态</div>
+                <div class="chart-mini" id="bloodOxygenChart"></div>
+            </div>
+
+            <div class="vital-card">
+                <div class="vital-title">🌡️ 体温监测</div>
+                <div class="vital-value" id="temperature">36.8<span class="vital-unit">°C</span></div>
+                <div class="vital-status" id="temperatureStatus">正常体温</div>
+                <div class="chart-mini" id="temperatureChart"></div>
+            </div>
+
+            <div class="vital-card">
+                <div class="vital-title">💉 血压监测</div>
+                <div class="vital-value" id="bloodPressure">120/80<span class="vital-unit">mmHg</span></div>
+                <div class="vital-status" id="bloodPressureStatus">理想血压</div>
+                <div class="chart-mini" id="bloodPressureChart"></div>
+            </div>
+        </div>
+
+        <div class="main-panel">
+            <div class="main-display">
+                <div class="health-ring">
+                    <svg class="ring-svg">
+                        <circle class="ring-bg" cx="140" cy="140" r="120"></circle>
+                        <circle class="ring-glow" cx="140" cy="140" r="120"></circle>
+                        <circle class="ring-progress" cx="140" cy="140" r="120" id="progressRing"></circle>
+                    </svg>
+                    <div class="score-display">
+                        <div class="score-main" id="overallScore">97.4</div>
+                        <div class="score-label">综合健康指数</div>
+                        <div class="status-badges">
+                            <div class="status-badge badge-excellent" id="healthBadge">健康优秀</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel-title">📊 健康数据分析</div>
+            
+            <div class="data-grid">
+                <div class="data-card">
+                    <div class="data-value" id="sleepHours">7.5</div>
+                    <div class="data-label">睡眠时长(h)</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-value" id="steps">8000</div>
+                    <div class="data-label">今日步数</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-value" id="stress">15</div>
+                    <div class="data-label">压力指数</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-value" id="calories">400</div>
+                    <div class="data-label">消耗热量</div>
+                </div>
+            </div>
+
+            <div class="panel-title">📈 健康趋势雷达</div>
+            <div class="trend-container" id="radarChart"></div>
+
+            <div class="panel-title">💡 AI智能建议</div>
+            <div class="recommendations" id="recommendations"></div>
+        </div>
+
+        <footer class="footer">
+            <div class="footer-item">
+                <div class="footer-value" id="avgHeartRate">82</div>
+                <div class="footer-label">平均心率</div>
+            </div>
+            <div class="footer-item">
+                <div class="footer-value" id="maxOxygen">99</div>
+                <div class="footer-label">最高血氧</div>
+            </div>
+            <div class="footer-item">
+                <div class="footer-value" id="sleepQuality">85%</div>
+                <div class="footer-label">睡眠质量</div>
+            </div>
+            <div class="footer-item">
+                <div class="footer-value" id="activityLevel">92%</div>
+                <div class="footer-label">活跃度</div>
+            </div>
+            <div class="footer-item">
+                <div class="footer-value" id="stressLevel">低</div>
+                <div class="footer-label">压力水平</div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        //#全局变量配置
+        const CONFIG = {
+            deviceSn: getUrlParameter('deviceSn') || 'CRFTQ23409001890',
+            userId: getUrlParameter('userId') || '1922983570035261442',
+            orgId: getUrlParameter('orgId') || '1',
+            updateInterval: 5000,
+            maxDataPoints: 30
+        };
+        
+        let charts = {};
+        let vitalData = {heartRate:[],bloodOxygen:[],temperature:[],bloodPressure:[]};
+        let scene, camera, renderer, particles;
+
+        //#获取URL参数
+        function getUrlParameter(name) {
+            return new URLSearchParams(window.location.search).get(name);
+        }
+
+        //#初始化3D背景
+        function init3DBackground() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({canvas: document.getElementById('bgCanvas'), alpha: true});
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            //#创建粒子系统
+            const geometry = new THREE.BufferGeometry();
+            const particleCount = 1000;
+            const positions = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 100;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const material = new THREE.PointsMaterial({
+                color: 0x00ccff,
+                size: 0.5,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            camera.position.z = 50;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                particles.rotation.x += 0.001;
+                particles.rotation.y += 0.002;
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        //#更新时间显示
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('zh-CN');
+        }
+
+        //#初始化图表
+        function initCharts() {
+            //#心率波形图
+            charts.heartRate = echarts.init(document.getElementById('heartRateChart'));
+            charts.heartRate.setOption({
+                backgroundColor: 'transparent',
+                grid: {top: 5, bottom: 5, left: 5, right: 5},
+                xAxis: {type: 'category', show: false},
+                yAxis: {type: 'value', show: false},
+                series: [{
+                    type: 'line',
+                    data: [],
+                    smooth: true,
+                    lineStyle: {color: '#ff4757', width: 3},
+                    areaStyle: {color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            {offset: 0, color: 'rgba(255,71,87,0.8)'},
+                            {offset: 1, color: 'rgba(255,71,87,0.1)'}
+                        ]
+                    }},
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    emphasis: {focus: 'series'}
+                }]
+            });
+
+            //#血氧图表
+            charts.bloodOxygen = echarts.init(document.getElementById('bloodOxygenChart'));
+            charts.bloodOxygen.setOption({
+                backgroundColor: 'transparent',
+                grid: {top: 5, bottom: 5, left: 5, right: 5},
+                xAxis: {type: 'category', show: false},
+                yAxis: {type: 'value', show: false},
+                series: [{
+                    type: 'line',
+                    data: [],
+                    smooth: true,
+                    lineStyle: {color: '#00ccff', width: 3},
+                    areaStyle: {color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            {offset: 0, color: 'rgba(0,204,255,0.8)'},
+                            {offset: 1, color: 'rgba(0,204,255,0.1)'}
+                        ]
+                    }}
+                }]
+            });
+
+            //#体温图表
+            charts.temperature = echarts.init(document.getElementById('temperatureChart'));
+            charts.temperature.setOption({
+                backgroundColor: 'transparent',
+                grid: {top: 5, bottom: 5, left: 5, right: 5},
+                xAxis: {type: 'category', show: false},
+                yAxis: {type: 'value', show: false},
+                series: [{
+                    type: 'line',
+                    data: [],
+                    smooth: true,
+                    lineStyle: {color: '#ffaa00', width: 3},
+                    areaStyle: {color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            {offset: 0, color: 'rgba(255,170,0,0.8)'},
+                            {offset: 1, color: 'rgba(255,170,0,0.1)'}
+                        ]
+                    }}
+                }]
+            });
+
+            //#血压图表
+            charts.bloodPressure = echarts.init(document.getElementById('bloodPressureChart'));
+            charts.bloodPressure.setOption({
+                backgroundColor: 'transparent',
+                grid: {top: 5, bottom: 5, left: 5, right: 5},
+                xAxis: {type: 'category', show: false},
+                yAxis: {type: 'value', show: false},
+                series: [
+                    {name: '收缩压', type: 'line', data: [], smooth: true, lineStyle: {color: '#ff6b6b', width: 2}},
+                    {name: '舒张压', type: 'line', data: [], smooth: true, lineStyle: {color: '#4ecdc4', width: 2}}
+                ]
+            });
+
+            //#雷达图
+            charts.radar = echarts.init(document.getElementById('radarChart'));
+            charts.radar.setOption({
+                backgroundColor: 'transparent',
+                radar: {
+                    indicator: [
+                        {name: '心率', max: 100}, {name: '血氧', max: 100}, {name: '体温', max: 100},
+                        {name: '血压', max: 100}, {name: '睡眠', max: 100}, {name: '压力', max: 100}
+                    ],
+                    axisLabel: {color: '#ccc', fontSize: 10},
+                    splitLine: {lineStyle: {color: 'rgba(0,204,255,0.3)'}},
+                    axisLine: {lineStyle: {color: 'rgba(0,204,255,0.5)'}},
+                    splitArea: {areaStyle: {color: ['rgba(0,204,255,0.1)', 'rgba(0,204,255,0.05)']}}
+                },
+                series: [{
+                    type: 'radar',
+                    data: [{
+                        value: [85, 98, 95, 90, 88, 85],
+                        areaStyle: {color: 'rgba(0,204,255,0.3)'},
+                        lineStyle: {color: '#00ccff', width: 3},
+                        itemStyle: {color: '#00ccff', borderColor: '#fff', borderWidth: 2}
+                    }]
+                }]
+            });
+        }
+
+        //#更新环形进度条
+        function updateHealthRing(score) {
+            const ring = document.getElementById('progressRing');
+            const circumference = 2 * Math.PI * 120;
+            const offset = circumference - (score / 100) * circumference;
+            ring.style.strokeDasharray = circumference;
+            ring.style.strokeDashoffset = offset;
+        }
+
+        //#获取实时体征数据
+        async function fetchVitalData() {
+            try {
+                const response = await fetch(`http://localhost:5001/get_personal_info?deviceSn=${CONFIG.deviceSn}`);
+                const result = await response.json();
+                
+                if (result.success && result.data?.health_data) {
+                    updateVitalDisplay(result.data.health_data);
+                }
+            } catch (error) {
+                console.error('获取体征数据失败:', error);
+            }
+        }
+
+        //#获取健康评分数据
+        async function fetchHealthScore() {
+            try {
+                const today = new Date();
+                const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+                const startDate = yesterday.toISOString().split('T')[0];
+                const endDate = today.toISOString().split('T')[0];
+                
+                const response = await fetch(`/health_data/score?orgId=${CONFIG.orgId}&userId=${CONFIG.userId}&startDate=${startDate}&endDate=${endDate}`);
+                const result = await response.json();
+                
+                if (result.success && result.data?.healthScores) {
+                    updateHealthScore(result.data.healthScores);
+                }
+            } catch (error) {
+                console.error('获取健康评分失败:', error);
+            }
+        }
+
+        //#更新体征显示
+        function updateVitalDisplay(health) {
+            const heartRate = parseInt(health.heart_rate || health.heartRate) || 82;
+            const bloodOxygen = parseInt(health.blood_oxygen || health.bloodOxygen) || 98;
+            const temperature = parseFloat(health.temperature) || 36.8;
+            const pressureHigh = parseInt(health.pressure_high || health.pressureHigh) || (heartRate + 35);
+            const pressureLow = parseInt(health.pressure_low || health.pressureLow) || Math.max(heartRate - 5, 60);
+
+            //#更新显示
+            document.getElementById('heartRate').innerHTML = `${heartRate}<span class="vital-unit">bpm</span>`;
+            document.getElementById('bloodOxygen').innerHTML = `${bloodOxygen}<span class="vital-unit">%</span>`;
+            document.getElementById('temperature').innerHTML = `${temperature.toFixed(1)}<span class="vital-unit">°C</span>`;
+            document.getElementById('bloodPressure').innerHTML = `${pressureHigh}/${pressureLow}<span class="vital-unit">mmHg</span>`;
+
+            //#存储数据
+            vitalData.heartRate.push(heartRate);
+            vitalData.bloodOxygen.push(bloodOxygen);
+            vitalData.temperature.push(temperature);
+            vitalData.bloodPressure.push([pressureHigh, pressureLow]);
+
+            if (vitalData.heartRate.length > CONFIG.maxDataPoints) {
+                Object.keys(vitalData).forEach(key => vitalData[key].shift());
+            }
+
+            //#更新图表
+            updateCharts();
+        }
+
+        //#更新图表
+        function updateCharts() {
+            Object.keys(charts).forEach(key => {
+                if (key === 'bloodPressure' && charts[key]) {
+                    const pressureHigh = vitalData.bloodPressure.map(p => p[0]);
+                    const pressureLow = vitalData.bloodPressure.map(p => p[1]);
+                    charts[key].setOption({series: [{data: pressureHigh}, {data: pressureLow}]});
+                } else if (vitalData[key] && charts[key]) {
+                    charts[key].setOption({series: [{data: vitalData[key]}]});
+                }
+            });
+        }
+
+        //#更新健康评分
+        function updateHealthScore(scoreData) {
+            const {overall, factors, details} = scoreData;
+            
+            document.getElementById('overallScore').textContent = overall.toFixed(1);
+            updateHealthRing(overall);
+            
+            const status = overall >= 90 ? '健康优秀' : overall >= 80 ? '健康良好' : '需要关注';
+            document.getElementById('healthBadge').textContent = status;
+
+            //#更新详细数据
+            if (factors.sleep) document.getElementById('sleepHours').textContent = factors.sleep.currentValue;
+            if (factors.step) document.getElementById('steps').textContent = factors.step.currentValue;
+            if (factors.stress) document.getElementById('stress').textContent = factors.stress.currentValue;
+            if (factors.calorie) document.getElementById('calories').textContent = factors.calorie.currentValue;
+
+            //#更新雷达图
+            if (charts.radar) {
+                const radarValues = [
+                    factors.heart_rate?.score || 85,
+                    factors.blood_oxygen?.score || 98,
+                    factors.temperature?.score || 95,
+                    ((factors.pressure_high?.score || 0) + (factors.pressure_low?.score || 0)) / 2 || 90,
+                    factors.sleep?.score || 88,
+                    factors.stress?.score || 85
+                ];
+                charts.radar.setOption({series: [{data: [{value: radarValues}]}]});
+            }
+
+            //#更新建议
+            updateRecommendations(details);
+        }
+
+        //#更新建议
+        function updateRecommendations(details) {
+            if (!details) return;
+            
+            const container = document.getElementById('recommendations');
+            container.innerHTML = '';
+            
+            const categories = {
+                heart_rate: {icon: '💓', title: '心率优化'},
+                blood_oxygen: {icon: '🩸', title: '血氧改善'},
+                sleep: {icon: '😴', title: '睡眠建议'},
+                stress: {icon: '🧘', title: '压力管理'}
+            };
+
+            Object.keys(details).slice(0, 4).forEach(key => {
+                const detail = details[key];
+                const category = categories[key] || {icon: '💡', title: '健康建议'};
+                
+                if (detail?.suggestions?.length > 0) {
+                    const item = document.createElement('div');
+                    item.className = 'rec-item';
+                    item.innerHTML = `
+                        <div class="rec-title">${category.icon} ${category.title}</div>
+                        <div class="rec-text">${detail.suggestions.join('、')}</div>
+                    `;
+                    container.appendChild(item);
+                }
+            });
+        }
+
+        //#初始化所有功能
+        function init() {
+            init3DBackground();
+            initCharts();
+            
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            fetchVitalData();
+            fetchHealthScore();
+            
+            setInterval(fetchVitalData, CONFIG.updateInterval);
+            setInterval(fetchHealthScore, 30000);
+            
+            //#窗口大小变化
+            window.addEventListener('resize', () => {
+                if (renderer) {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                }
+                Object.values(charts).forEach(chart => chart?.resize());
+            });
+        }
+
+        //#启动应用
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(init, 100);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>赛博朋克健康行星系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:#000;color:#0ff;font-family:'Consolas','Microsoft YaHei';overflow:hidden;height:100vh}
+        #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1}
+        .hud-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100}
+        .planet-info{position:absolute;background:linear-gradient(145deg,rgba(0,20,40,0.95),rgba(0,255,255,0.08));border:2px solid transparent;border-radius:20px;padding:20px;backdrop-filter:blur(15px);pointer-events:auto;cursor:pointer;transition:all 0.4s cubic-bezier(0.25,0.8,0.25,1);box-shadow:0 8px 32px rgba(0,255,255,0.15),inset 0 1px 0 rgba(255,255,255,0.1);min-width:120px;transform-style:preserve-3d}
+        .planet-info::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(45deg,#0ff,#0f9,#09f,#f0f);border-radius:20px;padding:2px;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:xor;z-index:-1;opacity:0.8}
+        .planet-info::after{content:'';position:absolute;top:-2px;left:-2px;right:-2px;bottom:-2px;background:linear-gradient(45deg,rgba(0,255,255,0.3),rgba(0,255,157,0.3),rgba(0,157,255,0.3),rgba(255,0,255,0.3));border-radius:22px;z-index:-2;filter:blur(8px);opacity:0}
+        .planet-info:hover{transform:scale(1.15) translateZ(10px);box-shadow:0 20px 60px rgba(0,255,255,0.4),inset 0 1px 0 rgba(255,255,255,0.2);border-color:#0f9}
+        .planet-info:hover::after{opacity:1}
+        .planet-value{font-size:22px;font-weight:900;color:#fff;text-shadow:0 0 15px #0ff,0 0 30px #0ff;text-align:center;margin-bottom:8px;letter-spacing:1px}
+        .planet-label{font-size:14px;color:#0f9;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
+        .planet-status{width:24px;height:24px;border-radius:50%;margin:8px auto;position:relative;overflow:hidden}
+        .planet-status::before{content:'';position:absolute;top:0;left:0;width:100%;height:100%;border-radius:50%;background:inherit;filter:blur(8px);opacity:0.6}
+        .status-normal{background:radial-gradient(circle,#0f9,#0a6);box-shadow:0 0 20px #0f9,inset 0 0 10px rgba(255,255,255,0.3)}
+        .status-warning{background:radial-gradient(circle,#ff0,#fa0);box-shadow:0 0 20px #ff0,inset 0 0 10px rgba(255,255,255,0.3)}
+        .status-critical{background:radial-gradient(circle,#f44,#a22);box-shadow:0 0 20px #f44,inset 0 0 10px rgba(255,255,255,0.3)}
+        .main-title{position:fixed;top:30px;left:50%;transform:translateX(-50%);color:#0ff;font-size:28px;font-weight:bold;text-shadow:0 0 20px #0ff;z-index:200;pointer-events:none;animation:titleGlow 3s infinite}
+        @keyframes titleGlow{0%,100%{text-shadow:0 0 20px #0ff}50%{text-shadow:0 0 40px #0f9}}
+        .cyber-panel{position:fixed;background:linear-gradient(135deg,rgba(0,255,255,0.05),rgba(0,20,40,0.8));border:1px solid rgba(0,255,255,0.3);border-radius:10px;backdrop-filter:blur(15px);padding:20px;z-index:150}
+        .left-panel{left:20px;top:20%;width:280px;height:60vh}
+        .right-panel{right:20px;top:20%;width:280px;height:60vh}
+        .panel-title{color:#0ff;font-size:16px;font-weight:bold;text-align:center;margin-bottom:15px;text-shadow:0 0 10px #0ff}
+        .info-list{max-height:calc(60vh - 80px);overflow-y:auto}
+        .info-item{background:rgba(0,255,255,0.05);border:1px solid rgba(0,255,255,0.2);border-radius:8px;padding:12px;margin:8px 0;transition:all 0.3s ease}
+        .info-item:hover{background:rgba(0,255,255,0.1);transform:translateX(5px)}
+        .info-item-title{color:#0ff;font-size:14px;font-weight:bold}
+        .info-item-desc{color:#0f9;font-size:12px;margin-top:5px}
+        .info-item-time{color:#888;font-size:10px;margin-top:3px}
+        .status-bar{position:fixed;top:20px;right:20px;display:flex;gap:15px;z-index:200}
+        .status-indicator{width:12px;height:12px;border-radius:50%;animation:pulse 2s infinite}
+        .battery-display{position:fixed;top:20px;left:20px;display:flex;align-items:center;gap:10px;color:#0ff;z-index:200}
+        .battery-icon{width:40px;height:20px;border:2px solid #0ff;border-radius:3px;position:relative}
+        .battery-level{height:100%;background:linear-gradient(90deg,#f44,#ff0,#0f9);border-radius:1px;transition:width 0.3s ease}
+        .battery-tip{position:absolute;right:-5px;top:6px;width:3px;height:8px;background:#0ff;border-radius:0 1px 1px 0}
+        .chart-modal{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.9);display:none;z-index:3000;backdrop-filter:blur(20px)}
+        .chart-container{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;height:600px;background:linear-gradient(135deg,rgba(0,20,40,0.95),rgba(0,255,255,0.05));border:2px solid #0ff;border-radius:20px;backdrop-filter:blur(25px);box-shadow:0 30px 80px rgba(0,20,40,0.9)}
+        .chart-header{padding:20px;border-bottom:1px solid rgba(0,255,255,0.3);display:flex;justify-content:space-between;align-items:center}
+        .chart-title{color:#0ff;font-size:24px;font-weight:bold;text-shadow:0 0 15px #0ff}
+        .close-btn{width:40px;height:40px;border-radius:50%;background:rgba(255,68,68,0.8);border:none;color:#fff;font-size:20px;cursor:pointer;transition:all 0.3s ease}
+        .close-btn:hover{background:#f44;transform:scale(1.1)}
+        .chart-content{display:flex;height:520px}
+        .chart-main{flex:2;padding:20px}
+        .chart-canvas{width:100%;height:100%;background:rgba(0,20,40,0.3);border-radius:10px}
+        .chart-sidebar{flex:1;padding:20px;border-left:1px solid rgba(0,255,255,0.3);overflow-y:auto}
+        .stat-card{background:rgba(0,20,40,0.8);border:1px solid rgba(0,255,255,0.3);border-radius:10px;padding:15px;margin:10px 0;transition:all 0.3s ease}
+        .stat-card:hover{background:rgba(0,255,255,0.05);transform:translateX(5px)}
+        .stat-title{color:#0ff;font-size:16px;font-weight:bold;margin-bottom:10px}
+        .stat-value{color:#0f9;font-size:20px;font-weight:bold;text-shadow:0 0 5px #0f9}
+        .stat-unit{color:#0cf;font-size:14px;margin-left:5px}
+        .stat-desc{color:#0cf;font-size:12px;margin-top:5px}
+        .baseline-info{background:rgba(0,255,255,0.05);border:1px solid rgba(0,255,255,0.3);border-radius:10px;padding:15px;margin:10px 0}
+        .baseline-title{color:#0ff;font-size:14px;font-weight:bold;margin-bottom:8px}
+        .baseline-range{color:#0f9;font-size:16px;font-weight:bold}
+        .loading{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#0ff;font-size:16px;z-index:1000}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+        @media(max-width:1600px){.cyber-panel{width:250px}.chart-container{width:800px;height:500px}}
+        @media(max-width:1366px){.cyber-panel{width:220px}.chart-container{width:700px;height:450px}}
+    </style>
+</head>
+<body>
+    <div class="main-title">{{ BIGSCREEN_TITLE or '赛博朋克健康行星系统' }}</div>
+    
+    <div class="battery-display">
+        <div class="battery-icon">
+            <div class="battery-level" id="batteryLevel"></div>
+            <div class="battery-tip"></div>
+        </div>
+        <span id="batteryText">0%</span>
+    </div>
+    
+    <div class="status-bar">
+        <div class="status-indicator" id="onlineStatus" style="background:#0f9"></div>
+        <div class="status-indicator" id="chargingStatus" style="background:#ff0"></div>
+        <div class="status-indicator" id="wearStatus" style="background:#f44"></div>
+    </div>
+
+    <canvas id="canvas3d"></canvas>
+    <div class="hud-overlay" id="hudOverlay"></div>
+
+    <div class="cyber-panel left-panel">
+        <div class="panel-title">系统警报</div>
+        <div class="info-list" id="alertList"></div>
+    </div>
+
+    <div class="cyber-panel right-panel">
+        <div class="panel-title">数据传输</div>
+        <div class="info-list" id="messageList"></div>
+    </div>
+
+    <div class="chart-modal" id="chartModal">
+        <div class="chart-container">
+            <div class="chart-header">
+                <div class="chart-title" id="chartTitle">行星数据分析</div>
+                <button class="close-btn" onclick="closeChart()">&times;</button>
+            </div>
+            <div class="chart-content">
+                <div class="chart-main">
+                    <div class="chart-canvas" id="chartCanvas"></div>
+                    <div class="loading" id="chartLoading">数据同步中...</div>
+                </div>
+                <div class="chart-sidebar" id="chartSidebar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene,camera,renderer,planetSystem,controls,currentChart=null,healthPlanets=[]; // 行星系统核心变量
+        const PLANETS_CONFIG=[
+            {id:'heartRate',name:'心率',color:0xff3366,orbit:2.5,speed:0.003,size:0.15,metric:'heart_rate'},
+            {id:'bloodOxygen',name:'血氧',color:0x3366ff,orbit:3.2,speed:0.0025,size:0.12,metric:'blood_oxygen'},
+            {id:'temperature',name:'体温',color:0xff9933,orbit:3.8,speed:0.002,size:0.14,metric:'temperature'},
+            {id:'stress',name:'压力',color:0xff33ff,orbit:4.5,speed:0.0015,size:0.11,metric:'stress'},
+            {id:'steps',name:'步数',color:0x33ff66,orbit:5.2,speed:0.001,size:0.13,metric:'step'},
+            {id:'distance',name:'距离',color:0x66ff33,orbit:5.8,speed:0.0008,size:0.12,metric:'distance'},
+            {id:'calorie',name:'卡路里',color:0xffff33,orbit:6.5,speed:0.0006,size:0.14,metric:'calorie'},
+            {id:'sleep',name:'睡眠',color:0x33ffff,orbit:7.2,speed:0.0004,size:0.16,metric:'sleep'}
+        ]; // 行星配置数据，更慢的旋转速度
+        
+        function init3D(){
+            try{
+                // Three.js兼容性检查
+                if(!window.THREE){
+                    console.error('Three.js未加载');
+                    return;
+                }
+                console.log('Three.js版本:',THREE.REVISION);
+                
+                const canvas=document.getElementById('canvas3d');
+                scene=new THREE.Scene();
+                camera=new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight,0.1,1000);
+                renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+                renderer.setSize(window.innerWidth,window.innerHeight);
+                renderer.setClearColor(0x000000,1);
+                renderer.shadowMap.enabled=true;
+                renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+                
+                // 赛博朋克灯光系统
+                const ambientLight=new THREE.AmbientLight(0x0066aa,0.3);
+                scene.add(ambientLight);
+                
+                const mainLight=new THREE.DirectionalLight(0x00ffff,1.5);
+                mainLight.position.set(0,20,10);
+                mainLight.castShadow=true;
+                mainLight.shadow.mapSize.width=2048;
+                mainLight.shadow.mapSize.height=2048;
+                scene.add(mainLight);
+                
+                const neonLight1=new THREE.PointLight(0xff0099,2,20);
+                neonLight1.position.set(10,5,0);
+                scene.add(neonLight1);
+                
+                const neonLight2=new THREE.PointLight(0x00ff99,2,20);
+                neonLight2.position.set(-10,5,0);
+                scene.add(neonLight2);
+                
+                createPlanetSystem(); // 创建行星系统
+                createCyberGrid(); // 创建赛博网格
+                createParticleField(); // 创建粒子场
+                
+                camera.position.set(0,8,12);
+                camera.lookAt(0,0,0);
+                
+                animate();
+            }catch(e){
+                console.error('初始化失败:',e);
+            }
+        }
+        
+        function createPlanetSystem(){
+            planetSystem=new THREE.Group();
+            
+            // 中央AI核心
+            const coreGeo=new THREE.SphereGeometry(0.8,32,32);
+            const coreMat=new THREE.MeshPhongMaterial({
+                color:0x0099ff,transparent:true,opacity:0.8,
+                emissive:0x003366,shininess:100
+            });
+            const core=new THREE.Mesh(coreGeo,coreMat);
+            core.castShadow=true;
+            planetSystem.add(core);
+            
+            // 核心发光环
+            const ringGeo=new THREE.RingGeometry(1.2,1.4,64);
+            const ringMat=new THREE.MeshBasicMaterial({
+                color:0x00ffff,transparent:true,opacity:0.6,
+                side:THREE.DoubleSide
+            });
+            const ring=new THREE.Mesh(ringGeo,ringMat);
+            ring.rotation.x=-Math.PI/2;
+            planetSystem.add(ring);
+            
+            // 创建行星和轨道
+            PLANETS_CONFIG.forEach((config,i)=>{
+                const planetGroup=new THREE.Group();
+                
+                // 轨道线
+                const orbitGeo=new THREE.RingGeometry(config.orbit-0.02,config.orbit+0.02,128);
+                const orbitMat=new THREE.MeshBasicMaterial({
+                    color:0x0099ff,transparent:true,opacity:0.3,
+                    side:THREE.DoubleSide
+                });
+                const orbit=new THREE.Mesh(orbitGeo,orbitMat);
+                orbit.rotation.x=-Math.PI/2;
+                planetSystem.add(orbit);
+                
+                // 行星本体
+                const planetGeo=new THREE.SphereGeometry(config.size,16,16);
+                const planetMat=new THREE.MeshPhongMaterial({
+                    color:config.color,transparent:true,opacity:0.9,
+                    emissive:config.color,emissiveIntensity:0.3,
+                    shininess:100
+                });
+                const planet=new THREE.Mesh(planetGeo,planetMat);
+                planet.position.x=config.orbit;
+                planet.castShadow=true;
+                planet.userData={config,angle:i*Math.PI/4,info:null};
+                planetGroup.add(planet);
+                
+                // 行星发光光环
+                const glowGeo=new THREE.RingGeometry(config.size*1.5,config.size*2,32);
+                const glowMat=new THREE.MeshBasicMaterial({
+                    color:config.color,transparent:true,opacity:0.4,
+                    side:THREE.DoubleSide
+                });
+                const glow=new THREE.Mesh(glowGeo,glowMat);
+                glow.position.copy(planet.position);
+                glow.lookAt(0,0,1);
+                planetGroup.add(glow);
+                
+                planetSystem.add(planetGroup);
+                healthPlanets.push({planet,glow,group:planetGroup,config});
+                
+                // 创建HUD信息面板
+                createPlanetHUD(config,i);
+            });
+            
+            scene.add(planetSystem);
+        }
+        
+        function createPlanetHUD(config,index){
+            const hudDiv=document.createElement('div');
+            hudDiv.className='planet-info';
+            hudDiv.id=`planet-${config.id}`;
+            hudDiv.innerHTML=`
+                <div class="planet-value" id="value-${config.id}">--</div>
+                <div class="planet-label">${config.name}</div>
+                <div class="planet-status status-normal" id="status-${config.id}"></div>
+            `;
+            hudDiv.addEventListener('click',()=>showHealthChart(config.metric));
+            document.getElementById('hudOverlay').appendChild(hudDiv);
+        }
+        
+        function createCyberGrid(){
+            // 底面网格
+            const gridSize=20,divisions=40;
+            const gridHelper=new THREE.GridHelper(gridSize,divisions,0x0099ff,0x003366);
+            gridHelper.position.y=-2;
+            if(gridHelper.material){
+                gridHelper.material.transparent=true;
+                gridHelper.material.opacity=0.3;
+            }
+            scene.add(gridHelper);
+            
+            // 竖直网格线
+            for(let i=0;i<8;i++){
+                const angle=i*Math.PI/4;
+                const lineGeo=new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(Math.cos(angle)*3,0,Math.sin(angle)*3),
+                    new THREE.Vector3(Math.cos(angle)*8,0,Math.sin(angle)*8)
+                ]);
+                const lineMat=new THREE.LineBasicMaterial({color:0x0099ff,transparent:true,opacity:0.5});
+                const line=new THREE.Line(lineGeo,lineMat);
+                scene.add(line);
+            }
+            
+            // 添加动态光环
+            for(let i=0;i<3;i++){
+                const ringGeo=new THREE.RingGeometry(10+i*8,10.5+i*8,64);
+                const ringMat=new THREE.MeshBasicMaterial({
+                    color:0x00ffff,transparent:true,opacity:0.1-i*0.02,side:THREE.DoubleSide
+                });
+                const ring=new THREE.Mesh(ringGeo,ringMat);
+                ring.rotation.x=-Math.PI/2;
+                ring.userData={speed:0.001+i*0.0005};
+                scene.add(ring);
+            }
+            
+            // 外层旋转光束
+            for(let i=0;i<12;i++){
+                const angle=i*Math.PI/6;
+                const beamGeo=new THREE.PlaneGeometry(0.05,25);
+                const beamMat=new THREE.MeshBasicMaterial({
+                    color:0x00aaff,transparent:true,opacity:0.3,side:THREE.DoubleSide
+                });
+                const beam=new THREE.Mesh(beamGeo,beamMat);
+                beam.position.set(0,0,0);
+                beam.rotation.y=angle;
+                beam.userData={speed:0.002};
+                scene.add(beam);
+            }
+            
+            // 垂直能量柱
+            for(let i=0;i<6;i++){
+                const angle=i*Math.PI/3;
+                const pillarGeo=new THREE.CylinderGeometry(0.1,0.1,15,8);
+                const pillarMat=new THREE.MeshBasicMaterial({
+                    color:0x0099ff,transparent:true,opacity:0.2
+                });
+                const pillar=new THREE.Mesh(pillarGeo,pillarMat);
+                pillar.position.set(Math.cos(angle)*15,7.5,Math.sin(angle)*15);
+                scene.add(pillar);
+            }
+        }
+        
+        function createParticleField(){
+            // 星空粒子
+            const starCount=800;
+            const starPositions=new Float32Array(starCount*3);
+            const starColors=new Float32Array(starCount*3);
+            
+            for(let i=0;i<starCount;i++){
+                starPositions[i*3]=(Math.random()-0.5)*80;
+                starPositions[i*3+1]=(Math.random()-0.5)*40;
+                starPositions[i*3+2]=(Math.random()-0.5)*80;
+                
+                const color=new THREE.Color();
+                color.setHSL(0.5+Math.random()*0.3,0.8,0.6+Math.random()*0.4);
+                starColors[i*3]=color.r;
+                starColors[i*3+1]=color.g;
+                starColors[i*3+2]=color.b;
+            }
+            
+            const starGeo=new THREE.BufferGeometry();
+            starGeo.setAttribute('position',new THREE.BufferAttribute(starPositions,3));
+            starGeo.setAttribute('color',new THREE.BufferAttribute(starColors,3));
+            
+            const starMat=new THREE.PointsMaterial({
+                size:0.15,vertexColors:THREE.VertexColors||true,transparent:true,opacity:0.8,
+                blending:THREE.AdditiveBlending
+            });
+            
+            const stars=new THREE.Points(starGeo,starMat);
+            scene.add(stars);
+            
+            // 流动粒子
+            const flowCount=200;
+            const flowPositions=new Float32Array(flowCount*3);
+            const flowColors=new Float32Array(flowCount*3);
+            
+            for(let i=0;i<flowCount;i++){
+                const angle=Math.random()*Math.PI*2;
+                const radius=5+Math.random()*15;
+                flowPositions[i*3]=Math.cos(angle)*radius;
+                flowPositions[i*3+1]=Math.random()*10-5;
+                flowPositions[i*3+2]=Math.sin(angle)*radius;
+                
+                const color=new THREE.Color(0x00ffff);
+                flowColors[i*3]=color.r;
+                flowColors[i*3+1]=color.g;
+                flowColors[i*3+2]=color.b;
+            }
+            
+            const flowGeo=new THREE.BufferGeometry();
+            flowGeo.setAttribute('position',new THREE.BufferAttribute(flowPositions,3));
+            flowGeo.setAttribute('color',new THREE.BufferAttribute(flowColors,3));
+            
+            const flowMat=new THREE.PointsMaterial({
+                size:0.3,vertexColors:THREE.VertexColors||true,transparent:true,opacity:0.6,
+                blending:THREE.AdditiveBlending
+            });
+            
+            const flowParticles=new THREE.Points(flowGeo,flowMat);
+            flowParticles.userData={type:'flow'};
+            scene.add(flowParticles);
+            
+            // 能量波纹
+            for(let i=0;i<5;i++){
+                const waveGeo=new THREE.RingGeometry(8+i*3,8.2+i*3,64);
+                const waveMat=new THREE.MeshBasicMaterial({
+                    color:0x00aaff,transparent:true,opacity:0.05,side:THREE.DoubleSide
+                });
+                const wave=new THREE.Mesh(waveGeo,waveMat);
+                wave.rotation.x=-Math.PI/2;
+                wave.position.y=-1;
+                wave.userData={type:'wave',speed:0.01+i*0.002,originalY:-1};
+                scene.add(wave);
+            }
+        }
+        
+        function animate(){
+            requestAnimationFrame(animate);
+            const time=Date.now()*0.001;
+            
+            // 背景动态效果
+            scene.children.forEach(child=>{
+                if(child.userData){
+                    if(child.userData.speed&&child.geometry){
+                        if(child.geometry.type==='RingGeometry'){
+                            child.rotation.z+=child.userData.speed;
+                        }else if(child.geometry.type==='PlaneGeometry'){
+                            child.rotation.y+=child.userData.speed;
+                        }
+                    }
+                    
+                    // 流动粒子动画
+                    if(child.userData.type==='flow'){
+                        const positions=child.geometry.attributes.position.array;
+                        for(let i=0;i<positions.length;i+=3){
+                            positions[i+1]+=0.02;
+                            if(positions[i+1]>5){positions[i+1]=-5;}
+                        }
+                        child.geometry.attributes.position.needsUpdate=true;
+                    }
+                    
+                    // 能量波纹动画
+                    if(child.userData.type==='wave'){
+                        child.position.y=child.userData.originalY+Math.sin(time*2+child.userData.speed*100)*0.5;
+                        child.material.opacity=0.05+Math.sin(time*3+child.userData.speed*150)*0.02;
+                    }
+                }
+            });
+            
+            if(planetSystem){
+                // 行星轨道运动
+                healthPlanets.forEach((item,i)=>{
+                    const config=item.config;
+                    item.planet.userData.angle+=config.speed;
+                    const angle=item.planet.userData.angle;
+                    
+                    item.planet.position.x=Math.cos(angle)*config.orbit;
+                    item.planet.position.z=Math.sin(angle)*config.orbit;
+                    item.planet.rotation.y+=0.02;
+                    
+                    item.glow.position.copy(item.planet.position);
+                    const cameraDir=new THREE.Vector3();
+                    cameraDir.subVectors(camera.position,item.glow.position).normalize();
+                    item.glow.lookAt(camera.position.x,camera.position.y,camera.position.z);
+                    item.glow.rotation.z+=0.01;
+                    
+                    // 更新HUD位置
+                    updatePlanetHUDPosition(config.id,item.planet.position);
+                });
+                
+                // 核心自转
+                planetSystem.children[0].rotation.y+=0.002;
+                planetSystem.children[1].rotation.z+=0.005;
+            }
+            
+            renderer.render(scene,camera);
+        }
+        
+        function updatePlanetHUDPosition(planetId,worldPos){
+            const hudElement=document.getElementById(`planet-${planetId}`);
+            if(!hudElement)return;
+            
+            const vector=worldPos.clone().project(camera);
+            const x=(vector.x*0.5+0.5)*window.innerWidth;
+            const y=(-vector.y*0.5+0.5)*window.innerHeight;
+            
+            hudElement.style.left=`${x-50}px`;
+            hudElement.style.top=`${y-40}px`;
+        }
+        
+        function updateHealthPoint(id,value,unit='',alertLevel='normal'){
+            const valueEl=document.getElementById(`value-${id}`);
+            const statusEl=document.getElementById(`status-${id}`);
+            if(!valueEl||!statusEl)return;
+            
+            valueEl.textContent=value+unit;
+            statusEl.className=`planet-status status-${alertLevel==='critical'?'critical':alertLevel==='medium'?'warning':'normal'}`;
+            
+            // 更新行星效果
+            const planet=healthPlanets.find(p=>p.config.id===id);
+            if(planet){
+                const intensity=alertLevel==='critical'?1:alertLevel==='medium'?0.7:0.3;
+                planet.planet.material.emissiveIntensity=intensity;
+                planet.glow.material.opacity=0.4+intensity*0.4;
+            }
+        }
+        
+        function updateDeviceStatus(online,charging,wearing){
+            document.getElementById('onlineStatus').style.background=online?'#0f9':'#f44';
+            document.getElementById('chargingStatus').style.background=charging?'#ff0':'#666';
+            document.getElementById('wearStatus').style.background=wearing?'#0f9':'#f44';
+        }
+        
+        function updateBattery(level){
+            const batteryEl=document.getElementById('batteryLevel');
+            const textEl=document.getElementById('batteryText');
+            batteryEl.style.width=level+'%';
+            textEl.textContent=level+'%';
+        }
+        
+        function getAlertLevel(type,value){
+            const thresholds={heart_rate:[60,100],blood_oxygen:[95,100],temperature:[36,37.5],stress:[0,50]};
+            if(!thresholds[type])return 'normal';
+            const[min,max]=thresholds[type];
+            return value<min||value>max?'critical':value<min*1.1||value>max*0.9?'medium':'normal';
+        }
+        
+        async function showHealthChart(metric){
+            const modal=document.getElementById('chartModal');
+            const title=document.getElementById('chartTitle');
+            const canvas=document.getElementById('chartCanvas');
+            const sidebar=document.getElementById('chartSidebar');
+            const loading=document.getElementById('chartLoading');
+            
+            modal.style.display='block';
+            loading.style.display='block';
+            
+            const deviceSn='{{deviceSn}}';
+            
+            try{
+                const metricNames={heart_rate:'心率',blood_oxygen:'血氧',temperature:'体温',stress:'压力',step:'步数',distance:'距离',calorie:'卡路里',sleep:'睡眠'};
+                title.textContent=`${metricNames[metric]||metric}行星数据分析`;
+                
+                // 并行获取趋势数据和基线数据
+                const[trendsResponse,baselineResponse]=await Promise.all([
+                    fetch(`./api/health/trends/${metric}?deviceSn=${deviceSn}&days=7`),
+                    fetch(`./api/health/baseline/${metric}?deviceSn=${deviceSn}`)
+                ]);
+                
+                const trendsData=await trendsResponse.json();
+                const baselineData=await baselineResponse.json();
+                
+                if(trendsData.success){
+                    renderTrendChart(canvas,trendsData.data,metric);
+                    renderSidebar(sidebar,trendsData.data,baselineData.success?baselineData.data:null);
+                }else{
+                    // 使用模拟数据
+                    renderMockChart(canvas,metric);
+                    renderMockSidebar(sidebar,metric);
+                }
+                
+                loading.style.display='none';
+            }catch(e){
+                console.error('API调用失败:',e);
+                // 使用模拟数据
+                renderMockChart(canvas,metric);
+                renderMockSidebar(sidebar,metric);
+                loading.style.display='none';
+            }
+        }
+        
+        function closeChart(){
+            document.getElementById('chartModal').style.display='none';
+            if(currentChart){currentChart.dispose();currentChart=null;}
+        }
+        
+        function renderAlerts(alerts){
+            const listEl=document.getElementById('alertList');
+            if(!alerts||!alerts.length){listEl.innerHTML='<div class="info-item"><div class="info-item-title">系统正常</div></div>';return;}
+            listEl.innerHTML=alerts.slice(0,6).map(alert=>`<div class="info-item"><div class="info-item-title">${alert.alert_type||'异常警报'}</div><div class="info-item-desc">${alert.alert_desc||'数据异常'}</div><div class="info-item-time">${alert.alert_timestamp||''}</div></div>`).join('');
+        }
+        
+        function renderMessages(messages){
+            const listEl=document.getElementById('messageList');
+            if(!messages||!messages.length){listEl.innerHTML='<div class="info-item"><div class="info-item-title">传输正常</div></div>';return;}
+            listEl.innerHTML=messages.slice(0,6).map(msg=>`<div class="info-item"><div class="info-item-title">${msg.message_type||'数据包'}</div><div class="info-item-desc">${msg.message||'传输完成'}</div><div class="info-item-time">${msg.sent_time||''}</div></div>`).join('');
+        }
+        
+        async function fetchAndUpdate(){
+            try{
+                const response=await fetch(`./get_personal_info?deviceSn={{deviceSn}}`);
+                const data=await response.json();
+                
+                if(data?.success){
+                    const health=data.data.health_data?.data?.healthData?.[0];
+                    if(health){
+                        updateHealthPoint('heartRate',health.heart_rate||'--','',getAlertLevel('heart_rate',parseInt(health.heart_rate)));
+                        updateHealthPoint('bloodOxygen',health.blood_oxygen||'--','%',getAlertLevel('blood_oxygen',parseInt(health.blood_oxygen)));
+                        updateHealthPoint('temperature',health.temperature||'--','°C',getAlertLevel('temperature',parseFloat(health.temperature)));
+                        updateHealthPoint('stress',health.stress||'--','',getAlertLevel('stress',parseInt(health.stress)));
+                        updateHealthPoint('steps',health.step||'--');
+                        updateHealthPoint('distance',(health.distance||0).toFixed(1),'km');
+                        updateHealthPoint('calorie',Math.round(health.calorie||0));
+                        updateHealthPoint('sleep',(health.sleep||0).toFixed(1),'h');
+                    }
+                    
+                    const device=data.data.device_info?.data?.devices?.[0];
+                    if(device){
+                        updateBattery(device.battery_level||0);
+                        updateDeviceStatus(device.status==='ACTIVE',device.charging_status==='CHARGING',device.wearable_status==='WORN');
+                    }
+                    
+                    renderAlerts(data.data.alert_info?.data?.alerts);
+                    renderMessages(data.data.message_info?.data?.messages);
+                }
+            }catch(e){
+                console.error('数据获取失败:',e);
+                updateHealthPoint('heartRate','59','',getAlertLevel('heart_rate',59));
+                updateHealthPoint('bloodOxygen','99','%',getAlertLevel('blood_oxygen',99));
+                updateHealthPoint('temperature','36.6','°C',getAlertLevel('temperature',36.6));
+                updateHealthPoint('stress','29','',getAlertLevel('stress',29));
+                updateHealthPoint('steps','3');
+                updateHealthPoint('distance','23.3','km');
+                updateHealthPoint('calorie','19825');
+                updateHealthPoint('sleep','6.2','h');
+                updateBattery(15);
+                updateDeviceStatus(true,true,false);
+            }
+        }
+        
+        window.addEventListener('resize',()=>{
+            camera.aspect=window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth,window.innerHeight);
+        });
+        
+        document.addEventListener('DOMContentLoaded',()=>{
+            init3D();
+            fetchAndUpdate();
+            setInterval(fetchAndUpdate,5000);
+        });
+        
+        function renderMockChart(container,metric){
+            if(currentChart)currentChart.dispose();
+            currentChart=echarts.init(container);
+            
+            const metricConfig={
+                heart_rate:{unit:'次/分',color:'#ff3366',data:[65,68,72,70,69,73,71]},
+                blood_oxygen:{unit:'%',color:'#3366ff',data:[98,97,99,98,99,97,98]},
+                temperature:{unit:'°C',color:'#ff9933',data:[36.4,36.6,36.5,36.7,36.6,36.8,36.6]},
+                stress:{unit:'',color:'#ff33ff',data:[25,30,28,32,29,27,31]},
+                step:{unit:'步',color:'#33ff66',data:[8520,9200,7800,10500,8900,9600,8750]},
+                distance:{unit:'km',color:'#66ff33',data:[6.8,7.2,6.3,8.1,7.0,7.5,6.9]},
+                calorie:{unit:'千卡',color:'#ffff33',data:[2150,2300,2050,2400,2200,2350,2180]},
+                sleep:{unit:'h',color:'#33ffff',data:[7.2,6.8,7.5,6.9,7.1,7.3,7.0]}
+            };
+            
+            const config=metricConfig[metric]||metricConfig.heart_rate;
+            const dates=['12-01','12-02','12-03','12-04','12-05','12-06','12-07'];
+            
+            const option={
+                backgroundColor:'transparent',
+                title:{text:`${metric}趋势分析`,textStyle:{color:'#0ff',fontSize:20,fontWeight:'bold'},left:'center'},
+                tooltip:{trigger:'axis',backgroundColor:'rgba(0,20,40,0.9)',borderColor:'rgba(0,255,255,0.6)',textStyle:{color:'#fff'}},
+                grid:{left:60,right:40,top:80,bottom:60,borderColor:'rgba(0,255,255,0.4)'},
+                xAxis:{type:'category',data:dates,axisLine:{lineStyle:{color:'rgba(0,255,255,0.6)'}},axisLabel:{color:'#0cf'}},
+                yAxis:{type:'value',axisLine:{lineStyle:{color:'rgba(0,255,255,0.6)'}},axisLabel:{color:'#0cf'},splitLine:{lineStyle:{color:'rgba(0,255,255,0.15)'}}},
+                series:[{
+                    name:metric,type:'line',data:config.data,smooth:true,symbol:'circle',symbolSize:8,
+                    lineStyle:{color:config.color,width:3,shadowColor:config.color,shadowBlur:10},
+                    itemStyle:{color:config.color,shadowColor:config.color,shadowBlur:5},
+                    areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:config.color+'90'},{offset:1,color:config.color+'30'}]}}
+                }]
+            };
+            currentChart.setOption(option);
+        }
+        
+        function renderMockSidebar(container,metric){
+            const metricConfig={
+                heart_rate:{unit:'次/分',avg:69,min:65,max:73,normal:[60,100]},
+                blood_oxygen:{unit:'%',avg:98,min:97,max:99,normal:[95,100]},
+                temperature:{unit:'°C',avg:36.6,min:36.4,max:36.8,normal:[36.0,37.5]},
+                stress:{unit:'',avg:29,min:25,max:32,normal:[0,50]},
+                step:{unit:'步',avg:8900,min:7800,max:10500,normal:[6000,12000]},
+                distance:{unit:'km',avg:7.1,min:6.3,max:8.1,normal:[5,10]},
+                calorie:{unit:'千卡',avg:2230,min:2050,max:2400,normal:[1800,2500]},
+                sleep:{unit:'h',avg:7.1,min:6.8,max:7.5,normal:[7,9]}
+            };
+            
+            const config=metricConfig[metric]||metricConfig.heart_rate;
+            container.innerHTML=`
+                <div class="stat-card">
+                    <div class="stat-title">当前统计</div>
+                    <div class="stat-value">${config.avg}<span class="stat-unit">${config.unit}</span></div>
+                    <div class="stat-desc">7天平均值</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">数值范围</div>
+                    <div class="stat-value">${config.min} - ${config.max}<span class="stat-unit">${config.unit}</span></div>
+                    <div class="stat-desc">最小值到最大值</div>
+                </div>
+                <div class="baseline-info">
+                    <div class="baseline-title">正常范围</div>
+                    <div class="baseline-range">${config.normal[0]} - ${config.normal[1]} ${config.unit}</div>
+                </div>
+            `;
+        }
+        
+        function renderTrendChart(container,data,metric){
+            if(currentChart)currentChart.dispose();
+            currentChart=echarts.init(container);
+            
+            const trendData=data.trend_data||[];
+            const xAxisData=trendData.map(item=>item.date);
+            const seriesData=trendData.map(item=>item.value);
+            const normalRange=data.statistics.normal_range;
+            const color=data.chart_config.color;
+            
+            const option={
+                backgroundColor:'transparent',
+                title:{text:data.chart_config.title,textStyle:{color:'#0ff',fontSize:20,fontWeight:'bold'},left:'center'},
+                tooltip:{
+                    trigger:'axis',backgroundColor:'rgba(0,20,40,0.9)',borderColor:'rgba(0,255,255,0.6)',textStyle:{color:'#fff'},
+                    formatter:function(params){
+                        const point=params[0];
+                        return `<div style="padding:12px;"><div style="color:#0ff;font-weight:bold;">${point.name}</div><div style="color:#0f9;margin-top:6px;">${point.seriesName}: ${point.value}${data.chart_config.unit}</div><div style="color:#0cf;font-size:13px;margin-top:6px;">正常范围: ${normalRange[0]}-${normalRange[1]}${data.chart_config.unit}</div></div>`;
+                    }
+                },
+                legend:{data:[`${data.chart_config.title}值`,'正常范围'],textStyle:{color:'#0cf'},top:35},
+                grid:{left:70,right:50,top:90,bottom:70,borderColor:'rgba(0,255,255,0.4)'},
+                xAxis:{type:'category',data:xAxisData,axisLine:{lineStyle:{color:'rgba(0,255,255,0.6)'}},axisTick:{lineStyle:{color:'rgba(0,255,255,0.4)'}},axisLabel:{color:'#0cf',fontSize:13}},
+                yAxis:{type:'value',axisLine:{lineStyle:{color:'rgba(0,255,255,0.6)'}},axisTick:{lineStyle:{color:'rgba(0,255,255,0.4)'}},axisLabel:{color:'#0cf',fontSize:13},splitLine:{lineStyle:{color:'rgba(0,255,255,0.15)'}}},
+                series:[
+                    {name:`${data.chart_config.title}值`,type:'line',data:seriesData,smooth:true,symbol:'circle',symbolSize:10,lineStyle:{color:color,width:4,shadowColor:color,shadowBlur:12},itemStyle:{color:color,shadowColor:color,shadowBlur:6},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:color+'90'},{offset:1,color:color+'30'}]}}},
+                    {name:'正常范围',type:'line',data:xAxisData.map(()=>normalRange[1]),lineStyle:{color:'rgba(0,255,157,0.6)',type:'dashed'},symbol:'none',silent:true},
+                    {name:'正常范围下限',type:'line',data:xAxisData.map(()=>normalRange[0]),lineStyle:{color:'rgba(0,255,157,0.6)',type:'dashed'},symbol:'none',silent:true,areaStyle:{color:'rgba(0,255,157,0.15)'}}
+                ]
+            };
+            
+            currentChart.setOption(option);
+        }
+        
+        function renderSidebar(container,trendsData,baselineData){
+            const stats=trendsData.statistics;
+            const unit=trendsData.chart_config.unit;
+            
+            let html=`<div class="stat-card"><div class="stat-title">当前统计</div><div class="stat-value">${stats.average}<span class="stat-unit">${unit}</span></div><div class="stat-desc">平均值 (${stats.count}个数据点)</div></div><div class="stat-card"><div class="stat-title">数值范围</div><div class="stat-value">${stats.min} - ${stats.max}<span class="stat-unit">${unit}</span></div><div class="stat-desc">最小值到最大值</div></div><div class="baseline-info"><div class="baseline-title">正常范围</div><div class="baseline-range">${stats.normal_range[0]} - ${stats.normal_range[1]} ${unit}</div></div>`;
+            
+            if(baselineData)html+=`<div class="stat-card"><div class="stat-title">30天基线</div><div class="stat-value">${baselineData.average}<span class="stat-unit">${unit}</span></div><div class="stat-desc">基于${baselineData.data_points}个数据点</div></div><div class="baseline-info"><div class="baseline-title">个人基线范围</div><div class="baseline-range">${baselineData.percentile_25} - ${baselineData.percentile_75} ${unit}</div></div>`;
+            
+            container.innerHTML=html;
+        }
+    </script>
+</body>
+</html> 
