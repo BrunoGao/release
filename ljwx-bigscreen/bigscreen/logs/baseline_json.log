@@ -1,1 +1,0 @@
-{"timestamp":"2025-05-29T21:32:44.072452","level":"\u001b[32mINFO\u001b[0m","logger":"ljwx.baseline","module":"test_logging_system","function":"test_basic_logging","line":51,"message":"基线生成","thread_id":8810192576,"process_id":7901}
