@@ -18,6 +18,37 @@
 
 ### 🚀 最新更新
 
+#### v1.0.7 - 租户/部门权限管理优化 (2025-01-16)
+
+**重要改进：**
+- **权限分级控制**: 实现租户和部门的分级权限管理
+  - **admin用户**：可以创建租户（顶级组织）+ 创建部门
+  - **普通用户**：只能在自己租户下创建部门，无法创建租户
+  
+- **前端权限控制**: 动态按钮显示
+  - 只有admin角色才能看到"新增租户"按钮
+  - 普通用户只显示"新增部门"按钮
+  
+- **后端API安全**: 严格的权限验证
+  - 创建顶级组织时检查管理员权限
+  - 非admin用户尝试创建租户时返回权限错误
+
+- **文案优化**: 更准确的业务概念
+  - "组织" → "租户"：明确多租户架构
+  - "新增子组织" → "新增部门"：符合组织层级关系
+
+**权限逻辑：**
+```
+├── admin用户
+│   ├── ✅ 创建租户（顶级组织）
+│   └── ✅ 创建部门（子组织）
+└── 普通用户  
+    ├── ❌ 不能创建租户
+    └── ✅ 只能在自己租户下创建部门
+```
+
+**🔧 数据库补丁**：执行 [`patch_tenant_permissions.sql`](./patch_tenant_permissions.sql) 添加权限相关字典数据
+
 #### v1.0.6 - 健康数据查询优化 (2025-01-16)
 
 **重要改进：**
@@ -45,6 +76,7 @@ GET /t_user_health_data/page?userId=12345&departmentInfo=1940374227169349634&sta
 **影响模块：**
 - `TUserHealthDataServiceImpl.java` - 核心查询逻辑优化
 - `DeviceUserMappingServiceImpl.java` - 设备用户映射服务
+- `SysOrgUnitsController.java` - 租户/部门权限控制
 
 ### 技术选型
 
@@ -95,6 +127,86 @@ git clone https://github.com/brunoGao/ljwx-boot-starter
 3. 修改`ljwx-boot`项目中的`application-dev.yml`文件中的`数据库`以及`Redis`连接信息
 4. 启动`LjwxBootApplication`类
 5. 看到`---[LjwxBoot]-[ljwx-boot-admin]-启动完成，当前使用的端口:[9999]，环境变量:[mybatis,dev]---`即代表启动成功
+
+### 📊 数据字典SQL
+
+系统使用数据字典来管理下拉选项、状态值等基础数据。以下是核心数据字典表的建表SQL：
+
+#### 字典主表 (sys_dict)
+```sql
+CREATE TABLE `sys_dict` (
+  `id` bigint NOT NULL COMMENT 'ID',
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '字典名称',
+  `code` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '字典编码',
+  `type` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '字典类型(1:系统字典,2:业务字典)',
+  `sort` int DEFAULT NULL COMMENT '排序值',
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '字典描述',
+  `status` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `create_user` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '创建用户名称',
+  `create_user_id` bigint DEFAULT NULL COMMENT '创建用户ID',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_user` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '更新用户名称',
+  `update_user_id` bigint DEFAULT NULL COMMENT '更新用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  `is_deleted` tinyint DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='数据字典主表';
+```
+
+#### 字典子项表 (sys_dict_item)
+```sql
+CREATE TABLE `sys_dict_item` (
+  `id` bigint NOT NULL COMMENT 'ID',
+  `dict_id` bigint DEFAULT NULL COMMENT '父字典ID',
+  `dict_code` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '父字典编码',
+  `value` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '数据值',
+  `zh_cn` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '中文名称',
+  `en_us` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '英文名称',
+  `type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '类型(前端渲染类型)',
+  `sort` int DEFAULT NULL COMMENT '排序值',
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '字典描述',
+  `status` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `create_user` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '创建用户名称',
+  `create_user_id` bigint DEFAULT NULL COMMENT '创建用户ID',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_user` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '更新用户名称',
+  `update_user_id` bigint DEFAULT NULL COMMENT '更新用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  `is_deleted` tinyint DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`),
+  KEY `idx_dict_code` (`dict_code`),
+  KEY `idx_dict_id` (`dict_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='数据字典子项表';
+```
+
+#### 基础字典数据
+```sql
+-- 状态字典
+INSERT INTO `sys_dict` (`id`, `name`, `code`, `type`, `sort`, `description`, `status`) VALUES 
+(1, '状态', 'status', '1', 1, '通用状态字典', '1');
+
+INSERT INTO `sys_dict_item` (`id`, `dict_id`, `dict_code`, `value`, `zh_cn`, `en_us`, `type`, `sort`, `description`, `status`) VALUES 
+(1, 1, 'status', '0', '禁用', 'Disabled', 'error', 1, '禁用状态', '1'),
+(2, 1, 'status', '1', '启用', 'Enabled', 'success', 2, '启用状态', '1');
+
+-- 用户状态字典  
+INSERT INTO `sys_dict` (`id`, `name`, `code`, `type`, `sort`, `description`, `status`) VALUES 
+(2, '用户状态', 'user_status', '1', 2, '用户状态字典', '1');
+
+INSERT INTO `sys_dict_item` (`id`, `dict_id`, `dict_code`, `value`, `zh_cn`, `en_us`, `type`, `sort`, `description`, `status`) VALUES 
+(3, 2, 'user_status', '0', '禁用', 'Disabled', 'error', 1, '用户禁用', '1'),
+(4, 2, 'user_status', '1', '正常', 'Normal', 'success', 2, '用户正常', '1'),
+(5, 2, 'user_status', '2', '锁定', 'Locked', 'warning', 3, '用户锁定', '1');
+
+-- 字典类型字典
+INSERT INTO `sys_dict` (`id`, `name`, `code`, `type`, `sort`, `description`, `status`) VALUES 
+(3, '字典类型', 'dict_type', '1', 3, '字典类型分类', '1');
+
+INSERT INTO `sys_dict_item` (`id`, `dict_id`, `dict_code`, `value`, `zh_cn`, `en_us`, `type`, `sort`, `description`, `status`) VALUES 
+(6, 3, 'dict_type', '1', '系统字典', 'System Dict', 'primary', 1, '系统内置字典', '1'),
+(7, 3, 'dict_type', '2', '业务字典', 'Business Dict', 'info', 2, '业务定制字典', '1');
+```
 
 ### 项目结构
 
