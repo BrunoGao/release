@@ -1,12 +1,19 @@
 # LJWX BigScreen CI/CD 多架构优化方案
-## 版本 1.3.1 - AMD64 & ARM64 双架构支持
+## 版本 1.3.2 - 智能地图定位 + AMD64 & ARM64 双架构支持
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/ljwx-bigscreen/actions)
 [![Docker](https://img.shields.io/badge/docker-multi--arch-blue)](https://hub.docker.com/r/ljwx-bigscreen/ljwx-bigscreen)
 [![Architecture](https://img.shields.io/badge/arch-AMD64%20%7C%20ARM64-orange)](https://github.com/ljwx-bigscreen)
-[![Version](https://img.shields.io/badge/version-1.3.1-green)](https://github.com/ljwx-bigscreen/releases)
+[![Version](https://img.shields.io/badge/version-1.3.2-green)](https://github.com/ljwx-bigscreen/releases)
 
 ## 🚀 新功能特性
+
+### ✨ 1.3.2 版本亮点
+- 🗺️ **智能地图定位**: 员工搜索后自动跳转到GPS位置，保持最佳视野
+- 🎯 **多数据源支持**: 从健康数据和告警数据中智能查找用户位置
+- 🔍 **增强搜索体验**: 支持模糊搜索和下拉选择，快速定位员工
+- ✅ **坐标验证优化**: 自动过滤无效GPS数据，提升定位准确性
+- 💡 **调试友好**: 详细控制台日志，便于问题排查和系统监控
 
 ### ✨ 1.3.1 版本亮点
 - 🏗️ **多架构支持**: 原生支持 AMD64 和 ARM64 架构
@@ -408,6 +415,19 @@ git push origin feature/multi-arch-optimization
 
 ## 🎉 更新日志
 
+### v1.3.2 (2025-01-14)
+- 🗺️ **优化总览大屏地图跳转功能**
+  - 修复员工搜索后地图不跳转到员工位置的问题
+  - 新增智能地图定位：选择员工后自动平移到员工GPS位置
+  - 优化缩放策略：保持用户当前视野高度，只改变中心点
+  - 支持多数据源定位：从健康数据和告警数据中查找用户位置
+  - 增强坐标验证：过滤无效GPS坐标，提升定位准确性
+  - 完善错误处理：详细的调试日志和异常处理机制
+- 🎯 **用户体验提升**
+  - 地图智能平移到员工位置，无需手动调整视野
+  - 支持模糊搜索和下拉选择两种定位方式
+  - 流畅的视觉过渡效果，提供良好交互体验
+
 ### v1.3.1 (2024-12-07)
 - ✨ 新增多架构支持 (AMD64 + ARM64)
 - 🚀 优化 CI/CD 流水线，构建速度提升 40%
@@ -424,6 +444,6 @@ git push origin feature/multi-arch-optimization
 
 ---
 
-*最后更新: 2024-12-07*
+*最后更新: 2025-01-14*
 
 **🌟 如果这个项目对您有帮助，请给我们一个 Star！**

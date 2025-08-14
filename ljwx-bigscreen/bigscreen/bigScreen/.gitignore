@@ -1,0 +1,22 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+# 忽略虚拟环境
+bin/
+lib/
+lib64/
+include/
+share/
+pyvenv.cfg
+
+# 忽略Python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 忽略临时文件
+*.log
+*.tmp
+.DS_Store
+
+# 重要：保留templates目录，它包含项目的核心模板文件
+!templates/
