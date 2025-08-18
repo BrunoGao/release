@@ -43,23 +43,48 @@ import lombok.experimental.SuperBuilder;
 public class TWechatAlertConfig extends BaseEntity {
 
     /**
-    * WeChat App ID
-    */
-    private String appId;
+     * 租户ID
+     */
+    private Long tenantId;
 
     /**
-    * WeChat App Secret
-    */
-    private String appSecret;
+     * 微信类型: enterprise/official
+     */
+    private String type;
 
     /**
-    * WeChat Template ID
-    */
+     * 企业微信企业ID
+     */
+    private String corpId;
+
+    /**
+     * 企业微信应用ID
+     */
+    private String agentId;
+
+    /**
+     * 企业微信应用Secret
+     */
+    private String secret;
+
+    /**
+     * 微信公众号AppID
+     */
+    private String appid;
+
+    /**
+     * 微信公众号AppSecret
+     */
+    private String appsecret;
+
+    /**
+     * 微信模板ID
+     */
     private String templateId;
 
     /**
-    * WeChat User OpenID
-    */
-    private String userOpenid;
+     * 是否启用
+     */
+    private Boolean enabled;
 
 }

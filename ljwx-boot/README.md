@@ -2,7 +2,7 @@
 
 ![SpringBoot](https://img.shields.io/badge/Spring%20Boot-3.3-blue.svg)
 ![JDK](https://img.shields.io/badge/JDK-21+-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.0.5--SNAPSHOT-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.0.10--SNAPSHOT-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-brunoGao-green.svg)](https://github.com/brunoGao)
@@ -17,6 +17,44 @@
 在市面上虽然存在众多出色的 Java 后端管理系统框架，但还是决定重复再造一个轮子。
 
 ### 🚀 最新更新
+
+#### v1.0.10 - 健康数据配置服务优化与API修复 (2025-08-18)
+
+**🔧 健康数据配置服务架构重构**
+- **新增专用服务方法**: 为 `t_health_data_config` 表创建专门的查询服务
+  - `getEnabledConfigsByOrgId(orgId)`: 根据部门ID查询启用的健康数据配置
+  - `getBaseConfigsByOrgId(orgId)`: 查询基础健康特征，自动过滤高级功能字段
+  - 支持按 `weight` 权重排序，优化数据展示顺序
+
+**🎯 基础特征过滤优化**
+- **智能字段过滤**: 基础健康特征自动排除以下高级功能：
+  ```
+  排除字段: location, wear, ecg, exercise_daily, 
+           exercise_week, scientific_sleep, work_out
+  ```
+- **层级数据隔离**: 所有配置查询自动应用部门层级权限
+- **统一调用接口**: 替换原有直接数据库查询，使用标准化服务方法
+
+**🚀 健康特征API完善**
+- **新增健康特征控制器**: `/health/feature/*` 端点支持
+  - `/health/feature/base`: 获取基础健康特征列表
+  - `/health/feature/full`: 获取全量健康特征列表  
+  - `/health/feature/mapping`: 获取特征映射关系
+- **前端兼容性修复**: 解决 `userId=all` 参数处理问题
+- **参数优化**: 后端支持可选 `userId` 参数，提升API灵活性
+
+**📊 数据服务整合**
+- **统一配置查询**: `ITUserHealthDataService` 集成新的配置服务
+- **性能优化**: 减少重复查询，提升数据获取效率
+- **权限一致性**: 确保健康数据与配置权限完全对齐
+
+**技术实现架构：**
+```
+健康数据配置流程:
+orgId → getTopLevelDeptIdByOrgId() → 顶级部门ID 
+     → getBaseConfigsByOrgId() → 过滤后的配置列表
+     → 前端特征选择器 → 用户数据展示
+```
 
 #### v1.0.9 - 分级部门管理权限系统 (2025-08-18)
 

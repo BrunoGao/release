@@ -51,10 +51,13 @@ public class SysPositionServiceImpl extends ServiceImpl<SysPositionMapper, SysPo
                 .like(ObjectUtils.isNotEmpty(sysPositionBO.getName()), SysPosition::getName, sysPositionBO.getName())
                 .eq(ObjectUtils.isNotEmpty(sysPositionBO.getStatus()), SysPosition::getStatus, sysPositionBO.getStatus());
                 
-
-        if (sysPositionBO.getOrgId() != 0L) {
-            queryWrapper.eq(ObjectUtils.isNotEmpty(sysPositionBO.getOrgId()), SysPosition::getOrgId, sysPositionBO.getOrgId());
+        // 部门过滤（基于orgId）
+        if (sysPositionBO.getOrgIds() != null && !sysPositionBO.getOrgIds().isEmpty()) {
+            queryWrapper.in(SysPosition::getOrgId, sysPositionBO.getOrgIds());
+        } else if (sysPositionBO.getOrgId() != null && sysPositionBO.getOrgId() != 0L) {
+            queryWrapper.eq(SysPosition::getOrgId, sysPositionBO.getOrgId());
         }
+        
         return baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
     }
 
@@ -70,6 +73,18 @@ public class SysPositionServiceImpl extends ServiceImpl<SysPositionMapper, SysPo
     public List<SysPositionBO> queryAllPositionList() {
         LambdaQueryWrapper<SysPosition> queryWrapper = new LambdaQueryWrapper<SysPosition>()
                 .orderByAsc(SysPosition::getSort);
+        return CglibUtil.convertList(baseMapper.selectList(queryWrapper), SysPositionBO::new);
+    }
+
+    @Override
+    public List<SysPositionBO> queryAllPositionListByCustomerIds(List<Long> customerIds) {
+        LambdaQueryWrapper<SysPosition> queryWrapper = new LambdaQueryWrapper<SysPosition>();
+        
+        if (customerIds != null && !customerIds.isEmpty()) {
+            queryWrapper.in(SysPosition::getCustomerId, customerIds);
+        }
+        
+        queryWrapper.orderByAsc(SysPosition::getSort);
         return CglibUtil.convertList(baseMapper.selectList(queryWrapper), SysPositionBO::new);
     }
 }

@@ -36,7 +36,10 @@ public class LongAsStringModule extends SimpleModule {
         addSerializer(Long.class, new JsonSerializer<>() {
             @Override
             public void serialize(Long value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-                if (value > Integer.MAX_VALUE || value < Integer.MIN_VALUE) {
+                // JavaScript Number.MAX_SAFE_INTEGER = 2^53 - 1 = 9007199254740991
+                // 超过这个值就会有精度问题，所以转为字符串
+                if (value > 9007199254740991L || value < -9007199254740991L) {
+                    log.debug("Long value {} exceeds JavaScript safe integer range, converting to string", value);
                     gen.writeString(value.toString());
                 } else {
                     gen.writeNumber(value);
@@ -52,15 +55,30 @@ public class LongAsStringModule extends SimpleModule {
             }
         });
 
-        // 反序列化时，当值为字符串类型并且能转换为 Long 类型时，转换为 Long 类型
+        // 反序列化时，当值为字符串类型或数值类型时，转换为 Long 类型
         addDeserializer(Long.class, new JsonDeserializer<>() {
             @Override
             public Long deserialize(JsonParser p, DeserializationContext deserializationContext) throws IOException {
-                String value = p.getValueAsString();
-                try {
-                    return Long.parseLong(value);
-                } catch (NumberFormatException e) {
-                    throw new InvalidFormatException(p, "Invalid numeric value: " + value, value, Long.class);
+                if (p.hasToken(JsonToken.VALUE_STRING)) {
+                    // 字符串值，直接解析
+                    String value = p.getValueAsString();
+                    try {
+                        return Long.parseLong(value);
+                    } catch (NumberFormatException e) {
+                        throw new InvalidFormatException(p, "Invalid numeric value: " + value, value, Long.class);
+                    }
+                } else if (p.hasToken(JsonToken.VALUE_NUMBER_INT)) {
+                    // 整数值，可能有精度问题，优先使用文本形式
+                    try {
+                        return p.getLongValue();
+                    } catch (IOException e) {
+                        // 如果精度丢失，尝试从文本获取
+                        String numStr = p.getValueAsString();
+                        log.warn("Long value precision issue detected, using text representation: {}", numStr);
+                        return Long.parseLong(numStr);
+                    }
+                } else {
+                    throw new InvalidFormatException(p, "Cannot deserialize Long from " + p.getCurrentToken(), null, Long.class);
                 }
             }
         });

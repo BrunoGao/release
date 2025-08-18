@@ -46,9 +46,15 @@ export function fetchDeleteUserHealthData(data: Api.Common.DeleteParams) {
 }
 
 export function fetchUserHealthData(params?: Api.Health.HealthChartSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request({
     url: '/t_user_health_data/getUserHealthData',
-    params
+    params: filteredParams
   });
 }
 

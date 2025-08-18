@@ -25,6 +25,8 @@ import com.ljwx.infrastructure.page.PageQuery;
 import com.ljwx.modules.customer.domain.bo.THealthDataConfigBO;
 import com.ljwx.modules.customer.domain.entity.THealthDataConfig;
 
+import java.util.List;
+
 /**
  *  Service 服务接口层
  *
@@ -46,4 +48,24 @@ public interface ITHealthDataConfigService extends IService<THealthDataConfig> {
      * @CreateTime 2024-12-29 - 15:02:31
      */
     IPage<THealthDataConfig> listTHealthDataConfigPage(PageQuery pageQuery, THealthDataConfigBO tHealthDataConfigBO);
+
+    /**
+     * 根据 orgId 查询启用的健康数据配置
+     *
+     * @param orgId 组织ID
+     * @return {@link List} 启用的健康数据配置列表
+     * @author jjgao
+     * @CreateTime 2025-08-18
+     */
+    List<THealthDataConfig> getEnabledConfigsByOrgId(Long orgId);
+
+    /**
+     * 根据 orgId 查询基础健康数据配置（过滤掉不需要的字段）
+     *
+     * @param orgId 组织ID
+     * @return {@link List} 基础健康数据配置列表
+     * @author jjgao
+     * @CreateTime 2025-08-18
+     */
+    List<THealthDataConfig> getBaseConfigsByOrgId(Long orgId);
 }

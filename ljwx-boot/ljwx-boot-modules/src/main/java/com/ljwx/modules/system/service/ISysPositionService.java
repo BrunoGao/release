@@ -66,4 +66,14 @@ public interface ISysPositionService extends IService<SysPosition> {
      * @CreateTime 2024-07-19 - 18:30:18
      */
     List<SysPositionBO> queryAllPositionList();
+
+    /**
+     * 根据租户ID列表查询岗位列表
+     *
+     * @param customerIds 租户ID列表
+     * @return {@link List }<{@link SysPositionBO }> 岗位列表
+     * @author bruno.gao
+     * @CreateTime 2025-08-18
+     */
+    List<SysPositionBO> queryAllPositionListByCustomerIds(List<Long> customerIds);
 }

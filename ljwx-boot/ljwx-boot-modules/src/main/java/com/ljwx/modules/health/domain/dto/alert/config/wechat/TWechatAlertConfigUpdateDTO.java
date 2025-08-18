@@ -35,26 +35,37 @@ import java.io.Serializable;
 
 @Getter
 @Setter
-@Schema(name = "TWechatAlertConfigUpdateDTO", description = "Table to store WeChat alert configuration 编辑更新 DTO 对象")
+@Schema(name = "TWechatAlertConfigUpdateDTO", description = "微信告警配置更新 DTO 对象")
 public class TWechatAlertConfigUpdateDTO implements Serializable {
 
-    @Schema(description = "ID")
+    @Schema(description = "主键ID", required = true)
     private Long id;
-    private String appId;
 
-    /**
-     * WeChat App Secret
-     */
-    private String appSecret;
+    @Schema(description = "租户ID")
+    private Long tenantId;
 
-    /**
-     * WeChat Template ID
-     */
+    @Schema(description = "微信类型: enterprise/official")
+    private String type;
+
+    @Schema(description = "企业微信企业ID")
+    private String corpId;
+
+    @Schema(description = "企业微信应用ID")
+    private String agentId;
+
+    @Schema(description = "企业微信应用Secret")
+    private String secret;
+
+    @Schema(description = "微信公众号AppID")
+    private String appid;
+
+    @Schema(description = "微信公众号AppSecret")
+    private String appsecret;
+
+    @Schema(description = "微信模板ID")
     private String templateId;
 
-    /**
-     * WeChat User OpenID
-     */
-    private String userOpenid;
+    @Schema(description = "是否启用")
+    private Boolean enabled;
 
 }

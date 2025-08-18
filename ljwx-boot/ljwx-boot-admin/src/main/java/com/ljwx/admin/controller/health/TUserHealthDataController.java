@@ -76,7 +76,7 @@ public class TUserHealthDataController {
     @Operation(summary = "获取用户健康信息")
     @GetMapping(value = "/getUserHealthData")
     public HttpEntity<Object> getUserHealthData(@RequestParam("departmentInfo") String departmentInfo,
-                                                @RequestParam("userName") String userName,
+                                                @RequestParam(value = "userId", required = false) String userId,
                                                 @RequestParam("startDate") Long startDateStr,
                                                 @RequestParam("endDate") Long endDateStr,
                                                 @RequestParam("timeType") String timeType) {
@@ -97,13 +97,13 @@ public class TUserHealthDataController {
         System.out.println("Adjusted End DateTime: " + adjustedEndDateTime);
 
             // Pass the new parameters to the service method
-            return tUserHealthDataService.getUserHealthData(departmentInfo, userName, adjustedStartDateTime, adjustedEndDateTime, timeType);
+            return tUserHealthDataService.getUserHealthData(departmentInfo, userId, adjustedStartDateTime, adjustedEndDateTime, timeType);
 
         } catch (DateTimeParseException e) {
             log.error("Error parsing dates: startDate={}, endDate={}, exception={}", startDateStr, endDateStr, e.getMessage(), e);
             return new ResponseEntity<>("Invalid date format", HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            log.error("Unexpected error: startDate={}, endDate={}, exception={}", startDateStr, endDateStr, e);
+            log.error("Unexpected error: startDate={}, endDate={}, userId={}, exception={}", startDateStr, endDateStr, userId, e);
             return new ResponseEntity<>("An error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

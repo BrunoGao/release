@@ -55,12 +55,12 @@ public interface ITUserHealthDataService extends IService<TUserHealthData> {
     /**
      * 获取用户健康数据
      *
-     * @param userName 用户名
+     * @param userId 用户ID
      * @param deviceSn 设备SN
      * @param startDate 开始日期
      * @param endDate 结束日期
      * @param timeType 时间类型
      * @return {@link List} 健康数据列表
      */
-    ResponseEntity<Object> getUserHealthData(String departmentInfo, String userName, LocalDateTime startDate, LocalDateTime endDate, String timeType);
+    ResponseEntity<Object> getUserHealthData(String departmentInfo, String userId, LocalDateTime startDate, LocalDateTime endDate, String timeType);
 }

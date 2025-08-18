@@ -65,7 +65,7 @@ public class SysOrgUnitsController {
     public Result<Boolean> add(@Parameter(description = "新增对象") @RequestBody SysOrgUnitsAddDTO sysOrgUnitsAddDTO) {
         // 检查权限：只有管理员才能创建顶级租户（parentId为0或1）
         if (isTopLevelOrg(sysOrgUnitsAddDTO.getParentId()) && !isAdminUser()) {
-            return Result.fail("只有管理员才能创建租户，普通用户只能在自己的租户下创建部门");
+            return Result.failure("只有管理员才能创建租户，普通用户只能在自己的租户下创建部门");
         }
         
         return Result.status(sysOrgUnitsFacade.add(sysOrgUnitsAddDTO));

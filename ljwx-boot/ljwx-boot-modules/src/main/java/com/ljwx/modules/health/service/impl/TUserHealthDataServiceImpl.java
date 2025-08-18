@@ -286,11 +286,9 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             }
         }
         
-        List<THealthDataConfig> enabledColumns = healthDataConfigService.list(
-            new LambdaQueryWrapper<THealthDataConfig>()
-                .eq(THealthDataConfig::getIsEnabled, 1)
-                .eq(THealthDataConfig::getCustomerId, topLevelDeptId != null ? topLevelDeptId : tUserHealthDataBO.getDepartmentInfo())
-        );
+        // 使用新的服务方法获取启用的健康数据配置
+        Long orgIdForQuery = topLevelDeptId != null ? topLevelDeptId : Long.parseLong(tUserHealthDataBO.getDepartmentInfo());
+        List<THealthDataConfig> enabledColumns = healthDataConfigService.getEnabledConfigsByOrgId(orgIdForQuery);
 
         // 批量获取分表数据（避免n+1问题）
         // 根据查询类型决定是否需要批量获取分表数据

@@ -50,4 +50,19 @@ public class SysPositionBO extends SysPosition {
      */
     private Long orgId;
 
+    /**
+     * 组织ID列表 (用于权限过滤)
+     */
+    private List<Long> orgIds;
+
+    /**
+     * 租户ID (0表示全局岗位，所有租户可见)
+     */
+    private Long customerId;
+
+    /**
+     * 租户ID列表 (用于多租户过滤)
+     */
+    private List<Long> customerIds;
+
 }

@@ -32,6 +32,9 @@ import org.springframework.stereotype.Service;
 import com.ljwx.modules.system.service.ISysOrgUnitsService;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+
+import java.util.Arrays;
+import java.util.List;
 /**
  *  Service 服务接口实现层
  *
@@ -61,6 +64,35 @@ public class THealthDataConfigServiceImpl extends ServiceImpl<THealthDataConfigM
             .eq(ObjectUtils.isNotEmpty(tHealthDataConfigBO.getDataType()), THealthDataConfig::getDataType, tHealthDataConfigBO.getDataType())
             .orderByDesc(THealthDataConfig::getCreateTime);
         return baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
+    }
+
+    @Override
+    public List<THealthDataConfig> getEnabledConfigsByOrgId(Long orgId) {
+        // 获取顶级部门ID用于查询配置
+        Long topLevelDeptId = sysOrgUnitsService.getTopLevelDeptIdByOrgId(orgId);
+        
+        return list(new LambdaQueryWrapper<THealthDataConfig>()
+            .eq(THealthDataConfig::getIsEnabled, 1)
+            .eq(THealthDataConfig::getCustomerId, topLevelDeptId)
+            .orderByDesc(THealthDataConfig::getWeight));
+    }
+
+    @Override
+    public List<THealthDataConfig> getBaseConfigsByOrgId(Long orgId) {
+        // 定义需要过滤掉的字段
+        List<String> excludedTypes = Arrays.asList(
+            "location", "wear", "ecg", "exercise_daily", 
+            "exercise_week", "scientific_sleep", "work_out"
+        );
+        
+        // 获取顶级部门ID用于查询配置
+        Long topLevelDeptId = sysOrgUnitsService.getTopLevelDeptIdByOrgId(orgId);
+        
+        return list(new LambdaQueryWrapper<THealthDataConfig>()
+            .eq(THealthDataConfig::getIsEnabled, 1)
+            .eq(THealthDataConfig::getCustomerId, topLevelDeptId)
+            .notIn(THealthDataConfig::getDataType, excludedTypes)
+            .orderByDesc(THealthDataConfig::getWeight));
     }
 
 }

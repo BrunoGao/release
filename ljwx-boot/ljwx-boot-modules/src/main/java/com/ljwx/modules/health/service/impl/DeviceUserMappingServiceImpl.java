@@ -102,6 +102,16 @@ public class DeviceUserMappingServiceImpl implements IDeviceUserMappingService {
             List<SysUser> users = sysUserService.getUsersByOrgId(deptId);
             log.info("📊 找到用户数量: {}", users.size());
             
+            if (users.isEmpty()) {
+                log.warn("⚠️ 部门 {} 下没有找到任何用户", deptId);
+            } else {
+                log.info("👥 部门用户详情:");
+                users.forEach(user -> 
+                    log.info("  用户ID: {}, 姓名: {}, 设备SN: {}", 
+                        user.getId(), user.getUserName(), user.getDeviceSn())
+                );
+            }
+            
             if (users.isEmpty()) return Collections.emptyList();
             
             List<String> deviceSnList = users.stream()

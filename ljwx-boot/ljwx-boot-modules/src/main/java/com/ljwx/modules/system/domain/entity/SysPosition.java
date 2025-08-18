@@ -68,4 +68,9 @@ public class SysPosition extends BaseEntity {
      * 岗位权重(健康评分用)
      */
     private BigDecimal weight;
+
+    /**
+     * 租户ID (0表示全局岗位，所有租户可见)
+     */
+    private Long customerId;
 }

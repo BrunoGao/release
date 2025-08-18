@@ -49,14 +49,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @Tag(name = "Table to store WeChat alert configuration")
 @RequiredArgsConstructor
-@RequestMapping("t_wechat_alert_config")
+@RequestMapping("t_wechat_alarm_config")
 public class TWechatAlertConfigController {
 
     @NonNull
     private ITWechatAlertConfigFacade tWechatAlertConfigFacade;
 
     @GetMapping("/page")
-    @SaCheckPermission("t:wechat:alert:config:page")
+    @SaCheckPermission("t:wechat:alarm:config:page")
     @Operation(operationId = "1", summary = "获取Table to store WeChat alert configuration列表")
     public Result<RPage<TWechatAlertConfigVO>> page(@Parameter(description = "分页对象", required = true) @Valid PageQuery pageQuery,
                                                     @Parameter(description = "查询对象") TWechatAlertConfigSearchDTO tWechatAlertConfigSearchDTO) {
@@ -64,28 +64,28 @@ public class TWechatAlertConfigController {
     }
 
     @GetMapping("/{id}")
-    @SaCheckPermission("t:wechat:alert:config:get")
+    @SaCheckPermission("t:wechat:alarm:config:get")
     @Operation(operationId = "2", summary = "根据ID获取Table to store WeChat alert configuration详细信息")
     public Result<TWechatAlertConfigVO> get(@Parameter(description = "ID") @PathVariable("id") Long id) {
         return Result.data(tWechatAlertConfigFacade.get(id));
     }
 
     @PostMapping("/")
-    @SaCheckPermission("t:wechat:alert:config:add")
+    @SaCheckPermission("t:wechat:alarm:config:add")
     @Operation(operationId = "3", summary = "新增Table to store WeChat alert configuration")
     public Result<Boolean> add(@Parameter(description = "新增对象") @RequestBody TWechatAlertConfigAddDTO tWechatAlertConfigAddDTO) {
         return Result.status(tWechatAlertConfigFacade.add(tWechatAlertConfigAddDTO));
     }
 
     @PutMapping("/")
-    @SaCheckPermission("t:wechat:alert:config:update")
+    @SaCheckPermission("t:wechat:alarm:config:update")
     @Operation(operationId = "4", summary = "更新Table to store WeChat alert configuration信息")
     public Result<Boolean> update(@Parameter(description = "更新对象") @RequestBody TWechatAlertConfigUpdateDTO tWechatAlertConfigUpdateDTO) {
         return Result.status(tWechatAlertConfigFacade.update(tWechatAlertConfigUpdateDTO));
     }
 
     @DeleteMapping("/")
-    @SaCheckPermission("t:wechat:alert:config:delete")
+    @SaCheckPermission("t:wechat:alarm:config:delete")
     @Operation(operationId = "5", summary = "批量删除Table to store WeChat alert configuration信息")
     public Result<Boolean> batchDelete(@Parameter(description = "删除对象") @RequestBody TWechatAlertConfigDeleteDTO tWechatAlertConfigDeleteDTO) {
         return Result.status(tWechatAlertConfigFacade.batchDelete(tWechatAlertConfigDeleteDTO));
