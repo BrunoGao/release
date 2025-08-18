@@ -39,6 +39,8 @@ import java.io.Serializable;
 public class TDeviceInfoSearchDTO implements Serializable {
     private String departmentInfo;
 
+    private String orgId;  // 前端发送的参数名
+
     private String userId;
 
     private String serialNumber;

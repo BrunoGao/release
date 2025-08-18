@@ -2,7 +2,7 @@
 
 ![SpringBoot](https://img.shields.io/badge/Spring%20Boot-3.3-blue.svg)
 ![JDK](https://img.shields.io/badge/JDK-21+-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.0.10--SNAPSHOT-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.0.11--SNAPSHOT-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-brunoGao-green.svg)](https://github.com/brunoGao)
@@ -17,6 +17,33 @@
 在市面上虽然存在众多出色的 Java 后端管理系统框架，但还是决定重复再造一个轮子。
 
 ### 🚀 最新更新
+
+#### v1.0.11 - 组织架构权限优化与租户部门区分 (2025-08-18)
+
+**🏢 租户与部门层级权限管理**
+- **智能权限区分**: 实现租户与部门的严格权限隔离
+  - 超级管理员：可创建和管理租户（顶级组织）
+  - 部门管理员：只能在所属租户下创建和管理部门
+  - 自动权限检查：防止越权操作和数据泄露
+
+**🔐 前端UI权限适配**
+- **动态表单字段**: 根据用户权限动态显示表单标签
+  - 超级管理员：显示"租户名称"、"租户编码"等租户字段
+  - 部门管理员：显示"部门名称"、"部门编码"等部门字段
+- **按钮权限控制**: 新增按钮仅对有权限的用户可见
+- **自动层级设置**: 非管理员用户新建部门时自动设置正确的父级关系
+
+**🛡️ 后端安全加固**
+- **API层权限校验**: 控制器级别的租户创建权限检查
+- **数据库约束**: 通过 `parentId` 和 `ancestors` 字段确保数据完整性
+- **用户身份验证**: 集成 SaToken 进行细粒度权限控制
+
+**📋 部门管理功能增强**
+- **层级查询优化**: 使用 FIND_IN_SET 支持复杂的部门层级查询
+- **设备绑定过滤**: 设备管理界面只显示当前部门管辖范围内的非管理员用户设备
+- **健康数据隔离**: 健康数据查询严格按照部门权限进行数据隔离
+
+---
 
 #### v1.0.10 - 健康数据配置服务优化与API修复 (2025-08-18)
 

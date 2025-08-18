@@ -65,20 +65,26 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
         .inSql(TDeviceInfo::getId, "SELECT id FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY serial_number ORDER BY timestamp DESC) as rn FROM t_device_info) t WHERE rn = 1")
         .orderByDesc(TDeviceInfo::getTimestamp);
 // ... existing code ...
-        // 🔧 修复: departmentInfo=0时查询所有设备 #条件过滤优化
+        // 🔧 设备过滤逻辑: 根据用户ID或部门ID过滤设备，特殊处理orgId=0的情况
         System.out.println("🔍 查询条件 - userIdStr: " + tDeviceInfoBO.getUserIdStr() + ", departmentInfo: " + tDeviceInfoBO.getDepartmentInfo());
+        System.out.println("🔍 过滤条件判断 - userIdStr isEmpty: " + ObjectUtils.isEmpty(tDeviceInfoBO.getUserIdStr()) 
+            + ", departmentInfo isEmpty: " + ObjectUtils.isEmpty(tDeviceInfoBO.getDepartmentInfo()) 
+            + ", departmentInfo equals '0': " + "0".equals(tDeviceInfoBO.getDepartmentInfo()));
         
+        // 当有具体的用户ID或者部门ID不为空且不为"0"时进行过滤
         if (ObjectUtils.isNotEmpty(tDeviceInfoBO.getUserIdStr()) || 
            (ObjectUtils.isNotEmpty(tDeviceInfoBO.getDepartmentInfo()) && !"0".equals(tDeviceInfoBO.getDepartmentInfo()))) {
             
+            System.out.println("🔍 开始调用 getDeviceSnList 进行设备过滤...");
             List<String> deviceSnList = deviceUserMappingService.getDeviceSnList(
                 tDeviceInfoBO.getUserIdStr(),
                 tDeviceInfoBO.getDepartmentInfo()
             );
 
-            System.out.println("✅ 获取设备列表: " + deviceSnList.toString());
+            System.out.println("✅ 获取设备列表: " + (deviceSnList != null ? deviceSnList.toString() : "null"));
             
             if (deviceSnList == null || deviceSnList.isEmpty()) {
+                System.out.println("⚠️ 设备列表为空，返回空页面");
                 return pageQuery.buildPage();
             }
             
@@ -88,11 +94,17 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
                 .distinct()
                 .collect(Collectors.toList());
             
+            System.out.println("✅ 过滤后有效设备列表: " + validDeviceSnList.toString());
+            
             if (validDeviceSnList.isEmpty()) {
+                System.out.println("⚠️ 有效设备列表为空，返回空页面");
                 return pageQuery.buildPage();
             }
             
             queryWrapper.in(TDeviceInfo::getSerialNumber, validDeviceSnList);
+            System.out.println("✅ 已添加设备序列号过滤条件");
+        } else {
+            System.out.println("⚠️ 跳过设备过滤，将查询所有设备");
         }
 
         // 执行分页查询

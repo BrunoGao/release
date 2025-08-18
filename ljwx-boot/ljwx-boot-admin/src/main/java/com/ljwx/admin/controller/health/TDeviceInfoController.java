@@ -60,6 +60,11 @@
      @Operation(operationId = "1", summary = "获取列表")
      public Result<RPage<TDeviceInfoVO>> page(@Parameter(description = "分页对象", required = true) @Valid PageQuery pageQuery,
                                               @Parameter(description = "查询对象") TDeviceInfoSearchDTO tDeviceInfoSearchDTO) {
+         System.out.println("🔍 TDeviceInfoController.page - 接收到查询参数:");
+         System.out.println("  departmentInfo: " + tDeviceInfoSearchDTO.getDepartmentInfo());
+         System.out.println("  userId: " + tDeviceInfoSearchDTO.getUserId());
+         System.out.println("  serialNumber: " + tDeviceInfoSearchDTO.getSerialNumber());
+         System.out.println("  status: " + tDeviceInfoSearchDTO.getStatus());
          return Result.data(tDeviceInfoFacade.listTDeviceInfoPage(pageQuery, tDeviceInfoSearchDTO));
      }
  

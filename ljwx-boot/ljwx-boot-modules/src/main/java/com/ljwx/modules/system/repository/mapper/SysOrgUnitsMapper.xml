@@ -61,6 +61,10 @@
         FROM sys_org_units sou
         WHERE
         <choose>
+            <when test="bo.id != null and bo.id != '' and bo.id != 0">
+                <!-- 当指定部门ID时，只查询该部门作为顶级节点，子部门通过listAllDescendants查询 -->
+                sou.id = #{bo.id}
+            </when>
             <when test="bo.name != null and bo.name != ''">
                 sou.name LIKE CONCAT(#{bo.name}, '%')
             </when>
@@ -70,9 +74,6 @@
         </choose>
         <if test="bo.status != null and bo.status != ''">
             AND sou.status = #{bo.status}
-        </if>
-        <if test="bo.id != null and bo.id != '' and bo.id != 0">
-            AND sou.id = #{bo.id}
         </if>
         AND sou.is_deleted = 0
 

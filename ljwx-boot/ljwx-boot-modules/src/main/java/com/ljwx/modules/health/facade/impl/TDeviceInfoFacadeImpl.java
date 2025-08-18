@@ -58,8 +58,16 @@ public class TDeviceInfoFacadeImpl implements ITDeviceInfoFacade {
        TDeviceInfoBO tDeviceInfoBO = CglibUtil.convertObj(tDeviceInfoSearchDTO, TDeviceInfoBO::new);
        // #确保userId正确转换为userIdStr字段
        tDeviceInfoBO.setUserIdStr(tDeviceInfoSearchDTO.getUserId());
+       
+       // #处理前端参数映射: orgId -> departmentInfo
+       String departmentInfo = tDeviceInfoSearchDTO.getDepartmentInfo();
+       if (departmentInfo == null && tDeviceInfoSearchDTO.getOrgId() != null) {
+           departmentInfo = tDeviceInfoSearchDTO.getOrgId();
+       }
+       tDeviceInfoBO.setDepartmentInfo(departmentInfo);
+       
        System.out.println("🔄 参数转换 - userId: " + tDeviceInfoSearchDTO.getUserId() + " -> userIdStr: " + tDeviceInfoBO.getUserIdStr());
-       System.out.println("🔄 参数转换 - departmentInfo: " + tDeviceInfoSearchDTO.getDepartmentInfo() + " -> " + tDeviceInfoBO.getDepartmentInfo());
+       System.out.println("🔄 参数转换 - orgId: " + tDeviceInfoSearchDTO.getOrgId() + ", departmentInfo: " + tDeviceInfoSearchDTO.getDepartmentInfo() + " -> " + departmentInfo);
         IPage<TDeviceInfo> tDeviceInfoIPage = tDeviceInfoService.listTDeviceInfoPage(pageQuery, tDeviceInfoBO);
         return RPage.build(tDeviceInfoIPage, TDeviceInfoVO::new);
     }

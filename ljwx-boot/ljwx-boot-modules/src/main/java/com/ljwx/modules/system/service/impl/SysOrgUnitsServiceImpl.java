@@ -57,7 +57,16 @@ public class SysOrgUnitsServiceImpl extends ServiceImpl<SysOrgUnitsMapper, SysOr
 
     @Override
     public IPage<SysOrgUnits> listSysOrgUnitsPage(PageQuery pageQuery, SysOrgUnitsBO sysOrgUnitsBO) {
-        return baseMapper.listSysOrgUnitsPage(pageQuery.buildPage(), sysOrgUnitsBO);
+        System.out.println("🔍 SysOrgUnitsService.listSysOrgUnitsPage - 查询参数:");
+        System.out.println("  id: " + sysOrgUnitsBO.getId());
+        System.out.println("  name: " + sysOrgUnitsBO.getName());
+        System.out.println("  status: " + sysOrgUnitsBO.getStatus());
+        System.out.println("  parentId: " + sysOrgUnitsBO.getParentId());
+        
+        IPage<SysOrgUnits> result = baseMapper.listSysOrgUnitsPage(pageQuery.buildPage(), sysOrgUnitsBO);
+        System.out.println("✅ 查询结果数量: " + result.getRecords().size());
+        
+        return result;
     }
 
     @Override

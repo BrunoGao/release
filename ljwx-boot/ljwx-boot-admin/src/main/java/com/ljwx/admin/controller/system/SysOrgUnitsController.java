@@ -49,6 +49,10 @@ public class SysOrgUnitsController {
     @Operation(operationId = "1", summary = "获取租户/部门列表")
     public Result<RPage<SysOrgUnitsTreeVO>> page(@Parameter(description = "分页对象", required = true) @Valid PageQuery pageQuery,
                                                  @Parameter(description = "查询对象") SysOrgUnitsSearchDTO sysOrgUnitsSearchDTO) {
+        System.out.println("🔍 SysOrgUnitsController.page - 接收到查询参数:");
+        System.out.println("  id: " + sysOrgUnitsSearchDTO.getId());
+        System.out.println("  name: " + sysOrgUnitsSearchDTO.getName());
+        System.out.println("  status: " + sysOrgUnitsSearchDTO.getStatus());
         return Result.data(sysOrgUnitsFacade.listSysOrgUnitsPage(pageQuery, sysOrgUnitsSearchDTO));
     }
 
