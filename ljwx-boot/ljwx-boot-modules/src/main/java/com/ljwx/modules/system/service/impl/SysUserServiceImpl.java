@@ -588,15 +588,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public boolean isSuperAdmin(Long userId) {
-        // 查询用户是否有 ADMIN 角色（超级管理员角色）
-        return sysUserRoleService.list(new LambdaQueryWrapper<SysUserRole>()
-            .eq(SysUserRole::getUserId, userId)
-            .eq(SysUserRole::getDeleted, false))
-            .stream()
-            .anyMatch(userRole -> {
-                SysRole role = sysRoleService.getById(userRole.getRoleId());
-                return role != null && "ADMIN".equals(role.getRoleCode());
-            });
+        // 查询用户信息，检查用户名是否为admin
+        SysUser user = baseMapper.selectById(userId);
+        if (user == null) {
+            return false;
+        }
+        
+        // 检查用户名是否为admin（大小写不敏感）
+        return StringPools.ADMIN.equalsIgnoreCase(user.getUserName());
     }
 
     @Override

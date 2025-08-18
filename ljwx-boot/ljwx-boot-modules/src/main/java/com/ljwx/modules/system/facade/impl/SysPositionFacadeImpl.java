@@ -76,8 +76,22 @@ public class SysPositionFacadeImpl implements ISysPositionFacade {
         
         // 根据用户权限过滤数据（基于orgId）
         if (currentUserId != null) {
-            if (sysUserService.isAdminUser(currentUserId)) {
-                // 管理员：基于部门层级决定权限
+            if (sysUserService.isSuperAdmin(currentUserId)) {
+                // 超级管理员(admin用户)：可以查看所有数据
+                if (sysPositionSearchDTO.getOrgId() != null) {
+                    if (sysPositionSearchDTO.getOrgId() == 0L) {
+                        // orgId=0时，不设置过滤条件，查看所有岗位
+                        System.out.println("超级管理员查询所有岗位 (orgId=0)");
+                    } else {
+                        sysPositionBO.setOrgIds(Arrays.asList(sysPositionSearchDTO.getOrgId()));
+                        System.out.println("超级管理员查询指定orgId: " + sysPositionSearchDTO.getOrgId());
+                    }
+                } else {
+                    // 不设置orgIds，查看所有岗位
+                    System.out.println("超级管理员查询所有岗位");
+                }
+            } else if (sysUserService.isAdminUser(currentUserId)) {
+                // 普通管理员：基于部门层级决定权限
                 List<Long> userOrgIds = sysUserService.getUserOrgIds(currentUserId);
                 
                 // 检查是否是顶级部门管理员（用户部门的parent_id为0）
@@ -87,13 +101,14 @@ public class SysPositionFacadeImpl implements ISysPositionFacade {
                 });
                 
                 if (isTopLevelAdmin) {
-                    // 顶级部门管理员：可以使用前端传来的orgId参数
-                    if (sysPositionSearchDTO.getOrgId() != null) {
+                    // 顶级部门管理员：可以使用前端传来的orgId参数，但不能看全部
+                    if (sysPositionSearchDTO.getOrgId() != null && sysPositionSearchDTO.getOrgId() != 0L) {
                         sysPositionBO.setOrgIds(Arrays.asList(sysPositionSearchDTO.getOrgId()));
-                        System.out.println("顶级管理员查询指定orgId: " + sysPositionSearchDTO.getOrgId());
+                        System.out.println("顶级部门管理员查询指定orgId: " + sysPositionSearchDTO.getOrgId());
                     } else {
-                        // 不设置orgIds，查看所有岗位
-                        System.out.println("顶级管理员查询所有岗位");
+                        // 查看全局岗位 + 自己部门的岗位
+                        sysPositionBO.setOrgIds(Arrays.asList(0L, userOrgIds.get(0)));
+                        System.out.println("顶级部门管理员查询全局+部门岗位: " + Arrays.asList(0L, userOrgIds.get(0)));
                     }
                 } else {
                     // 下级部门管理员：忽略前端传来的orgId，基于权限过滤
@@ -161,8 +176,20 @@ public class SysPositionFacadeImpl implements ISysPositionFacade {
         Long currentUserId = getCurrentUserId();
         List<SysPositionBO> allRole;
         
-        if (currentUserId != null && sysUserService.isAdminUser(currentUserId)) {
-            // 管理员：基于部门层级决定权限
+        if (currentUserId != null && sysUserService.isSuperAdmin(currentUserId)) {
+            // 超级管理员(admin用户)：可以查看所有数据
+            if (orgId != null) {
+                if (orgId == 0L) {
+                    allRole = sysPositionService.queryAllPositionList(); // 查询所有岗位
+                } else {
+                    allRole = sysPositionService.queryAllPositionList(orgId); // 按orgId过滤
+                }
+            } else {
+                allRole = sysPositionService.queryAllPositionList(); // 查询所有岗位
+            }
+            System.out.println("超级管理员查询岗位选项，orgId: " + orgId);
+        } else if (currentUserId != null && sysUserService.isAdminUser(currentUserId)) {
+            // 普通管理员：基于部门层级决定权限
             List<Long> userOrgIds = sysUserService.getUserOrgIds(currentUserId);
             
             // 检查是否是顶级部门管理员
@@ -172,17 +199,17 @@ public class SysPositionFacadeImpl implements ISysPositionFacade {
             });
             
             if (isTopLevelAdmin) {
-                // 顶级部门管理员：根据传入的orgId决定
-                if (orgId != null) {
-                    if (orgId == 0L) {
-                        allRole = sysPositionService.queryAllPositionList(); // 查询所有岗位
-                    } else {
-                        allRole = sysPositionService.queryAllPositionList(orgId); // 按orgId过滤
-                    }
+                // 顶级部门管理员：根据传入的orgId决定，但不能查看全部
+                if (orgId != null && orgId != 0L) {
+                    allRole = sysPositionService.queryAllPositionList(orgId); // 按orgId过滤
                 } else {
-                    allRole = sysPositionService.queryAllPositionList(); // 查询所有岗位
+                    // 查询全局岗位 + 自己部门岗位
+                    List<SysPositionBO> globalPositions = sysPositionService.queryAllPositionList(0L);
+                    List<SysPositionBO> deptPositions = sysPositionService.queryAllPositionList(userOrgIds.get(0));
+                    allRole = new ArrayList<>(globalPositions);
+                    allRole.addAll(deptPositions);
                 }
-                System.out.println("顶级管理员查询岗位选项，orgId: " + orgId);
+                System.out.println("顶级部门管理员查询岗位选项，orgId: " + orgId);
             } else {
                 // 下级部门管理员：忽略传入的orgId，基于权限过滤
                 Long topLevelDeptId = sysUserService.getUserTopLevelDeptId(currentUserId);

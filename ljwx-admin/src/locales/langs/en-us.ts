@@ -274,13 +274,13 @@ const local: App.I18n.Schema = {
     about: {
       title: 'About',
       introduction:
-        'LingjingAdmin is based on the second modification of SoybeanAdmin.it is an elegant and powerful admin template,Adopt Naive UI component library and the latest front-end technology stack, including Vue3, Vite5, TypeScript, Pinia and UnoCSS. It has built-in rich theme configuration and components, strict code specifications, and an automated file routing system. In addition, it also uses the online mock data solution based on ApiFox. LingjingAdmin provides you with a one-stop admin solution, no additional configuration, and out of the box. It is also a best practice for learning cutting-edge technologies quickly.',
+        'Ljwx Health Monitoring Management System is a modern IoT health data management platform that integrates smart wearable device monitoring, health data analysis, alert management, and large screen visualization. The system uses Spring Boot 3.3 + Vue 3 + TypeScript technology stack, supports multi-tenant architecture, and provides complete permission management and data isolation mechanisms. It is suitable for various application scenarios such as enterprise health management, medical institution monitoring, and nursing home monitoring, providing users with comprehensive health data management solutions.',
       projectInfo: {
         title: 'Project Info',
         version: 'Version',
         latestBuildTime: 'Latest Build Time',
-        githubLink: 'Github Link',
-        previewLink: 'Preview Link'
+        githubLink: 'GitHub Repository',
+        previewLink: 'Online Demo'
       },
       prdDep: 'Production Dependency',
       devDep: 'Development Dependency'

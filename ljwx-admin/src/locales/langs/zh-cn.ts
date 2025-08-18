@@ -310,13 +310,13 @@ const local: App.I18n.Schema = {
     about: {
       title: '关于',
       introduction:
-        'LingjingAdmin 基于 SoybeanAdmin 二次修改而来。它是一个清新优雅、高颜值且功能强大的后台管理模板，采用 Naive UI 组件库，并最新的前端技术栈，包括 Vue3, Vite5, TypeScript, Pinia 和 UnoCSS。它内置了丰富的主题配置和组件，代码规范严谨，实现了自动化的文件路由系统。LingjingAdmin 为您提供了一站式的后台管理解决方案，无需额外配置，开箱即用。同样是一个快速学习前沿技术的最佳实践',
+        '灵境万象健康监测管理系统是一个现代化的IoT健康数据管理平台，集成了智能穿戴设备监测、健康数据分析、告警管理和大屏可视化等功能。系统采用Spring Boot 3.3 + Vue 3 + TypeScript技术栈，支持多租户架构，提供完整的权限管理和数据隔离机制。适用于企业健康管理、医疗机构监护、养老院监测等多种应用场景，为用户提供全方位的健康数据管理解决方案。',
       projectInfo: {
         title: '项目信息',
         version: '版本',
         latestBuildTime: '最新构建时间',
-        githubLink: 'Github 地址',
-        previewLink: '预览地址'
+        githubLink: 'GitHub 源码',
+        previewLink: '在线演示'
       },
       prdDep: '生产依赖',
       devDep: '开发依赖'

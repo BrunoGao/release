@@ -2,7 +2,7 @@
 
 ![SpringBoot](https://img.shields.io/badge/Spring%20Boot-3.3-blue.svg)
 ![JDK](https://img.shields.io/badge/JDK-21+-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.0.11--SNAPSHOT-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.0.12--SNAPSHOT-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-brunoGao-green.svg)](https://github.com/brunoGao)
@@ -17,6 +17,34 @@
 在市面上虽然存在众多出色的 Java 后端管理系统框架，但还是决定重复再造一个轮子。
 
 ### 🚀 最新更新
+
+#### v1.0.12 - 超级管理员权限修复与关于页面更新 (2025-08-18)
+
+**👑 超级管理员权限增强**
+- **超级管理员识别**: 新增 `isSuperAdmin()` 方法，通过用户名识别admin超级管理员
+  - 基于用户名"admin"进行判断（大小写不敏感）
+  - 区分超级管理员与普通部门管理员的权限级别
+  
+**🔐 职位管理权限修复**
+- **全数据访问**: 超级管理员可通过 `orgId=0` 查看所有职位数据
+  - `orgId=0`：不设置过滤条件，返回系统所有职位
+  - `orgId=具体值`：按指定组织ID过滤职位数据
+  - 解决了超级管理员权限受限的问题
+
+**📖 关于页面完善**
+- **系统信息更新**: 更新项目描述为准确的IoT健康监测管理系统定位
+- **技术栈展示**: 详细展示前后端技术栈信息和版本
+- **功能特性**: 新增系统核心功能模块展示
+  - 智能设备监测、健康数据分析、告警管理
+  - 多租户架构、大屏可视化、移动端支持
+
+**🎯 权限层级优化**
+- **三级权限体系**:
+  - 超级管理员(admin)：全系统数据访问权限
+  - 普通管理员：基于部门层级的数据访问权限  
+  - 非管理员用户：受限的功能访问权限
+
+---
 
 #### v1.0.11 - 组织架构权限优化与租户部门区分 (2025-08-18)
 

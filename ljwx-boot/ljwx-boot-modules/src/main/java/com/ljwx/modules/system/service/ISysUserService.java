@@ -194,11 +194,11 @@ public interface ISysUserService extends IService<SysUser> {
     boolean isAdminUser(Long userId);
 
     /**
-     * 判断用户是否为超级管理员(admin)
+     * 判断用户是否为超级管理员(admin用户)
      * @param userId 用户ID
      * @return true-是超级管理员，false-不是超级管理员
      * @author bruno.gao
-     * @CreateTime 2025-08-18
+     * @CreateTime 2024-12-20
      */
     boolean isSuperAdmin(Long userId);
 
