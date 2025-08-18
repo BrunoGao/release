@@ -61,7 +61,7 @@ declare namespace Api {
     type UserHealthDataList = Common.PaginatingQueryRecord<UserHealthData>;
 
     type HealthChart = Common.CommonRecord<{
-      orgId: string;
+      departmentInfo: string;
       userId: string;
       deviceSn: string;
       startDate: number;
@@ -71,7 +71,7 @@ declare namespace Api {
       dataType: string;
     }>;
     type HealthChartSearchParams = CommonType.RecordNullable<
-      Pick<Api.Health.HealthChart, 'orgId' | 'userId' | 'deviceSn' | 'startDate' | 'endDate' | 'timeType' | 'customerId' | 'dataType'> &
+      Pick<Api.Health.HealthChart, 'departmentInfo' | 'userId' | 'deviceSn' | 'startDate' | 'endDate' | 'timeType' | 'customerId' | 'dataType'> &
         Api.Common.CommonSearchParams
     >;
     type HealthChartList = Common.PaginatingQueryRecord<HealthChart>;

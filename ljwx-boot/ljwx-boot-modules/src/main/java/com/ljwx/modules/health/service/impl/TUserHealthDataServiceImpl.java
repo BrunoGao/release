@@ -38,6 +38,7 @@ import com.ljwx.modules.health.repository.mapper.TUserHealthDataWeeklyMapper;
 import com.ljwx.modules.health.service.IDeviceUserMappingService;
 import com.ljwx.modules.health.service.ITUserHealthDataService;
 import com.ljwx.modules.system.service.ISysUserService;
+import com.ljwx.modules.system.service.ISysOrgUnitsService;
 import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.health.util.HealthDataTableUtil;
 import lombok.Data;
@@ -83,6 +84,9 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
 
     @Autowired
     private ISysUserService sysUserService;
+
+    @Autowired
+    private ISysOrgUnitsService sysOrgUnitsService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -269,10 +273,23 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
         });
                        
 
+        // 根据departmentInfo查询顶级部门ID，用于过滤health data config
+        Long topLevelDeptId = null;
+        if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getDepartmentInfo())) {
+            try {
+                Long deptId = Long.parseLong(tUserHealthDataBO.getDepartmentInfo());
+                topLevelDeptId = sysOrgUnitsService.getTopLevelDeptIdByOrgId(deptId);
+                System.out.println("🏢 部门查询 - departmentInfo: " + deptId + " -> 顶级部门ID: " + topLevelDeptId);
+            } catch (NumberFormatException e) {
+                System.err.println("❌ departmentInfo格式错误: " + tUserHealthDataBO.getDepartmentInfo());
+                topLevelDeptId = null;
+            }
+        }
+        
         List<THealthDataConfig> enabledColumns = healthDataConfigService.list(
             new LambdaQueryWrapper<THealthDataConfig>()
                 .eq(THealthDataConfig::getIsEnabled, 1)
-                .eq(THealthDataConfig::getCustomerId, tUserHealthDataBO.getDepartmentInfo())
+                .eq(THealthDataConfig::getCustomerId, topLevelDeptId != null ? topLevelDeptId : tUserHealthDataBO.getDepartmentInfo())
         );
 
         // 批量获取分表数据（避免n+1问题）

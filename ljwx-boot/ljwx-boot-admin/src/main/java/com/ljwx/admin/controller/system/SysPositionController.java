@@ -20,6 +20,7 @@
 package com.ljwx.admin.controller.system;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.stp.StpUtil;
 import com.ljwx.common.api.Result;
 import com.ljwx.common.domain.Options;
 import com.ljwx.infrastructure.page.PageQuery;
@@ -30,6 +31,7 @@ import com.ljwx.modules.system.domain.dto.position.SysPositionSearchDTO;
 import com.ljwx.modules.system.domain.dto.position.SysPositionUpdateDTO;
 import com.ljwx.modules.system.domain.vo.SysPositionVO;
 import com.ljwx.modules.system.facade.ISysPositionFacade;
+import com.ljwx.modules.system.service.ISysUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -57,12 +59,19 @@ public class SysPositionController {
 
     @NonNull
     private ISysPositionFacade sysPositionFacade;
+    
+    @NonNull
+    private ISysUserService sysUserService;
 
     @GetMapping("/page")
     @SaCheckPermission("sys:position:page")
     @Operation(operationId = "1", summary = "获取岗位管理列表")
     public Result<RPage<SysPositionVO>> page(@Parameter(description = "分页对象", required = true) @Valid PageQuery pageQuery,
                                              @Parameter(description = "查询对象") SysPositionSearchDTO sysPositionSearchDTO) {
+        // 权限检查：超级管理员 + 顶级部门管理员 + 下属部门管理员
+        if (!hasPositionViewPermission()) {
+            return Result.failure("无权限访问岗位管理");
+        }
         return Result.data(sysPositionFacade.listSysPositionPage(pageQuery, sysPositionSearchDTO));
     }
 
@@ -70,6 +79,10 @@ public class SysPositionController {
     @SaCheckPermission("sys:position:get")
     @Operation(operationId = "2", summary = "根据ID获取岗位管理详细信息")
     public Result<SysPositionVO> get(@Parameter(description = "ID") @PathVariable("id") Long id) {
+        // 权限检查：超级管理员 + 顶级部门管理员 + 下属部门管理员
+        if (!hasPositionViewPermission()) {
+            return Result.failure("无权限查看岗位详情");
+        }
         return Result.data(sysPositionFacade.get(id));
     }
 
@@ -77,6 +90,15 @@ public class SysPositionController {
     @SaCheckPermission("sys:position:add")
     @Operation(operationId = "3", summary = "新增岗位管理")
     public Result<Boolean> add(@Parameter(description = "新增对象") @RequestBody SysPositionAddDTO sysPositionAddDTO) {
+        // 权限检查：超级管理员 + 顶级部门管理员
+        if (!hasPositionEditPermission()) {
+            return Result.failure("无权限新增岗位");
+        }
+        
+        // 添加精度检查日志
+        System.out.println("接收到的 orgId: " + sysPositionAddDTO.getOrgId());
+        System.out.println("orgId 类型: " + (sysPositionAddDTO.getOrgId() != null ? sysPositionAddDTO.getOrgId().getClass().getSimpleName() : "null"));
+        
         return Result.status(sysPositionFacade.add(sysPositionAddDTO));
     }
 
@@ -84,6 +106,10 @@ public class SysPositionController {
     @SaCheckPermission("sys:position:update")
     @Operation(operationId = "4", summary = "更新岗位管理信息")
     public Result<Boolean> update(@Parameter(description = "更新对象") @RequestBody SysPositionUpdateDTO sysPositionUpdateDTO) {
+        // 权限检查：超级管理员 + 顶级部门管理员
+        if (!hasPositionEditPermission()) {
+            return Result.failure("无权限修改岗位");
+        }
         return Result.status(sysPositionFacade.update(sysPositionUpdateDTO));
     }
 
@@ -91,6 +117,10 @@ public class SysPositionController {
     @SaCheckPermission("sys:position:delete")
     @Operation(operationId = "5", summary = "批量删除岗位管理信息")
     public Result<Boolean> batchDelete(@Parameter(description = "删除对象") @RequestBody SysPositionDeleteDTO sysPositionDeleteDTO) {
+        // 权限检查：超级管理员 + 顶级部门管理员
+        if (!hasPositionEditPermission()) {
+            return Result.failure("无权限删除岗位");
+        }
         return Result.status(sysPositionFacade.batchDelete(sysPositionDeleteDTO));
     }
 
@@ -100,5 +130,35 @@ public class SysPositionController {
     public Result<List<Options<Long>>> queryAllPositionOptions(@Parameter(description = "组织ID") @RequestParam("orgId") Long orgId) {
         System.out.println("queryAllPositionOptions.orgId: " + orgId);
         return Result.data(sysPositionFacade.queryAllPositionListConvertOptions(orgId));
+    }
+
+
+    /**
+     * 检查岗位查看权限
+     * 权限：超级管理员 + 顶级部门管理员 + 下属部门管理员
+     */
+    private boolean hasPositionViewPermission() {
+        try {
+            Long userId = Long.parseLong(StpUtil.getLoginIdAsString());
+            return sysUserService.isAdminUser(userId) || 
+                   sysUserService.isTopLevelDeptAdmin(userId) || 
+                   sysUserService.isSubDeptAdmin(userId);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 检查岗位编辑权限
+     * 权限：超级管理员 + 顶级部门管理员
+     */
+    private boolean hasPositionEditPermission() {
+        try {
+            Long userId = Long.parseLong(StpUtil.getLoginIdAsString());
+            return sysUserService.isAdminUser(userId) || 
+                   sysUserService.isTopLevelDeptAdmin(userId);
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

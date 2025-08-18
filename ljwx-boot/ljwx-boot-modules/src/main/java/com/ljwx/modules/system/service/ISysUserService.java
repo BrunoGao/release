@@ -194,6 +194,45 @@ public interface ISysUserService extends IService<SysUser> {
     boolean isAdminUser(Long userId);
 
     /**
+     * 判断用户是否为超级管理员(admin)
+     * @param userId 用户ID
+     * @return true-是超级管理员，false-不是超级管理员
+     * @author bruno.gao
+     * @CreateTime 2025-08-18
+     */
+    boolean isSuperAdmin(Long userId);
+
+    /**
+     * 判断用户是否是顶级部门的管理员
+     * 条件：1. 是管理员角色 2. 所在部门是顶级部门
+     */
+    boolean isTopLevelDeptAdmin(Long userId);
+
+    /**
+     * 判断用户是否是下属部门的管理员  
+     * 条件：1. 是管理员角色 2. 所在部门是下级部门
+     */
+    boolean isSubDeptAdmin(Long userId);
+
+    /**
+     * 获取用户所在的部门ID列表
+     */
+    List<Long> getUserOrgIds(Long userId);
+
+    /**
+     * 获取用户的租户ID
+     */
+    Long getUserCustomerId(Long userId);
+
+    /**
+     * 获取用户所属的顶级部门ID
+     * 如果用户已经在顶级部门，返回其部门ID
+     * 如果用户在子部门，返回其顶级父部门ID
+     */
+    Long getUserTopLevelDeptId(Long userId);
+
+
+    /**
      * 检查用户设备绑定状态 #用户删除前设备绑定检查
      * @param userIds 用户ID列表
      * @return 绑定设备用户的详细信息

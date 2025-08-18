@@ -585,4 +585,123 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 return role != null && role.getIsAdmin() != null && role.getIsAdmin() == 1;
             });
     }
+
+    @Override
+    public boolean isSuperAdmin(Long userId) {
+        // 查询用户是否有 ADMIN 角色（超级管理员角色）
+        return sysUserRoleService.list(new LambdaQueryWrapper<SysUserRole>()
+            .eq(SysUserRole::getUserId, userId)
+            .eq(SysUserRole::getDeleted, false))
+            .stream()
+            .anyMatch(userRole -> {
+                SysRole role = sysRoleService.getById(userRole.getRoleId());
+                return role != null && "ADMIN".equals(role.getRoleCode());
+            });
+    }
+
+    @Override
+    public boolean isTopLevelDeptAdmin(Long userId) {
+        // 首先必须是管理员
+        if (!isAdminUser(userId)) {
+            return false;
+        }
+        
+        // 获取用户所在的部门
+        List<SysUserOrg> userOrgs = sysUserOrgService.list(new LambdaQueryWrapper<SysUserOrg>()
+            .eq(SysUserOrg::getUserId, userId)
+            .eq(SysUserOrg::getDeleted, false));
+        
+        // 检查是否在顶级部门
+        return userOrgs.stream().anyMatch(userOrg -> {
+            SysOrgUnits org = sysOrgUnitsService.getById(userOrg.getOrgId());
+            return org != null && isTopLevelOrg(org.getParentId());
+        });
+    }
+
+    @Override
+    public boolean isSubDeptAdmin(Long userId) {
+        // 首先必须是管理员
+        if (!isAdminUser(userId)) {
+            return false;
+        }
+        
+        // 获取用户所在的部门
+        List<SysUserOrg> userOrgs = sysUserOrgService.list(new LambdaQueryWrapper<SysUserOrg>()
+            .eq(SysUserOrg::getUserId, userId)
+            .eq(SysUserOrg::getDeleted, false));
+        
+        // 检查是否在下级部门
+        return userOrgs.stream().anyMatch(userOrg -> {
+            SysOrgUnits org = sysOrgUnitsService.getById(userOrg.getOrgId());
+            return org != null && !isTopLevelOrg(org.getParentId());
+        });
+    }
+
+    @Override
+    public List<Long> getUserOrgIds(Long userId) {
+        return sysUserOrgService.list(new LambdaQueryWrapper<SysUserOrg>()
+            .eq(SysUserOrg::getUserId, userId)
+            .eq(SysUserOrg::getDeleted, false))
+            .stream()
+            .map(SysUserOrg::getOrgId)
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public Long getUserCustomerId(Long userId) {
+        SysUser user = getById(userId);
+        return user != null ? user.getCustomerId() : null;
+    }
+
+    @Override
+    public Long getUserTopLevelDeptId(Long userId) {
+        // 获取用户所在的部门
+        List<SysUserOrg> userOrgs = sysUserOrgService.list(new LambdaQueryWrapper<SysUserOrg>()
+            .eq(SysUserOrg::getUserId, userId)
+            .eq(SysUserOrg::getDeleted, false));
+        
+        if (userOrgs.isEmpty()) {
+            return null;
+        }
+        
+        // 对每个用户所在的部门，找到其顶级部门
+        for (SysUserOrg userOrg : userOrgs) {
+            Long topLevelDeptId = sysOrgUnitsService.getTopLevelDeptIdByOrgId(userOrg.getOrgId());
+            if (topLevelDeptId != null) {
+                return topLevelDeptId;
+            }
+        }
+        
+        return null;
+    }
+
+
+    /**
+     * 递归查找顶级部门ID
+     */
+    private Long findTopLevelDeptId(Long orgId) {
+        if (orgId == null) {
+            return null;
+        }
+        
+        SysOrgUnits org = sysOrgUnitsService.getById(orgId);
+        if (org == null) {
+            return null;
+        }
+        
+        // 如果是顶级部门，返回当前ID
+        if (isTopLevelOrg(org.getParentId())) {
+            return orgId;
+        }
+        
+        // 否则继续向上查找
+        return findTopLevelDeptId(org.getParentId());
+    }
+
+    /**
+     * 判断是否是顶级组织
+     */
+    private boolean isTopLevelOrg(Long parentId) {
+        return parentId == null || parentId == 0L || parentId == 1L;
+    }
 }

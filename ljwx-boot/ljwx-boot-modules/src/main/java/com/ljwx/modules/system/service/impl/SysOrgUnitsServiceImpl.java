@@ -175,5 +175,43 @@ public class SysOrgUnitsServiceImpl extends ServiceImpl<SysOrgUnitsMapper, SysOr
         return result;
     }
 
+    @Override
+    public Long getTopLevelDeptIdByOrgId(Long orgId) {
+        if (orgId == null) {
+            return null;
+        }
+        
+        SysOrgUnits org = this.getById(orgId);
+        if (org == null) {
+            return null;
+        }
+        
+        // 解析 ancestors 字段，格式如: "0,1955920989166800898,1955921028870082561"
+        String ancestors = org.getAncestors();
+        if (ancestors == null || ancestors.trim().isEmpty()) {
+            // 如果没有ancestors字段，判断是否为顶级部门
+            return (org.getParentId() == null || org.getParentId() == 0L) ? orgId : null;
+        }
+        
+        // 分割ancestors字符串
+        String[] ancestorIds = ancestors.split(",");
+        
+        // 找到第一个非0的ID，这就是顶级部门ID
+        for (String ancestorId : ancestorIds) {
+            ancestorId = ancestorId.trim();
+            if (!ancestorId.isEmpty() && !"0".equals(ancestorId)) {
+                try {
+                    return Long.parseLong(ancestorId);
+                } catch (NumberFormatException e) {
+                    System.err.println("解析祖先ID失败: " + ancestorId);
+                    continue;
+                }
+            }
+        }
+        
+        // 如果ancestors都是0，说明当前部门就是顶级部门
+        return orgId;
+    }
+
 }
 

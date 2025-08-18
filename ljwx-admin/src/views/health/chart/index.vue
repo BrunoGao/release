@@ -28,7 +28,7 @@ const customerId = authStore.userInfo?.customerId;
 const searchParams = ref({
   page: 1,
   pageSize: 10,
-  orgId: null,
+  departmentInfo: null,
   userId: null,
   startDate,
   endDate,
@@ -117,7 +117,7 @@ async function fetchHealthData() {
   try {
     const response = await fetchUserHealthData({
       customerId: searchParams.value.customerId,
-      orgId: searchParams.value.orgId,
+      departmentInfo: searchParams.value.departmentInfo,
       userId: searchParams.value.userId,
       startDate: searchParams.value.startDate,
       endDate: searchParams.value.endDate,
@@ -222,7 +222,7 @@ async function handleInitOptions() {
 
 // 监听部门变化，更新员工列表
 watch(
-  () => searchParams.value.orgId,
+  () => searchParams.value.departmentInfo,
   async newValue => {
     if (newValue) {
       const result = await handleBindUsersByOrgId(String(newValue));

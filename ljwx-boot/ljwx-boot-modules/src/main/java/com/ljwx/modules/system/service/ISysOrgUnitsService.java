@@ -89,4 +89,15 @@ public interface ISysOrgUnitsService extends IService<SysOrgUnits> {
      */
     Long getFirstParent(Long id);
 
+    /**
+     * 根据部门ID获取顶级部门ID（通用方法）
+     * 通过解析 sys_org_units.ancestors 字段，获取最左边第一个非0数字
+     * 例如: "0,1955920989166800898,1955921028870082561" -> 1955920989166800898
+     * @param orgId 部门ID
+     * @return 顶级部门ID，如果已经是顶级部门则返回自身
+     * @author bruno.gao
+     * @CreateTime 2025-08-18
+     */
+    Long getTopLevelDeptIdByOrgId(Long orgId);
+
 }
