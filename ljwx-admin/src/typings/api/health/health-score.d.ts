@@ -50,6 +50,7 @@ declare namespace Api {
 
         /** HealthScore edit model */
         type HealthScoreEdit = Pick<Api.Health.HealthScore, 'id' |
+            'customerId'
             >;
 
 

@@ -91,7 +91,7 @@ onMounted(() => {
       <NGrid responsive="screen" item-responsive>
         <NFormItemGi span="24 s:8 m:12" :label="$t('page.health.device.message.departmentName')" path="orgId">
           <NTreeSelect
-            v-model:value="model.orgId"
+            v-model:value="model.departmentInfo"
             size="small"
             checkable
             filterable

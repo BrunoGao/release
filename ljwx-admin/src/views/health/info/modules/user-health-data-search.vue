@@ -36,9 +36,9 @@ function search() {
       <NGrid responsive="screen" item-responsive :x-gap="8" :y-gap="8" cols="1 s:1 m:5 l:5 xl:5 2xl:5">
         <NGridItem span="4">
           <NGrid responsive="screen" item-responsive :x-gap="8">
-            <NFormItemGi span="24 s:8 m:12" :label="$t('page.health.device.message.departmentName')" path="orgId">
+            <NFormItemGi span="24 s:8 m:12" :label="$t('page.health.device.message.departmentName')" path="departmentInfo">
               <NTreeSelect
-                v-model:value="model.orgId"
+                v-model:value="model.departmentInfo"
                 size="small"
                 checkable
                 filterable
@@ -54,6 +54,7 @@ function search() {
               <NSelect
                 v-model:value="model.userId"
                 size="small"
+                clearable
                 :placeholder="$t('page.health.device.message.form.userName')"
                 :options="userOptions"
               />

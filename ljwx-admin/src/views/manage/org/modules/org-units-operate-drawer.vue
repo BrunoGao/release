@@ -5,6 +5,7 @@ import { $t } from '@/locales';
 import { fetchAddOrgUnits, fetchUpdateOrgUnits } from '@/service/api';
 import { getLevelAndAncestors } from '@/views/manage/org/modules/shared';
 import { useDict } from '@/hooks/business/dict';
+import { useAuthStore } from '@/store/modules/auth';
 
 defineOptions({
   name: 'OrgUnitsOperateDrawer'
@@ -32,17 +33,40 @@ const visible = defineModel<boolean>('visible', {
 });
 
 const { dictOptions } = useDict();
+const authStore = useAuthStore();
 
 const { formRef, validate, restoreValidation } = useNaiveForm();
 const { defaultRequiredRule } = useFormRules();
 
+// 判断是否是管理员（可以创建租户）
+const isAdmin = computed(() => {
+  return authStore.userInfo?.userName === 'admin' || authStore.userInfo?.roleIds?.includes('admin');
+});
+
+// 判断当前操作是否为租户操作（只有管理员创建顶级组织才算租户）
+const isTenantOperation = computed(() => {
+  return isAdmin.value && (props.operateType === 'add' || (props.operateType === 'edit' && props.rowData?.level === 1));
+});
+
+// 判断是否为部门操作
+const isDeptOperation = computed(() => {
+  return !isTenantOperation.value;
+});
+
 const title = computed(() => {
-  const titles: Record<OperateType, string> = {
-    add: $t('page.manage.orgUnits.addOrgUnits'),
-    edit: $t('page.manage.orgUnits.editOrgUnits'),
-    addChild: $t('page.manage.orgUnits.addChildOrgUnits')
-  };
-  return titles[props.operateType];
+  if (props.operateType === 'addChild') {
+    return $t('page.manage.orgUnits.addChildOrgUnits');
+  }
+  
+  if (isDeptOperation.value) {
+    return props.operateType === 'add' 
+      ? $t('page.manage.orgUnits.dept.addDept')
+      : $t('page.manage.orgUnits.dept.editDept');
+  } else {
+    return props.operateType === 'add'
+      ? $t('page.manage.orgUnits.addOrgUnits')
+      : $t('page.manage.orgUnits.editOrgUnits');
+  }
 });
 
 type Model = Api.SystemManage.OrgUnitsEdit;
@@ -74,6 +98,16 @@ const rules: Record<RuleKey, App.Global.FormRule> = {
 
 function handleInitModel() {
   Object.assign(model, createDefaultModel());
+  
+  // 如果不是管理员，且是新增操作，设置parentId为当前用户的部门ID
+  if (!isAdmin.value && props.operateType === 'add') {
+    const currentUserOrgId = authStore.userInfo?.customerId;
+    if (currentUserOrgId) {
+      model.parentId = Number(currentUserOrgId);
+      model.level = 2; // 假设当前用户部门是level 1，新建的部门就是level 2
+      model.ancestors = `0,${currentUserOrgId}`;
+    }
+  }
 
   if (!props.rowData) return;
 
@@ -117,16 +151,16 @@ watch(visible, () => {
   <NDrawer v-model:show="visible" display-directive="show" :width="360">
     <NDrawerContent :title="title" :native-scrollbar="false" closable>
       <NForm ref="formRef" :model="model" :rules="rules">
-        <NFormItem :label="$t('page.manage.orgUnits.name')" path="name">
-          <NInput v-model:value="model.name" :placeholder="$t('page.manage.orgUnits.form.name')" />
+        <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.name') : $t('page.manage.orgUnits.name')" path="name">
+          <NInput v-model:value="model.name" :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.name') : $t('page.manage.orgUnits.form.name')" />
         </NFormItem>
-        <NFormItem :label="$t('page.manage.orgUnits.code')" path="code">
-          <NInput v-model:value="model.code" :placeholder="$t('page.manage.orgUnits.form.code')" />
+        <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.code') : $t('page.manage.orgUnits.code')" path="code">
+          <NInput v-model:value="model.code" :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.code') : $t('page.manage.orgUnits.form.code')" />
         </NFormItem>
-        <NFormItem :label="$t('page.manage.orgUnits.abbr')" path="abbr">
-          <NInput v-model:value="model.abbr" :placeholder="$t('page.manage.orgUnits.form.abbr')" />
+        <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.abbr') : $t('page.manage.orgUnits.abbr')" path="abbr">
+          <NInput v-model:value="model.abbr" :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.abbr') : $t('page.manage.orgUnits.form.abbr')" />
         </NFormItem>
-        <NFormItem :label="$t('page.manage.orgUnits.status')" path="status">
+        <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.status') : $t('page.manage.orgUnits.status')" path="status">
           <NRadioGroup v-model:value="model.status">
             <NRadio v-for="item in dictOptions('status')" :key="item.value" :value="item.value" :label="item.label" />
           </NRadioGroup>
@@ -134,8 +168,8 @@ watch(visible, () => {
         <NFormItem :label="$t('page.manage.orgUnits.sort')" path="sort">
           <NInputNumber v-model:value="model.sort" :placeholder="$t('page.manage.orgUnits.form.sort')" />
         </NFormItem>
-        <NFormItem :label="$t('page.manage.orgUnits.description')" path="description">
-          <NInput v-model:value="model.description" :placeholder="$t('page.manage.orgUnits.form.description')" />
+        <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.description') : $t('page.manage.orgUnits.description')" path="description">
+          <NInput v-model:value="model.description" :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.description') : $t('page.manage.orgUnits.form.description')" />
         </NFormItem>
       </NForm>
       <template #footer>

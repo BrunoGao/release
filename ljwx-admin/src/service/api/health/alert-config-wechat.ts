@@ -5,7 +5,7 @@ import { request } from '@/service/request';
 /** get wechaalerconfig list */
 export function fetchGetAlertConfigWechatList(params?: Api.Health.AlertConfigWechatSearchParams) {
   return request<Api.Health.AlertConfigWechatList>({
-    url: '/t_wechat_alert_config/page',
+    url: '/t_wechat_alarm_config/page',
     method: 'GET',
     params
   });
@@ -14,7 +14,7 @@ export function fetchGetAlertConfigWechatList(params?: Api.Health.AlertConfigWec
 /** add wechaalerconfig info */
 export function fetchAddAlertConfigWechat(data: Api.Health.AlertConfigWechatEdit) {
   return request<boolean>({
-    url: '/t_wechat_alert_config/',
+    url: '/t_wechat_alarm_config/',
     method: 'POST',
     data
   });
@@ -23,7 +23,7 @@ export function fetchAddAlertConfigWechat(data: Api.Health.AlertConfigWechatEdit
 /** update wechaalerconfig info */
 export function fetchUpdateAlertConfigWechatInfo(data: Api.Health.AlertConfigWechatEdit) {
   return request<boolean>({
-    url: '/t_wechat_alert_config/',
+    url: '/t_wechat_alarm_config/',
     method: 'PUT',
     data
   });
@@ -32,7 +32,7 @@ export function fetchUpdateAlertConfigWechatInfo(data: Api.Health.AlertConfigWec
 /** edit delete wechaalerconfig */
 export function fetchDeleteAlertConfigWechat(data: Api.Common.DeleteParams) {
   return request<boolean>({
-    url: '/t_wechat_alert_config/',
+    url: '/t_wechat_alarm_config/',
     method: 'DELETE',
     data
   });

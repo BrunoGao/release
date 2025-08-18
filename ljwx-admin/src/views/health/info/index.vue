@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { NButton,  NTooltip } from 'naive-ui';
-import { type Ref, onMounted, ref, shallowRef, watch } from 'vue';
+import { type Ref, h, onMounted, ref, shallowRef, watch } from 'vue';
 import { utils, writeFile } from 'xlsx';
 
 import * as XLSX from 'xlsx';
@@ -46,7 +46,7 @@ async function initColumns() {
   try {
     const params: Api.Customer.HealthDataConfigSearchParams = {
       customerId: customerId,
-      orgId: searchParams.orgId || null,
+      departmentInfo: searchParams.departmentInfo || null,
       page: 1,
       pageSize: 20
     };
@@ -69,7 +69,7 @@ async function initColumns() {
           align: 'center'
         },
         {
-          key: 'orgName',
+          key: 'departmentInfo',
           title: $t('page.health.data.info.departmentInfo'),
           align: 'center',
           width: 200
@@ -295,8 +295,8 @@ const {
     page: 1,
     pageSize: 20,
     customerId: customerId,
-    orgId: null,
-    userName: null,
+    departmentInfo: null,
+    userId: null,
     startDate,
     endDate
   },
@@ -516,7 +516,7 @@ async function handleInitOptions() {
 
 // 监听部门变化，更新员工列表
 watch(
-  () => searchParams.orgId,
+  () => searchParams.departmentInfo,
   async newValue => {
     if (newValue) {
       const result = await handleBindUsersByOrgId(String(newValue));

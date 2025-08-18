@@ -1367,7 +1367,24 @@ const local: App.I18n.Schema = {
         addOrgUnits: '新增租户',
         editOrgUnits: '编辑租户',
         addChildOrgUnits: '新增部门',
-        unassigned: '未分配租户'
+        unassigned: '未分配租户',
+        // 部门相关字段
+        dept: {
+          name: '部门名称',
+          code: '部门编码', 
+          abbr: '部门简称',
+          description: '部门描述',
+          status: '部门状态',
+          form: {
+            name: '请输入部门名称',
+            code: '请输入部门编码',
+            abbr: '请输入部门简称',
+            description: '请输入部门描述',
+            status: '请选择部门状态'
+          },
+          addDept: '新增部门',
+          editDept: '编辑部门'
+        }
       },
       notice: {
         category: '分类',

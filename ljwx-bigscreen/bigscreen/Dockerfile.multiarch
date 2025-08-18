@@ -1,5 +1,6 @@
 # 多架构构建 - 支持 AMD64 和 ARM64
-FROM --platform=$BUILDPLATFORM python:3.9-slim
+# 使用本地python镜像，避免网络问题
+FROM python:3.9-slim
 
 # 构建参数
 ARG BUILDPLATFORM

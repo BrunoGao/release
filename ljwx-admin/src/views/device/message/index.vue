@@ -48,13 +48,13 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center'
     },
     {
-      key: 'orgName',
+      key: 'departmentInfo',
       title: $t('page.health.data.info.departmentInfo'),
       align: 'center',
       minWidth: 120
     },
     {
-      key: 'userName',
+      key: 'userId',
       title: $t('page.health.data.info.username'),
       align: 'center',
       minWidth: 120

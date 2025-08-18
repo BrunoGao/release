@@ -822,7 +822,39 @@ def deal_alert(alertId):
         # 根据notification_type处理告警
         wechat_result = None
         message_result = None
+        websocket_result = None
         notification_type = rule_data['notification_type']
+        
+        # 🚨 Critical级别告警增强处理
+        if alert.severity_level == 'critical':
+            print(f"🚨 Critical级别告警 - 执行增强处理")
+            
+            # 1. WebSocket推送到大屏
+            try:
+                from .bigScreen import socketio
+                
+                # 构建告警推送数据
+                alert_data = {
+                    'alert_id': alert.id,
+                    'device_sn': alert.device_sn,
+                    'alert_type': alert.alert_type,
+                    'alert_desc': alert.alert_desc,
+                    'severity_level': 'critical',
+                    'alert_timestamp': alert.alert_timestamp.strftime('%Y-%m-%d %H:%M:%S') if alert.alert_timestamp else None,
+                    'user_name': userName,
+                    'user_id': userId,
+                    'latitude': str(alert.latitude) if alert.latitude else None,
+                    'longitude': str(alert.longitude) if alert.longitude else None
+                }
+                
+                # 通过WebSocket推送到大屏页面
+                socketio.emit('critical_alert', alert_data, namespace='/')
+                print(f"🚨 Critical告警已推送到大屏: alert_id={alert.id}")
+                websocket_result = True
+                
+            except Exception as ws_error:
+                print(f"⚠️ WebSocket推送失败: {ws_error}")
+                websocket_result = False
         
         if notification_type in ['wechat', 'both']:
             # 微信推送
@@ -831,12 +863,12 @@ def deal_alert(alertId):
             print("微信推送结果:", wechat_result)
             
         if notification_type in ['message', 'both']:
-            # 插入消息记录
-            message_result = _insert_device_messages(alert.device_sn, alert.alert_type, mapped_severity, userName)
+            # 插入消息记录 - 增强版层级通知
+            message_result = _insert_device_messages_enhanced(alert.device_sn, alert.alert_type, mapped_severity, userName, alert.severity_level)
             print("消息插入结果:", message_result)
         
         # 记录处理日志
-        _create_alert_log(alertId, userName, userId, notification_type, wechat_result, message_result)
+        _create_alert_log_enhanced(alertId, userName, userId, notification_type, wechat_result, message_result, websocket_result)
         
         # 更新告警状态
         if ((notification_type == 'wechat' and wechat_result and wechat_result.get('errcode') == 0) or
@@ -856,6 +888,94 @@ def deal_alert(alertId):
         db.session.rollback()
         print(f"告警处理异常: {e}")
         return jsonify({'success': False, 'message': f'告警处理异常: {str(e)}'}), 500
+
+def _insert_device_messages_enhanced(device_sn, alert_type, severity_level, user_name, alert_severity_level):
+    """插入设备消息记录 - 增强版层级通知"""
+    try:
+        from .models import DeviceMessage, UserOrg, DeviceInfo, OrgInfo
+        
+        # 根据device_sn查询org_id和user_id
+        device = DeviceInfo.query.filter_by(serial_number=device_sn).first()
+        if not device or not device.org_id or not device.user_id:
+            print(f"设备{device_sn}未绑定组织或用户")
+            return False
+            
+        org_id = device.org_id
+        user_id = device.user_id
+        
+        # 构建消息内容
+        message_content = f"设备{device_sn}发生{alert_type}告警，严重级别：{severity_level}，请及时处理。"
+        
+        # 创建消息记录
+        message_records = []
+        
+        # 1. 给设备用户的消息
+        user_message = DeviceMessage(
+            device_sn=device_sn,
+            message=message_content,
+            department_info=str(org_id),
+            user_id=str(user_id),
+            message_type='warning',
+            sender_type='system', 
+            receiver_type='user',
+            message_status='1',
+            create_time=get_now()
+        )
+        message_records.append(user_message)
+        
+        # 2. 给部门主管的消息
+        principals = UserOrg.query.filter_by(org_id=org_id, principal='1', is_deleted=False).all()
+        for principal in principals:
+            if principal.user_id != user_id:  # 避免重复给同一人发消息
+                principal_message = DeviceMessage(
+                    device_sn=device_sn,
+                    message=message_content + f"（设备用户：{user_name}）",
+                    department_info=str(org_id),
+                    user_id=str(principal.user_id),
+                    message_type='warning',
+                    sender_type='system',
+                    receiver_type='manager',
+                    message_status='1',
+                    create_time=get_now()
+                )
+                message_records.append(principal_message)
+        
+        # 3. 如果是message方式且没有部门管理员，给租户级别管理员发消息
+        if not principals:
+            # 查找当前部门的父级组织(租户级别)
+            current_org = OrgInfo.query.filter_by(id=org_id).first()
+            if current_org and current_org.parent_id:
+                tenant_principals = UserOrg.query.filter_by(
+                    org_id=current_org.parent_id, 
+                    principal='1', 
+                    is_deleted=False
+                ).all()
+                
+                for tenant_principal in tenant_principals:
+                    tenant_message = DeviceMessage(
+                        device_sn=device_sn,
+                        message=message_content + f"（设备用户：{user_name}，部门：{current_org.name}）",
+                        department_info=str(current_org.parent_id),
+                        user_id=str(tenant_principal.user_id),
+                        message_type='warning',
+                        sender_type='system',
+                        receiver_type='tenant_admin',
+                        message_status='1',
+                        create_time=get_now()
+                    )
+                    message_records.append(tenant_message)
+        
+        # 批量插入消息记录
+        for record in message_records:
+            db.session.add(record)
+        db.session.flush()
+        
+        print(f"✅ 成功插入{len(message_records)}条消息记录（层级通知）")
+        return True
+        
+    except Exception as e:
+        print(f"❌ 插入消息记录失败: {e}")
+        return False
 
 def _insert_device_messages(device_sn, alert_type, severity_level, user_name):
     """插入设备消息记录"""
@@ -937,6 +1057,51 @@ def _insert_device_messages(device_sn, alert_type, severity_level, user_name):
     except Exception as e:
         print(f"插入消息记录失败: {e}")
         return False
+
+def _create_alert_log_enhanced(alert_id, user_name, user_id, notification_type, wechat_result, message_result, websocket_result):
+    """创建告警处理日志 - 增强版"""
+    try:
+        from .models import AlertLog
+        
+        # 确定处理方式和结果
+        handled_via_list = []
+        results = []
+        
+        if notification_type in ['wechat', 'both']:
+            handled_via_list.append('WeChat')
+            results.append('success' if wechat_result and wechat_result.get('errcode') == 0 else 'failed')
+            
+        if notification_type in ['message', 'both']:
+            handled_via_list.append('Message')
+            results.append('success' if message_result else 'failed')
+            
+        if websocket_result is not None:
+            handled_via_list.append('WebSocket')
+            results.append('success' if websocket_result else 'failed')
+        
+        handled_via = '+'.join(handled_via_list)
+        result = 'success' if 'success' in results else 'failed'
+        
+        details = f"告警通过{handled_via}处理"
+        if notification_type == 'both':
+            details += f"，微信：{'成功' if wechat_result and wechat_result.get('errcode') == 0 else '失败'}，消息：{'成功' if message_result else '失败'}"
+        if websocket_result is not None:
+            details += f"，WebSocket推送：{'成功' if websocket_result else '失败'}"
+        
+        alert_log = AlertLog(
+            alert_id=alert_id,
+            action='deal_alert_enhanced',
+            action_user=user_name,
+            action_user_id=user_id,
+            details=details,
+            handled_via=handled_via,
+            result=result,
+            action_timestamp=get_now()
+        )
+        db.session.add(alert_log)
+        
+    except Exception as e:
+        print(f"创建告警日志失败: {e}")
 
 def _create_alert_log(alert_id, user_name, user_id, notification_type, wechat_result, message_result):
     """创建告警处理日志"""

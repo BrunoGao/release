@@ -33,8 +33,7 @@ LOCAL_BUILD=${LOCAL_BUILD:-false}  # 默认多架构构建
 PUSH_TO_REGISTRY=${PUSH_TO_REGISTRY:-true}  # 默认推送到阿里云
 
 # 设置代理（网络优化）
-export HTTP_PROXY=http://127.0.0.1:7890
-export HTTPS_PROXY=http://127.0.0.1:7890
+
 
 # 生成数据库升级脚本 - 已移除，请使用专门的数据库升级脚本
 

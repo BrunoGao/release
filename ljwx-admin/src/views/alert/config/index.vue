@@ -33,9 +33,9 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
   apiParams: {
     page: 1,
     pageSize: 20,
-    customerId,
-    templateId: null,
-    userOpenid: null
+    tenantId: customerId,
+    type: null,
+    enabled: null
   },
   columns: () => [
     {
@@ -45,28 +45,39 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center'
     },
     {
-      key: 'appId',
-      title: $t('page.health.alert.config.wechat.appId'),
+      key: 'type',
+      title: '微信类型',
       align: 'center',
-      width: 100
+      width: 120,
+      render: row => row.type === 'enterprise' ? '企业微信' : '公众号'
     },
     {
-      key: 'appSecret',
-      title: $t('page.health.alert.config.wechat.appSecret'),
+      key: 'corpId',
+      title: '企业ID',
       align: 'center',
-      width: 200
+      width: 150,
+      render: row => row.corpId || '-'
+    },
+    {
+      key: 'agentId',
+      title: '应用ID',
+      align: 'center',
+      width: 100,
+      render: row => row.agentId || row.appid || '-'
     },
     {
       key: 'templateId',
-      title: $t('page.health.alert.config.wechat.templateId'),
+      title: '模板ID',
       align: 'center',
-      width: 250
+      width: 200,
+      render: row => row.templateId || '-'
     },
     {
-      key: 'userOpenid',
-      title: $t('page.health.alert.config.wechat.userOpenid'),
+      key: 'enabled',
+      title: '启用状态',
       align: 'center',
-      width: 200
+      width: 100,
+      render: row => row.enabled ? '启用' : '禁用'
     },
     {
       key: 'createTime',
@@ -83,12 +94,12 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       minWidth: 100,
       render: row => (
         <div class="flex-center gap-8px">
-          {hasAuth('t:wechat:alert:config:update') && (
+          {hasAuth('t:wechat:alarm:config:update') && (
             <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
               {$t('common.edit')}
             </NButton>
           )}
-          {hasAuth('t:wechat:alert:config:delete') && (
+          {hasAuth('t:wechat:alarm:config:delete') && (
             <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
               {{
                 default: () => $t('common.confirmDelete'),
@@ -144,8 +155,8 @@ async function handleBatchDelete() {
         v-model:columns="columnChecks"
         :checked-row-keys="checkedRowKeys"
         :loading="loading"
-        add-auth="t:wechat:alert:config:add"
-        delete-auth="t:wechat:alert:config:delete"
+        add-auth="t:wechat:alarm:config:add"
+        delete-auth="t:wechat:alarm:config:delete"
         @add="handleAdd"
         @delete="handleBatchDelete"
         @refresh="getData"

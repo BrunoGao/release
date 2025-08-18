@@ -33,11 +33,13 @@ declare namespace Api {
 
         /** HealthBaseline search params */
         type HealthBaselineSearchParams = CommonType.RecordNullable<Pick<Api.Health.HealthBaseline,
+            'id' | 'customerId'
             > & Api.Common.CommonSearchParams
         >;
 
         /** HealthBaseline edit model */
         type HealthBaselineEdit = Pick<Api.Health.HealthBaseline, 'id' |
+            'customerId'
             >;
 
 

@@ -15,7 +15,7 @@ declare namespace Api {
       /** position status */
       status: Common.EnableStatus;
       /** organization id */
-      orgId: number;
+      orgId: string;
       /** weight */
       weight: number;
     }>;
