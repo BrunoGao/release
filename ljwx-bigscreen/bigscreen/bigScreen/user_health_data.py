@@ -1639,43 +1639,8 @@ def save_daily_weekly_data(deviceSn, sleepData, exerciseDailyData, workoutData, 
 
 def get_tenant_id_from_org(org_id): #根据org_id获取租户ID#
     """通过org_id查找sys_org_units的ancestors获取租户ID"""
-    try:
-        import pymysql
-        from .config_database import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE
-        
-        conn = pymysql.connect(
-            host=MYSQL_HOST,
-            port=MYSQL_PORT,
-            user=MYSQL_USER,
-            password=MYSQL_PASSWORD,
-            database=MYSQL_DATABASE
-        )
-        
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT ancestors FROM sys_org_units 
-                    WHERE id = %s AND is_deleted = 0
-                    LIMIT 1
-                """, (org_id,))
-                result = cursor.fetchone()
-                
-                if result and result[0]:
-                    ancestors = result[0]
-                    # 解析ancestors格式(0,X,Y...)，获取第二个数字X作为租户ID
-                    parts = ancestors.split(',')
-                    if len(parts) >= 2 and parts[0] == '0':
-                        try:
-                            return int(parts[1])
-                        except ValueError:
-                            print(f'ancestors格式异常: {ancestors}')
-                return None
-        finally:
-            conn.close()
-            
-    except Exception as e:
-        print(f'获取租户ID失败: {e}')
-        return None
+    # 不需要获取租户ID，直接返回org_id
+    return org_id
 
 def get_health_data_config_by_org(org_id): #获取组织健康数据配置#
     """获取组织的健康数据配置，如果没有则查找顶级部门配置"""

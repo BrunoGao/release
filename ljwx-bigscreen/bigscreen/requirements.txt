@@ -4,6 +4,7 @@ flower>=2.0.0  # Celery监控工具
 requests==2.31.0
 psutil==5.9.8  # 系统监控
 pymysql==1.1.0  # MySQL连接
+cryptography>=3.4.8  # MySQL认证支持
 prometheus-client==0.20.0  # Prometheus指标客户端
 schedule>=1.2.0  # 定时任务调度器
 numpy>=1.24.0  # 数值计算，用于基线统计 

@@ -750,16 +750,30 @@ def handle_health_data():
     data_field = health_data.get('data', {})
     print(f"🔍 data字段类型: {type(data_field)}, 内容: {data_field}")
     
+    device_sn = None
+    
     if isinstance(data_field, list) and len(data_field) > 0:
         # data是数组，取第一个元素获取deviceSn
         device_sn = data_field[0].get('deviceSn') or data_field[0].get('id')
         print(f"🔍 从数组第一个元素提取device_sn: {device_sn}")
     elif isinstance(data_field, dict):
-        # data是对象，直接获取deviceSn
+        # data是对象，先检查直接的deviceSn/id字段
         device_sn = data_field.get('deviceSn') or data_field.get('id')
-        print(f"🔍 从对象提取device_sn: {device_sn}")
-    else:
-        device_sn = None
+        
+        # 如果没找到，检查嵌套的data字段（针对data.data.id的情况）
+        if not device_sn and 'data' in data_field:
+            nested_data = data_field['data']
+            if isinstance(nested_data, dict):
+                device_sn = nested_data.get('deviceSn') or nested_data.get('id')
+                print(f"🔍 从嵌套data对象提取device_sn: {device_sn}")
+            elif isinstance(nested_data, list) and len(nested_data) > 0:
+                device_sn = nested_data[0].get('deviceSn') or nested_data[0].get('id')
+                print(f"🔍 从嵌套data数组提取device_sn: {device_sn}")
+        
+        if device_sn:
+            print(f"🔍 从对象提取device_sn: {device_sn}")
+    
+    if not device_sn:
         print(f"⚠️ 无法从data字段提取device_sn，data类型: {type(data_field)}")
     
     print(f"🏥 最终提取的设备SN: {device_sn}")
@@ -1204,7 +1218,7 @@ def get_personal_info(deviceSn=None):
             })
             
         print("get_personal_info::deviceSn:", deviceSn)
-        user = UserInfo.query.filter_by(device_sn=deviceSn).first()
+        user = UserInfo.query.filter_by(device_sn=deviceSn, is_deleted=False).first()
         if user:
             userId = user.id
             # Get alerts without relying on request context

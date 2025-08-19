@@ -16,9 +16,10 @@ class HealthScoreCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final level = status['level'] as String? ?? 'unknown';
-    final text = status['text'] as String? ?? '未知';
     final message = status['message'] as String? ?? '';
     final color = _getStatusColor(level);
+    final statusText = _getStatusText(score);
+    final badgeIcon = _getBadgeIcon(score);
     
     return Card(
       elevation: 1,
@@ -81,12 +82,23 @@ class HealthScoreCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        '总体健康评分',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: [
+                          const Text(
+                            '总体健康评分',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // 健康徽章
+                          Icon(
+                            badgeIcon,
+                            color: color,
+                            size: 20,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -94,14 +106,29 @@ class HealthScoreCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: color.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          text,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: color,
-                            fontWeight: FontWeight.w500,
+                          border: Border.all(
+                            color: color.withOpacity(0.3),
+                            width: 1,
                           ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              badgeIcon,
+                              color: color,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              statusText,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: color,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -109,17 +136,122 @@ class HealthScoreCard extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            // 分数范围指示器
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '健康评分范围',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    gradient: const LinearGradient(
+                      colors: [Colors.red, Colors.orange, Colors.green],
+                      stops: [0.0, 0.6, 0.8],
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      // 当前分数指示器
+                      Positioned(
+                        left: (score / 100 * MediaQuery.of(context).size.width * 0.7).clamp(0, MediaQuery.of(context).size.width * 0.7 - 4),
+                        top: -2,
+                        child: Container(
+                          width: 4,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(2),
+                            border: Border.all(color: color, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '0',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      '60',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      '80',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      '100',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
             if (message.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Flexible(
-                child: Text(
-                  message,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: color.withOpacity(0.2),
+                    width: 1,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: color,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        message,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.black87,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -130,17 +262,33 @@ class HealthScoreCard extends StatelessWidget {
   }
 
   Color _getStatusColor(String level) {
-    switch (level.toLowerCase()) {
-      case 'excellent':
-        return Colors.green;
-      case 'good':
-        return Colors.blue;
-      case 'fair':
-        return Colors.orange;
-      case 'poor':
-        return Colors.red;
-      default:
-        return Colors.grey;
+    // 基于分数的颜色系统：80+绿色，60-80橙色，<60红色
+    if (score >= 80) {
+      return Colors.green;
+    } else if (score >= 60) {
+      return Colors.orange;
+    } else {
+      return Colors.red;
+    }
+  }
+
+  String _getStatusText(double score) {
+    if (score >= 80) {
+      return '正常';
+    } else if (score >= 60) {
+      return '一般';
+    } else {
+      return '较差';
+    }
+  }
+
+  IconData _getBadgeIcon(double score) {
+    if (score >= 80) {
+      return Icons.verified;
+    } else if (score >= 60) {
+      return Icons.warning_outlined;
+    } else {
+      return Icons.error_outline;
     }
   }
 } 

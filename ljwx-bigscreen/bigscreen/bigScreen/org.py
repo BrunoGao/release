@@ -327,48 +327,8 @@ def get_org_descendants(org_id):
 
 def get_top_level_org_id(org_id):
     """根据org_id获取顶级组织(租户)ID - 通过ancestors字段解析"""
-    try:
-        import pymysql
-        from .config_database import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE
-        
-        conn = pymysql.connect(
-            host=MYSQL_HOST,
-            port=MYSQL_PORT,
-            user=MYSQL_USER,
-            password=MYSQL_PASSWORD,
-            database=MYSQL_DATABASE
-        )
-        
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT ancestors FROM sys_org_units 
-                    WHERE id = %s AND is_deleted = 0
-                    LIMIT 1
-                """, (org_id,))
-                result = cursor.fetchone()
-                
-                if result and result[0]:
-                    ancestors = result[0]
-                    # 解析ancestors格式(0,X,Y...)，获取第二个数字X作为租户ID
-                    parts = ancestors.split(',')
-                    if len(parts) >= 2 and parts[0] == '0':
-                        try:
-                            return int(parts[1])
-                        except ValueError:
-                            logger.warning(f'ancestors格式异常: {ancestors}')
-                    elif ancestors == '0' and org_id == 1:
-                        # 特殊处理：根组织(org_id=1, ancestors='0')直接返回1
-                        return 1
-                        
-                # 如果无法解析，返回原org_id
-                return org_id
-        finally:
-            conn.close()
-            
-    except Exception as e:
-        logger.error(f'获取顶级组织ID失败: {e}')
-        return org_id
+    # 不需要获取租户ID，直接返回org_id
+    return org_id
 
 
 

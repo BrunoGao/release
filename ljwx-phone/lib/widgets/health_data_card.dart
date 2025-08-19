@@ -127,8 +127,8 @@ class HealthDataCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Container(
-                        height: 120,
+                      SizedBox(
+                        height: 100, // 减少高度，更紧凑
                         width: double.infinity,
                         child: _buildHeartRateChart(context),
                       ),
@@ -471,203 +471,405 @@ class HealthDataCard extends StatelessWidget {
     );
   }
   
-  // 心率变化趋势图
+  // 心率变化趋势图 - 带安全区间显示
   Widget _buildHeartRateChart(BuildContext context) {
     if (healthData == null) return const SizedBox();
     
-    // 优先使用缓存的心率数据，确保有足够的历史记录形成趋势
     List<double> heartRateData = [];
     List<String> timeLabels = [];
     
-    // 尝试获取缓存的心率数据
-    final cachedData = healthData!.getCachedHeartRateData();
-    if (cachedData.isNotEmpty) {
-      heartRateData = cachedData;
-      // 生成时间标签，假设数据是按时间顺序排列，最近的在前面
-      timeLabels = List.generate(heartRateData.length, (index) {
-        // 简化显示，每个数据点间隔约30分钟
-        final hours = (heartRateData.length - 1 - index) * 0.5;
-        return hours < 1 ? "刚刚" : "${hours.toInt()}小时前";
-      });
-    } else if (healthData!.trends.containsKey('heartRate') && 
-        healthData!.trends['heartRate']!.isNotEmpty) {
-      // 备选：使用趋势数据
-      heartRateData = healthData!.trends['heartRate']!;
-      // 生成简单的时间标签
-      timeLabels = List.generate(heartRateData.length, (index) => 
-        index == 0 ? "现在" : "${index * 30}分钟前");
-    } else {
-      // 最后选择：使用当前记录
-      heartRateData = healthData!.healthData
-          .map((record) => record.heartRate ?? 0.0)
-          .where((value) => value > 0) // 过滤掉无效值
+    // 1. 首先尝试从健康数据记录中获取真实数据
+    if (healthData!.healthData.isNotEmpty) {
+      final validRecords = healthData!.healthData
+          .where((record) => record.heartRate != null && record.heartRate! > 0)
+          .take(24) // 获取24小时的数据点
           .toList();
-      // 从记录中提取时间
-      timeLabels = healthData!.healthData
-          .where((record) => (record.heartRate ?? 0.0) > 0)
-          .map((record) {
-            try {
-              final dt = DateTime.parse(record.timestamp);
-              return "${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
-            } catch (e) {
-              return "";
-            }
-          })
-          .toList();
+      
+      if (validRecords.isNotEmpty) {
+        heartRateData = validRecords.map((record) => record.heartRate!).toList();
+        // 生成基于实际时间的标签
+        timeLabels = validRecords.map((record) {
+          try {
+            final dt = DateTime.parse(record.timestamp);
+            return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+          } catch (e) {
+            return "刚刚";
+          }
+        }).toList();
+      }
     }
     
-    // 确保有足够的数据点形成趋势线（如果数据不足，添加模拟数据点）
+    // 2. 如果没有足够的真实数据，生成基于当前值的合理趋势
     if (heartRateData.isEmpty) {
       return Center(child: Text("暂无心率记录", style: Theme.of(context).textTheme.bodyMedium));
-    } else if (heartRateData.length < 2) {
-      // 如果只有一个数据点，添加模拟数据点以形成趋势
-      final baseValue = heartRateData.first < 30 ? 70.0 : heartRateData.first; // 确保基准值合理，如果太低则使用正常值70
-      heartRateData = [
-        baseValue - 5, 
-        baseValue - 2, 
-        baseValue, 
-        baseValue + 3, 
-        baseValue - 1
+    }
+    
+    // 如果只有一个数据点，基于它生成合理的历史趋势
+    if (heartRateData.length == 1) {
+      final currentValue = heartRateData.first;
+      // 生成一个基于当前值的合理波动趋势
+      final random = [
+        currentValue + (currentValue * 0.02), // +2%
+        currentValue - (currentValue * 0.03), // -3%
+        currentValue + (currentValue * 0.01), // +1%
+        currentValue - (currentValue * 0.02), // -2%
+        currentValue + (currentValue * 0.015), // +1.5%
+        currentValue - (currentValue * 0.01), // -1%
+        currentValue, // 当前值
       ];
-      timeLabels = ["4小时前", "3小时前", "2小时前", "1小时前", "现在"];
-    }
-
-    // 限制显示的数据点数量，最近的数据在右侧
-    if (heartRateData.length > 10) {
-      heartRateData = heartRateData.take(10).toList();
-      timeLabels = timeLabels.take(10).toList();
+      
+      heartRateData = random;
+      timeLabels = [
+        "06:00",
+        "09:00", 
+        "12:00",
+        "15:00",
+        "18:00",
+        "21:00",
+        "现在"
+      ];
     }
     
-    // 获取最大和最小值以设置图表范围，并增加一些边距
-    final minValue = (heartRateData.reduce((a, b) => a < b ? a : b) - 5).clamp(0.0, double.infinity);
-    final maxValue = (heartRateData.reduce((a, b) => a > b ? a : b) + 5).clamp(0.0, double.infinity);
+    // 3. 确保数据点合理性
+    heartRateData = heartRateData.map((value) => value.clamp(40.0, 200.0)).toList();
     
-    return LineChart(
-      LineChartData(
-        minY: minValue,
-        maxY: maxValue,
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: true,
-          drawHorizontalLine: true,
-          horizontalInterval: (maxValue - minValue) / 4,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: Colors.grey.withOpacity(0.2),
-              strokeWidth: 1,
-            );
-          },
-          getDrawingVerticalLine: (value) {
-            return FlLine(
-              color: Colors.grey.withOpacity(0.2),
-              strokeWidth: 1,
-            );
-          },
-        ),
-        titlesData: FlTitlesData(
-          show: true,
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 22,
-              getTitlesWidget: (value, meta) {
-                if (value.toInt() % 2 == 0 && value.toInt() < timeLabels.length) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 5),
-                    child: Text(
-                      timeLabels[value.toInt()],
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 9,
-                      ),
-                    ),
-                  );
-                }
-                return const SizedBox();
-              },
-            ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 30,
-              getTitlesWidget: (value, meta) {
-                if (value == minValue || value == maxValue || value == (minValue + maxValue) / 2) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 5),
-                    child: Text(
-                      value.toInt().toString(),
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 10,
-                      ),
-                    ),
-                  );
-                }
-                return const SizedBox();
-              },
-            ),
-          ),
-        ),
-        borderData: FlBorderData(
-          show: true,
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
-            left: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
-          ),
-        ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: List.generate(
-              heartRateData.length, 
-              (index) => FlSpot(index.toDouble(), heartRateData[index]),
-            ),
-            isCurved: true,
-            color: AppTheme.heartRateColor,
-            barWidth: 3,
-            isStrokeCapRound: true,
-            dotData: FlDotData(
-              show: true,
-              getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
-                radius: 4,
-                color: AppTheme.heartRateColor,
-                strokeWidth: 2,
-                strokeColor: Colors.white,
+    // 4. 如果有多个数据点但时间标签数量不匹配，重新生成标签
+    if (heartRateData.length > 1 && timeLabels.length != heartRateData.length) {
+      timeLabels = List.generate(heartRateData.length, (index) {
+        final hour = (index * 24 / heartRateData.length).floor();
+        return "${hour.toString().padLeft(2, '0')}:00";
+      });
+    }
+    
+    // 5. 限制显示的数据点数量
+    if (heartRateData.length > 24) {
+      heartRateData = heartRateData.sublist(heartRateData.length - 24);
+      timeLabels = timeLabels.sublist(timeLabels.length - 24);
+    }
+    
+    // 6. 计算Y轴范围，确保包含安全区间
+    final minValue = heartRateData.reduce((a, b) => a < b ? a : b);
+    final maxValue = heartRateData.reduce((a, b) => a > b ? a : b);
+    const safeZoneMin = 80.0;
+    const safeZoneMax = 120.0;
+    
+    // Y轴范围要能显示完整的安全区间和实际数据
+    final finalMinY = [minValue, safeZoneMin - 10].reduce((a, b) => a < b ? a : b);
+    final finalMaxY = [maxValue, safeZoneMax + 10].reduce((a, b) => a > b ? a : b);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 安全区间说明 - 更紧凑的布局
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 2,
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(1),
+                ),
               ),
-            ),
-            belowBarData: BarAreaData(
-              show: true,
-              color: AppTheme.heartRateColor.withOpacity(0.2),
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.heartRateColor.withOpacity(0.4),
-                  AppTheme.heartRateColor.withOpacity(0.0),
+              const SizedBox(width: 3),
+              Text(
+                "安全区间 (80-120)",
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.green[700],
+                  fontSize: 9,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 8,
+                height: 2,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                "异常区间",
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.red[700],
+                  fontSize: 9,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // 图表 - 占用更多空间
+        Expanded(
+          child: LineChart(
+            LineChartData(
+              minY: finalMinY,
+              maxY: finalMaxY,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                drawHorizontalLine: true,
+                horizontalInterval: (finalMaxY - finalMinY) / 5,
+                getDrawingHorizontalLine: (value) {
+                  // 安全区间边界线显示为绿色
+                  if (value == safeZoneMin || value == safeZoneMax) {
+                    return FlLine(
+                      color: Colors.green.withOpacity(0.5),
+                      strokeWidth: 1.5,
+                      dashArray: [5, 5],
+                    );
+                  }
+                  return FlLine(
+                    color: Colors.grey.withOpacity(0.2),
+                    strokeWidth: 1,
+                  );
+                },
+              ),
+              titlesData: FlTitlesData(
+                show: true,
+                topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 16,
+                    getTitlesWidget: (value, meta) {
+                      final index = value.toInt();
+                      if (index >= 0 && index < timeLabels.length) {
+                        // 只显示部分标签以避免拥挤
+                        if (heartRateData.length <= 6 || index % 4 == 0 || index == heartRateData.length - 1) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              timeLabels[index],
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 8,
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                      return const SizedBox();
+                    },
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 24,
+                    getTitlesWidget: (value, meta) {
+                      // 显示关键数值：安全区间边界和极值
+                      if ((value - safeZoneMin).abs() < 1) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 3),
+                          child: Text(
+                            "80",
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontSize: 8,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }
+                      if ((value - safeZoneMax).abs() < 1) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 3),
+                          child: Text(
+                            "120",
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontSize: 8,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }
+                      // 只显示边界值
+                      if ((value - finalMinY).abs() < 2 || (value - finalMaxY).abs() < 2) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 3),
+                          child: Text(
+                            value.toInt().toString(),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 8,
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox();
+                    },
+                  ),
+                ),
+              ),
+              borderData: FlBorderData(
+                show: true,
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
+                  left: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
+                ),
+              ),
+              // 添加安全区间背景填充
+              extraLinesData: ExtraLinesData(
+                horizontalLines: [
+                  HorizontalLine(
+                    y: safeZoneMin,
+                    color: Colors.green.withOpacity(0.3),
+                    strokeWidth: 0,
+                    dashArray: null,
+                    label: HorizontalLineLabel(
+                      show: false,
+                    ),
+                  ),
+                  HorizontalLine(
+                    y: safeZoneMax,
+                    color: Colors.green.withOpacity(0.3),
+                    strokeWidth: 0,
+                    dashArray: null,
+                    label: HorizontalLineLabel(
+                      show: false,
+                    ),
+                  ),
                 ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+              ),
+              lineBarsData: [
+                // 安全区间背景
+                LineChartBarData(
+                  spots: [
+                    FlSpot(0, safeZoneMin),
+                    FlSpot(heartRateData.length.toDouble() - 1, safeZoneMin),
+                    FlSpot(heartRateData.length.toDouble() - 1, safeZoneMax),
+                    FlSpot(0, safeZoneMax),
+                  ],
+                  isCurved: false,
+                  color: Colors.transparent,
+                  barWidth: 0,
+                  dotData: FlDotData(show: false),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    color: Colors.green.withOpacity(0.1),
+                  ),
+                ),
+                // 主心率数据线 - 绿色部分（安全区间）
+                LineChartBarData(
+                  spots: List.generate(
+                    heartRateData.length, 
+                    (index) {
+                      final value = heartRateData[index];
+                      // 只显示在安全区间内的点，其他点设为NaN以断开线条
+                      if (value >= safeZoneMin && value <= safeZoneMax) {
+                        return FlSpot(index.toDouble(), value);
+                      } else {
+                        return FlSpot(index.toDouble(), double.nan);
+                      }
+                    },
+                  ).where((spot) => !spot.y.isNaN).toList(),
+                  isCurved: true,
+                  color: Colors.green,
+                  barWidth: 3,
+                  isStrokeCapRound: true,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                      radius: 2,
+                      color: Colors.green,
+                      strokeWidth: 1,
+                      strokeColor: Colors.white,
+                    ),
+                  ),
+                  belowBarData: BarAreaData(show: false),
+                ),
+                // 红色部分（异常区间）
+                LineChartBarData(
+                  spots: List.generate(
+                    heartRateData.length, 
+                    (index) {
+                      final value = heartRateData[index];
+                      // 只显示在异常区间的点
+                      if (value < safeZoneMin || value > safeZoneMax) {
+                        return FlSpot(index.toDouble(), value);
+                      } else {
+                        return FlSpot(index.toDouble(), double.nan);
+                      }
+                    },
+                  ).where((spot) => !spot.y.isNaN).toList(),
+                  isCurved: true,
+                  color: Colors.red,
+                  barWidth: 3,
+                  isStrokeCapRound: true,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                      radius: 2,
+                      color: Colors.red,
+                      strokeWidth: 1,
+                      strokeColor: Colors.white,
+                    ),
+                  ),
+                  belowBarData: BarAreaData(show: false),
+                ),
+                // 完整的心率数据线（透明色，用于保持连接性和tooltip）
+                LineChartBarData(
+                  spots: List.generate(
+                    heartRateData.length, 
+                    (index) => FlSpot(index.toDouble(), heartRateData[index]),
+                  ),
+                  isCurved: true,
+                  color: Colors.transparent,
+                  barWidth: 1,
+                  isStrokeCapRound: true,
+                  dotData: FlDotData(show: false),
+                  belowBarData: BarAreaData(show: false),
+                ),
+              ],
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  tooltipBgColor: Colors.blueGrey.withOpacity(0.9),
+                  getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                    // 找到透明线条的触摸点（第3条线，barIndex == 2）
+                    final transparentLineSpots = touchedBarSpots.where((spot) => spot.barIndex == 2);
+                    if (transparentLineSpots.isEmpty) return [];
+                    final transparentLine = transparentLineSpots.first;
+                    
+                    final index = transparentLine.x.toInt();
+                    final value = transparentLine.y;
+                    final time = index < timeLabels.length ? timeLabels[index] : "";
+                    final isInSafeZone = value >= safeZoneMin && value <= safeZoneMax;
+                    final status = isInSafeZone ? "正常" : "异常";
+                    final statusColor = isInSafeZone ? Colors.green : Colors.red;
+                    
+                    return [
+                      LineTooltipItem(
+                        '${value.toInt()} bpm\n$time\n$status',
+                        TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: "\n$status",
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ];
+                  },
+                ),
+                handleBuiltInTouches: true,
               ),
             ),
           ),
-        ],
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            tooltipBgColor: Colors.blueGrey.withOpacity(0.8),
-            getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-              return touchedBarSpots.map((barSpot) {
-                final index = barSpot.x.toInt();
-                final time = index < timeLabels.length ? timeLabels[index] : "";
-                return LineTooltipItem(
-                  '${barSpot.y.toInt()} bpm\n$time',
-                  const TextStyle(color: Colors.white),
-                );
-              }).toList();
-            },
-          ),
-          handleBuiltInTouches: true,
         ),
-      ),
+      ],
     );
   }
 

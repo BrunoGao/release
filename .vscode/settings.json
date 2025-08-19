@@ -14,5 +14,6 @@
             "database": "test",
             "username": "root"
         }
-    ]
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

@@ -656,7 +656,17 @@ def optimized_upload_health_data(health_data):#优化的健康数据上传V3.1
                 error_count=0
                 
                 for i, item in enumerate(data):
-                    device_sn=item.get("deviceSn") or item.get("id")
+                    # 优先从直接字段获取设备SN
+                    device_sn = item.get("deviceSn") or item.get("id")
+                    
+                    # 如果没找到，检查嵌套的data字段
+                    if not device_sn and 'data' in item:
+                        nested_data = item['data']
+                        if isinstance(nested_data, dict):
+                            device_sn = nested_data.get('deviceSn') or nested_data.get('id')
+                        elif isinstance(nested_data, list) and len(nested_data) > 0:
+                            device_sn = nested_data[0].get('deviceSn') or nested_data[0].get('id')
+                    
                     print(f"🔍 处理第{i+1}条数据: device_sn={device_sn}, 数据={json.dumps(item, ensure_ascii=False)}")
                     if device_sn:
                         result=optimizer.add_data(item,device_sn)
@@ -686,7 +696,19 @@ def optimized_upload_health_data(health_data):#优化的健康数据上传V3.1
                 print(f"🏥 小批量处理模式: {len(data)}条数据")
                 return _process_batch_direct(data)
         else:
-            device_sn=data.get("deviceSn") or data.get("id")
+            # 优先从直接字段获取设备SN
+            device_sn = data.get("deviceSn") or data.get("id")
+            
+            # 如果没找到，检查嵌套的data字段（针对data.data.id的情况）
+            if not device_sn and 'data' in data:
+                nested_data = data['data']
+                if isinstance(nested_data, dict):
+                    device_sn = nested_data.get('deviceSn') or nested_data.get('id')
+                    print(f"🔍 从嵌套data对象提取device_sn: {device_sn}")
+                elif isinstance(nested_data, list) and len(nested_data) > 0:
+                    device_sn = nested_data[0].get('deviceSn') or nested_data[0].get('id')
+                    print(f"🔍 从嵌套data数组提取device_sn: {device_sn}")
+            
             print(f"🔍 单条数据处理: device_sn={device_sn}")
             if not device_sn:
                 print(f"❌ 设备ID为空")
@@ -730,7 +752,17 @@ def _process_batch_direct(data_list):#小批量直接处理
         error_count=0
         
         for i, data in enumerate(data_list):
-            device_sn=data.get("deviceSn") or data.get("id")
+            # 优先从直接字段获取设备SN
+            device_sn = data.get("deviceSn") or data.get("id")
+            
+            # 如果没找到，检查嵌套的data字段
+            if not device_sn and 'data' in data:
+                nested_data = data['data']
+                if isinstance(nested_data, dict):
+                    device_sn = nested_data.get('deviceSn') or nested_data.get('id')
+                elif isinstance(nested_data, list) and len(nested_data) > 0:
+                    device_sn = nested_data[0].get('deviceSn') or nested_data[0].get('id')
+            
             print(f"🔍 小批量处理第{i+1}条: device_sn={device_sn}, 数据={json.dumps(data, ensure_ascii=False)}")
             if device_sn:
                 result=optimizer.add_data(data,device_sn)

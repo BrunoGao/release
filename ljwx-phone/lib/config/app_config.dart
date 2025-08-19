@@ -8,10 +8,10 @@ class AppConfig {
   static AppConfig get instance => _instance;
 
   // 服务器配置 #服务器地址配置
-  static const String _defaultApiHost = '42.192.53.33'; // 使用主网络IP，模拟器和真机都可访问
-  static const String _defaultApiPort = '8001'; // 默认API端口
-  static const String _defaultAdminHost = '42.192.53.33'; // 默认管理端服务器地址
-  static const String _defaultAdminPort = '8080'; // 默认管理端端口
+  static const String _defaultApiHost = '192.168.1.200'; // 使用主网络IP，模拟器和真机都可访问
+  static const String _defaultApiPort = '5001'; // 默认API端口
+  static const String _defaultAdminHost = '192.168.1.200'; // 默认管理端服务器地址
+  static const String _defaultAdminPort = '3333'; // 默认管理端端口
   
   // 运行时配置变量
   String _apiHost = _defaultApiHost;

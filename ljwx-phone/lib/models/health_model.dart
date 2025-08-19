@@ -52,11 +52,12 @@ class HealthDataRecord {
     return HealthDataRecord(
       id: json['deviceSn'] ?? '',
       timestamp: json['timestamp'] ?? DateTime.now().toString(),
-      heartRate: _parseDouble(json['heartRate']),
-      bloodOxygen: _parseDouble(json['bloodOxygen']),
+      // API返回的是下划线字段名，需要同时支持两种命名方式
+      heartRate: _parseDouble(json['heart_rate'] ?? json['heartRate']),
+      bloodOxygen: _parseDouble(json['blood_oxygen'] ?? json['bloodOxygen']),
       temperature: _parseDouble(json['temperature']),
-      pressureHigh: _parseDouble(json['pressureHigh']),
-      pressureLow: _parseDouble(json['pressureLow']),
+      pressureHigh: _parseDouble(json['pressure_high'] ?? json['pressureHigh']),
+      pressureLow: _parseDouble(json['pressure_low'] ?? json['pressureLow']),
       step: _parseInt(json['step']),
       distance: _parseDouble(json['distance']),
       calorie: _parseDouble(json['calorie']),
@@ -355,15 +356,16 @@ class DepartmentHealthStats {
 
   factory DepartmentHealthStats.fromJson(Map<String, dynamic> json) {
     return DepartmentHealthStats(
-      avgBloodOxygen: _parseDouble(json['avgBloodOxygen']) ?? 0.0,
-      avgCalorie: _parseDouble(json['avgCalorie']) ?? 0.0,
-      avgDistance: _parseDouble(json['avgDistance']) ?? 0.0,
-      avgHeartRate: _parseDouble(json['avgHeartRate']) ?? 0.0,
-      avgStep: _parseDouble(json['avgStep']) ?? 0.0,
-      avgTemperature: _parseDouble(json['avgTemperature']) ?? 0.0,
+      // API返回的是下划线字段名，需要同时支持两种命名方式
+      avgBloodOxygen: _parseDouble(json['avg_blood_oxygen'] ?? json['avgBloodOxygen']) ?? 0.0,
+      avgCalorie: _parseDouble(json['avg_calorie'] ?? json['avgCalorie']) ?? 0.0,
+      avgDistance: _parseDouble(json['avg_distance'] ?? json['avgDistance']) ?? 0.0,
+      avgHeartRate: _parseDouble(json['avg_heart_rate'] ?? json['avgHeartRate']) ?? 0.0,
+      avgStep: _parseDouble(json['avg_step'] ?? json['avgStep']) ?? 0.0,
+      avgTemperature: _parseDouble(json['avg_temperature'] ?? json['avgTemperature']) ?? 0.0,
       deviceCount: json['deviceCount'] ?? 0,
       devices: List<String>.from(json['devices'] ?? []),
-      avgStress: _parseDouble(json['avgStress']) ?? 0.0,
+      avgStress: _parseDouble(json['avg_stress'] ?? json['avgStress']) ?? 0.0,
     );
   }
 
@@ -437,11 +439,12 @@ class HealthRecord {
     return HealthRecord(
       deviceSn: json['deviceSn']?.toString() ?? '',
       timestamp: json['timestamp']?.toString() ?? DateTime.now().toString(),
-      heartRate: _parseInt(json['heartRate'])?.toDouble(),
-      bloodOxygen: _parseInt(json['bloodOxygen'])?.toDouble(),
+      // API返回的是下划线字段名，需要同时支持两种命名方式
+      heartRate: _parseInt(json['heart_rate'] ?? json['heartRate'])?.toDouble(),
+      bloodOxygen: _parseInt(json['blood_oxygen'] ?? json['bloodOxygen'])?.toDouble(),
       temperature: _parseDouble(json['temperature']),
-      pressureHigh: _parseInt(json['pressureHigh'])?.toDouble(),
-      pressureLow: _parseInt(json['pressureLow'])?.toDouble(),
+      pressureHigh: _parseInt(json['pressure_high'] ?? json['pressureHigh'])?.toDouble(),
+      pressureLow: _parseInt(json['pressure_low'] ?? json['pressureLow'])?.toDouble(),
       step: _parseInt(json['step']),
       distance: _parseDouble(json['distance']),
       calorie: _parseDouble(json['calorie']),
@@ -540,12 +543,13 @@ class AverageStats {
 
   factory AverageStats.fromJson(Map<String, dynamic> json) {
     return AverageStats(
-      avgBloodOxygen: _parseDouble(json['avgBloodOxygen']) ?? 0.0,
-      avgCalorie: _parseDouble(json['avgCalorie']) ?? 0.0,
-      avgDistance: _parseDouble(json['avgDistance']) ?? 0.0,
-      avgHeartRate: _parseDouble(json['avgHeartRate']) ?? 0.0,
-      avgStep: _parseDouble(json['avgStep']) ?? 0.0,
-      avgTemperature: _parseDouble(json['avgTemperature']) ?? 0.0,
+      // API返回的是下划线字段名，需要同时支持两种命名方式
+      avgBloodOxygen: _parseDouble(json['avg_blood_oxygen'] ?? json['avgBloodOxygen']) ?? 0.0,
+      avgCalorie: _parseDouble(json['avg_calorie'] ?? json['avgCalorie']) ?? 0.0,
+      avgDistance: _parseDouble(json['avg_distance'] ?? json['avgDistance']) ?? 0.0,
+      avgHeartRate: _parseDouble(json['avg_heart_rate'] ?? json['avgHeartRate']) ?? 0.0,
+      avgStep: _parseDouble(json['avg_step'] ?? json['avgStep']) ?? 0.0,
+      avgTemperature: _parseDouble(json['avg_temperature'] ?? json['avgTemperature']) ?? 0.0,
     );
   }
 

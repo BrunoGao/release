@@ -36,20 +36,20 @@ FOOTER_TEXT = os.getenv('FOOTER_TEXT', '© 2024 智能科技有限公司 版权�
 
 # ==================== 微信告警配置 ====================
 # 微信配置 - 客户可通过环境变量定制
-WECHAT_APP_ID = os.getenv('WECHAT_APP_ID', 'wx10dcc9f0235e1d77')
-WECHAT_APP_SECRET = os.getenv('WECHAT_APP_SECRET', 'b7e9088f3f5fe18a9cfb990c641138b3')
-WECHAT_TEMPLATE_ID = os.getenv('WECHAT_TEMPLATE_ID', 'oJpIEzSJW67s-W_tDTbnB5uS1biiglLH5jcaALofujk')
-WECHAT_USER_OPENID = os.getenv('WECHAT_USER_OPENID', 'ofYhV6W_mDuDnm8lVbgVbgEMtvWc')
+WECHAT_APP_ID = os.getenv('WECHAT_APP_ID', 'your_app_id_here')
+WECHAT_APP_SECRET = os.getenv('WECHAT_APP_SECRET', 'your_app_secret_here')
+WECHAT_TEMPLATE_ID = os.getenv('WECHAT_TEMPLATE_ID', 'your_template_id_here')
+WECHAT_USER_OPENID = os.getenv('WECHAT_USER_OPENID', 'your_openid_here')
 WECHAT_API_URL = os.getenv('WECHAT_API_URL', 'https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={ACCESS_TOKEN}')
-WECHAT_ALERT_ENABLED = os.getenv('WECHAT_ALERT_ENABLED', 'true').lower() == 'true'  # 是否启用微信告警
+WECHAT_ALERT_ENABLED = os.getenv('WECHAT_ALERT_ENABLED', 'false').lower() == 'true'  # 默认禁用微信告警
 
 # ==================== 企业微信配置 ====================
 # 企业微信配置 - 客户可通过环境变量定制
-CORP_ID = os.getenv('CORP_ID', 'wwde8dcde15c6b9657')
-CORP_SECRET = os.getenv('CORP_SECRET', 'C8MfcXQvHb2Lf-sDWITNjEVGnFrNGsKhOAU_d8nwR38')
-CORP_AGENT_ID = int(os.getenv('CORP_AGENT_ID', '1000002'))
+CORP_ID = os.getenv('CORP_ID', 'your_corp_id_here')
+CORP_SECRET = os.getenv('CORP_SECRET', 'your_corp_secret_here')
+CORP_AGENT_ID = int(os.getenv('CORP_AGENT_ID', '0'))
 CORP_API_URL = os.getenv('CORP_API_URL', 'https://qyapi.weixin.qq.com')
-CORP_WECHAT_ENABLED = os.getenv('CORP_WECHAT_ENABLED', 'true').lower() == 'true'  # 是否启用企业微信告警
+CORP_WECHAT_ENABLED = os.getenv('CORP_WECHAT_ENABLED', 'false').lower() == 'true'  # 默认禁用企业微信告警
 CORP_WECHAT_TOUSER = os.getenv('CORP_WECHAT_TOUSER', '@all')  # 企业微信消息接收用户
 
 # Build database URI with proper password encoding

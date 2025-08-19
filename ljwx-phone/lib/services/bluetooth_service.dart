@@ -715,8 +715,8 @@ class BleSvc { //极简BLE服务
       Map<String, dynamic> processedData = _prepareHealthDataForUpload(healthData);
       
       // 添加设备序列号
-      if (processedData['data'] != null && processedData['data']['data'] != null) {
-        var healthFields = processedData['data']['data'];
+      if (processedData['data'] != null) {
+        var healthFields = processedData['data'];
         if (!healthFields.containsKey('id') || healthFields['id'] == null || healthFields['id'].toString().isEmpty) {
           if (global.deviceSn.isNotEmpty) {
             healthFields['id'] = global.deviceSn;
@@ -1019,18 +1019,20 @@ class BleSvc { //极简BLE服务
   /// 准备健康数据上传(v1.2自动添加timestamp) #准备健康数据上传
   Map<String, dynamic> _prepareHealthDataForUpload(Map<String, dynamic> data) {
     try {
-      Map<String, dynamic> result = Map<String, dynamic>.from(data);
-      
-      if (!result.containsKey('data')) {
-        result['data'] = {};
-      }
-      
+      // 直接使用健康数据，不添加额外的data层级包装
       Map<String, dynamic> healthData;
-      if (result['data'] is Map && result['data'].containsKey('data')) {
-        healthData = result['data']['data'];
+      
+      // 从嵌套结构中提取健康数据
+      if (data.containsKey('data')) {
+        if (data['data'] is Map && data['data'].containsKey('data')) {
+          healthData = Map<String, dynamic>.from(data['data']['data']);
+        } else if (data['data'] is Map) {
+          healthData = Map<String, dynamic>.from(data['data']);
+        } else {
+          healthData = {};
+        }
       } else {
-        healthData = {};
-        result['data'] = {'data': healthData};
+        healthData = Map<String, dynamic>.from(data);
       }
       
       healthData['upload_method'] = 'bluetooth';
@@ -1053,7 +1055,11 @@ class BleSvc { //极简BLE服务
         }
       }
       
-      return result;
+      // 返回扁平化的健康数据结构，与手表上传格式一致
+      return {
+        'type': 'health',
+        'data': healthData
+      };
     } catch (e) {
       log('准备健康数据上传时出错: $e');
       return data;

@@ -38,17 +38,17 @@ class WeChatAlertConfig:
     def is_configured(self) -> Tuple[bool, str]:
         """检查微信配置是否完整"""
         missing = []
-        if not self.app_id:
+        if not self.app_id or self.app_id == 'your_app_id_here':
             missing.append('WECHAT_APP_ID')
-        if not self.app_secret:
+        if not self.app_secret or self.app_secret == 'your_app_secret_here':
             missing.append('WECHAT_APP_SECRET')
-        if not self.template_id:
+        if not self.template_id or self.template_id == 'your_template_id_here':
             missing.append('WECHAT_TEMPLATE_ID')
-        if not self.user_openid:
+        if not self.user_openid or self.user_openid == 'your_openid_here':
             missing.append('WECHAT_USER_OPENID')
         
         if missing:
-            return False, f"缺少配置: {', '.join(missing)}"
+            return False, f"缺少配置: {', '.join(missing)} (请参考.env.example配置)"
         return True, "配置完整"
     
     def _should_suppress_error(self) -> bool:
@@ -205,15 +205,15 @@ class CorpWeChatAlertConfig:
     def is_configured(self) -> Tuple[bool, str]:
         """检查企业微信配置是否完整"""
         missing = []
-        if not self.corp_id:
+        if not self.corp_id or self.corp_id == 'your_corp_id_here':
             missing.append('CORP_ID')
-        if not self.corp_secret:
+        if not self.corp_secret or self.corp_secret == 'your_corp_secret_here':
             missing.append('CORP_SECRET')
-        if not self.agent_id:
+        if not self.agent_id or self.agent_id == 0:
             missing.append('CORP_AGENT_ID')
         
         if missing:
-            return False, f"缺少配置: {', '.join(missing)}"
+            return False, f"缺少配置: {', '.join(missing)} (请参考.env.example配置)"
         return True, "配置完整"
     
     def _should_suppress_error(self) -> bool:

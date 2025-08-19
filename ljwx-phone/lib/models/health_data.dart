@@ -35,22 +35,58 @@ class HealthData {
     final trends = {
       'heartRate': healthData.map((e) => e.heartRate.toDouble()).toList(),
       'bloodOxygen': healthData.map((e) => e.bloodOxygen.toDouble()).toList(),
-      'temperature': healthData.map((e) => double.parse(e.temperature)).toList(),
-      'step': healthData.map((e) => double.parse(e.step)).toList(),
+      'temperature': healthData.map((e) => double.tryParse(e.temperature) ?? 0.0).toList(),
+      'step': healthData.map((e) => double.tryParse(e.step) ?? 0.0).toList(),
       'distance': healthData.map((e) => e.distance).toList(),
       'calorie': healthData.map((e) => e.calorie).toList(),
     };
 
-    final stats = {
-      'totalRecords': totalRecords,
-      'deviceCount': deviceCount,
-      'departmentCount': departmentStats.length,
-    };
+    // 创建空的department stats来避免类型问题
+    final Map<String, health_model.DepartmentHealthStats> emptyDeptStats = {};
 
     return health_model.HealthData(
-      vitals: vitals,
+      departmentStats: emptyDeptStats,
+      deviceCount: deviceCount,
+      healthData: healthData.map((e) => health_model.HealthDataRecord(
+        id: e.deviceSn,
+        timestamp: e.timestamp,
+        heartRate: e.heartRate.toDouble(),
+        bloodOxygen: e.bloodOxygen.toDouble(),
+        temperature: double.tryParse(e.temperature) ?? 0.0,
+        pressureHigh: e.pressureHigh.toDouble(),
+        pressureLow: e.pressureLow.toDouble(),
+        step: int.tryParse(e.step) ?? 0,
+        distance: e.distance,
+        calorie: e.calorie,
+        latitude: double.tryParse(e.latitude) ?? 0.0,
+        longitude: double.tryParse(e.longitude) ?? 0.0,
+        altitude: e.altitude,
+        stress: e.stress,
+        exerciseDailyData: e.exerciseDailyData?.toString(),
+        exerciseDailyWeekData: e.exerciseDailyWeekData?.toString(),
+        scientificSleepData: e.scientificSleepData?.toString(),
+        sleepData: e.sleepData?.toString(),
+        workoutData: null,
+        deptName: e.deptName,
+        userName: e.userName,
+      )).toList(),
+      orgId: orgId ?? '',
+      statistics: health_model.HealthStatistics(
+        averageStats: health_model.AverageStats(
+          avgBloodOxygen: statistics.avgBloodOxygen,
+          avgCalorie: statistics.avgCalorie,
+          avgDistance: statistics.avgDistance,
+          avgHeartRate: statistics.avgHeartRate,
+          avgStep: statistics.avgStep,
+          avgTemperature: statistics.avgTemperature,
+        ),
+        devicesWithData: deviceCount,
+        totalDevices: deviceCount,
+      ),
+      totalRecords: totalRecords,
+      userId: userId,
       trends: trends,
-      stats: stats,
+      vitals: vitals,
       lastUpdate: DateTime.now().toString(),
     );
   }
@@ -151,12 +187,13 @@ class DepartmentHealthStats {
 
   factory DepartmentHealthStats.fromJson(Map<String, dynamic> json) {
     return DepartmentHealthStats(
-      avgBloodOxygen: (json['avgBloodOxygen'] ?? 0.0).toDouble(),
-      avgCalorie: (json['avgCalorie'] ?? 0.0).toDouble(),
-      avgDistance: (json['avgDistance'] ?? 0.0).toDouble(),
-      avgHeartRate: (json['avgHeartRate'] ?? 0.0).toDouble(),
-      avgStep: (json['avgStep'] ?? 0.0).toDouble(),
-      avgTemperature: (json['avgTemperature'] ?? 0.0).toDouble(),
+      // API返回的是下划线字段名，需要同时支持两种命名方式
+      avgBloodOxygen: (json['avg_blood_oxygen'] ?? json['avgBloodOxygen'] ?? 0.0).toDouble(),
+      avgCalorie: (json['avg_calorie'] ?? json['avgCalorie'] ?? 0.0).toDouble(),
+      avgDistance: (json['avg_distance'] ?? json['avgDistance'] ?? 0.0).toDouble(),
+      avgHeartRate: (json['avg_heart_rate'] ?? json['avgHeartRate'] ?? 0.0).toDouble(),
+      avgStep: (json['avg_step'] ?? json['avgStep'] ?? 0.0).toDouble(),
+      avgTemperature: (json['avg_temperature'] ?? json['avgTemperature'] ?? 0.0).toDouble(),
       deviceCount: json['deviceCount'] ?? 0,
       devices: List<String>.from(json['devices'] ?? []),
     );
@@ -224,19 +261,20 @@ class HealthRecord {
   factory HealthRecord.fromJson(Map<String, dynamic> json) {
     return HealthRecord(
       altitude: (json['altitude'] ?? 0.0).toDouble(),
-      bloodOxygen: json['bloodOxygen'] ?? 0,
+      // API返回的是下划线字段名，需要同时支持两种命名方式
+      bloodOxygen: int.tryParse((json['blood_oxygen'] ?? json['bloodOxygen']).toString()) ?? 0,
       calorie: (json['calorie'] ?? 0.0).toDouble(),
       deptName: json['deptName'] ?? '',
       deviceSn: json['deviceSn'] ?? '',
       distance: (json['distance'] ?? 0.0).toDouble(),
-      stress: json['stress'] ?? 0,
+      stress: int.tryParse((json['stress']).toString()) ?? 0,
       exerciseDailyData: json['exerciseDailyData'],
       exerciseDailyWeekData: json['exerciseDailyWeekData'],
-      heartRate: json['heartRate'] ?? 0,
+      heartRate: int.tryParse((json['heart_rate'] ?? json['heartRate']).toString()) ?? 0,
       latitude: json['latitude']?.toString() ?? '0.0',
       longitude: json['longitude']?.toString() ?? '0.0',
-      pressureHigh: json['pressureHigh'] ?? 0,
-      pressureLow: json['pressureLow'] ?? 0,
+      pressureHigh: int.tryParse((json['pressure_high'] ?? json['pressureHigh']).toString()) ?? 0,
+      pressureLow: int.tryParse((json['pressure_low'] ?? json['pressureLow']).toString()) ?? 0,
       scientificSleepData: json['scientificSleepData'],
       sleepData: json['sleepData'],
       step: json['step']?.toString() ?? '0',
@@ -296,15 +334,16 @@ class HealthStatistics {
 
   factory HealthStatistics.fromJson(Map<String, dynamic> json) {
     return HealthStatistics(
-      avgHeartRate: (json['avg_heart_rate'] ?? 0.0).toDouble(),
-      avgBloodOxygen: (json['avg_blood_oxygen'] ?? 0.0).toDouble(),
-      avgTemperature: (json['avg_temperature'] ?? 0.0).toDouble(),
-      avgPressureHigh: (json['avg_pressure_high'] ?? 0.0).toDouble(),
-      avgPressureLow: (json['avg_pressure_low'] ?? 0.0).toDouble(),
-      avgStep: (json['avg_step'] ?? 0.0).toDouble(),
-      avgDistance: (json['avg_distance'] ?? 0.0).toDouble(),
-      avgCalorie: (json['avg_calorie'] ?? 0.0).toDouble(),
-      avgStress: (json['avg_stress'] ?? 0.0).toDouble(),
+      // API返回的是下划线字段名，需要同时支持两种命名方式
+      avgHeartRate: (json['avg_heart_rate'] ?? json['avgHeartRate'] ?? 0.0).toDouble(),
+      avgBloodOxygen: (json['avg_blood_oxygen'] ?? json['avgBloodOxygen'] ?? 0.0).toDouble(),
+      avgTemperature: (json['avg_temperature'] ?? json['avgTemperature'] ?? 0.0).toDouble(),
+      avgPressureHigh: (json['avg_pressure_high'] ?? json['avgPressureHigh'] ?? 0.0).toDouble(),
+      avgPressureLow: (json['avg_pressure_low'] ?? json['avgPressureLow'] ?? 0.0).toDouble(),
+      avgStep: (json['avg_step'] ?? json['avgStep'] ?? 0.0).toDouble(),
+      avgDistance: (json['avg_distance'] ?? json['avgDistance'] ?? 0.0).toDouble(),
+      avgCalorie: (json['avg_calorie'] ?? json['avgCalorie'] ?? 0.0).toDouble(),
+      avgStress: (json['avg_stress'] ?? json['avgStress'] ?? 0.0).toDouble(),
     );
   }
 

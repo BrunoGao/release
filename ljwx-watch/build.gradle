@@ -5,24 +5,14 @@ apply plugin: 'com.huawei.ohos.app'
 ohos {
     signingConfigs {
         debug {
-            storeFile file('C:\\Users\\bg\\.ohos\\config\\auto_debug_ljwx-watch-yx_com.ljwx.watch_260086000101910035.p12')
-            storePassword '0000001B011A91B43EAE94136B53FACA0A685603E4CD04C9427242EC1A45F77BBA38E224B9B9C43C325E4E'
+            storeFile file('C:\\Users\\bg\\.ohos\\config\\auto_debug_ljwx-watch_com.ljwx.watch_260086000101910035.p12')
+            storePassword '0000001B3376D0A8E4F06327F0B0B1CE7F91080F841CE7E8608C91BD0269087649A2F14A3B72A3EFF160C4'
             keyAlias = 'debugKey'
-            keyPassword '0000001BE062FE380EB522A1AB06BF62C1817AB6A8C9659CAC97A7897E8F042E8570E2743451DCB0770A60'
+            keyPassword '0000001B307825195A9DE20AD7A2784C411D28470A596ED970187993D88696A721FDD39BB512168459122A'
             signAlg = 'SHA256withECDSA'
-            profile file('C:\\Users\\bg\\.ohos\\config\\auto_debug_ljwx-watch-yx_com.ljwx.watch_260086000101910035.p7b')
-            certpath file('C:\\Users\\bg\\.ohos\\config\\auto_debug_ljwx-watch-yx_com.ljwx.watch_260086000101910035.cer')
+            profile file('C:\\Users\\bg\\.ohos\\config\\auto_debug_ljwx-watch_com.ljwx.watch_260086000101910035.p7b')
+            certpath file('C:\\Users\\bg\\.ohos\\config\\auto_debug_ljwx-watch_com.ljwx.watch_260086000101910035.cer')
         }
-        release {
-            storeFile file('Z:\\Downloads\\heguang\\ljwx-watch-release.p12')
-            storePassword '00000018338A41D0B27C4C98B11BFB2F5A943DD2A8F6C60B8C705BF800F12CC0349F4465CF9C1F02'
-            keyAlias = 'ljwx-release'
-            keyPassword '000000188EF9CE7668E31946C415497152795DF22ECF3046840FF577B0A1A25F455241EA517E0560'
-            signAlg = 'SHA256withECDSA'
-            profile file('Z:\\Downloads\\heguang\\ljwx-watch-releaseRelease.p7b')
-            certpath file('Z:\\Downloads\\heguang\\ljwx-watch-release.cer')
-        }
-
     }
     compileSdkVersion 6
     defaultConfig {

@@ -6,18 +6,18 @@
         <option name="assembleTaskName" value="assembleDebug" />
         <option name="compileModeType" value="d8" />
         <option name="debuggable" value="true" />
-        <option name="etsSourceDirPath" value="Z:\work\codes\springboot\ljwx\docker\ljwx-watch-yx\entry\src\main\ets" />
+        <option name="etsSourceDirPath" value="Z:\work\codes\springboot\ljwx\yunxiang\ljwx-watch\entry\src\main\ets" />
         <option name="generateResourcesTaskName" value="generateDebugResources" />
         <option name="hapOutputFolderPath" />
         <option name="jsManifestPath" />
-        <option name="jsSourceDirPath" value="Z:\work\codes\springboot\ljwx\docker\ljwx-watch-yx\entry\src\main\js" />
+        <option name="jsSourceDirPath" value="Z:\work\codes\springboot\ljwx\yunxiang\ljwx-watch\entry\src\main\js" />
         <option name="mergeJsSrc" value="false" />
         <option name="moduleType" value="entry" />
         <option name="ohosTestResourcesFoldersRelativePath" value="file://$MODULE_DIR$/../../../entry/src/ohosTest/resources;file://$MODULE_DIR$/../../../entry/src/debugOhosTest/resources" />
         <option name="previewExecuteTaskName" />
         <option name="resourcesFoldersRelativePath" value="file://$MODULE_DIR$/../../../entry/src/main/resources;file://$MODULE_DIR$/../../../entry/src/debug/resources" />
         <option name="selectedBuildVariant" value="debug" />
-        <option name="superVisualSourceDirPath" value="Z:\work\codes\springboot\ljwx\docker\ljwx-watch-yx\entry\src\main\supervisual" />
+        <option name="superVisualSourceDirPath" value="Z:\work\codes\springboot\ljwx\yunxiang\ljwx-watch\entry\src\main\supervisual" />
       </configuration>
     </facet>
     <facet type="java-gradle" name="Java-Gradle">
