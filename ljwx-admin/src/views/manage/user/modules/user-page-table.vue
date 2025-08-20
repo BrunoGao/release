@@ -1,7 +1,7 @@
 <script setup lang="tsx">
-import { NButton, NCard, NDataTable, NTag, useModal } from 'naive-ui';
+import { NButton, NCard, NDataTable, NTag, useModal, NUpload, NUploadDragger, NP, NText, NIcon, NModal, NSpin } from 'naive-ui';
 import { computed, h, reactive, ref, watch } from 'vue';
-import { fetchCheckUserDeviceBinding, fetchDeleteUser, fetchGetUserList, fetchGetUserListByViewMode, fetchResetUserPassword } from '@/service/api';
+import { fetchCheckUserDeviceBinding, fetchDeleteUser, fetchGetUserList, fetchGetUserListByViewMode, fetchResetUserPassword, fetchBatchImportUsers, fetchBatchImportUsersDirect } from '@/service/api';
 import { $t } from '@/locales';
 import { useAppStore } from '@/store/modules/app';
 import { useTable, useTableOperate } from '@/hooks/common/table';
@@ -35,9 +35,20 @@ const appStore = useAppStore();
 const { hasAuth } = useAuth();
 const { dictTag } = useDict();
 const { bool: respModelVisible, setTrue: setRespModelVisible } = useBoolean();
+const { bool: importModalVisible, setTrue: showImportModal, setFalse: hideImportModal } = useBoolean();
 
 // 视图模式状态
 const viewMode = ref<Api.SystemManage.ViewMode>('all');
+
+// 批量导入状态
+const importLoading = ref(false);
+const importResult = ref<{
+  success: any[];
+  failed: any[];
+  total: number;
+} | null>(null);
+const uploadedFile = ref<File | null>(null);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 
 // 根据视图模式动态获取API函数 #统一使用viewMode参数
 const getApiFn = (mode: Api.SystemManage.ViewMode) => {
@@ -353,6 +364,168 @@ function handleDeviceSubmitted(deviceSn: string) {
   window.open(`${bigscreenUrl}/personal?deviceSn=${deviceSn}`, '_blank');
 }
 
+// 下载模板
+function downloadTemplate() {
+  // 提供CSV格式模板下载
+  const headers = ['姓名', '性别', '年龄', '工龄', '手机号码', '部门', '岗位', '设备序列号', '备注'];
+  const sampleData = [
+    ['张三', '男', '28', '3', '13800138000', '技术部', '软件工程师', 'SN001', '示例用户1'],
+    ['李四', '女', '25', '2', '13900139000', '产品部', '产品经理', 'SN002', '示例用户2']
+  ];
+  
+  const csvContent = [headers, ...sampleData]
+    .map(row => row.map(cell => `"${cell}"`).join(','))
+    .join('\n');
+  
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', '用户批量导入模板.csv');
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  window.$message?.success('CSV模板下载完成！您也可以将此格式保存为Excel文件使用');
+}
+
+// 选择文件
+function selectFile() {
+  if (importLoading.value) return;
+  fileInputRef.value?.click();
+}
+
+// 处理文件输入变化
+function handleFileInputChange(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  
+  if (!file) {
+    uploadedFile.value = null;
+    return;
+  }
+  
+  console.log('选择的文件:', file.name, file.type, file.size);
+  
+  // 验证文件类型
+  const validTypes = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'text/csv',
+    'application/csv'
+  ];
+  
+  const fileName = file.name.toLowerCase();
+  const isValidType = validTypes.includes(file.type) || 
+                     fileName.endsWith('.xlsx') ||
+                     fileName.endsWith('.xls') ||
+                     fileName.endsWith('.csv');
+  
+  if (!isValidType) {
+    window.$message?.error('请上传Excel文件(.xlsx, .xls)或CSV文件');
+    uploadedFile.value = null;
+    // 清空input值
+    if (fileInputRef.value) {
+      fileInputRef.value.value = '';
+    }
+    return;
+  }
+  
+  uploadedFile.value = file;
+  window.$message?.success('文件已选择，请点击提交按钮进行导入');
+}
+
+// 清除文件选择
+function clearFileSelection() {
+  uploadedFile.value = null;
+  if (fileInputRef.value) {
+    fileInputRef.value.value = '';
+  }
+  window.$message?.info('文件已清除');
+}
+
+// 提交导入
+async function submitImport() {
+  if (!uploadedFile.value) {
+    window.$message?.error('请先选择文件');
+    return;
+  }
+  
+  importLoading.value = true;
+  importResult.value = null;
+  
+  try {
+    console.log('准备发送请求:', {
+      fileName: uploadedFile.value.name,
+      fileSize: uploadedFile.value.size,
+      fileType: uploadedFile.value.type,
+      orgIds: orgIds.value,
+      uploadedFileObject: uploadedFile.value
+    });
+    
+    // 验证文件对象的完整性
+    if (!uploadedFile.value.name || typeof uploadedFile.value.size !== 'number') {
+      throw new Error('无效的文件对象');
+    }
+    
+    // 首先尝试直接fetch方法
+    console.log('尝试使用直接fetch方法...');
+    const directResult = await fetchBatchImportUsersDirect(
+      uploadedFile.value, 
+      JSON.stringify(orgIds.value)
+    );
+    
+    let result = directResult.data;
+    let error = directResult.error;
+    
+    // 如果直接fetch失败，尝试原始方法
+    if (error) {
+      console.log('直接fetch失败，尝试原始API方法...');
+      const originalResult = await fetchBatchImportUsers(
+        uploadedFile.value, 
+        JSON.stringify(orgIds.value)
+      );
+      result = originalResult.data;
+      error = originalResult.error;
+    }
+    
+    if (error) {
+      console.error('API调用失败:', error);
+      throw new Error(error.message || '调用接口失败');
+    }
+    
+    console.log('服务器响应:', result);
+    importResult.value = result;
+    
+    if (result && result.success && result.success.length > 0) {
+      window.$message?.success(`成功导入 ${result.success.length} 个用户`);
+      await getDataByPage();
+    }
+    
+    if (result && result.failed && result.failed.length > 0) {
+      window.$message?.warning(`${result.failed.length} 个用户导入失败，请查看详细信息`);
+    }
+    
+    if (!result || (!result.success && !result.failed)) {
+      window.$message?.warning('导入完成，但未收到详细结果');
+    }
+    
+  } catch (error) {
+    console.error('批量导入错误:', error);
+    window.$message?.error(`批量导入失败: ${error.message}`);
+  } finally {
+    importLoading.value = false;
+  }
+}
+
+// 显示批量导入弹窗
+function handleBatchImport() {
+  importResult.value = null;
+  clearFileSelection();
+  showImportModal();
+}
+
 watch(orgIds, () => {
   updateSearchParams({ orgIds: orgIds.value });
   apiParams.orgIds = orgIds.value;
@@ -396,7 +569,22 @@ watch(viewMode, () => {
         @add="handleAdd"
         @delete="handleBatchDelete"
         @refresh="getData"
-      />
+      >
+        <template #suffix>
+          <NButton
+            v-if="hasAuth('sys:user:add')"
+            size="small"
+            ghost
+            type="info"
+            @click="handleBatchImport"
+          >
+            <template #icon>
+              <icon-material-symbols:upload />
+            </template>
+            批量导入
+          </NButton>
+        </template>
+      </TableHeaderOperation>
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
         remote
@@ -427,6 +615,147 @@ watch(viewMode, () => {
       :user-id="editingId"
       @submitted="getDataByPage"
     />
+    
+    <!-- 批量导入弹窗 -->
+    <NModal
+      v-model:show="importModalVisible"
+      :mask-closable="false"
+      preset="dialog"
+      title="批量导入用户"
+      :style="{ width: '600px' }"
+    >
+      <div class="space-y-4">
+        <!-- 操作提示 -->
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <div class="flex items-center space-x-2 mb-2">
+            <NIcon size="16" color="#1890ff">
+              <icon-material-symbols:info />
+            </NIcon>
+            <span class="text-sm font-medium text-blue-800">导入说明</span>
+          </div>
+          <div class="text-xs text-blue-600 space-y-1">
+            <p>1. 请先下载模板文件，按照模板格式填写用户信息</p>
+            <p>2. 支持 Excel (.xlsx, .xls) 和 CSV 格式文件</p>
+            <p>3. 必填字段：姓名、性别、年龄、工龄、手机号码、部门、岗位</p>
+            <p>4. 部门和岗位必须在系统中存在且唯一</p>
+          </div>
+        </div>
+
+        <!-- 下载模板 -->
+        <div class="flex justify-center">
+          <NButton type="primary" ghost @click="downloadTemplate">
+            <template #icon>
+              <icon-material-symbols:download />
+            </template>
+            下载导入模板
+          </NButton>
+        </div>
+
+        <!-- 文件上传 -->
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            @change="handleFileInputChange"
+            style="display: none"
+            :disabled="importLoading"
+          />
+          <div @click="selectFile" class="cursor-pointer">
+            <NIcon size="48" :depth="3" class="mb-2">
+              <icon-material-symbols:upload />
+            </NIcon>
+            <div class="text-base mb-1">点击选择文件</div>
+            <div class="text-xs text-gray-500">支持 Excel (.xlsx, .xls) 和 CSV 格式</div>
+          </div>
+        </div>
+
+        <!-- 文件选择状态 -->
+        <div v-if="uploadedFile" class="bg-green-50 p-3 rounded">
+          <div class="flex items-center space-x-2">
+            <NIcon size="16" color="#52c41a">
+              <icon-material-symbols:check-circle />
+            </NIcon>
+            <span class="text-sm text-green-800">已选择文件: {{ uploadedFile.name }}</span>
+          </div>
+        </div>
+
+        <!-- 提交按钮 -->
+        <div class="flex justify-center space-x-3">
+          <NButton
+            v-if="uploadedFile && !importLoading"
+            type="primary"
+            @click="submitImport"
+            :disabled="importLoading"
+          >
+            <template #icon>
+              <icon-material-symbols:cloud-upload />
+            </template>
+            开始导入
+          </NButton>
+          <NButton
+            v-if="uploadedFile"
+            quaternary
+            @click="clearFileSelection"
+            :disabled="importLoading"
+          >
+            重新选择
+          </NButton>
+        </div>
+
+        <!-- 当前状态显示 -->
+        <div class="bg-gray-100 p-2 rounded text-xs">
+          <div>上传状态: {{ uploadedFile ? '已选择文件' : '未选择文件' }}</div>
+          <div v-if="uploadedFile">文件名: {{ uploadedFile.name }}</div>
+          <div v-if="uploadedFile">文件类型: {{ uploadedFile.type }}</div>
+          <div v-if="uploadedFile">文件大小: {{ Math.round(uploadedFile.size / 1024) }}KB</div>
+          <div v-if="!uploadedFile">请选择要导入的文件</div>
+        </div>
+
+        <!-- 导入结果 -->
+        <div v-if="importResult" class="space-y-3">
+          <div class="font-medium text-gray-800">导入结果</div>
+          
+          <!-- 成功统计 -->
+          <div class="bg-green-50 p-3 rounded">
+            <div class="text-green-800 text-sm">
+              ✅ 成功导入 {{ importResult.success.length }} 个用户
+            </div>
+          </div>
+          
+          <!-- 失败详情 -->
+          <div v-if="importResult.failed.length > 0" class="bg-red-50 p-3 rounded">
+            <div class="text-red-800 text-sm mb-2">
+              ❌ 导入失败 {{ importResult.failed.length }} 个用户
+            </div>
+            <div class="max-h-32 overflow-y-auto">
+              <div
+                v-for="(item, index) in importResult.failed"
+                :key="index"
+                class="text-xs text-red-600 py-1 border-b border-red-200 last:border-b-0"
+              >
+                第{{ item.row }}行: {{ item.reason }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div v-if="importLoading" class="text-center py-4">
+          <NSpin size="small" />
+          <span class="ml-2 text-sm text-gray-600">正在导入中...</span>
+        </div>
+      </div>
+
+      <template #action>
+        <NButton 
+          @click="hideImportModal"
+          :disabled="importLoading"
+        >
+          {{ importLoading ? '导入中...' : '关闭' }}
+        </NButton>
+      </template>
+    </NModal>
   </div>
 </template>
 

@@ -18,6 +18,7 @@ import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -180,6 +181,15 @@ public class SysUserController {
         } catch (NumberFormatException e) {
             return Result.failure("组织ID格式不正确");
         }
+    }
+
+    @PostMapping("/batch-import")
+    @SaCheckPermission("sys:user:add")
+    @Operation(operationId = "10", summary = "批量导入用户")
+    public Result<Map<String, Object>> batchImportUsers(
+            @Parameter(description = "Excel文件") @RequestParam("file") MultipartFile file,
+            @Parameter(description = "组织ID列表") @RequestParam("orgIds") String orgIds) {
+        return Result.data(sysUserFacade.batchImportUsers(file, orgIds));
     }
 
 

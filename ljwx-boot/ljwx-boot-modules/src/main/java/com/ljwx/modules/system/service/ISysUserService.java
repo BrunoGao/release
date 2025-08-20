@@ -8,6 +8,7 @@ import com.ljwx.modules.system.domain.bo.SysUserBO;
 import com.ljwx.modules.system.domain.bo.SysUserResponsibilitiesBO;
 import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.health.domain.vo.MessageResponseDetailVO;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
@@ -250,4 +251,15 @@ public interface ISysUserService extends IService<SysUser> {
      * @CreateTime 2025-01-19
      */
     boolean forceRemoveBatchByIds(List<Long> userIds, boolean forceUnbind);
+
+    /**
+     * 批量导入用户
+     *
+     * @param file   Excel文件
+     * @param orgIds 组织ID列表（JSON字符串）
+     * @return {@link Map} 导入结果，包含成功和失败的记录
+     * @author bruno.gao
+     * @CreateTime 2025-01-20
+     */
+    Map<String, Object> batchImportUsers(MultipartFile file, String orgIds);
 }

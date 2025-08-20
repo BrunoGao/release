@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -143,5 +144,11 @@ public class SysUserFacadeImpl implements ISysUserFacade {
     @Override
     public List getBindDevice(Long customerId) {
         return sysUserService.getBindDevice(customerId);
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> batchImportUsers(MultipartFile file, String orgIds) {
+        return sysUserService.batchImportUsers(file, orgIds);
     }
 }

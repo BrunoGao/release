@@ -52,6 +52,7 @@
         <classgraph.version>4.8.177</classgraph.version>
         <snakeyaml.version>2.3</snakeyaml.version>
         <minio.version>8.5.13</minio.version>
+        <poi.version>5.2.5</poi.version>
     </properties>
 
     <dependencyManagement>
@@ -126,6 +127,23 @@
                 <groupId>io.minio</groupId>
                 <artifactId>minio</artifactId>
                 <version>${minio.version}</version>
+            </dependency>
+
+            <!-- Apache POI for Excel processing -->
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-scratchpad</artifactId>
+                <version>${poi.version}</version>
             </dependency>
 
             <!-- Starter -->

@@ -5,6 +5,7 @@ import com.ljwx.infrastructure.page.RPage;
 import com.ljwx.modules.system.domain.dto.user.*;
 import com.ljwx.modules.system.domain.vo.SysUserResponsibilitiesVO;
 import com.ljwx.modules.system.domain.vo.SysUserVO;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -144,4 +145,15 @@ public interface ISysUserFacade {
     List getUnbindDevice(Long customerId);
 
     List getBindDevice(Long customerId);
+
+    /**
+     * 批量导入用户
+     *
+     * @param file   Excel文件
+     * @param orgIds 组织ID列表（JSON字符串）
+     * @return {@link Map} 导入结果，包含成功和失败的记录
+     * @author bruno.gao
+     * @CreateTime 2025-01-20
+     */
+    Map<String, Object> batchImportUsers(MultipartFile file, String orgIds);
 }
