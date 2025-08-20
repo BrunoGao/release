@@ -2,10 +2,41 @@
 FROM maven:3-eclipse-temurin-21 AS builder
 WORKDIR /app
 
+# 配置Maven以使用阿里云镜像和增加超时时间
+RUN mkdir -p /root/.m2 && \
+    echo '<?xml version="1.0" encoding="UTF-8"?>' > /root/.m2/settings.xml && \
+    echo '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"' >> /root/.m2/settings.xml && \
+    echo '  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' >> /root/.m2/settings.xml && \
+    echo '  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0' >> /root/.m2/settings.xml && \
+    echo '                      http://maven.apache.org/xsd/settings-1.0.0.xsd">' >> /root/.m2/settings.xml && \
+    echo '  <mirrors>' >> /root/.m2/settings.xml && \
+    echo '    <mirror>' >> /root/.m2/settings.xml && \
+    echo '      <id>aliyun</id>' >> /root/.m2/settings.xml && \
+    echo '      <name>Aliyun Maven</name>' >> /root/.m2/settings.xml && \
+    echo '      <url>https://maven.aliyun.com/repository/public</url>' >> /root/.m2/settings.xml && \
+    echo '      <mirrorOf>central</mirrorOf>' >> /root/.m2/settings.xml && \
+    echo '    </mirror>' >> /root/.m2/settings.xml && \
+    echo '  </mirrors>' >> /root/.m2/settings.xml && \
+    echo '  <profiles>' >> /root/.m2/settings.xml && \
+    echo '    <profile>' >> /root/.m2/settings.xml && \
+    echo '      <id>default</id>' >> /root/.m2/settings.xml && \
+    echo '      <activation><activeByDefault>true</activeByDefault></activation>' >> /root/.m2/settings.xml && \
+    echo '      <repositories>' >> /root/.m2/settings.xml && \
+    echo '        <repository>' >> /root/.m2/settings.xml && \
+    echo '          <id>aliyun</id>' >> /root/.m2/settings.xml && \
+    echo '          <url>https://maven.aliyun.com/repository/public</url>' >> /root/.m2/settings.xml && \
+    echo '          <releases><enabled>true</enabled></releases>' >> /root/.m2/settings.xml && \
+    echo '          <snapshots><enabled>true</enabled></snapshots>' >> /root/.m2/settings.xml && \
+    echo '        </repository>' >> /root/.m2/settings.xml && \
+    echo '      </repositories>' >> /root/.m2/settings.xml && \
+    echo '    </profile>' >> /root/.m2/settings.xml && \
+    echo '  </profiles>' >> /root/.m2/settings.xml && \
+    echo '</settings>' >> /root/.m2/settings.xml
+
 # 先复制并构建ljwx-boot-starter
 COPY ljwx-boot-starter ./ljwx-boot-starter
 WORKDIR /app/ljwx-boot-starter
-RUN mvn clean install -DskipTests
+RUN mvn clean install -DskipTests -Dmaven.wagon.http.connectTimeout=60000 -Dmaven.wagon.http.readTimeout=120000
 
 # 然后构建ljwx-boot
 WORKDIR /app
@@ -14,7 +45,7 @@ COPY ljwx-boot/ljwx-boot-admin ./ljwx-boot-admin
 COPY ljwx-boot/ljwx-boot-common ./ljwx-boot-common
 COPY ljwx-boot/ljwx-boot-infrastructure ./ljwx-boot-infrastructure
 COPY ljwx-boot/ljwx-boot-modules ./ljwx-boot-modules
-RUN mvn clean package -DskipTests -pl ljwx-boot-admin -am
+RUN mvn clean package -DskipTests -pl ljwx-boot-admin -am -Dmaven.wagon.http.connectTimeout=60000 -Dmaven.wagon.http.readTimeout=120000
 
 # 运行阶段 - 使用Alpine JRE镜像优化大小
 FROM eclipse-temurin:21-jre-alpine

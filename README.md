@@ -79,6 +79,24 @@
 
 ## 🚀 最新功能 v1.3.3
 
+### 🐳 Docker构建系统优化修复 (2025-08-20)
+
+#### **ljwx-boot Docker构建修复**
+- **Maven镜像源优化**: 配置阿里云Maven镜像，解决`No route to host`网络连接问题
+- **超时配置优化**: 增加Maven连接和读取超时时间，提高构建稳定性
+- **多阶段构建**: 优化Dockerfile，支持ljwx-boot-starter依赖构建和主应用构建
+- **网络连接修复**: 解决Docker构建环境中Maven依赖下载失败的问题
+
+#### **技术改进详情**
+```dockerfile
+# 配置Maven阿里云镜像源
+RUN mkdir -p /root/.m2 && \
+    echo '<settings>...<mirror>...<url>https://maven.aliyun.com/repository/public</url>...' > /root/.m2/settings.xml
+
+# 增加超时配置
+RUN mvn clean install -DskipTests -Dmaven.wagon.http.connectTimeout=60000 -Dmaven.wagon.http.readTimeout=120000
+```
+
 ### 🔧 蓝牙健康数据上传修复 (2025-08-19)
 
 #### **移动端数据传输优化**
@@ -164,16 +182,35 @@
 git clone https://github.com/your-org/ljwx-system.git
 cd ljwx-system
 
-# 2. 一键启动所有服务
+# 2. 构建所有Docker镜像
+./build-and-push.sh boot      # 构建后端服务
+./build-and-push.sh admin     # 构建前端管理
+./build-and-push.sh bigscreen # 构建监控大屏
+
+# 3. 一键启动所有服务
 docker-compose up -d
 
-# 3. 初始化数据库
+# 4. 初始化数据库
 mysql -u root -p123456 < client-deployment/client-data.sql
 
-# 4. 访问系统
+# 5. 访问系统
 # 管理后台: http://localhost:3000
 # 监控大屏: http://localhost:5001  
 # API文档: http://localhost:9998/doc.html
+```
+
+### 🔧 Docker构建说明
+
+系统已优化Docker构建流程，解决了网络连接问题：
+
+```bash
+# 单独构建各组件
+./build-and-push.sh boot      # 后端API服务 (Spring Boot)
+./build-and-push.sh admin     # 前端管理系统 (Vue3)
+./build-and-push.sh bigscreen # 监控大屏系统 (Python Flask)
+
+# 构建支持多架构 (AMD64/ARM64)
+# 镜像自动推送到阿里云容器镜像仓库
 ```
 
 ### 🔧 开发环境部署
