@@ -1,6 +1,39 @@
 #!/bin/bash
 # 动态生成docker-compose配置 #智能处理首次部署和升级部署
 
+# 加载配置文件
+CONFIG_FILE=${1:-"custom-config.env"}
+if [ -f "$CONFIG_FILE" ]; then
+    . "$CONFIG_FILE"
+    echo "📋 已加载配置文件: $CONFIG_FILE"
+else
+    echo "⚠️  警告: 配置文件 $CONFIG_FILE 不存在，使用默认值"
+fi
+
+# 设置默认值
+MYSQL_HOST=${MYSQL_HOST:-mysql}
+MYSQL_PORT=${MYSQL_PORT:-3306}
+MYSQL_USER=${MYSQL_USER:-root}
+MYSQL_PASSWORD=${MYSQL_PASSWORD:-123456}
+MYSQL_DATABASE=${MYSQL_DATABASE:-lj-06}
+REDIS_HOST=${REDIS_HOST:-redis}
+REDIS_PORT=${REDIS_PORT:-6379}
+REDIS_PASSWORD=${REDIS_PASSWORD:-123456}
+APP_PORT=${APP_PORT:-8001}
+BIGSCREEN_PORT=${BIGSCREEN_PORT:-8001}
+VITE_BIGSCREEN_URL=${VITE_BIGSCREEN_URL:-http://localhost:8001}
+VITE_APP_TITLE=${VITE_APP_TITLE:-穿戴管理演示系统}
+
+# 从原始docker-compose.yml读取镜像版本
+MYSQL_IMAGE=$(egrep '^ *image:.*ljwx-mysql:' docker-compose.yml | sed 's/.*ljwx-mysql:\([^ ]*\).*/\1/' | head -1)
+REDIS_IMAGE=$(egrep '^ *image:.*ljwx-redis:' docker-compose.yml | sed 's/.*ljwx-redis:\([^ ]*\).*/\1/' | head -1)
+BOOT_IMAGE=$(egrep '^ *image:.*ljwx-boot:' docker-compose.yml | sed 's/.*ljwx-boot:\([^ ]*\).*/\1/' | head -1)
+BIGSCREEN_IMAGE=$(egrep '^ *image:.*ljwx-bigscreen:' docker-compose.yml | sed 's/.*ljwx-bigscreen:\([^ ]*\).*/\1/' | head -1)
+ADMIN_IMAGE=$(egrep '^ *image:.*ljwx-admin:' docker-compose.yml | sed 's/.*ljwx-admin:\([^ ]*\).*/\1/' | head -1)
+
+echo "🔧 使用镜像版本: mysql:$MYSQL_IMAGE, redis:$REDIS_IMAGE, boot:$BOOT_IMAGE, bigscreen:$BIGSCREEN_IMAGE, admin:$ADMIN_IMAGE"
+echo "🔧 使用端口配置: 大屏端口:$BIGSCREEN_PORT, MySQL端口:$MYSQL_PORT, Redis端口:$REDIS_PORT"
+
 # 检查是否为首次部署
 is_first_deployment() {
     for volume in mysql_data redis_data ljwx_boot_data ljwx_bigscreen_data; do
@@ -26,17 +59,17 @@ generate_mysql_config() {
     cat > docker-compose-generated.yml << EOF
 services:
   mysql:
-    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-mysql:1.2.16
+    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-mysql:$MYSQL_IMAGE
     container_name: ljwx-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: \${MYSQL_PASSWORD:-123456}
-      MYSQL_DATABASE: \${MYSQL_DATABASE:-lj-06}
+      MYSQL_ROOT_PASSWORD: $MYSQL_PASSWORD
+      MYSQL_DATABASE: $MYSQL_DATABASE
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
       MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
       TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "$MYSQL_PORT:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./logs/mysql:/var/log/mysql
@@ -50,7 +83,7 @@ $client_data_mount
       - --wait_timeout=28800
       - --interactive_timeout=28800
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_PASSWORD"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -59,11 +92,11 @@ $client_data_mount
       - ljwx-network
 
   redis:
-    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-redis:1.2.16
+    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-redis:$REDIS_IMAGE
     container_name: ljwx-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "$REDIS_PORT:6379"
     volumes:
       - redis_data:/data
       - ./logs/redis:/var/log/redis
@@ -78,29 +111,29 @@ $client_data_mount
       - ljwx-network
 
   ljwx-boot:
-    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-boot:1.2.16
+    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-boot:$BOOT_IMAGE
     container_name: ljwx-boot
     restart: unless-stopped
     env_file:
-      - custom-config.env
+      - $CONFIG_FILE
     environment:
       SPRING_PROFILES_ACTIVE: common
-      MYSQL_HOST: \${MYSQL_HOST:-mysql}
-      MYSQL_PORT: \${MYSQL_PORT:-3306}
-      MYSQL_USER: \${MYSQL_USER:-root}
-      MYSQL_PASSWORD: \${MYSQL_PASSWORD:-123456}
-      MYSQL_DATABASE: \${MYSQL_DATABASE:-lj-06}
-      REDIS_HOST: \${REDIS_HOST:-redis}
-      REDIS_PORT: \${REDIS_PORT:-6379}
-      REDIS_PASSWORD: "123456"
+      MYSQL_HOST: $MYSQL_HOST
+      MYSQL_PORT: $MYSQL_PORT
+      MYSQL_USER: $MYSQL_USER
+      MYSQL_PASSWORD: $MYSQL_PASSWORD
+      MYSQL_DATABASE: $MYSQL_DATABASE
+      REDIS_HOST: $REDIS_HOST
+      REDIS_PORT: $REDIS_PORT
+      REDIS_PASSWORD: $REDIS_PASSWORD
       TZ: Asia/Shanghai
-      SPRING_DATASOURCE_URL: jdbc:mysql://\${MYSQL_HOST:-mysql}:\${MYSQL_PORT:-3306}/\${MYSQL_DATABASE:-lj-06}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-      SPRING_DATASOURCE_USERNAME: \${MYSQL_USER:-root}
-      SPRING_DATASOURCE_PASSWORD: \${MYSQL_PASSWORD:-123456}
+      SPRING_DATASOURCE_URL: jdbc:mysql://$MYSQL_HOST:$MYSQL_PORT/$MYSQL_DATABASE?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: $MYSQL_USER
+      SPRING_DATASOURCE_PASSWORD: $MYSQL_PASSWORD
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      SPRING_DATA_REDIS_HOST: \${REDIS_HOST:-redis}
-      SPRING_DATA_REDIS_PORT: \${REDIS_PORT:-6379}
-      SPRING_DATA_REDIS_PASSWORD: "123456"
+      SPRING_DATA_REDIS_HOST: $REDIS_HOST
+      SPRING_DATA_REDIS_PORT: $REDIS_PORT
+      SPRING_DATA_REDIS_PASSWORD: $REDIS_PASSWORD
     ports:
       - "9998:9998"
     volumes:
@@ -118,25 +151,25 @@ $client_data_mount
       - ljwx-network
 
   ljwx-bigscreen:
-    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-bigscreen:1.2.16
+    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-bigscreen:$BIGSCREEN_IMAGE
     container_name: ljwx-bigscreen
     restart: unless-stopped
     env_file:
-      - custom-config.env
+      - $CONFIG_FILE
     environment:
-      MYSQL_HOST: \${MYSQL_HOST:-mysql}
-      MYSQL_PORT: \${MYSQL_PORT:-3306}
-      MYSQL_USER: \${MYSQL_USER:-root}
-      MYSQL_PASSWORD: \${MYSQL_PASSWORD:-123456}
-      MYSQL_DATABASE: \${MYSQL_DATABASE:-lj-06}
-      REDIS_HOST: \${REDIS_HOST:-redis}
-      REDIS_PORT: \${REDIS_PORT:-6379}
-      REDIS_PASSWORD: \${REDIS_PASSWORD:-123456}
+      MYSQL_HOST: $MYSQL_HOST
+      MYSQL_PORT: $MYSQL_PORT
+      MYSQL_USER: $MYSQL_USER
+      MYSQL_PASSWORD: $MYSQL_PASSWORD
+      MYSQL_DATABASE: $MYSQL_DATABASE
+      REDIS_HOST: $REDIS_HOST
+      REDIS_PORT: $REDIS_PORT
+      REDIS_PASSWORD: $REDIS_PASSWORD
       IS_DOCKER: "true"
-      APP_PORT: 8001
+      APP_PORT: $APP_PORT
       TZ: Asia/Shanghai
     ports:
-      - "8001:8001"
+      - "$BIGSCREEN_PORT:$APP_PORT"
     volumes:
       - ./custom-config.py:/app/config.py:ro
       - ./custom-assets:/app/static/images:ro
@@ -145,7 +178,7 @@ $client_data_mount
       - ./backup/ljwx-bigscreen:/backup/ljwx-bigscreen
     command: ["sh", "-c", "sleep 45 && python app.py"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:$APP_PORT/health"]
       interval: 60s
       timeout: 10s
       retries: 3
@@ -154,15 +187,15 @@ $client_data_mount
       - ljwx-network
 
   ljwx-admin:
-    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-admin:1.2.16
+    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-admin:$ADMIN_IMAGE
     container_name: ljwx-admin
     restart: unless-stopped
     env_file:
-      - custom-config.env
+      - $CONFIG_FILE
     environment:
       VITE_API_URL: http://ljwx-boot:9998
-      VITE_BIGSCREEN_URL: \${VITE_BIGSCREEN_URL:-http://localhost:8001}
-      VITE_APP_TITLE: \${VITE_APP_TITLE:-穿戴管理演示系统}
+      VITE_BIGSCREEN_URL: $VITE_BIGSCREEN_URL
+      VITE_APP_TITLE: $VITE_APP_TITLE
       TZ: Asia/Shanghai
     ports:
       - "8080:80"

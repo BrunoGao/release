@@ -79,6 +79,27 @@
 
 ## 🚀 最新功能 v1.3.3
 
+### 🔧 客户部署配置系统修复 (2025-08-20)
+
+#### **端口配置动态化修复**
+- **配置文件读取**: `generate-docker-compose.sh` 现在正确读取 `custom-config.env` 配置
+- **端口配置灵活**: 支持客户完全自定义 MySQL、Redis、大屏等服务端口
+- **镜像版本同步**: 自动从 `docker-compose.yml` 读取最新镜像版本标签
+- **环境变量传递**: 确保所有自定义配置正确传递到生成的容器配置中
+
+#### **修复前后对比**
+```bash
+# 修复前: 硬编码默认端口
+ports:
+  - "3306:3306"    # 固定MySQL端口
+  - "8001:8001"    # 固定大屏端口
+
+# 修复后: 动态配置端口
+ports:
+  - "$MYSQL_PORT:3306"     # 从custom-config.env读取
+  - "$BIGSCREEN_PORT:$APP_PORT"  # 支持自定义端口映射
+```
+
 ### 🐳 Docker构建系统优化修复 (2025-08-20)
 
 #### **ljwx-boot Docker构建修复**
@@ -212,6 +233,27 @@ mysql -u root -p123456 < client-deployment/client-data.sql
 # 构建支持多架构 (AMD64/ARM64)
 # 镜像自动推送到阿里云容器镜像仓库
 ```
+
+### ⚙️ 客户部署配置
+
+系统支持完全自定义的端口和服务配置：
+
+```bash
+# 修改 custom-config.env 文件
+BIGSCREEN_PORT=8002          # 自定义大屏端口
+MYSQL_PORT=3307             # 自定义MySQL端口  
+REDIS_PORT=6380             # 自定义Redis端口
+VITE_BIGSCREEN_URL=http://192.168.1.10:8002  # 大屏访问地址
+
+# 生成动态配置并部署
+./deploy-client.sh custom-config.env
+```
+
+**特性**:
+- 🔄 **动态端口配置**: 根据客户环境自动调整端口映射
+- 📦 **镜像版本同步**: 自动使用最新的镜像版本标签  
+- 🔧 **环境变量传递**: 完整的配置文件支持
+- ✅ **向后兼容**: 保持现有部署的稳定性
 
 ### 🔧 开发环境部署
 

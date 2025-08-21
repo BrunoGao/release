@@ -332,8 +332,9 @@ echo "==================== 开始部署 ===================="
 echo "🔧 生成动态配置..."
 if [ -f "generate-docker-compose.sh" ]; then
     chmod +x generate-docker-compose.sh
-    ./generate-docker-compose.sh
+    ./generate-docker-compose.sh "$CONFIG_FILE"
     COMPOSE_FILE="docker-compose-generated.yml"
+    echo "✅ 动态配置已生成，使用配置文件: $CONFIG_FILE"
 else
     echo "⚠️  警告: generate-docker-compose.sh 不存在，使用静态配置"
     COMPOSE_FILE="docker-compose.yml"
