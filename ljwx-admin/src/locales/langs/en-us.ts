@@ -301,6 +301,11 @@ const local: App.I18n.Schema = {
       visitCount: 'Visit Count',
       turnover: 'Turnover',
       dealCount: 'Deal Count',
+      todoCount: 'Todo Count',
+      messageCount: 'Message Count',
+      unit: {
+        piece: 'pcs'
+      },
       projectNews: {
         title: 'Project News',
         moreNews: 'More News',

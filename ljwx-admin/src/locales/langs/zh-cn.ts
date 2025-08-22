@@ -342,6 +342,12 @@ const local: App.I18n.Schema = {
       humidity: '湿度',
       weatherUnavailable: '天气信息获取失败',
       weatherError: '天气信息获取失败',
+      projectCount: '项目数',
+      todoCount: '待办数',
+      messageCount: '消息数',
+      unit: {
+        piece: '个'
+      },
       user: {
         name: '员工',
         total: '员工总数',

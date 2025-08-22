@@ -17,6 +17,27 @@ const gap = computed(() => (appStore.isMobile ? 0 : 16));
 const weatherDesc = ref('');
 const AMAP_KEY = 'd45f28e481665db5b1145a5aa989e68a';
 
+const statisticData1 = ref([
+  {
+    id: 1,
+    title: $t('page.home.projectCount'),
+    value: 25,
+    suffix: $t('page.home.unit.piece')
+  },
+  {
+    id: 2,
+    title: $t('page.home.todoCount'),
+    value: 4,
+    suffix: $t('page.home.unit.piece')
+  },
+  {
+    id: 3,
+    title: $t('page.home.messageCount'),
+    value: 10,
+    suffix: $t('page.home.unit.piece')
+  }
+]);
+
 onMounted(async () => {
   try {
     // 1. 先通过 IP 定位获取当前位置
