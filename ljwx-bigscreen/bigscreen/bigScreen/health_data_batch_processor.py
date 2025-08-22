@@ -16,15 +16,33 @@ from logging_config import health_logger,db_logger,redis_logger,log_health_data_
 redis=RedisHelper()
 logger=health_logger#使用健康数据专用记录器
 
-class HealthDataOptimizer:#健康数据性能优化器V3.0
+class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
     def __init__(self):
-        self.batch_queue=queue.Queue(maxsize=5000)#批处理队列
-        self.batch_size=100#批次大小
+        # CPU自适应配置
+        import psutil
+        self.cpu_cores = psutil.cpu_count(logical=True)
+        self.memory_gb = psutil.virtual_memory().total / (1024**3)
+        
+        # 动态批次配置：CPU核心数 × 25
+        self.batch_size = max(50, min(500, self.cpu_cores * 25))  # 限制在50-500之间
         self.batch_timeout=2#批处理超时秒数
-        self.executor=ThreadPoolExecutor(max_workers=10)#线程池
+        
+        # 动态线程池配置：CPU核心数 × 2.5 (I/O密集型)
+        max_workers = max(4, min(32, int(self.cpu_cores * 2.5)))
+        
+        self.batch_queue=queue.Queue(maxsize=5000)#批处理队列
+        self.executor=ThreadPoolExecutor(max_workers=max_workers)#线程池
         self.running=True#运行状态
-        self.stats={'processed':0,'batches':0,'errors':0,'duplicates':0}#统计信息
+        self.stats={'processed':0,'batches':0,'errors':0,'duplicates':0,'auto_adjustments':0}#统计信息
         self.processed_keys=set()#已处理记录键值集合
+        
+        # 性能监控
+        self.performance_window = []
+        self.last_adjustment_time = time.time()
+        
+        logger.info(f'🚀 HealthDataOptimizer V4.0 初始化:')
+        logger.info(f'   CPU核心: {self.cpu_cores}, 内存: {self.memory_gb:.1f}GB')
+        logger.info(f'   批次大小: {self.batch_size}, 工作线程: {max_workers}')
         self.field_mapping={#数据库字段到API字段映射
             'heart_rate':'heart_rate','blood_oxygen':'blood_oxygen','temperature':'body_temperature',
             'pressure_high':'blood_pressure_systolic','pressure_low':'blood_pressure_diastolic','stress':'stress',
@@ -67,13 +85,23 @@ class HealthDataOptimizer:#健康数据性能优化器V3.0
                 batch_data.append(item)
                 # self.processed_keys.add(key)  # 不再维护内存中的重复检测集合
                 
+                # 性能监控：记录批次处理时间
+                if len(batch_data) == 1:
+                    batch_start_time = time.time()
+                
                 if len(batch_data)>=self.batch_size or (time.time()-last_flush)>=self.batch_timeout:
                     if batch_data:
+                        processing_start = time.time()
                         if self.app:
                             with self.app.app_context():#确保在应用上下文中执行
                                 self._flush_batch(batch_data)
                         else:
                             self._flush_batch(batch_data)#直接执行
+                        
+                        # 记录性能数据并尝试自动调优
+                        processing_time = time.time() - processing_start
+                        self._record_performance(len(batch_data), processing_time)
+                        
                         batch_data=[]
                         last_flush=time.time()
                         
@@ -587,9 +615,68 @@ class HealthDataOptimizer:#健康数据性能优化器V3.0
             logger.error(f'添加数据失败: {e}')
             return {'success':False,'reason':'error','message':f'数据处理失败: {str(e)}'}
             
+    def _record_performance(self, batch_size, processing_time):
+        """记录性能数据并尝试自动调优"""
+        throughput = batch_size / processing_time if processing_time > 0 else 0
+        
+        self.performance_window.append({
+            'batch_size': batch_size,
+            'processing_time': processing_time,
+            'throughput': throughput,
+            'timestamp': time.time()
+        })
+        
+        # 保持性能窗口大小
+        if len(self.performance_window) > 50:
+            self.performance_window.pop(0)
+        
+        # 每30秒检查一次是否需要调优
+        current_time = time.time()
+        if current_time - self.last_adjustment_time > 30 and len(self.performance_window) >= 10:
+            self._auto_adjust_batch_size()
+            self.last_adjustment_time = current_time
+    
+    def _auto_adjust_batch_size(self):
+        """自动调整批次大小"""
+        import psutil
+        
+        # 计算最近性能指标
+        recent_performance = self.performance_window[-10:]
+        avg_throughput = sum(p['throughput'] for p in recent_performance) / len(recent_performance)
+        avg_processing_time = sum(p['processing_time'] for p in recent_performance) / len(recent_performance)
+        
+        # 系统资源检查
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory_percent = psutil.virtual_memory().percent
+        queue_size = self.batch_queue.qsize()
+        
+        old_batch_size = self.batch_size
+        
+        # 调优逻辑
+        if cpu_percent < 50 and avg_throughput < 100:
+            # CPU利用率低，吞吐量低，增加批次大小
+            self.batch_size = min(500, int(self.batch_size * 1.2))
+        elif cpu_percent > 90 or memory_percent > 85:
+            # 资源压力大，减少批次大小
+            self.batch_size = max(50, int(self.batch_size * 0.8))
+        elif queue_size > 2000:
+            # 队列堆积严重，增加处理能力
+            self.batch_size = min(500, int(self.batch_size * 1.1))
+        
+        # 记录调整
+        if old_batch_size != self.batch_size:
+            self.stats['auto_adjustments'] += 1
+            logger.info(f"📊 HealthData批次大小自动调整: {old_batch_size} → {self.batch_size} "
+                       f"(CPU: {cpu_percent:.1f}%, 内存: {memory_percent:.1f}%, "
+                       f"队列: {queue_size}, 吞吐量: {avg_throughput:.1f}/秒)")
+    
     def get_stats(self):#获取统计信息
         stats=self.stats.copy()
+        stats['cpu_cores'] = getattr(self, 'cpu_cores', 'N/A')
+        stats['batch_size'] = self.batch_size
+        stats['max_workers'] = self.executor._max_workers
         stats['queue_size']=self.batch_queue.qsize()
+        stats['performance_window_size'] = len(getattr(self, 'performance_window', []))
         # 不再统计processed_keys_count，因为已移除内存重复检测
         # stats['processed_keys_count']=len(self.processed_keys)
         return stats

@@ -11,12 +11,20 @@ import logging
 from config import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE
 import pymysql
 
-# 高并发设备信息批量处理器 v2.0 - 参考optimized_health_data.py
+# 高并发设备信息批量处理器 v2.0 - 参考health_data_batch_processor.py
 class DeviceBatchProcessor:
-    def __init__(self, batch_size=50, max_wait_time=2.0, max_workers=4, app=None):
-        self.batch_size = batch_size  # 批量大小
+    def __init__(self, batch_size=None, max_wait_time=2.0, max_workers=None, app=None):
+        # CPU自适应配置
+        import psutil
+        self.cpu_cores = psutil.cpu_count(logical=True)
+        self.memory_gb = psutil.virtual_memory().total / (1024**3)
+        
+        # 动态批次配置：CPU核心数 × 15
+        self.batch_size = batch_size or max(30, min(200, self.cpu_cores * 15))
         self.max_wait_time = max_wait_time  # 最大等待时间(秒)
-        self.max_workers = max_workers  # 最大工作线程数
+        
+        # 动态线程配置：CPU核心数 × 1.5 (设备信息处理相对简单)
+        self.max_workers = max_workers or max(2, min(16, int(self.cpu_cores * 1.5)))
         self.device_queue = queue.Queue(maxsize=10000)  # 设备数据队列
         self.redis = RedisHelper()
         self.running = False
@@ -25,6 +33,10 @@ class DeviceBatchProcessor:
         self.logger = logging.getLogger(__name__)
         self.app = app  # Flask应用实例
         self.processed_keys = set()  # 已处理记录键值集合
+        
+        self.logger.info(f"🚀 DeviceBatchProcessor V2.1 初始化:")
+        self.logger.info(f"   CPU核心: {self.cpu_cores}, 内存: {self.memory_gb:.1f}GB")
+        self.logger.info(f"   批次大小: {self.batch_size}, 工作线程: {self.max_workers}")
         
     def start(self):
         """启动批量处理器"""

@@ -25,7 +25,7 @@ from .health_baseline import HealthBaselineGenerator, generate_baseline_task
 from .watch_log import upload_watch_log as watch_log_upload_watch_log, watch_logs_page as watch_log_watch_logs_page, get_watch_logs as watch_log_get_watch_logs, get_watch_log_stats as watch_log_get_watch_log_stats
 from .health_profile import get_profile_monitor, manual_generate_profiles, get_health_profiles, get_profile_statistics
 from redis import Redis
-from .optimized_health_data import optimized_upload_health_data, save_health_data_fast, get_optimizer_stats
+from .health_data_batch_processor import optimized_upload_health_data, save_health_data_fast, get_optimizer_stats
 import requests  # 用于发送HTTP请求
 import json
 import threading
