@@ -1,0 +1,19 @@
+kind: pipeline
+type: docker
+name: default
+
+steps:
+  - name: test
+    image: python:3.10
+    commands:
+      - python --version
+      - echo "Running tests..."
+
+  - name: build
+    image: plugins/docker
+    settings:
+      registry: localhost:5000
+      repo: localhost:5000/myapp
+      tags: ${DRONE_COMMIT_SHA:0:8}
+      username: admin
+      password: admin123 

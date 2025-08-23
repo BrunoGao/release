@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-data:/var/jenkins_home                    # 主数据持久化
+      - jenkins-backup:/var/jenkins_backup               # 备份目录
+      - /var/run/docker.sock:/var/run/docker.sock       # Docker集成
+      - ./jenkins/config:/var/jenkins_config:ro          # 配置文件
+      - ./jenkins/plugins:/var/jenkins_plugins:ro        # 插件预配置
+    environment:
+      - JENKINS_OPTS=--httpPort=8080 --prefix=/jenkins   # 路径前缀
+      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 # JVM优化
+      - JENKINS_SLAVE_AGENT_PORT=50000                   # Agent端口
+      - CASC_JENKINS_CONFIG=/var/jenkins_config/jenkins.yaml # 配置即代码
+      - DOCKER_REGISTRY=localhost:5001                  # Registry地址
+      - GITEA_URL=http://gitea:3000                     # Gitea地址
+      - TZ=Asia/Shanghai                                 # 时区设置
+    user: root
+    networks:
+      - jenkins-net
+      - cicd-network  # 连接gitea网络
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/jenkins/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  registry:
+    image: registry:2
+    container_name: registry
+    restart: unless-stopped
+    volumes:
+      - registry-data:/var/lib/registry
+      - ../registry/config.yml:/etc/docker/registry/config.yml:ro
+      - ../registry/auth:/auth:ro
+    ports:
+      - "5001:5000"
+    networks:
+      - jenkins-net
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true             # 允许删除镜像
+
+networks:
+  jenkins-net:
+    driver: bridge
+  cicd-network:
+    external: true  # 连接到外部gitea网络
+
+volumes:
+  jenkins-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins    # 本地绑定挂载
+  jenkins-backup:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/backup/jenkins  # 备份目录
+  registry-data:
+    driver: local 

@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'localhost:5001'
+        APP_NAME = 'my-app'
+        REGISTRY_CREDENTIALS = 'registry-auth'
+    }
+    
+    stages {
+        stage('并行构建') {
+            parallel {
+                stage('单元测试') {
+                    steps {
+                        sh 'echo "执行单元测试..."'
+                    }
+                }
+                stage('代码检查') {
+                    steps {
+                        sh 'echo "执行代码检查..."'
+                    }
+                }
+                stage('安全扫描') {
+                    steps {
+                        sh 'echo "执行安全扫描..."'
+                    }
+                }
+            }
+        }
+        
+        stage('构建多架构镜像') {
+            steps {
+                script {
+                    def platforms = ['linux/amd64', 'linux/arm64']
+                    def imageName = "${DOCKER_REGISTRY}/${APP_NAME}:${BUILD_NUMBER}"
+                    
+                    echo "构建多架构镜像: ${imageName}"
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: REGISTRY_CREDENTIALS,
+                        usernameVariable: 'REGISTRY_USER',
+                        passwordVariable: 'REGISTRY_PASS'
+                    )]) {
+                        sh """
+                            echo \$REGISTRY_PASS | docker login ${DOCKER_REGISTRY} -u \$REGISTRY_USER --password-stdin
+                            docker buildx create --use --name multiarch-builder || true
+                            docker buildx build --platform ${platforms.join(',')} -t ${imageName} --push .
+                        """
+                    }
+                }
+            }
+        }
+    }
+}

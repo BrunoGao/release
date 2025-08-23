@@ -1,0 +1,97 @@
+FROM jenkins/jenkins:lts-jdk21
+
+# 切换到root用户安装系统依赖
+USER root
+
+# 更新包列表并安装基础工具
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    unzip \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Docker
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && chmod a+r /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Docker Compose
+RUN curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose
+
+# 安装Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g yarn pnpm \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Maven
+RUN curl -fsSL https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz | tar xzf - -C /opt \
+    && ln -s /opt/apache-maven-3.9.6 /opt/maven \
+    && ln -s /opt/maven/bin/mvn /usr/local/bin/mvn
+
+# 安装Gradle
+RUN curl -fsSL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o gradle.zip \
+    && unzip gradle.zip -d /opt \
+    && ln -s /opt/gradle-8.5 /opt/gradle \
+    && ln -s /opt/gradle/bin/gradle /usr/local/bin/gradle \
+    && rm gradle.zip
+
+# 安装kubectl
+RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list \
+    && apt-get update \
+    && apt-get install -y kubectl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Python工具
+RUN pip3 install --upgrade pip \
+    && pip3 install virtualenv pipenv poetry
+
+# 切换回jenkins用户
+USER jenkins
+
+# 跳过初始设置向导
+ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false -Djenkins.install.InstallUtil.lastExecVersion=2.504.3"
+
+# 设置环境变量
+ENV JENKINS_USER=admin
+ENV JENKINS_PASS=admin123
+ENV JENKINS_ADMIN_ID=admin  
+ENV JENKINS_ADMIN_PASSWORD=admin123
+ENV MAVEN_HOME=/opt/maven
+ENV GRADLE_HOME=/opt/gradle
+ENV PATH=$PATH:$MAVEN_HOME/bin:$GRADLE_HOME/bin
+
+# 复制完整插件列表
+COPY plugins-complete.txt /usr/share/jenkins/ref/plugins.txt
+
+# 安装所有插件
+RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
+
+# 复制完整初始化脚本
+COPY complete-init.groovy /usr/share/jenkins/ref/init.groovy.d/complete-init.groovy
+
+# 创建必要的目录
+RUN mkdir -p /var/jenkins_home/.m2 \
+    && mkdir -p /var/jenkins_home/.gradle \
+    && mkdir -p /var/jenkins_home/.npm \
+    && mkdir -p /var/jenkins_home/.cache
+
+# 暴露端口
+EXPOSE 8080 50000
+
+# 设置健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 \
+  CMD curl -f http://localhost:8080/login || exit 1 

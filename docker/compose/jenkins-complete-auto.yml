@@ -1,0 +1,65 @@
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins-complete-auto
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      # 主数据持久化 - 使用简化路径避免权限问题
+      - jenkins-auto-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # 配置文件 - 使用复制而非挂载避免权限问题
+      - ./jenkins/setup:/tmp/jenkins-setup:ro
+      
+    environment:
+      # 基础配置
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Djenkins.install.runSetupWizard=false
+      
+      # 用户配置
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin123
+      
+      # 服务集成
+      - DOCKER_REGISTRY=localhost:5001
+      - GITEA_URL=http://gitea:3000
+      
+      # 时区
+      - TZ=Asia/Shanghai
+      
+    user: root
+    networks:
+      - cicd-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  # Docker Registry
+  registry:
+    image: registry:2
+    container_name: jenkins-registry-auto
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    volumes:
+      - registry-auto-data:/var/lib/registry
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+    networks:
+      - cicd-network
+
+networks:
+  cicd-network:
+    driver: bridge
+
+volumes:
+  jenkins-auto-data:
+    driver: local
+  registry-auto-data:
+    driver: local 

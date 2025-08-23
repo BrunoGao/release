@@ -1,0 +1,43 @@
+# Jenkins核心自动配置插件列表
+configuration-as-code:latest
+
+# Pipeline和CI/CD核心
+workflow-aggregator:latest
+pipeline-stage-view:latest
+pipeline-utility-steps:latest
+build-timeout:latest
+timestamper:latest
+ws-cleanup:latest
+
+# SCM
+git:latest
+gitea:latest
+ssh-credentials:latest
+credentials-binding:latest
+
+# Docker
+docker-plugin:latest
+docker-workflow:latest
+docker-commons:latest
+
+# 构建工具
+maven-plugin:latest
+gradle:latest
+nodejs:latest
+
+# UI
+blueocean:latest
+dashboard-view:latest
+
+# 系统
+ansicolor:latest
+antisamy-markup-formatter:latest
+job-dsl:latest
+
+# 通知
+email-ext:latest
+generic-webhook-trigger:latest
+
+# 质量
+warnings-ng:latest
+junit:latest 

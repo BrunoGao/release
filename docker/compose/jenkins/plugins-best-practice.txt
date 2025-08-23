@@ -1,0 +1,140 @@
+# Jenkins最佳实践插件列表
+# Configuration as Code - 必须首先安装
+configuration-as-code:latest
+
+# ===== 核心CI/CD插件 =====
+# Pipeline和工作流
+workflow-aggregator:latest
+pipeline-stage-view:latest
+pipeline-utility-steps:latest
+pipeline-milestone-step:latest
+pipeline-build-step:latest
+pipeline-input-step:latest
+pipeline-graph-analysis:latest
+
+# 构建和部署
+build-timeout:latest
+timestamper:latest
+ws-cleanup:latest
+copy-artifact:latest
+archive-artifacts:latest
+junit:latest
+htmlpublisher:latest
+
+# ===== SCM和版本控制 =====
+git:latest
+gitea:latest
+github:latest
+github-branch-source:latest
+ssh-credentials:latest
+credentials-binding:latest
+
+# ===== Docker和容器化 =====
+docker-plugin:latest
+docker-build-step:latest
+docker-commons:latest
+docker-workflow:latest
+docker-slaves:latest
+docker-swarm:latest
+
+# ===== Kubernetes集成 =====
+kubernetes:latest
+kubernetes-cd:latest
+kubernetes-cli:latest
+kubernetes-credentials:latest
+
+# ===== 构建工具 =====
+# Maven
+maven-plugin:latest
+maven-invoker-plugin:latest
+
+# Gradle
+gradle:latest
+
+# Node.js
+nodejs:latest
+npm:latest
+
+# Python
+python:latest
+
+# Ant
+ant:latest
+
+# ===== 代码质量和测试 =====
+warnings-ng:latest
+checkstyle:latest
+pmd:latest
+findbugs:latest
+jacoco:latest
+sonar:latest
+cobertura:latest
+
+# ===== 通知和集成 =====
+email-ext:latest
+slack:latest
+dingtalk:latest
+webhook-step:latest
+http_request:latest
+generic-webhook-trigger:latest
+
+# ===== UI和可视化 =====
+blueocean:latest
+dashboard-view:latest
+build-monitor-plugin:latest
+build-pipeline-plugin:latest
+delivery-pipeline-plugin:latest
+radiator-view-plugin:latest
+
+# ===== 安全和权限 =====
+matrix-auth:latest
+role-strategy:latest
+ldap:latest
+pam-auth:latest
+authorize-project:latest
+
+# ===== 系统管理 =====
+locale:latest
+disk-usage:latest
+monitoring:latest
+naginator:latest
+rebuild:latest
+parameterized-trigger:latest
+
+# ===== 文件和存储 =====
+publish-over-ssh:latest
+publish-over-ftp:latest
+s3:latest
+
+# ===== 其他实用插件 =====
+ansicolor:latest
+antisamy-markup-formatter:latest
+build-name-setter:latest
+description-setter:latest
+environment-injector:latest
+promoted-builds:latest
+throttle-concurrents:latest
+job-dsl:latest
+
+# ===== 多平台构建 =====
+matrix-project:latest
+multi-branch-project-plugin:latest
+
+# ===== API和集成 =====
+rest-api:latest
+cli:latest
+
+# ===== 性能和监控 =====
+performance:latest
+plot:latest
+xvfb:latest
+
+# ===== 数据库集成 =====
+database:latest
+database-h2:latest
+database-postgresql:latest
+
+# ===== 云平台集成 =====
+ec2:latest
+azure-vm-agents:latest
+google-compute-engine:latest 

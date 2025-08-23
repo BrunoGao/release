@@ -1,0 +1,69 @@
+# 核心插件
+build-timeout:latest
+credentials-binding:latest
+timestamper:latest
+ws-cleanup:latest
+ansicolor:latest
+
+# SCM和Git
+git:latest
+gitea:latest
+github:latest
+ssh-credentials:latest
+
+# Pipeline和构建
+pipeline-stage-view:latest
+pipeline-utility-steps:latest
+workflow-aggregator:latest
+workflow-cps:latest
+workflow-job:latest
+workflow-multibranch:latest
+pipeline-milestone-step:latest
+
+# Docker集成
+docker-plugin:latest
+docker-build-step:latest
+docker-commons:latest
+docker-workflow:latest
+kubernetes:latest
+
+# 构建工具
+ant:latest
+gradle:latest
+maven-plugin:latest
+nodejs:latest
+python:latest
+
+# UI和可视化
+blueocean:latest
+dashboard-view:latest
+build-monitor-plugin:latest
+
+# 自动化和集成
+configuration-as-code:latest
+job-dsl:latest
+generic-webhook-trigger:latest
+http_request:latest
+webhook-step:latest
+
+# 通知和报告
+email-ext:latest
+slack:latest
+junit:latest
+htmlpublisher:latest
+
+# 质量和安全
+sonar:latest
+checkstyle:latest
+warnings-ng:latest
+dependency-check-jenkins-plugin:latest
+
+# 部署和K8s
+kubernetes-cd:latest
+helm:latest
+kubernetes-cli:latest
+
+# 性能优化
+parallel-test-executor:latest
+copy-artifact:latest
+archive-artifacts:latest

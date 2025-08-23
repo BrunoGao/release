@@ -1,0 +1,39 @@
+name: 🐳 Docker 构建测试
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  REGISTRY_URL: 'localhost:5001'
+
+jobs:
+  build:
+    name: 🏗️ 构建镜像
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+      
+      - name: 创建测试 Dockerfile
+        run: |
+          cat > Dockerfile << 'EOF_DOCKERFILE'
+          FROM nginx:alpine
+          COPY . /usr/share/nginx/html/
+          EXPOSE 80
+          CMD ["nginx", "-g", "daemon off;"]
+          EOF_DOCKERFILE
+      
+      - name: 构建 Docker 镜像
+        run: |
+          docker build -t ${{ env.REGISTRY_URL }}/test-app:${{ github.sha }} .
+          docker build -t ${{ env.REGISTRY_URL }}/test-app:latest .
+      
+      - name: 推送到私有仓库
+        run: |
+          docker push ${{ env.REGISTRY_URL }}/test-app:${{ github.sha }}
+          docker push ${{ env.REGISTRY_URL }}/test-app:latest
+          
+          echo "✅ 镜像推送完成"
+          echo "📦 镜像: ${{ env.REGISTRY_URL }}/test-app:latest"

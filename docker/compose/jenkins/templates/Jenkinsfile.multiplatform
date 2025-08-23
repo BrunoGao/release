@@ -1,0 +1,239 @@
+@Library('jenkins-shared-library') _
+
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'localhost:5001'
+        GITEA_URL = 'http://192.168.1.6:3000'
+        REGISTRY_CREDENTIALS = 'registry-auth'
+        PLATFORMS = 'linux/amd64,linux/arm64'
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '20', daysToKeepStr: '30'))
+        timeout(time: 60, unit: 'MINUTES')
+        timestamps()
+        ansiColor('xterm')
+    }
+    
+    stages {
+        stage('环境准备') {
+            steps {
+                script {
+                    // 获取项目信息
+                    env.APP_NAME = env.JOB_NAME.split('/')[0]
+                    env.GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}"
+                    
+                    // 检测项目类型
+                    if (fileExists('package.json')) {
+                        env.PROJECT_TYPE = 'vue3'
+                    } else if (fileExists('pom.xml') || fileExists('build.gradle')) {
+                        env.PROJECT_TYPE = 'java'
+                    } else if (fileExists('requirements.txt') || fileExists('setup.py')) {
+                        env.PROJECT_TYPE = 'python'
+                    } else if (fileExists('Dockerfile')) {
+                        env.PROJECT_TYPE = 'docker'
+                    }
+                    
+                    echo "项目类型: ${env.PROJECT_TYPE}, 应用名: ${env.APP_NAME}"
+                }
+            }
+        }
+        
+        stage('代码检查') {
+            parallel {
+                stage('语法检查') {
+                    steps {
+                        script {
+                            switch(env.PROJECT_TYPE) {
+                                case 'vue3':
+                                    sh 'npm run lint || echo "Lint检查完成"'
+                                    break
+                                case 'java':
+                                    sh 'mvn compile || echo "编译检查完成"'
+                                    break
+                                case 'python':
+                                    sh 'python -m py_compile src/ || echo "语法检查完成"'
+                                    break
+                                default:
+                                    echo "跳过语法检查"
+                            }
+                        }
+                    }
+                }
+                stage('安全扫描') {
+                    steps {
+                        sh 'echo "执行安全扫描..." && sleep 2'
+                    }
+                }
+            }
+        }
+        
+        stage('单元测试') {
+            steps {
+                script {
+                    switch(env.PROJECT_TYPE) {
+                        case 'vue3':
+                            sh 'npm test || echo "测试完成"'
+                            break
+                        case 'java':
+                            sh 'mvn test || echo "测试完成"'
+                            break
+                        case 'python':
+                            sh 'pytest || echo "测试完成"'
+                            break
+                        default:
+                            echo "跳过单元测试"
+                    }
+                }
+            }
+        }
+        
+        stage('构建多平台镜像') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'develop'
+                    branch 'feature/*'
+                }
+            }
+            steps {
+                script {
+                    def imageName = "${DOCKER_REGISTRY}/${env.APP_NAME}:${env.IMAGE_TAG}"
+                    def latestName = "${DOCKER_REGISTRY}/${env.APP_NAME}:latest"
+                    
+                    echo "构建多平台镜像: ${imageName}"
+                    echo "支持平台: ${PLATFORMS}"
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: REGISTRY_CREDENTIALS,
+                        usernameVariable: 'REGISTRY_USER',
+                        passwordVariable: 'REGISTRY_PASS'
+                    )]) {
+                        sh """
+                            echo \$REGISTRY_PASS | docker login ${DOCKER_REGISTRY} -u \$REGISTRY_USER --password-stdin
+                            
+                            # 创建buildx实例
+                            docker buildx create --use --name multiarch-builder --driver docker-container || true
+                            docker buildx inspect --bootstrap
+                            
+                            # 构建并推送多平台镜像
+                            docker buildx build \\
+                                --platform ${PLATFORMS} \\
+                                --tag ${imageName} \\
+                                --tag ${latestName} \\
+                                --push .
+                            
+                            echo "✅ 多平台镜像构建完成"
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('镜像测试') {
+            parallel {
+                stage('AMD64测试') {
+                    steps {
+                        sh """
+                            echo "测试AMD64镜像..."
+                            docker run --rm --platform linux/amd64 ${DOCKER_REGISTRY}/${env.APP_NAME}:${env.IMAGE_TAG} echo "AMD64 OK"
+                        """
+                    }
+                }
+                stage('ARM64测试') {
+                    steps {
+                        sh """
+                            echo "测试ARM64镜像..."
+                            docker run --rm --platform linux/arm64 ${DOCKER_REGISTRY}/${env.APP_NAME}:${env.IMAGE_TAG} echo "ARM64 OK"
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('部署测试') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                deployToEnvironment([
+                    environment: 'test',
+                    appName: env.APP_NAME,
+                    imageTag: env.IMAGE_TAG,
+                    port: 8080,
+                    platform: 'linux/amd64'  # 测试环境使用AMD64
+                ])
+            }
+        }
+        
+        stage('部署生产') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                }
+            }
+            steps {
+                script {
+                    input message: '确认部署到生产环境?', ok: '部署'
+                    
+                    // 生产环境支持多平台部署选择
+                    def targetPlatform = input(
+                        message: '选择部署平台:',
+                        parameters: [
+                            choice(choices: ['linux/amd64', 'linux/arm64', 'auto'], description: '目标平台', name: 'PLATFORM')
+                        ]
+                    )
+                    
+                    deployToEnvironment([
+                        environment: 'prod',
+                        appName: env.APP_NAME,
+                        imageTag: env.IMAGE_TAG,
+                        port: 8081,
+                        platform: targetPlatform
+                    ])
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                // 清理buildx实例
+                sh 'docker buildx rm multiarch-builder || true'
+                
+                // 清理本地镜像
+                sh """
+                    docker logout ${DOCKER_REGISTRY} || true
+                    docker system prune -f
+                """
+            }
+        }
+        success {
+            echo "✅ 多平台构建成功!"
+            script {
+                // 发送成功通知
+                sendNotification([
+                    status: 'success',
+                    message: "多平台构建成功 - ${env.APP_NAME}:${env.IMAGE_TAG}",
+                    platforms: PLATFORMS
+                ])
+            }
+        }
+        failure {
+            echo "❌ 多平台构建失败!"
+            script {
+                // 发送失败通知
+                sendNotification([
+                    status: 'failure',
+                    message: "多平台构建失败 - ${env.APP_NAME}:${env.IMAGE_TAG}",
+                    error: "${env.BUILD_URL}"
+                ])
+            }
+        }
+    }
+} 

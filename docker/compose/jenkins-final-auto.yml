@@ -1,0 +1,53 @@
+services:
+  jenkins:
+    build:
+      context: ./jenkins/setup
+      dockerfile: Dockerfile
+    container_name: jenkins-final-auto
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-final-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin123
+      - DOCKER_REGISTRY=localhost:5001
+      - GITEA_URL=http://gitea:3000
+      - TZ=Asia/Shanghai
+    user: root
+    networks:
+      - cicd-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+  registry:
+    image: registry:2
+    container_name: jenkins-registry-final
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    volumes:
+      - registry-final-data:/var/lib/registry
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+    networks:
+      - cicd-network
+
+networks:
+  cicd-network:
+    driver: bridge
+
+volumes:
+  jenkins-final-data:
+    driver: local
+  registry-final-data:
+    driver: local 

@@ -1,0 +1,33 @@
+name: 🚀 Hello World
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  hello:
+    name: 👋 问候世界
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+      
+      - name: 打印问候信息
+        run: |
+          echo "🌍 Hello, Gitea Actions!"
+          echo "📅 当前时间: $(date)"
+          echo "🖥️ 运行环境: $(uname -a)"
+          echo "🐳 Docker 版本: $(docker --version)"
+      
+      - name: 测试 Python
+        run: |
+          python3 --version
+          pip3 --version
+      
+      - name: 测试 Node.js
+        run: |
+          node --version
+          npm --version

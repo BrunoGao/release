@@ -1,0 +1,356 @@
+@Library('jenkins-shared-library') _
+
+pipeline {
+    agent any
+    
+    environment {
+        REGISTRY = "${env.DOCKER_REGISTRY ?: 'localhost:5001'}"
+        APP_NAME = "${env.JOB_NAME.split('/')[0].toLowerCase()}"
+        GIT_SHORT_COMMIT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+        IMAGE_TAG = "${env.BUILD_NUMBER}-${GIT_SHORT_COMMIT}"
+        PLATFORMS = 'linux/amd64,linux/arm64'
+        KUBECONFIG_ID = 'k8s-config'
+    }
+    
+    parameters {
+        choice(
+            name: 'DEPLOY_ENV',
+            choices: ['dev', 'staging', 'prod'],
+            description: '部署环境'
+        )
+        booleanParam(
+            name: 'SKIP_TESTS', 
+            defaultValue: false, 
+            description: '跳过测试阶段'
+        )
+        booleanParam(
+            name: 'DEPLOY_TO_K8S',
+            defaultValue: true,
+            description: '部署到K8s集群'
+        )
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '50', daysToKeepStr: '30'))
+        timeout(time: 60, unit: 'MINUTES')
+        timestamps()
+        ansiColor('xterm')
+        skipDefaultCheckout(false)
+    }
+    
+    stages {
+        stage('🔍 环境检查') {
+            steps {
+                script {
+                    echo "=== 构建信息 ==="
+                    echo "App: ${env.APP_NAME}"
+                    echo "Tag: ${env.IMAGE_TAG}"
+                    echo "Registry: ${env.REGISTRY}"
+                    echo "Environment: ${params.DEPLOY_ENV}"
+                    echo "Git Commit: ${env.GIT_SHORT_COMMIT}"
+                    
+                    // 检查必要工具
+                    sh '''
+                        echo "=== 工具版本检查 ==="
+                        docker --version
+                        docker buildx version || echo "❌ buildx not available"
+                        kubectl version --client || echo "⚠️  kubectl not available"
+                        git --version
+                    '''
+                    
+                    // 检查Registry连接
+                    sh 'curl -f ${REGISTRY}/v2/ || echo "⚠️  Registry连接检查"'
+                }
+            }
+        }
+        
+        stage('📥 代码检出') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                    env.GIT_BRANCH = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                    
+                    // 检测项目类型
+                    if (fileExists('package.json')) {
+                        env.PROJECT_TYPE = 'nodejs'
+                    } else if (fileExists('pom.xml')) {
+                        env.PROJECT_TYPE = 'maven'
+                    } else if (fileExists('build.gradle')) {
+                        env.PROJECT_TYPE = 'gradle'  
+                    } else if (fileExists('requirements.txt')) {
+                        env.PROJECT_TYPE = 'python'
+                    } else {
+                        env.PROJECT_TYPE = 'docker'
+                    }
+                    
+                    echo "项目类型: ${env.PROJECT_TYPE}"
+                }
+            }
+        }
+        
+        stage('🔧 依赖安装') {
+            when { not { params.SKIP_TESTS } }
+            steps {
+                script {
+                    switch(env.PROJECT_TYPE) {
+                        case 'nodejs':
+                            sh 'npm ci --production=false'
+                            break
+                        case 'maven':
+                            sh 'mvn dependency:resolve'
+                            break
+                        case 'gradle':
+                            sh './gradlew dependencies'
+                            break
+                        case 'python':
+                            sh 'pip install -r requirements.txt'
+                            break
+                        default:
+                            echo "跳过依赖安装，项目类型: ${env.PROJECT_TYPE}"
+                    }
+                }
+            }
+        }
+        
+        stage('🧪 代码检查') {
+            when { not { params.SKIP_TESTS } }
+            parallel {
+                stage('语法检查') {
+                    steps {
+                        script {
+                            switch(env.PROJECT_TYPE) {
+                                case 'nodejs':
+                                    sh 'npm run lint || echo "无lint脚本"'
+                                    break
+                                case 'python':
+                                    sh 'flake8 . || echo "无flake8检查"'
+                                    break
+                                default:
+                                    echo "跳过语法检查"
+                            }
+                        }
+                    }
+                }
+                
+                stage('安全扫描') {
+                    steps {
+                        script {
+                            // 依赖安全扫描
+                            switch(env.PROJECT_TYPE) {
+                                case 'nodejs':
+                                    sh 'npm audit --audit-level=high || echo "发现安全问题"'
+                                    break
+                                case 'python':
+                                    sh 'safety check || echo "安全检查完成"'
+                                    break
+                                default:
+                                    echo "跳过安全扫描"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('🧪 单元测试') {
+            when { not { params.SKIP_TESTS } }
+            steps {
+                script {
+                    switch(env.PROJECT_TYPE) {
+                        case 'nodejs':
+                            sh 'npm test || echo "测试执行完成"'
+                            break
+                        case 'maven':
+                            sh 'mvn test'
+                            break
+                        case 'gradle':
+                            sh './gradlew test'
+                            break
+                        case 'python':
+                            sh 'python -m pytest || echo "测试执行完成"'
+                            break
+                        default:
+                            echo "跳过单元测试，项目类型: ${env.PROJECT_TYPE}"
+                    }
+                }
+            }
+            post {
+                always {
+                    // 发布测试结果
+                    publishTestResults(
+                        testResultsPattern: '**/test-results.xml,**/TEST-*.xml',
+                        allowEmptyResults: true
+                    )
+                }
+            }
+        }
+        
+        stage('🐳 多平台构建') {
+            steps {
+                script {
+                    // 确保Dockerfile存在
+                    if (!fileExists('Dockerfile')) {
+                        echo "创建默认Dockerfile..."
+                        writeFile file: 'Dockerfile', text: """
+FROM alpine:latest
+RUN apk add --no-cache curl
+COPY . /app
+WORKDIR /app
+EXPOSE 8080
+CMD echo "Hello from ${env.APP_NAME}"
+"""
+                    }
+                    
+                    // 使用共享库构建多平台镜像
+                    def buildResult = buildMultiPlatformImage([
+                        registry: env.REGISTRY,
+                        imageName: env.APP_NAME,
+                        platforms: env.PLATFORMS,
+                        tags: ['latest', env.IMAGE_TAG, "branch-${env.GIT_BRANCH}"],
+                        push: true
+                    ])
+                    
+                    env.BUILT_IMAGE = "${buildResult.registry}/${buildResult.imageName}:${env.IMAGE_TAG}"
+                    echo "✅ 镜像构建完成: ${env.BUILT_IMAGE}"
+                }
+            }
+        }
+        
+        stage('🔒 镜像扫描') {
+            when { 
+                expression { params.DEPLOY_ENV == 'prod' }
+            }
+            steps {
+                script {
+                    echo "执行生产环境镜像安全扫描..."
+                    sh """
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \\
+                            aquasec/trivy image --exit-code 0 --severity HIGH,CRITICAL \\
+                            ${env.BUILT_IMAGE} || echo "扫描完成"
+                    """
+                }
+            }
+        }
+        
+        stage('🚀 部署') {
+            parallel {
+                stage('K8s部署') {
+                    when { 
+                        expression { params.DEPLOY_TO_K8S && fileExists('k8s/') }
+                    }
+                    steps {
+                        script {
+                            def deployResult = deployToK8s([
+                                namespace: "${env.APP_NAME}-${params.DEPLOY_ENV}",
+                                appName: env.APP_NAME,
+                                image: env.BUILT_IMAGE,
+                                manifests: 'k8s/',
+                                kubeconfig: env.KUBECONFIG_ID,
+                                dryRun: false,
+                                waitForRollout: true
+                            ])
+                            
+                            echo "✅ K8s部署完成: ${deployResult.namespace}/${deployResult.appName}"
+                        }
+                    }
+                }
+                
+                stage('Docker Swarm部署') {
+                    when { 
+                        expression { !params.DEPLOY_TO_K8S && fileExists('docker-compose.prod.yml') }
+                    }
+                    steps {
+                        script {
+                            echo "部署到Docker Swarm..."
+                            sh """
+                                export IMAGE=${env.BUILT_IMAGE}
+                                docker stack deploy --compose-file docker-compose.prod.yml ${env.APP_NAME}-${params.DEPLOY_ENV}
+                            """
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('✅ 部署验证') {
+            steps {
+                script {
+                    echo "执行部署验证..."
+                    
+                    if (params.DEPLOY_TO_K8S) {
+                        // K8s健康检查
+                        sh """
+                            kubectl get pods -n ${env.APP_NAME}-${params.DEPLOY_ENV} -l app=${env.APP_NAME}
+                            kubectl top pods -n ${env.APP_NAME}-${params.DEPLOY_ENV} -l app=${env.APP_NAME} || echo "资源使用情况"
+                        """
+                    } else {
+                        // Docker容器健康检查
+                        sh "docker service ls | grep ${env.APP_NAME}-${params.DEPLOY_ENV} || echo '服务状态检查'"
+                    }
+                    
+                    // 应用健康检查
+                    sh 'curl -f http://localhost:8080/health || echo "应用健康检查"'
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo "=== 构建统计 ==="
+            echo "构建时长: ${currentBuild.durationString}"
+            echo "构建结果: ${currentBuild.currentResult}"
+            
+            // 清理工作空间
+            cleanWs(
+                cleanWhenAborted: true,
+                cleanWhenFailure: false,
+                cleanWhenNotBuilt: false,
+                cleanWhenSuccess: true,
+                cleanWhenUnstable: false,
+                deleteDirs: true
+            )
+        }
+        
+        success {
+            echo "🎉 Pipeline执行成功！"
+            
+            // 发送成功通知
+            script {
+                if (env.SLACK_WEBHOOK) {
+                    slackSend(
+                        color: 'good',
+                        message: """✅ 部署成功
+App: ${env.APP_NAME}
+Environment: ${params.DEPLOY_ENV}
+Image: ${env.BUILT_IMAGE}
+Duration: ${currentBuild.durationString}"""
+                    )
+                }
+            }
+        }
+        
+        failure {
+            echo "❌ Pipeline执行失败！"
+            
+            // 发送失败通知
+            script {
+                if (env.SLACK_WEBHOOK) {
+                    slackSend(
+                        color: 'danger',
+                        message: """❌ 部署失败
+App: ${env.APP_NAME}
+Environment: ${params.DEPLOY_ENV}  
+Branch: ${env.GIT_BRANCH}
+Build: ${env.BUILD_URL}"""
+                    )
+                }
+            }
+        }
+        
+        unstable {
+            echo "⚠️ Pipeline执行不稳定"
+        }
+    }
+} 

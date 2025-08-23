@@ -1,0 +1,26 @@
+#!/bin/bash
+# Docker Registry认证配置
+
+REGISTRY_URL="localhost:5001"
+REGISTRY_USER="admin"
+REGISTRY_PASS="registry123"
+
+echo "=== Docker Registry认证配置 ==="
+echo ""
+echo "Registry URL: $REGISTRY_URL"
+echo "用户名: $REGISTRY_USER"
+echo "密码: $REGISTRY_PASS"
+echo ""
+echo "在Jenkins中配置Registry认证:"
+echo "1. 进入 Jenkins -> 管理Jenkins -> 凭据"
+echo "2. 点击 'System' -> '全局凭据'"
+echo "3. 点击 '添加凭据'"
+echo "4. 选择类型: 'Username with password'"
+echo "5. 填写信息:"
+echo "   - ID: registry-auth"
+echo "   - 描述: Docker Registry Auth"
+echo "   - 用户名: $REGISTRY_USER"
+echo "   - 密码: $REGISTRY_PASS"
+echo ""
+echo "测试Registry连接:"
+echo "docker login $REGISTRY_URL -u $REGISTRY_USER -p $REGISTRY_PASS"

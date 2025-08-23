@@ -1,0 +1,132 @@
+jenkins:
+  systemMessage: "Jenkins CI/CD服务器 - Mac Studio M2 环境"
+  numExecutors: 4
+  mode: NORMAL
+  scmCheckoutRetryCount: 3
+  quietPeriod: 5
+  
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: ${JENKINS_ADMIN_PASSWORD:-admin123}
+          
+  authorizationStrategy:
+    globalMatrix:
+      permissions:
+        - "Overall/Administer:admin"
+        - "Overall/Read:authenticated"
+        - "Job/Build:authenticated"
+        - "Job/Read:authenticated"
+        - "Job/Workspace:authenticated"
+        
+  remotingSecurity:
+    enabled: true
+    
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "DOCKER_REGISTRY"
+            value: "localhost:5001"
+          - key: "GITEA_URL"
+            value: "http://gitea:3000"
+          - key: "KUBERNETES_MASTER_URL"
+            value: "https://kubernetes.docker.internal:6443"
+            
+tool:
+  git:
+    installations:
+      - name: "Default"
+        home: "/usr/bin/git"
+        
+  maven:
+    installations:
+      - name: "Maven-3.9"
+        properties:
+          - installSource:
+              installers:
+                - maven:
+                    id: "3.9.6"
+        
+  gradle:
+    installations:
+      - name: "Gradle-8"
+        properties:
+          - installSource:
+              installers:
+                - gradleInstaller:
+                    id: "8.5"
+                    
+  nodejs:
+    installations:
+      - name: "NodeJS-18"
+        properties:
+          - installSource:
+              installers:
+                - nodeJSInstaller:
+                    id: "18.19.0"
+                    npmPackagesRefreshHours: 72
+                    
+  dockerTool:
+    installations:
+      - name: "Docker"
+        home: "/usr/local/bin/docker"
+        
+unclassified:
+  location:
+    url: "http://localhost:8081/jenkins/"
+    adminAddress: "admin@example.com"
+    
+  gitea:
+    servers:
+      - displayName: "Local Gitea"
+        serverUrl: "http://gitea:3000"
+        credentialsId: "gitea-token"
+        manageHooks: true
+        
+  globalLibraries:
+    libraries:
+      - name: "jenkins-shared-library"
+        defaultVersion: "main"
+        retriever:
+          modernSCM:
+            scm:
+              git:
+                remote: "http://gitea:3000/infrastructure/jenkins-shared-library.git"
+                credentialsId: "gitea-token"
+                
+  buildDiscarders:
+    configuredBuildDiscarders:
+      - "jobBuildDiscarder"
+        
+jobs:
+  - script: >
+      multibranchPipelineJob('cicd-pipelines') {
+        displayName('CI/CD Pipeline多分支项目')
+        description('自动化CI/CD Pipeline')
+        branchSources {
+          git {
+            remote('http://gitea:3000/infrastructure/cicd-pipelines.git')
+            credentialsId('gitea-token')
+          }
+        }
+        factory {
+          workflowBranchProjectFactory {
+            scriptPath('Jenkinsfile')
+          }
+        }
+        configure { node ->
+          def traits = node / 'sources' / 'data' / 'jenkins.branch.BranchSource' / 'source' / 'traits'
+          traits << 'jenkins.plugins.git.traits.BranchDiscoveryTrait' {
+            strategyId(1)
+          }
+          traits << 'jenkins.plugins.git.traits.OriginPullRequestDiscoveryTrait' {
+            strategyId(1)
+          }
+          traits << 'jenkins.plugins.git.traits.ForkPullRequestDiscoveryTrait' {
+            strategyId(1)
+            trust(class: 'jenkins.plugins.git.traits.ForkPullRequestDiscoveryTrait$TrustContributors')
+          }
+        }
+      } 

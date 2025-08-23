@@ -1,0 +1,81 @@
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins-auto-config
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      # ===== 数据持久化 =====
+      - jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # ===== 自动配置文件 =====
+      - ./jenkins/plugins.txt:/usr/share/jenkins/ref/plugins.txt
+      - ./jenkins/casc:/var/jenkins_home/casc_configs
+      - ./jenkins/init-scripts:/usr/share/jenkins/ref/init.groovy.d
+      
+      # ===== 工具和集成 =====
+      - ~/.docker:/var/jenkins_home/.docker:ro
+      - ~/.kube:/var/jenkins_home/.kube:ro
+      
+    environment:
+      # ===== 基础配置 =====
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Djenkins.install.runSetupWizard=false
+      
+      # ===== CasC配置 =====
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
+      - CASC_JENKINS_CONFIG_PATH=/var/jenkins_home/casc_configs
+      
+      # ===== 用户配置 =====
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin123
+      
+      # ===== 集成配置 =====
+      - DOCKER_REGISTRY=localhost:5001
+      - GITEA_URL=http://gitea:3000
+      - KUBERNETES_MASTER_URL=https://kubernetes.docker.internal:6443
+      
+      # ===== 时区和本地化 =====
+      - TZ=Asia/Shanghai
+      - LANG=zh_CN.UTF-8
+      
+    user: root
+    networks:
+      - cicd-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s  # 给插件安装更多时间
+
+  # Registry服务
+  registry:
+    image: registry:2
+    container_name: jenkins-registry
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+    networks:
+      - cicd-network
+
+networks:
+  cicd-network:
+    driver: bridge
+
+volumes:
+  jenkins-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins
+  registry-data:
+    driver: local 

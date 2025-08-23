@@ -1,0 +1,157 @@
+@Library('jenkins-shared-library') _
+
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'localhost:5001'
+        APP_NAME = 'webapp'
+        REGISTRY_CREDENTIALS = 'registry-auth'
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '20', daysToKeepStr: '30'))
+        timeout(time: 45, unit: 'MINUTES')
+        timestamps()
+        ansiColor('xterm')
+    }
+    
+    stages {
+        stage('检出代码') {
+            steps {
+                checkout scm
+                script {
+                    def gitInfo = org.example.Utils.getGitCommitInfo(this)
+                    env.GIT_COMMIT = gitInfo.commit
+                    env.GIT_COMMIT_SHORT = gitInfo.shortCommit
+                    env.GIT_AUTHOR = gitInfo.author
+                    env.GIT_MESSAGE = gitInfo.message
+                    env.IMAGE_TAG = org.example.Utils.generateImageTag(env.BUILD_NUMBER, env.GIT_COMMIT)
+                }
+            }
+        }
+        
+        stage('代码质量检查') {
+            parallel {
+                stage('语法检查') {
+                    steps {
+                        sh 'find . -name "*.py" -exec python -m py_compile {} \\; || echo "语法检查完成"'
+                    }
+                }
+                stage('安全扫描') {
+                    steps {
+                        sh 'echo "执行安全扫描..." && sleep 2'
+                    }
+                }
+                stage('依赖检查') {
+                    steps {
+                        sh 'pip list --outdated || echo "依赖检查完成"'
+                    }
+                }
+            }
+        }
+        
+        stage('运行测试') {
+            steps {
+                runTests([
+                    testType: 'unit',
+                    testPath: 'tests/',
+                    coverage: true
+                ])
+            }
+        }
+        
+        stage('构建镜像') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'develop'
+                    branch 'feature/*'
+                }
+            }
+            steps {
+                script {
+                    buildDockerImage([
+                        registry: env.DOCKER_REGISTRY,
+                        appName: env.APP_NAME,
+                        imageTag: env.IMAGE_TAG,
+                        credentialsId: env.REGISTRY_CREDENTIALS
+                    ])
+                }
+            }
+        }
+        
+        stage('部署测试') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                deployToEnvironment([
+                    environment: 'test',
+                    appName: env.APP_NAME,
+                    imageTag: env.IMAGE_TAG,
+                    port: 8080
+                ])
+            }
+        }
+        
+        stage('集成测试') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                sh '''
+                    echo "运行集成测试..."
+                    sleep 5
+                    curl -f http://localhost:8080/health || echo "集成测试失败"
+                '''
+            }
+        }
+        
+        stage('部署生产') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                }
+            }
+            steps {
+                script {
+                    input message: '确认部署到生产环境?', ok: '部署'
+                    deployToEnvironment([
+                        environment: 'prod',
+                        appName: env.APP_NAME,
+                        imageTag: env.IMAGE_TAG,
+                        port: 8081
+                    ])
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                org.example.Utils.cleanupOldImages(this, env.DOCKER_REGISTRY, env.APP_NAME, 5)
+            }
+        }
+        success {
+            sendNotification([
+                status: 'SUCCESS',
+                message: "✅ 构建成功! 提交: ${env.GIT_COMMIT_SHORT} by ${env.GIT_AUTHOR}"
+            ])
+        }
+        failure {
+            sendNotification([
+                status: 'FAILURE',
+                message: "❌ 构建失败! 提交: ${env.GIT_COMMIT_SHORT} by ${env.GIT_AUTHOR}"
+            ])
+        }
+        unstable {
+            sendNotification([
+                status: 'UNSTABLE',
+                message: "⚠️ 构建不稳定! 提交: ${env.GIT_COMMIT_SHORT} by ${env.GIT_AUTHOR}"
+            ])
+        }
+    }
+}

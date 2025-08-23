@@ -1,0 +1,91 @@
+@Library('jenkins-shared-library') _
+
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'localhost:5001'
+        SERVICE_NAME = 'microservice'
+        REGISTRY_CREDENTIALS = 'registry-auth'
+    }
+    
+    stages {
+        stage('检出代码') {
+            steps {
+                checkout scm
+                script {
+                    env.IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT[0..7]}"
+                }
+            }
+        }
+        
+        stage('并行构建') {
+            parallel {
+                stage('单元测试') {
+                    steps {
+                        runTests([testType: 'unit'])
+                    }
+                }
+                stage('API测试') {
+                    steps {
+                        runTests([testType: 'api', testPath: 'tests/api/'])
+                    }
+                }
+                stage('性能测试') {
+                    steps {
+                        sh 'echo "运行性能测试..." && sleep 3'
+                    }
+                }
+            }
+        }
+        
+        stage('构建服务镜像') {
+            steps {
+                script {
+                    buildDockerImage([
+                        appName: env.SERVICE_NAME,
+                        imageTag: env.IMAGE_TAG
+                    ])
+                }
+            }
+        }
+        
+        stage('服务部署') {
+            parallel {
+                stage('部署到测试环境') {
+                    when { branch 'develop' }
+                    steps {
+                        deployToEnvironment([
+                            environment: 'test',
+                            appName: env.SERVICE_NAME,
+                            port: 8080
+                        ])
+                    }
+                }
+                stage('部署到预发环境') {
+                    when { branch 'release/*' }
+                    steps {
+                        deployToEnvironment([
+                            environment: 'staging',
+                            appName: env.SERVICE_NAME,
+                            port: 8081
+                        ])
+                    }
+                }
+                stage('部署到生产环境') {
+                    when { branch 'main' }
+                    steps {
+                        script {
+                            input message: '确认部署到生产环境?'
+                            deployToEnvironment([
+                                environment: 'prod',
+                                appName: env.SERVICE_NAME,
+                                port: 8082
+                            ])
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

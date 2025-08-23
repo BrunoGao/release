@@ -1,0 +1,54 @@
+version: '3'
+
+services:
+  drone-server:
+    image: drone/drone:latest
+    container_name: drone-server
+    env_file:
+      - ../drone/config/drone.env
+    restart: always
+    networks:
+      - drone-network
+    volumes:
+      - drone-server-data:/data
+    ports:
+      - "9000:80"
+      - "443:443"
+    extra_hosts:
+      - "gitea:192.168.1.83"
+
+  drone-runner:
+    image: drone/drone-runner-docker:latest
+    container_name: drone-runner
+    env_file:
+      - ../drone/config/drone.env
+    restart: always
+    networks:
+      - drone-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - drone-server
+    extra_hosts:
+      - "gitea:192.168.1.83"
+
+  registry:
+    image: registry:2
+    container_name: registry
+    restart: always
+    networks:
+      - drone-network
+    volumes:
+      - registry-data:/var/lib/registry
+      - ../registry/config.yml:/etc/docker/registry/config.yml
+      - ../registry/auth:/auth
+    ports:
+      - "5001:5000"
+
+networks:
+  drone-network:
+    driver: bridge
+
+volumes:
+  drone-server-data:
+  registry-data: 

@@ -1,0 +1,345 @@
+# Jenkins持久化专用配置
+jenkins:
+  systemMessage: "Jenkins CI/CD - 完整持久化配置"
+  numExecutors: 4
+  mode: NORMAL
+  scmCheckoutRetryCount: 3
+  quietPeriod: 5
+  
+  # ===== 安全配置 =====
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+          
+  authorizationStrategy:
+    globalMatrix:
+      permissions:
+        - "Overall/Administer:admin"
+        - "Overall/Read:authenticated"
+        - "Job/Build:authenticated"
+        - "Job/Read:authenticated"
+        - "Job/Workspace:authenticated"
+        - "Job/Configure:authenticated"
+        - "Job/Create:authenticated"
+        
+  # ===== 全局属性 =====
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "DOCKER_REGISTRY"
+            value: "localhost:5001"
+          - key: "GITEA_URL"
+            value: "http://gitea:3000"
+          - key: "BACKUP_ENABLED"
+            value: "true"
+            
+  # ===== 构建历史保留策略 =====
+  buildDiscarders:
+    - buildDiscarder:
+        strategy:
+          logRotator:
+            daysToKeepStr: "30"        # 保留30天
+            numToKeepStr: "50"         # 保留最近50次构建
+            artifactDaysToKeepStr: "7" # 制品保留7天
+            artifactNumToKeepStr: "10" # 制品保留10个
+
+# ===== 全局工具配置 =====
+tool:
+  git:
+    installations:
+      - name: "Default"
+        home: "/usr/bin/git"
+        
+  maven:
+    installations:
+      - name: "Maven-3.9"
+        properties:
+          - installSource:
+              installers:
+                - maven:
+                    id: "3.9.6"
+                    
+  gradle:
+    installations:
+      - name: "Gradle-8"
+        properties:
+          - installSource:
+              installers:
+                - gradleInstaller:
+                    id: "8.5"
+                    
+  nodejs:
+    installations:
+      - name: "NodeJS-18"
+        properties:
+          - installSource:
+              installers:
+                - nodeJSInstaller:
+                    id: "18.19.0"
+                    npmPackagesRefreshHours: 72
+                    
+  dockerTool:
+    installations:
+      - name: "Docker"
+        home: "/usr/local/bin/docker"
+
+# ===== 凭据配置 =====
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          # Gitea访问令牌
+          - string:
+              scope: GLOBAL
+              id: "gitea-token"
+              description: "Gitea API访问令牌"
+              secret: "your-gitea-token-placeholder"
+              
+          # Docker Registry认证
+          - usernamePassword:
+              scope: GLOBAL
+              id: "registry-auth"
+              description: "Docker Registry认证"
+              username: "admin"
+              password: "admin123"
+              
+          # 备份存储凭据
+          - string:
+              scope: GLOBAL
+              id: "backup-encryption-key"
+              description: "备份加密密钥"
+              secret: "backup-key-placeholder"
+
+# ===== 系统配置 =====
+unclassified:
+  location:
+    url: "http://localhost:8081/"
+    adminAddress: "admin@example.com"
+    
+  # ===== Gitea集成 =====
+  gitea:
+    servers:
+      - displayName: "Local Gitea"
+        serverUrl: "http://gitea:3000"
+        credentialsId: "gitea-token"
+        manageHooks: true
+        
+  # ===== 共享库配置 =====
+  globalLibraries:
+    libraries:
+      - name: "jenkins-shared-library"
+        defaultVersion: "main"
+        retriever:
+          modernSCM:
+            scm:
+              git:
+                remote: "http://gitea:3000/infrastructure/jenkins-shared-library.git"
+                credentialsId: "gitea-token"
+                
+  # ===== 构建清理配置 =====
+  buildDiscarders:
+    configuredBuildDiscarders:
+      - "jobBuildDiscarder"
+      
+  # ===== 工作空间清理 =====
+  workspaceCleanupPlugin:
+    # 自动清理工作空间
+    deleteDirectories: true
+    # 清理失败构建的工作空间
+    cleanWhenAborted: true
+    cleanWhenFailure: true
+    cleanWhenNotBuilt: true
+    cleanWhenSuccess: true
+    cleanWhenUnstable: true
+    
+  # ===== 磁盘使用监控 =====
+  diskUsage:
+    countWorkspace: true
+    checkWorkspaceOnSlave: true
+    calculationThreads: 2
+    
+# ===== 预创建作业 =====
+jobs:
+  # 数据备份作业
+  - script: >
+      freeStyleJob('backup-jenkins-data') {
+        displayName('Jenkins数据备份')
+        description('定期备份Jenkins配置和数据')
+        
+        properties {
+          buildDiscarder {
+            strategy {
+              logRotator {
+                daysToKeepStr('7')
+                numToKeepStr('10')
+              }
+            }
+          }
+        }
+        
+        triggers {
+          cron('0 2 * * 0')  # 每周日凌晨2点执行
+        }
+        
+        steps {
+          shell('''
+            echo "=== Jenkins数据备份开始 ==="
+            
+            # 创建备份目录
+            BACKUP_DIR="/var/jenkins_backup/scheduled/$(date +%Y%m%d_%H%M%S)"
+            mkdir -p "$BACKUP_DIR"
+            
+            # 备份关键配置
+            echo "备份配置文件..."
+            cp -r /var/jenkins_home/config.xml "$BACKUP_DIR/"
+            cp -r /var/jenkins_home/credentials.xml "$BACKUP_DIR/" 2>/dev/null || true
+            cp -r /var/jenkins_home/users "$BACKUP_DIR/"
+            cp -r /var/jenkins_home/secrets "$BACKUP_DIR/"
+            
+            # 备份作业配置
+            echo "备份作业配置..."
+            cp -r /var/jenkins_home/jobs "$BACKUP_DIR/"
+            
+            # 创建备份清单
+            echo "创建备份清单..."
+            find "$BACKUP_DIR" -type f > "$BACKUP_DIR/backup_manifest.txt"
+            
+            # 压缩备份
+            cd /var/jenkins_backup/scheduled
+            tar -czf "jenkins-scheduled-$(date +%Y%m%d_%H%M%S).tar.gz" "$(basename $BACKUP_DIR)"
+            rm -rf "$BACKUP_DIR"
+            
+            echo "=== 备份完成 ==="
+            echo "备份文件: $(ls -la jenkins-scheduled-*.tar.gz | tail -1)"
+            
+            # 清理旧备份（保留最近5个）
+            ls -t jenkins-scheduled-*.tar.gz | tail -n +6 | xargs rm -f || true
+          ''')
+        }
+        
+        publishers {
+          extendedEmail {
+            recipientList('admin@example.com')
+            defaultSubject('Jenkins备份报告 - $BUILD_STATUS')
+            defaultContent('Jenkins数据备份任务执行完成。\\n\\n构建状态: $BUILD_STATUS\\n构建日志: $BUILD_LOG')
+            triggers {
+              failure {
+                subject('❌ Jenkins备份失败')
+                content('Jenkins数据备份任务失败，请检查系统状态。')
+              }
+              success {
+                subject('✅ Jenkins备份成功')
+                content('Jenkins数据备份任务成功完成。')
+              }
+            }
+          }
+        }
+      }
+      
+  # 磁盘清理作业
+  - script: >
+      freeStyleJob('cleanup-disk-space') {
+        displayName('磁盘空间清理')
+        description('清理旧构建数据和临时文件')
+        
+        properties {
+          buildDiscarder {
+            strategy {
+              logRotator {
+                daysToKeepStr('30')
+                numToKeepStr('50')
+              }
+            }
+          }
+        }
+        
+        triggers {
+          cron('0 3 * * *')  # 每日凌晨3点执行
+        }
+        
+        steps {
+          shell('''
+            echo "=== 磁盘清理开始 ==="
+            
+            # 显示清理前磁盘使用情况
+            echo "清理前磁盘使用:"
+            df -h /var/jenkins_home
+            du -sh /var/jenkins_home/workspace
+            du -sh /var/jenkins_home/builds
+            
+            # 清理工作空间中7天前的目录
+            echo "清理旧工作空间..."
+            find /var/jenkins_home/workspace -type d -mtime +7 -exec rm -rf {} + 2>/dev/null || true
+            
+            # 清理临时文件
+            echo "清理临时文件..."
+            find /var/jenkins_home/tmp -type f -mtime +1 -delete 2>/dev/null || true
+            
+            # 清理日志文件（保留最近30天）
+            echo "清理旧日志..."
+            find /var/jenkins_home/logs -name "*.log" -mtime +30 -delete 2>/dev/null || true
+            
+            # 清理缓存
+            echo "清理缓存文件..."
+            find /var/jenkins_home/.cache -type f -mtime +7 -delete 2>/dev/null || true
+            
+            # 显示清理后磁盘使用情况
+            echo "清理后磁盘使用:"
+            df -h /var/jenkins_home
+            du -sh /var/jenkins_home/workspace
+            du -sh /var/jenkins_home/builds
+            
+            echo "=== 磁盘清理完成 ==="
+          ''')
+        }
+      }
+      
+  # 系统健康检查作业
+  - script: >
+      freeStyleJob('system-health-monitor') {
+        displayName('系统健康监控')
+        description('监控Jenkins系统健康状态和数据完整性')
+        
+        triggers {
+          cron('H/30 * * * *')  # 每30分钟执行一次
+        }
+        
+        steps {
+          shell('''
+            echo "=== Jenkins健康检查 ==="
+            
+            # 检查磁盘使用率
+            DISK_USAGE=$(df /var/jenkins_home | awk 'NR==2{print $5}' | sed 's/%//')
+            echo "磁盘使用率: ${DISK_USAGE}%"
+            
+            if [ "$DISK_USAGE" -gt 85 ]; then
+                echo "⚠️  警告: 磁盘使用率过高"
+                exit 1
+            fi
+            
+            # 检查内存使用
+            echo "内存使用情况:"
+            free -h || echo "无法获取内存信息"
+            
+            # 检查关键文件完整性
+            echo "检查关键文件..."
+            [ -f "/var/jenkins_home/config.xml" ] && echo "✅ config.xml 存在" || echo "❌ config.xml 缺失"
+            [ -d "/var/jenkins_home/jobs" ] && echo "✅ jobs目录存在" || echo "❌ jobs目录缺失"
+            [ -d "/var/jenkins_home/plugins" ] && echo "✅ plugins目录存在" || echo "❌ plugins目录缺失"
+            
+            # 检查备份状态
+            echo "检查备份状态..."
+            BACKUP_COUNT=$(ls /var/jenkins_backup/*/*.tar.gz 2>/dev/null | wc -l)
+            echo "可用备份数量: $BACKUP_COUNT"
+            
+            if [ "$BACKUP_COUNT" -lt 3 ]; then
+                echo "⚠️  警告: 备份数量不足"
+            fi
+            
+            echo "=== 健康检查完成 ==="
+          ''')
+        }
+      } 

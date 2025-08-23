@@ -1,0 +1,122 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'localhost:5001'
+        APP_NAME = 'my-app'
+        APP_VERSION = "${BUILD_NUMBER}"
+        REGISTRY_CREDENTIALS = 'registry-auth'
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+    }
+    
+    stages {
+        stage('检出代码') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+                    env.IMAGE_TAG = "${APP_VERSION}-${GIT_COMMIT_SHORT}"
+                }
+            }
+        }
+        
+        stage('构建Docker镜像') {
+            steps {
+                script {
+                    def imageName = "${DOCKER_REGISTRY}/${APP_NAME}:${IMAGE_TAG}"
+                    def latestName = "${DOCKER_REGISTRY}/${APP_NAME}:latest"
+                    
+                    echo "构建镜像: ${imageName}"
+                    
+                    // 构建镜像
+                    sh """
+                        docker build -t ${imageName} .
+                        docker tag ${imageName} ${latestName}
+                    """
+                    
+                    // 推送镜像
+                    withCredentials([usernamePassword(
+                        credentialsId: REGISTRY_CREDENTIALS,
+                        usernameVariable: 'REGISTRY_USER',
+                        passwordVariable: 'REGISTRY_PASS'
+                    )]) {
+                        sh """
+                            echo \$REGISTRY_PASS | docker login ${DOCKER_REGISTRY} -u \$REGISTRY_USER --password-stdin
+                            docker push ${imageName}
+                            docker push ${latestName}
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('镜像安全扫描') {
+            steps {
+                echo '执行镜像安全扫描...'
+                sh """
+                    echo "扫描镜像: ${DOCKER_REGISTRY}/${APP_NAME}:${IMAGE_TAG}"
+                    # 这里可以集成Trivy等安全扫描工具
+                """
+            }
+        }
+        
+        stage('部署到测试环境') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                    echo '部署到测试环境...'
+                    sh """
+                        docker stop ${APP_NAME}-test || true
+                        docker rm ${APP_NAME}-test || true
+                        docker run -d --name ${APP_NAME}-test -p 8080:5000 ${DOCKER_REGISTRY}/${APP_NAME}:${IMAGE_TAG}
+                    """
+                }
+            }
+        }
+        
+        stage('部署到生产环境') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                }
+            }
+            steps {
+                script {
+                    echo '部署到生产环境...'
+                    sh """
+                        docker stop ${APP_NAME}-prod || true
+                        docker rm ${APP_NAME}-prod || true
+                        docker run -d --name ${APP_NAME}-prod -p 8081:5000 ${DOCKER_REGISTRY}/${APP_NAME}:${IMAGE_TAG}
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline执行完成'
+            sh """
+                docker logout ${DOCKER_REGISTRY} || true
+                docker system prune -f || true
+            """
+        }
+        success {
+            echo '✅ 构建成功!'
+        }
+        failure {
+            echo '❌ 构建失败!'
+        }
+    }
+}

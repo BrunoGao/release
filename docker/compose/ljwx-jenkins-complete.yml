@@ -1,0 +1,143 @@
+services:
+  ljwx-jenkins:
+    build:
+      context: ./jenkins/setup
+      dockerfile: Dockerfile-complete
+    image: ljwx-jenkins:latest
+    container_name: ljwx-jenkins
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - ljwx-jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
+      - ljwx-jenkins-cache:/var/jenkins_home/.cache
+      - ljwx-jenkins-m2:/var/jenkins_home/.m2
+      - ljwx-jenkins-gradle:/var/jenkins_home/.gradle
+      - ljwx-jenkins-npm:/var/jenkins_home/.npm
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx4g -Xms2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin123
+      - DOCKER_REGISTRY=localhost:5001
+      - GITEA_URL=http://gitea:3000
+      - KUBERNETES_MASTER=https://kubernetes.docker.internal:6443
+      - TZ=Asia/Shanghai
+    user: root
+    privileged: true
+    networks:
+      - cicd-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    labels:
+      - "project=ljwx"
+      - "service=jenkins"
+      - "version=complete"
+
+  ljwx-registry:
+    image: registry:2
+    container_name: ljwx-registry
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    volumes:
+      - ljwx-registry-data:/var/lib/registry
+      - ./registry-config.yml:/etc/docker/registry/config.yml:ro
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+      - REGISTRY_HTTP_ADDR=0.0.0.0:5000
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/var/lib/registry
+    networks:
+      - cicd-network
+    labels:
+      - "project=ljwx"
+      - "service=registry"
+
+  ljwx-registry-ui:
+    image: joxit/docker-registry-ui:latest
+    container_name: ljwx-registry-ui
+    restart: unless-stopped
+    ports:
+      - "5002:80"
+    environment:
+      - SINGLE_REGISTRY=true
+      - REGISTRY_TITLE=LJWX Docker Registry
+      - DELETE_IMAGES=true
+      - SHOW_CONTENT_DIGEST=true
+      - NGINX_PROXY_PASS_URL=http://ljwx-registry:5000
+      - SHOW_CATALOG_NB_TAGS=true
+      - CATALOG_MIN_BRANCHES=1
+      - CATALOG_MAX_BRANCHES=1
+      - TAGLIST_PAGE_SIZE=100
+      - REGISTRY_SECURED=false
+      - CATALOG_ELEMENTS_LIMIT=1000
+    networks:
+      - cicd-network
+    depends_on:
+      - ljwx-registry
+    labels:
+      - "project=ljwx"
+      - "service=registry-ui"
+
+networks:
+  cicd-network:
+    driver: bridge
+    name: ljwx-cicd-network
+    labels:
+      - "project=ljwx"
+
+volumes:
+  ljwx-jenkins-data:
+    driver: local
+    name: ljwx-jenkins-data
+    labels:
+      - "project=ljwx"
+      - "service=jenkins"
+      - "type=data"
+  
+  ljwx-jenkins-cache:
+    driver: local
+    name: ljwx-jenkins-cache
+    labels:
+      - "project=ljwx"
+      - "service=jenkins"
+      - "type=cache"
+  
+  ljwx-jenkins-m2:
+    driver: local
+    name: ljwx-jenkins-m2
+    labels:
+      - "project=ljwx"
+      - "service=jenkins"
+      - "type=maven"
+  
+  ljwx-jenkins-gradle:
+    driver: local
+    name: ljwx-jenkins-gradle
+    labels:
+      - "project=ljwx"
+      - "service=jenkins"
+      - "type=gradle"
+  
+  ljwx-jenkins-npm:
+    driver: local
+    name: ljwx-jenkins-npm
+    labels:
+      - "project=ljwx"
+      - "service=jenkins"
+      - "type=npm"
+  
+  ljwx-registry-data:
+    driver: local
+    name: ljwx-registry-data
+    labels:
+      - "project=ljwx"
+      - "service=registry"
+      - "type=data" 

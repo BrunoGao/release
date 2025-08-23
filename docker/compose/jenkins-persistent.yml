@@ -1,0 +1,140 @@
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins-persistent
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      # ===== 核心数据持久化 =====
+      - jenkins-home:/var/jenkins_home                           # Jenkins主目录完整持久化
+      - jenkins-workspace:/var/jenkins_home/workspace            # 构建工作空间
+      - jenkins-jobs:/var/jenkins_home/jobs                      # 作业配置
+      - jenkins-builds:/var/jenkins_home/builds                  # 构建历史
+      - jenkins-plugins:/var/jenkins_home/plugins                # 插件数据
+      - jenkins-secrets:/var/jenkins_home/secrets                # 密钥和凭据
+      - jenkins-users:/var/jenkins_home/users                    # 用户数据
+      - jenkins-logs:/var/jenkins_home/logs                      # 日志文件
+      
+      # ===== 配置文件持久化 =====
+      - ./jenkins/casc:/var/jenkins_home/casc_configs:ro          # Configuration as Code
+      - ./jenkins/init-scripts:/usr/share/jenkins/ref/init.groovy.d:ro # 初始化脚本
+      - ./jenkins/plugins.txt:/usr/share/jenkins/ref/plugins.txt:ro # 插件列表
+      
+      # ===== 扩展数据持久化 =====
+      - jenkins-backup:/var/jenkins_backup                       # 备份目录
+      - jenkins-cache:/var/jenkins_home/.cache                   # 缓存目录
+      - jenkins-tmp:/var/jenkins_home/tmp                        # 临时文件
+      
+      # ===== 外部集成 =====
+      - /var/run/docker.sock:/var/run/docker.sock               # Docker集成
+      - ~/.docker:/var/jenkins_home/.docker:ro                  # Docker配置
+      - ~/.kube:/var/jenkins_home/.kube:ro                       # Kubernetes配置
+      
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Djenkins.install.runSetupWizard=false
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin123
+      - TZ=Asia/Shanghai
+      
+      # ===== 持久化优化 =====
+      - JENKINS_SLAVE_AGENT_PORT=50000
+      - JENKINS_UC_EXPERIMENTAL_UPDATE_CENTER=false
+      - COPY_REFERENCE_FILE_LOG=/var/jenkins_home/copy_reference_file.log
+      
+    user: root
+    networks:
+      - cicd-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+networks:
+  cicd-network:
+    external: true
+
+volumes:
+  # ===== 主要数据卷 =====
+  jenkins-home:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/home        # Jenkins主目录
+      
+  jenkins-workspace:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/workspace   # 工作空间
+      
+  jenkins-jobs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/jobs        # 作业配置
+      
+  jenkins-builds:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/builds      # 构建历史
+      
+  jenkins-plugins:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/plugins     # 插件
+      
+  jenkins-secrets:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/secrets     # 凭据
+      
+  jenkins-users:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/users       # 用户
+      
+  jenkins-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/logs        # 日志
+      
+  # ===== 辅助数据卷 =====
+  jenkins-backup:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/backup/jenkins           # 备份
+      
+  jenkins-cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/cache       # 缓存
+      
+  jenkins-tmp:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/brunogao/work/infra/data/jenkins/tmp         # 临时文件 

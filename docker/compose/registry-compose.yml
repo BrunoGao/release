@@ -1,0 +1,77 @@
+services:
+  registry:
+    image: registry:2
+    container_name: docker-registry
+    restart: unless-stopped
+    ports:
+      - "5001:5000"  # 使用5001端口避免冲突
+    volumes:
+      # 使用 Docker 命名卷持久化镜像数据
+      - registry-data:/var/lib/registry
+      # 配置文件
+      - ../registry/config.yml:/etc/docker/registry/config.yml:ro
+      # 认证文件 (已禁用)
+      # - ../registry/auth:/auth:ro
+      # 证书目录（如果使用HTTPS）
+      - ../registry/certs:/certs:ro
+    environment:
+      # 基础配置
+      - REGISTRY_STORAGE_DELETE_ENABLED=true  # 允许删除镜像
+      # HTTP认证配置 (已禁用用于测试)
+      # - REGISTRY_AUTH=htpasswd
+      # - REGISTRY_AUTH_HTPASSWD_REALM=Docker Registry
+      # - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
+      # 日志配置
+      - REGISTRY_LOG_LEVEL=info
+      # CORS配置（支持Web UI）
+      - REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin=['*']
+      - REGISTRY_HTTP_HEADERS_Access-Control-Allow-Methods=['HEAD','GET','OPTIONS','DELETE']
+      - REGISTRY_HTTP_HEADERS_Access-Control-Allow-Headers=['Authorization','Accept','Cache-Control']
+    networks:
+      - registry-network
+      - cicd-network  # 连接到CICD网络
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/v2/_catalog"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # Registry Web UI (可选)
+  registry-ui:
+    image: joxit/docker-registry-ui:latest
+    container_name: registry-ui
+    restart: unless-stopped
+    ports:
+      - "5002:80"
+    environment:
+      - SINGLE_REGISTRY=true
+      - REGISTRY_TITLE=Private Docker Registry
+      - DELETE_IMAGES=true
+      - SHOW_CONTENT_DIGEST=true
+      - NGINX_PROXY_PASS_URL=http://registry:5000
+      - SHOW_CATALOG_NB_TAGS=true
+      - CATALOG_MIN_BRANCHES=1
+      - CATALOG_MAX_BRANCHES=1
+      - TAGLIST_PAGE_SIZE=100
+      - REGISTRY_SECURED=false
+      - CATALOG_ELEMENTS_LIMIT=1000
+    networks:
+      - registry-network
+    depends_on:
+      - registry
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  registry-network:
+    driver: bridge
+  cicd-network:
+    external: true
+
+volumes:
+  registry-data:
+    driver: local 

@@ -1,0 +1,50 @@
+FROM jenkins/jenkins:lts-jdk21
+
+# 切换到root用户安装系统依赖
+USER root
+
+# 安装基础工具
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    unzip \
+    python3 \
+    python3-pip \
+    python3-venv \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# 切换回jenkins用户
+USER jenkins
+
+# 跳过初始设置向导
+ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false -Djenkins.install.InstallUtil.lastExecVersion=2.504.3"
+
+# 设置环境变量
+ENV JENKINS_USER=admin
+ENV JENKINS_PASS=admin123
+ENV JENKINS_ADMIN_ID=admin  
+ENV JENKINS_ADMIN_PASSWORD=admin123
+
+# 复制基础插件列表
+COPY plugins-basic.txt /usr/share/jenkins/ref/plugins.txt
+
+# 安装插件（忽略失败的插件）
+RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt || true
+
+# 复制完整初始化脚本
+COPY complete-init.groovy /usr/share/jenkins/ref/init.groovy.d/complete-init.groovy
+
+# 创建必要的目录
+RUN mkdir -p /var/jenkins_home/.m2 \
+    && mkdir -p /var/jenkins_home/.gradle \
+    && mkdir -p /var/jenkins_home/.npm \
+    && mkdir -p /var/jenkins_home/.cache
+
+# 暴露端口
+EXPOSE 8080 50000
+
+# 设置健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 \
+  CMD curl -f http://localhost:8080/login || exit 1 

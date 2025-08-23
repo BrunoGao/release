@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins-simple
+    restart: unless-stopped
+    ports:
+      - "38080:8080"
+      - "35000:50000"
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./jenkins/casc:/var/jenkins_home/casc_configs:ro
+      - ./jenkins/plugins.txt:/usr/share/jenkins/ref/plugins.txt:ro
+      - ./jenkins/init-scripts:/usr/share/jenkins/ref/init.groovy.d:ro
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx2g -Xms1g -Djenkins.install.runSetupWizard=false
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin123
+      - TZ=Asia/Shanghai
+    user: root
+    networks:
+      - cicd-network
+
+networks:
+  cicd-network:
+    external: true
+
+volumes:
+  jenkins-data:
+    driver: local 

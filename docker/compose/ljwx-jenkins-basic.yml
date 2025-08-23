@@ -1,0 +1,60 @@
+services:
+  ljwx-jenkins:
+    build:
+      context: ./jenkins/setup
+      dockerfile: Dockerfile-basic
+    image: ljwx-jenkins:latest
+    container_name: ljwx-jenkins
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - ljwx-jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin123
+      - DOCKER_REGISTRY=localhost:5003
+      - GITEA_URL=http://gitea:3000
+      - TZ=Asia/Shanghai
+    user: root
+    networks:
+      - cicd-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    labels:
+      - "project=ljwx"
+      - "service=jenkins"
+
+  ljwx-registry:
+    image: registry:2
+    container_name: ljwx-registry
+    restart: unless-stopped
+    ports:
+      - "5003:5000"
+    volumes:
+      - ljwx-registry-data:/var/lib/registry
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+    networks:
+      - cicd-network
+
+networks:
+  cicd-network:
+    driver: bridge
+    name: ljwx-cicd-network
+
+volumes:
+  ljwx-jenkins-data:
+    driver: local
+    name: ljwx-jenkins-data
+  ljwx-registry-data:
+    driver: local
+    name: ljwx-registry-data 

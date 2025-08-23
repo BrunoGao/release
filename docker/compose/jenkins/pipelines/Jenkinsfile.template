@@ -1,0 +1,101 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = "${env.DOCKER_REGISTRY ?: 'localhost:5001'}"
+        GITEA_URL = "${env.GITEA_URL ?: 'http://gitea:3000'}"
+        APP_NAME = "${env.JOB_NAME.split('/')[0]}"
+        BUILD_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT[0..7]}"
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '50', daysToKeepStr: '30'))
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+        ansiColor('xterm')
+    }
+    
+    stages {
+        stage('检出代码') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                }
+            }
+        }
+        
+        stage('代码检查') {
+            parallel {
+                stage('语法检查') {
+                    steps {
+                        sh 'echo "执行语法检查..."'
+                        // 添加具体的语法检查命令
+                    }
+                }
+                stage('安全扫描') {
+                    steps {
+                        sh 'echo "执行安全扫描..."'
+                        // 添加安全扫描命令
+                    }
+                }
+            }
+        }
+        
+        stage('构建测试') {
+            steps {
+                sh 'echo "执行单元测试..."'
+                // 添加测试命令
+            }
+            post {
+                always {
+                    // 发布测试结果
+                    publishTestResults testResultsPattern: 'test-results.xml'
+                }
+            }
+        }
+        
+        stage('构建镜像') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'develop'
+                }
+            }
+            steps {
+                script {
+                    def image = docker.build("${DOCKER_REGISTRY}/${APP_NAME}:${BUILD_TAG}")
+                    docker.withRegistry("http://${DOCKER_REGISTRY}") {
+                        image.push()
+                        image.push("latest")
+                    }
+                }
+            }
+        }
+        
+        stage('部署') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh """
+                    echo "部署到生产环境..."
+                    # 添加部署命令
+                """
+            }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo "✅ 构建成功！"
+        }
+        failure {
+            echo "❌ 构建失败！"
+            // 发送通知
+        }
+    }
+} 

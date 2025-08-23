@@ -1,0 +1,522 @@
+name: 📚 文档翻译和摘要生成
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: 
+      - 'docs/**/*.md'
+      - 'content/**/*.md'
+      - '*.md'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**/*.md'
+      - 'content/**/*.md'
+
+env:
+  # 配置环境变量
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+  REGISTRY_URL: 'localhost:5001'
+
+jobs:
+  # 检测变更的文档文件
+  detect-changes:
+    name: 🔍 检测文档变更
+    runs-on: ubuntu-latest
+    outputs:
+      docs-changed: ${{ steps.changes.outputs.docs }}
+      files-changed: ${{ steps.changes.outputs.files }}
+    steps:
+      - name: Checkout代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 检测变更文件
+        id: changes
+        run: |
+          # 获取变更的markdown文件
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep '\.md$' || true)
+          echo "变更的文档文件:"
+          echo "$CHANGED_FILES"
+          
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "docs=true" >> $GITHUB_OUTPUT
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "docs=false" >> $GITHUB_OUTPUT
+          fi
+
+  # 文档翻译任务
+  translate-docs:
+    name: 🌐 文档翻译
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docs-changed == 'true'
+    strategy:
+      matrix:
+        target-lang: ['en', 'ja', 'ko']  # 目标语言
+    
+    steps:
+      - name: Checkout代码
+        uses: actions/checkout@v4
+
+      - name: 设置Python环境
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 安装翻译依赖
+        run: |
+          pip install --upgrade pip
+          pip install openai anthropic googletrans==4.0.0rc1
+          pip install markdown beautifulsoup4 pyyaml
+          pip install langdetect jieba
+
+      - name: 配置翻译脚本
+        run: |
+          # 创建翻译脚本
+          cat > translate.py << 'EOF'
+          #!/usr/bin/env python3
+          import os
+          import sys
+          import re
+          from pathlib import Path
+          import markdown
+          from bs4 import BeautifulSoup
+          from googletrans import Translator
+          import time
+          import json
+
+          def translate_markdown(file_path, target_lang):
+              """翻译Markdown文件"""
+              print(f"🔄 翻译文件: {file_path} -> {target_lang}")
+              
+              with open(file_path, 'r', encoding='utf-8') as f:
+                  content = f.read()
+              
+              # 解析前置元数据 (Front Matter)
+              front_matter = ""
+              main_content = content
+              
+              if content.startswith('---'):
+                  parts = content.split('---', 2)
+                  if len(parts) >= 3:
+                      front_matter = f"---{parts[1]}---\n"
+                      main_content = parts[2]
+              
+              # 翻译主要内容
+              translator = Translator()
+              
+              # 分段翻译，避免API限制
+              paragraphs = main_content.split('\n\n')
+              translated_paragraphs = []
+              
+              for para in paragraphs:
+                  if para.strip():
+                      # 跳过代码块
+                      if para.startswith('```') or para.startswith('    '):
+                          translated_paragraphs.append(para)
+                          continue
+                      
+                      try:
+                          # 翻译文本
+                          result = translator.translate(para, dest=target_lang, src='auto')
+                          translated_paragraphs.append(result.text)
+                          time.sleep(0.1)  # 避免API限制
+                      except Exception as e:
+                          print(f"⚠️ 翻译失败: {e}")
+                          translated_paragraphs.append(para)  # 保持原文
+                  else:
+                      translated_paragraphs.append(para)
+              
+              # 组合结果
+              translated_content = front_matter + '\n\n'.join(translated_paragraphs)
+              
+              # 保存翻译结果
+              output_path = Path(file_path).parent / f"{Path(file_path).stem}.{target_lang}.md"
+              with open(output_path, 'w', encoding='utf-8') as f:
+                  f.write(translated_content)
+              
+              print(f"✅ 翻译完成: {output_path}")
+              return output_path
+
+          def main():
+              target_lang = sys.argv[1]
+              changed_files = sys.argv[2].split('\n') if len(sys.argv) > 2 else []
+              
+              translated_files = []
+              
+              for file_path in changed_files:
+                  if file_path.strip() and file_path.endswith('.md'):
+                      try:
+                          output = translate_markdown(file_path.strip(), target_lang)
+                          translated_files.append(str(output))
+                      except Exception as e:
+                          print(f"❌ 处理文件失败 {file_path}: {e}")
+              
+              # 输出结果供后续步骤使用
+              with open(f'translated-files-{target_lang}.json', 'w') as f:
+                  json.dump(translated_files, f)
+
+          if __name__ == "__main__":
+              main()
+          EOF
+          
+          chmod +x translate.py
+
+      - name: 执行翻译
+        run: |
+          python translate.py ${{ matrix.target-lang }} "${{ needs.detect-changes.outputs.files-changed }}"
+
+      - name: 上传翻译结果
+        uses: actions/upload-artifact@v3
+        with:
+          name: translated-docs-${{ matrix.target-lang }}
+          path: |
+            **/*.${{ matrix.target-lang }}.md
+            translated-files-${{ matrix.target-lang }}.json
+
+  # 生成文档摘要
+  generate-summary:
+    name: 📋 生成文档摘要
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docs-changed == 'true'
+    
+    steps:
+      - name: Checkout代码
+        uses: actions/checkout@v4
+
+      - name: 设置Python环境
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 安装摘要生成依赖
+        run: |
+          pip install --upgrade pip
+          pip install transformers torch
+          pip install openai anthropic
+          pip install markdown beautifulsoup4
+          pip install jieba nltk
+
+      - name: 创建摘要生成脚本
+        run: |
+          cat > summarize.py << 'EOF'
+          #!/usr/bin/env python3
+          import os
+          import sys
+          import re
+          from pathlib import Path
+          import markdown
+          from bs4 import BeautifulSoup
+          import json
+          from datetime import datetime
+
+          def extract_text_from_markdown(file_path):
+              """从Markdown文件提取纯文本"""
+              with open(file_path, 'r', encoding='utf-8') as f:
+                  content = f.read()
+              
+              # 移除Front Matter
+              if content.startswith('---'):
+                  parts = content.split('---', 2)
+                  if len(parts) >= 3:
+                      content = parts[2]
+              
+              # 转换为HTML再提取文本
+              html = markdown.markdown(content)
+              soup = BeautifulSoup(html, 'html.parser')
+              text = soup.get_text()
+              
+              # 清理文本
+              text = re.sub(r'\s+', ' ', text).strip()
+              return text
+
+          def generate_simple_summary(text, max_sentences=3):
+              """生成简单摘要（基于句子重要性）"""
+              sentences = re.split(r'[.!?。！？]+', text)
+              sentences = [s.strip() for s in sentences if s.strip()]
+              
+              if len(sentences) <= max_sentences:
+                  return '. '.join(sentences) + '.'
+              
+              # 简单的重要性评分：句子长度和关键词
+              keywords = ['重要', '关键', '核心', '主要', '首先', '总结', '概述']
+              
+              scored_sentences = []
+              for i, sentence in enumerate(sentences):
+                  score = len(sentence)  # 基础分数：句子长度
+                  
+                  # 位置加分
+                  if i < 3:  # 开头句子
+                      score += 100
+                  if i >= len(sentences) - 3:  # 结尾句子
+                      score += 50
+                  
+                  # 关键词加分
+                  for keyword in keywords:
+                      if keyword in sentence:
+                          score += 50
+                  
+                  scored_sentences.append((score, sentence))
+              
+              # 排序并选择前N个句子
+              scored_sentences.sort(reverse=True)
+              top_sentences = [s[1] for s in scored_sentences[:max_sentences]]
+              
+              return '. '.join(top_sentences) + '.'
+
+          def create_summary_report(changed_files):
+              """创建摘要报告"""
+              report = {
+                  'generated_at': datetime.now().isoformat(),
+                  'total_files': len(changed_files),
+                  'summaries': {}
+              }
+              
+              for file_path in changed_files:
+                  if file_path.strip() and file_path.endswith('.md'):
+                      try:
+                          print(f"📄 处理文件: {file_path}")
+                          text = extract_text_from_markdown(file_path.strip())
+                          
+                          if len(text) > 100:  # 只对有足够内容的文件生成摘要
+                              summary = generate_simple_summary(text)
+                              report['summaries'][file_path] = {
+                                  'original_length': len(text),
+                                  'summary': summary,
+                                  'word_count': len(text.split())
+                              }
+                              print(f"✅ 摘要生成完成")
+                          else:
+                              print(f"⏭️ 文件内容太短，跳过")
+                      except Exception as e:
+                          print(f"❌ 处理失败: {e}")
+                          report['summaries'][file_path] = {
+                              'error': str(e)
+                          }
+              
+              return report
+
+          def main():
+              changed_files = sys.argv[1].split('\n') if len(sys.argv) > 1 else []
+              
+              print(f"🔍 处理 {len(changed_files)} 个变更文件")
+              
+              report = create_summary_report(changed_files)
+              
+              # 保存详细报告
+              with open('summary-report.json', 'w', encoding='utf-8') as f:
+                  json.dump(report, f, ensure_ascii=False, indent=2)
+              
+              # 生成Markdown摘要
+              with open('SUMMARY.md', 'w', encoding='utf-8') as f:
+                  f.write(f"# 📋 文档摘要报告\n\n")
+                  f.write(f"**生成时间**: {report['generated_at']}\n")
+                  f.write(f"**处理文件数**: {report['total_files']}\n\n")
+                  
+                  for file_path, summary_data in report['summaries'].items():
+                      f.write(f"## 📄 {file_path}\n\n")
+                      
+                      if 'error' in summary_data:
+                          f.write(f"❌ **处理失败**: {summary_data['error']}\n\n")
+                      else:
+                          f.write(f"**字数**: {summary_data['word_count']}\n")
+                          f.write(f"**原文长度**: {summary_data['original_length']} 字符\n\n")
+                          f.write(f"**摘要**: {summary_data['summary']}\n\n")
+                          f.write("---\n\n")
+              
+              print("✅ 摘要报告生成完成")
+
+          if __name__ == "__main__":
+              main()
+          EOF
+          
+          chmod +x summarize.py
+
+      - name: 生成摘要
+        run: |
+          python summarize.py "${{ needs.detect-changes.outputs.files-changed }}"
+
+      - name: 上传摘要报告
+        uses: actions/upload-artifact@v3
+        with:
+          name: summary-report
+          path: |
+            SUMMARY.md
+            summary-report.json
+
+  # 构建文档网站
+  build-docs:
+    name: 🏗️ 构建文档网站
+    runs-on: ubuntu-latest
+    needs: [translate-docs, generate-summary]
+    if: always() && needs.detect-changes.outputs.docs-changed == 'true'
+    
+    steps:
+      - name: Checkout代码
+        uses: actions/checkout@v4
+
+      - name: 下载所有翻译结果
+        uses: actions/download-artifact@v3
+        with:
+          path: ./artifacts
+
+      - name: 设置Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 安装依赖
+        run: |
+          # 如果项目有package.json
+          if [ -f "package.json" ]; then
+            npm ci
+          else
+            # 创建简单的静态站点构建
+            npm init -y
+            npm install --save-dev @11ty/eleventy markdown-it
+          fi
+
+      - name: 整理翻译文件
+        run: |
+          # 将翻译文件移动到正确位置
+          mkdir -p docs/translations
+          
+          # 复制翻译结果
+          find ./artifacts -name "*.md" -exec cp {} docs/translations/ \;
+          
+          # 复制摘要报告
+          if [ -f "./artifacts/summary-report/SUMMARY.md" ]; then
+            cp ./artifacts/summary-report/SUMMARY.md docs/
+          fi
+
+      - name: 构建文档站点
+        run: |
+          # 创建简单的构建脚本
+          cat > build.js << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const { execSync } = require('child_process');
+
+          // 创建输出目录
+          if (!fs.existsSync('dist')) {
+            fs.mkdirSync('dist', { recursive: true });
+          }
+
+          // 复制所有markdown文件
+          function copyMarkdownFiles(sourceDir, targetDir) {
+            if (!fs.existsSync(sourceDir)) return;
+            
+            const files = fs.readdirSync(sourceDir, { withFileTypes: true });
+            
+            for (const file of files) {
+              const sourcePath = path.join(sourceDir, file.name);
+              const targetPath = path.join(targetDir, file.name);
+              
+              if (file.isDirectory()) {
+                if (!fs.existsSync(targetPath)) {
+                  fs.mkdirSync(targetPath, { recursive: true });
+                }
+                copyMarkdownFiles(sourcePath, targetPath);
+              } else if (file.name.endsWith('.md')) {
+                fs.copyFileSync(sourcePath, targetPath);
+                console.log(`📄 复制: ${sourcePath} -> ${targetPath}`);
+              }
+            }
+          }
+
+          // 复制文档文件
+          copyMarkdownFiles('docs', 'dist');
+          copyMarkdownFiles('.', 'dist');
+
+          console.log('✅ 文档站点构建完成');
+          EOF
+          
+          node build.js
+
+      - name: 构建Docker镜像
+        run: |
+          # 创建Dockerfile
+          cat > Dockerfile << 'EOF'
+          FROM nginx:alpine
+          
+          # 复制文档文件
+          COPY dist/ /usr/share/nginx/html/
+          
+          # 自定义nginx配置
+          RUN echo 'server { \
+              listen 80; \
+              server_name localhost; \
+              location / { \
+                  root /usr/share/nginx/html; \
+                  index index.html index.md; \
+                  try_files $uri $uri/ $uri.html $uri.md =404; \
+              } \
+              location ~ \.md$ { \
+                  add_header Content-Type text/plain; \
+              } \
+          }' > /etc/nginx/conf.d/default.conf
+          
+          EXPOSE 80
+          CMD ["nginx", "-g", "daemon off;"]
+          EOF
+          
+          # 构建镜像
+          docker build -t ${{ env.REGISTRY_URL }}/lingjing-docs:latest .
+          docker build -t ${{ env.REGISTRY_URL }}/lingjing-docs:${{ github.sha }} .
+
+      - name: 推送镜像到私有仓库
+        run: |
+          # 推送镜像
+          docker push ${{ env.REGISTRY_URL }}/lingjing-docs:latest
+          docker push ${{ env.REGISTRY_URL }}/lingjing-docs:${{ github.sha }}
+          
+          echo "✅ 镜像推送完成:"
+          echo "  - ${{ env.REGISTRY_URL }}/lingjing-docs:latest"
+          echo "  - ${{ env.REGISTRY_URL }}/lingjing-docs:${{ github.sha }}"
+
+      - name: 部署到测试环境
+        run: |
+          # 停止旧容器
+          docker stop lingjing-docs || true
+          docker rm lingjing-docs || true
+          
+          # 启动新容器
+          docker run -d \
+            --name lingjing-docs \
+            --network cicd-network \
+            -p 8090:80 \
+            ${{ env.REGISTRY_URL }}/lingjing-docs:latest
+          
+          echo "🚀 文档网站已部署到: http://localhost:8090"
+
+  # 通知任务
+  notify:
+    name: 📬 发送通知
+    runs-on: ubuntu-latest
+    needs: [detect-changes, translate-docs, generate-summary, build-docs]
+    if: always()
+    
+    steps:
+      - name: 汇总结果
+        run: |
+          echo "📊 CI/CD 执行结果汇总:"
+          echo ""
+          echo "🔍 文档变更检测: ${{ needs.detect-changes.result }}"
+          echo "🌐 文档翻译: ${{ needs.translate-docs.result }}"
+          echo "📋 摘要生成: ${{ needs.generate-summary.result }}"
+          echo "🏗️ 站点构建: ${{ needs.build-docs.result }}"
+          echo ""
+          
+          if [ "${{ needs.build-docs.result }}" == "success" ]; then
+            echo "✅ 文档网站已更新: http://localhost:8090"
+            echo "📦 Docker镜像: localhost:5001/lingjing-docs:latest"
+          fi
+          
+          # 可以在这里添加发送邮件、钉钉、微信等通知逻辑 

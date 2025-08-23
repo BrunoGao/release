@@ -1,0 +1,67 @@
+# 基础核心插件
+ant
+build-timeout
+credentials-binding
+timestamper
+ws-cleanup
+workflow-aggregator
+pipeline-stage-view
+git
+ssh-slaves
+matrix-auth
+pam-auth
+ldap
+email-ext
+mailer
+
+# Docker支持
+docker-plugin
+docker-workflow
+docker-commons
+docker-build-step
+
+# 代码管理
+git-parameter
+generic-webhook-trigger
+workflow-scm-step
+
+# 构建工具
+maven-plugin
+gradle
+nodejs
+
+# 测试和质量
+junit
+warnings-ng
+
+# 部署和云
+kubernetes
+ssh-agent
+
+# UI和可视化
+blueocean
+pipeline-graph-analysis
+pipeline-rest-api
+
+# 安全
+role-strategy
+authorize-project
+
+# 系统管理
+configuration-as-code
+job-dsl
+script-security
+
+# 多分支
+workflow-multibranch
+
+# 参数化构建
+parameterized-trigger
+
+# 国际化
+localization-support
+localization-zh-cn
+
+# 主题
+dark-theme
+theme-manager 
