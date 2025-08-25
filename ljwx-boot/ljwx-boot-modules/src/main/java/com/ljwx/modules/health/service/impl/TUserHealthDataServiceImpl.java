@@ -1043,6 +1043,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             query.in(TUserHealthData::getDeviceSn, deviceSnList)
                  .ge(TUserHealthData::getTimestamp, startDate)
                  .le(TUserHealthData::getTimestamp, endDate)
+                 .ne(TUserHealthData::getUploadMethod, "common_event") // 过滤掉common_event数据
                  .orderByAsc(TUserHealthData::getTimestamp)
                  .last("LIMIT 10000"); // #限制最大返回数量
             

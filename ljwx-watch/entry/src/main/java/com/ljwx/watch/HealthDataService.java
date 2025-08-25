@@ -103,11 +103,9 @@ public class HealthDataService extends Ability {
                 showNotification("健康数据采集服务已启动");
                 mIsServiceReady = true;
                 dataManager.setIsHealthServiceReady(true);
-                enableAutoMeasures();
-                setMeasurePeriod();
-                enableAlertThreshold();
-                getParameterData();
-                startRealtimeHealthData();
+                
+                // 等待配置加载完成再启动健康数据采集
+                waitForConfigAndStart();
 
                 HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getStepsMeasurePeriod:" + dataManager.getStepsMeasurePeriod());
                 HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getDistanceMeasurePeriod:" + dataManager.getDistanceMeasurePeriod());
@@ -121,99 +119,6 @@ public class HealthDataService extends Ability {
                 HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getScientificSleepMeasurePeriod:" + dataManager.getScientificSleepMeasurePeriod());
                 HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getWorkoutMeasurePeriod:" + dataManager.getWorkoutMeasurePeriod());
                 HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getHeartRateMeasurePeriod:" + dataManager.getHeartRateMeasurePeriod());
-
-                // 初始化缓存变量，避免定时器中重复计算（省电优化）
-                initCachedVariables();
-
-                // 统一定时器调度 - 以心率为基数
-                masterTimer = new Timer();
-
-                HiLog.info(LABEL_LOG, "jjgao::onServiceReady:basePeriod:" + basePeriod);
-                masterTimer.schedule(new TimerTask() {
-                    @Override
-                    public void run() {
-                        tick++;
-                        HiLog.info(LABEL_LOG, "jjgao::onServiceReady:tick:" + tick);
-
-                        // 获取当前时间作为endTime
-                        long currentTime = System.currentTimeMillis();
-                        long startTime = currentTime - 647437;
-                        
-                        // 步数采集
-                        if (stepSupported && tick % stepTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getStepData");
-                            //long stepStartTime = currentTime - (stepPeriod * 5);
-                            getStepData(startTime, currentTime);
-                        }
-                        // 距离采集
-                        if (distanceSupported && tick % distanceTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getDistanceData");
-                            //long distanceStartTime = currentTime - (distancePeriod * 5);
-                            getDistanceData(startTime, currentTime);
-                        }
-                        // 卡路里采集
-                        if (calorieSupported && tick % calorieTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getCalorieData");
-                            //long calorieStartTime = currentTime - (caloriePeriod * 5);
-                            getCalorieData(startTime, currentTime);
-                        }
-                        // 体温采集
-                        if (temperatureSupported && tick % temperatureTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getTemperature");
-                            //long temperatureStartTime = currentTime - (temperaturePeriod * 5);
-                            getTemperature(startTime, currentTime);
-                        }
-                        // 血氧采集
-                        if (bloodOxygenSupported && tick % bloodOxygenTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getSpo2");
-                            //long bloodOxygenStartTime = currentTime - (bloodOxygenPeriod * 5);
-                            getSpo2(startTime, currentTime);
-                        }
-                        // 压力采集
-                        if (stressSupported && tick % stressTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getStress");
-                            //long stressStartTime = currentTime - (stressPeriod * 5);
-                            getStressData(startTime, currentTime);
-                        }
-                        // 睡眠采集（睡眠数据采用24小时时间窗口）
-                        if (sleepSupported && tick % sleepTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getSleep");
-                            long sleepStartTime = currentTime - 24 * 60 * 60 * 1000; // 24小时历史数据
-                            getSleepData(sleepStartTime, currentTime);
-                        }
-                        // 日运动采集
-                        if (exerciseDailySupported && tick % exerciseDailyTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getExerciseDaily");
-                            //long exerciseDailyStartTime = currentTime - (exerciseDailyPeriod * 5);
-                            getExerciseDailyData(startTime, currentTime);
-                        }
-                        // 周运动采集
-                        if (exerciseWeekSupported && tick % exerciseWeekTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getExerciseWeek");
-                            //long exerciseWeekStartTime = currentTime - (exerciseWeekPeriod * 5);
-                            getExerciseWeekData(startTime, currentTime);
-                        }
-                        // 科学睡眠采集
-                        if (scientificSleepSupported && tick % scientificSleepTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getScientificSleep");
-                            //long scientificSleepStartTime = currentTime - (scientificSleepPeriod * 5);
-                            getScientificSleepData(startTime, currentTime);
-                        }
-                        // 运动记录采集
-                        if (workoutSupported && tick % workoutTickInterval == 0) {
-                            HiLog.info(LABEL_LOG, "jjgao::onServiceReady:getWorkout");
-                            //long workoutStartTime = currentTime - (workoutPeriod * 5);
-                            getWorkoutData(startTime, currentTime);
-                        }                     
-
-                        // 防止计数器溢出
-                        if (tick >= 3600) tick = 0;
-                    }
-                }, 0, basePeriod * 1000);
-
-                //getWearStatus();
-                showNotification("开始采集健康数据");
-                getCommonEvent();
 
             }
             @Override
@@ -424,7 +329,7 @@ public class HealthDataService extends Ability {
         String distancJson = "";
        
         try {
-            distancJson = HealthManager.getInstance(getContext()).queryDistanceInRange(new DistanceQueryConfig.Builder().setStartTime(startTime).setEndTime(endTime).build());
+            distancJson = HealthManager.getInstance(getContext()).queryDistanceInRange(new DistanceQueryConfig.Builder().build());
             
             int distanceValue = (int) fetchFromJson(distancJson);
             HiLog.info(LABEL_LOG, "jjgao::distanceJson " + distanceValue) ;
@@ -502,7 +407,7 @@ public class HealthDataService extends Ability {
     private void getStepData(long startTime, long endTime){
         String stepJson = "";
         try {
-            stepJson = HealthManager.getInstance(getContext()).queryStepsInRange(new StepsQueryConfig.Builder().setStartTime(startTime).setEndTime(endTime).build());
+            stepJson = HealthManager.getInstance(getContext()).queryStepsInRange(new StepsQueryConfig.Builder().build());
             //HiLog.info(LABEL_LOG, "jjgao::stepJson " + stepJson);
             int stepValue = (int) fetchFromJson(stepJson);
             //System.out.println("jjgao::stepJson " + stepValue) ;
@@ -557,7 +462,7 @@ public class HealthDataService extends Ability {
         
         String calorieJson = "";
         try {
-            calorieJson =  HealthManager.getInstance(getContext()).queryCalorieInRange (new CalorieQueryConfig.Builder().setStartTime(startTime).setEndTime(endTime).build());
+            calorieJson =  HealthManager.getInstance(getContext()).queryCalorieInRange(new CalorieQueryConfig.Builder().build());
             int calorieValue = (int) fetchFromJson(calorieJson);
             if (calorieValue != 0) {
                 dataManager.setCalorie(calorieValue);
@@ -1077,6 +982,135 @@ public class HealthDataService extends Ability {
         }
     }
 
+    // 等待配置加载完成再启动健康数据采集
+    private void waitForConfigAndStart() {
+        // 创建一个后台线程等待配置
+        new Thread(() -> {
+            int waitCount = 0;
+            int maxWait = 30; // 最多等待30秒
+            
+            while (waitCount < maxWait) {
+                // 检查配置是否已加载
+                if (dataManager.getConfig() != null) {
+                    HiLog.info(LABEL_LOG, "HealthDataService::waitForConfigAndStart 配置已加载，开始启动健康数据采集");
+                    
+                    // 在主线程中执行健康数据采集启动
+                    getUITaskDispatcher().asyncDispatch(() -> {
+                        startHealthDataCollection();
+                    });
+                    return;
+                }
+                
+                // 等待1秒后再检查
+                try {
+                    Thread.sleep(1000);
+                    waitCount++;
+                    HiLog.info(LABEL_LOG, "HealthDataService::waitForConfigAndStart 等待配置加载中... " + waitCount + "/" + maxWait);
+                } catch (InterruptedException e) {
+                    HiLog.error(LABEL_LOG, "HealthDataService::waitForConfigAndStart 等待被中断: " + e.getMessage());
+                    break;
+                }
+            }
+            
+            // 超时后使用默认配置启动
+            HiLog.warn(LABEL_LOG, "HealthDataService::waitForConfigAndStart 等待配置超时，使用默认配置启动");
+            getUITaskDispatcher().asyncDispatch(() -> {
+                startHealthDataCollection();
+            });
+        }).start();
+    }
+    
+    // 启动健康数据采集的具体逻辑
+    private void startHealthDataCollection() {
+        enableAutoMeasures();
+        setMeasurePeriod();
+        enableAlertThreshold();
+        getParameterData();
+        startRealtimeHealthData();
+
+        // 初始化缓存变量，避免定时器中重复计算（省电优化）
+        initCachedVariables();
+
+        // 统一定时器调度 - 以心率为基数
+        masterTimer = new Timer();
+
+        HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:basePeriod:" + basePeriod);
+        masterTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                tick++;
+                HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:tick:" + tick);
+
+                // 获取当前时间作为endTime
+                long currentTime = System.currentTimeMillis();
+                long startTime = currentTime - 647437;
+                
+                // 步数采集
+                if (stepSupported && tick % stepTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getStepData");
+                    getStepData(startTime, currentTime);
+                }
+                // 距离采集
+                if (distanceSupported && tick % distanceTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getDistanceData");
+                    getDistanceData(startTime, currentTime);
+                }
+                // 卡路里采集
+                if (calorieSupported && tick % calorieTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getCalorieData");
+                    getCalorieData(startTime, currentTime);
+                }
+                // 体温采集
+                if (temperatureSupported && tick % temperatureTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getTemperature");
+                    getTemperature(startTime, currentTime);
+                }
+                // 血氧采集
+                if (bloodOxygenSupported && tick % bloodOxygenTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getSpo2");
+                    getSpo2(startTime, currentTime);
+                }
+                // 压力采集
+                if (stressSupported && tick % stressTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getStress");
+                    getStressData(startTime, currentTime);
+                }
+                // 睡眠采集（睡眠数据采用24小时时间窗口）
+                if (sleepSupported && tick % sleepTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getSleep");
+                    long sleepStartTime = currentTime - 24 * 60 * 60 * 1000; // 24小时历史数据
+                    getSleepData(sleepStartTime, currentTime);
+                }
+                // 日运动采集
+                if (exerciseDailySupported && tick % exerciseDailyTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getExerciseDaily");
+                    getExerciseDailyData(startTime, currentTime);
+                }
+                // 周运动采集
+                if (exerciseWeekSupported && tick % exerciseWeekTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getExerciseWeek");
+                    getExerciseWeekData(startTime, currentTime);
+                }
+                // 科学睡眠采集
+                if (scientificSleepSupported && tick % scientificSleepTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getScientificSleep");
+                    getScientificSleepData(startTime, currentTime);
+                }
+                // 运动记录采集
+                if (workoutSupported && tick % workoutTickInterval == 0) {
+                    HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:getWorkout");
+                    getWorkoutData(startTime, currentTime);
+                }                     
+
+                // 防止计数器溢出
+                if (tick >= 3600) tick = 0;
+            }
+        }, 0, basePeriod * 1000);
+
+        showNotification("开始采集健康数据");
+        getCommonEvent();
+    }
+    
     // 初始化所有缓存变量，避免定时器中重复计算（省电优化）
     private void initCachedVariables() {
         // 获取支持状态

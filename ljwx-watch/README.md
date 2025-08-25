@@ -1,7 +1,7 @@
-# LJWX 智能手表系统 v1.3.3
+# LJWX 智能手表系统 v1.3.4
 
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS-4.0-blue.svg)](https://developer.harmonyos.com/)
-[![版本](https://img.shields.io/badge/version-1.3.3-green.svg)](https://github.com/your-org/ljwx-watch)
+[![版本](https://img.shields.io/badge/version-1.3.4-green.svg)](https://github.com/your-org/ljwx-watch)
 [![许可证](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## 📋 项目概述
@@ -17,7 +17,73 @@
 - **电池优化**：统一定时器调度，续航提升至15-18小时
 - **企业级稳定性**：完善的错误处理和自恢复机制
 
-## 🔋 最新优化：耗电性能优化（v1.3.3）
+## 🆕 最新功能：健康数据源区分 (v1.3.4)
+
+### 功能概述
+为了更好地管理不同来源的健康数据，系统现在支持对不同上传方式的健康数据进行区分标识，确保前端显示的数据准确性。
+
+### 主要改进
+- **数据源标识**：为通过 `upload_common_event` 上传的健康数据添加独特标识
+- **前端过滤**：管理端健康数据查看时自动过滤事件相关数据
+- **独立缓存机制**：三种数据类型（健康数据、设备信息、通用事件）使用独立缓存
+
+### 技术实现
+
+#### 1. 专用健康数据生成
+```java
+/**
+ * 获取用于通用事件的健康数据，upload_method标识为"common_event"
+ * @return 健康数据JSON字符串
+ */
+public static String getHealthInfoForCommonEvent() {
+    // ... 生成健康数据
+    healthInfoJson.put("upload_method", "common_event");
+    // ...
+    return resultJson.toString();
+}
+```
+
+#### 2. 独立缓存机制
+```java
+// 设备信息专用缓存上传
+private boolean uploadDeviceInfoWithCache(String deviceInfoData) {
+    healthDataCache.addToCache(HealthDataCache.DataType.DEVICE_INFO, deviceInfoData);
+    // ... 处理逻辑
+}
+
+// 通用事件专用缓存上传  
+private boolean uploadCommonEventWithCache(String commonEventData) {
+    healthDataCache.addToCache(HealthDataCache.DataType.COMMON_EVENT, commonEventData);
+    // ... 处理逻辑
+}
+```
+
+#### 3. 配置等待机制
+```java
+private void waitForConfigAndStart() {
+    // 等待健康配置加载完成再启动数据采集
+    while (waitCount < maxWait) {
+        if (dataManager.getConfig() != null) {
+            startHealthDataCollection();
+            return;
+        }
+        Thread.sleep(1000);
+    }
+}
+```
+
+### 数据流程
+```
+手表启动 → 等待配置加载 → 启动健康数据采集
+    ↓
+通用事件触发 → 生成专用健康数据 → upload_method: "common_event"
+    ↓
+数据上传到服务器 → 独立缓存处理 → 数据库存储
+    ↓
+前端查询 → 自动过滤事件数据 → 仅显示正常健康数据
+```
+
+## 🔋 耗电性能优化（v1.3.3）
 
 为了解决手表在仅开启HTTP服务模式下只能使用11小时的耗电问题，我们对系统进行了深度优化：
 

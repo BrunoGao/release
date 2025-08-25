@@ -1,7 +1,7 @@
 # LjwxAdmin 后台管理系统
 
 ![Node](https://img.shields.io/badge/Node-18-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.3.3-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.3.4-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-paynezhuang-green.svg)](https://github.com/paynezhuang)
@@ -401,6 +401,13 @@ Content-Type: application/json
 ```
 
 ## 📝 更新日志
+
+### v1.3.4 (2025-08-25)
+- ✨ **新增健康数据源过滤功能**
+  - 健康数据查看时自动过滤通用事件上传的数据
+  - 与后端 upload_method 字段联动，过滤掉 "common_event" 类型数据
+  - 确保健康信息页面仅显示正常健康监测数据，提高数据准确性
+  - 优化数据展示逻辑，提升用户查看健康报告的体验
 
 ### v1.3.3 (2025-08-20)
 - ✨ **新增用户批量导入功能**

@@ -228,48 +228,45 @@ public class HttpService extends Ability {
     }
 
 
-    // 带缓存的统一上传方法
-    private boolean uploadDataWithCache(HealthDataCache.DataType dataType, String data, String url) {
-        try {
-            // 1. 先缓存数据
-            healthDataCache.addToCache(dataType, data);
-            HiLog.info(LABEL_LOG, "HttpService::uploadDataWithCache [" + dataType.getDisplayName() + "] 数据已缓存");
-            
-            // 2. 尝试上传
-            boolean success = uploadData(url, data);
-            
-            if (success) {
-                // 3. 上传成功，清除对应缓存
-                healthDataCache.clearCache(dataType);
-                HiLog.info(LABEL_LOG, "HttpService::uploadDataWithCache [" + dataType.getDisplayName() + "] 上传成功，缓存已清除");
-                return true;
-            } else {
-                // 上传失败，数据保留在缓存中
-                HiLog.warn(LABEL_LOG, "HttpService::uploadDataWithCache [" + dataType.getDisplayName() + "] 上传失败，数据保留在缓存中");
-                return false;
-            }
-        } catch (Exception e) {
-            HiLog.error(LABEL_LOG, "HttpService::uploadDataWithCache [" + dataType.getDisplayName() + "] error: " + e.getMessage());
-            return false;
-        }
-    }
     
     // 批量重传缓存数据
     private void retryAllCachedData() {
         HiLog.info(LABEL_LOG, "HttpService::retryAllCachedData 开始批量重传缓存数据");
         
         try {
-            // 重传健康数据
-            retryCachedData(HealthDataCache.DataType.HEALTH_DATA, dataManager.getUploadHealthDataUrl());
+            // 重传健康数据 - 使用批量上传方式
+            retryHealthData();
             
-            // 重传设备信息
+            // 重传设备信息 - 使用逐条上传方式
             retryCachedData(HealthDataCache.DataType.DEVICE_INFO, dataManager.getUploadDeviceInfoUrl());
             
-            // 重传通用事件
+            // 重传通用事件 - 使用逐条上传方式
             retryCachedData(HealthDataCache.DataType.COMMON_EVENT, dataManager.getUploadCommonEventUrl());
             
         } catch (Exception e) {
             HiLog.error(LABEL_LOG, "HttpService::retryAllCachedData error: " + e.getMessage());
+        }
+    }
+    
+    // 专门用于重传健康数据的方法（批量上传）
+    private void retryHealthData() {
+        try {
+            List<String> cachedHealthData = healthDataCache.getAllCachedData(HealthDataCache.DataType.HEALTH_DATA);
+            if (cachedHealthData.isEmpty()) {
+                return;
+            }
+            
+            HiLog.info(LABEL_LOG, "HttpService::retryHealthData 开始批量重传健康数据，共 " + cachedHealthData.size() + " 条");
+            
+            // 使用现有的批量上传方法
+            boolean success = uploadAllCachedData();
+            if (success) {
+                HiLog.info(LABEL_LOG, "HttpService::retryHealthData 健康数据批量重传成功");
+            } else {
+                HiLog.warn(LABEL_LOG, "HttpService::retryHealthData 健康数据批量重传失败");
+            }
+        } catch (Exception e) {
+            HiLog.error(LABEL_LOG, "HttpService::retryHealthData error: " + e.getMessage());
         }
     }
     
@@ -436,7 +433,7 @@ public class HttpService extends Ability {
         return result;
     }
 
-    // 上传设备信息 - 集成缓存机制
+    // 上传设备信息 - 使用独立的设备信息缓存机制
     private void uploadDeviceInfo() {
         String currentDeviceInfo = Utils.getDeviceInfo();
         HiLog.info(LABEL_LOG, "HttpService::uploadDeviceInfo currentDeviceInfo: " + currentDeviceInfo);
@@ -446,12 +443,64 @@ public class HttpService extends Ability {
         }
         if("wifi".equals(dataManager.getUploadMethod())){
             if (!currentDeviceInfo.equals(lastDeviceInfo)) {
-                // 使用新的带缓存的上传方法
-                boolean success = uploadDataWithCache(HealthDataCache.DataType.DEVICE_INFO, currentDeviceInfo, dataManager.getUploadDeviceInfoUrl());
+                // 使用独立的设备信息缓存机制
+                boolean success = uploadDeviceInfoWithCache(currentDeviceInfo);
                 if (success) {
                     lastDeviceInfo = currentDeviceInfo;
                 }
             }
+        }
+    }
+    
+    // 设备信息专用上传方法，使用独立缓存
+    private boolean uploadDeviceInfoWithCache(String deviceInfoData) {
+        try {
+            // 1. 先缓存数据到设备信息专用缓存
+            healthDataCache.addToCache(HealthDataCache.DataType.DEVICE_INFO, deviceInfoData);
+            HiLog.info(LABEL_LOG, "HttpService::uploadDeviceInfoWithCache 设备信息已缓存");
+            
+            // 2. 尝试上传
+            boolean success = uploadData(dataManager.getUploadDeviceInfoUrl(), deviceInfoData);
+            
+            if (success) {
+                // 3. 上传成功，清除设备信息缓存
+                healthDataCache.clearCache(HealthDataCache.DataType.DEVICE_INFO);
+                HiLog.info(LABEL_LOG, "HttpService::uploadDeviceInfoWithCache 设备信息上传成功，缓存已清除");
+                return true;
+            } else {
+                // 上传失败，数据保留在设备信息缓存中
+                HiLog.warn(LABEL_LOG, "HttpService::uploadDeviceInfoWithCache 设备信息上传失败，数据保留在缓存中");
+                return false;
+            }
+        } catch (Exception e) {
+            HiLog.error(LABEL_LOG, "HttpService::uploadDeviceInfoWithCache error: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    // 通用事件专用上传方法，使用独立缓存
+    private boolean uploadCommonEventWithCache(String commonEventData) {
+        try {
+            // 1. 先缓存数据到通用事件专用缓存
+            healthDataCache.addToCache(HealthDataCache.DataType.COMMON_EVENT, commonEventData);
+            HiLog.info(LABEL_LOG, "HttpService::uploadCommonEventWithCache 通用事件已缓存");
+            
+            // 2. 尝试上传
+            boolean success = uploadData(dataManager.getUploadCommonEventUrl(), commonEventData);
+            
+            if (success) {
+                // 3. 上传成功，清除通用事件缓存
+                healthDataCache.clearCache(HealthDataCache.DataType.COMMON_EVENT);
+                HiLog.info(LABEL_LOG, "HttpService::uploadCommonEventWithCache 通用事件上传成功，缓存已清除");
+                return true;
+            } else {
+                // 上传失败，数据保留在通用事件缓存中
+                HiLog.warn(LABEL_LOG, "HttpService::uploadCommonEventWithCache 通用事件上传失败，数据保留在缓存中");
+                return false;
+            }
+        } catch (Exception e) {
+            HiLog.error(LABEL_LOG, "HttpService::uploadCommonEventWithCache error: " + e.getMessage());
+            return false;
         }
     }
 
@@ -582,12 +631,13 @@ public class HttpService extends Ability {
                 commonEventJson.put("altitude", dataManager.getAltitude());
                 commonEventJson.put("timestamp", timestamp);
                 
-                // 修复healthData字段JSON嵌套问题
-                String healthInfoStr = Utils.getHealthInfo();
+                // 修复healthData字段JSON嵌套问题 - 使用专门的通用事件健康数据方法
+                String healthInfoStr = Utils.getHealthInfoForCommonEvent();
                 if (healthInfoStr != null && !healthInfoStr.isEmpty()) {
                     try {
                         JSONObject healthDataObj = new JSONObject(healthInfoStr);
                         commonEventJson.put("healthData", healthDataObj);
+                        HiLog.info(LABEL_LOG, "HttpService::uploadCommonEvent 使用common_event标识的健康数据");
                     } catch (JSONException e) {
                         HiLog.error(LABEL_LOG, "解析healthData JSON失败: " + e.getMessage());
                         commonEventJson.put("healthData", healthInfoStr); // 降级处理
@@ -606,7 +656,7 @@ public class HttpService extends Ability {
                     return;
                 }
                 
-                String commonEventData = commonEventJson.toString();
+
 
                 if(commonEventType.equalsIgnoreCase("com.tdtech.ohos.action.WEAR_STATUS_CHANGED")){
                     String deviceInfo = Utils.getDeviceInfo();
@@ -616,17 +666,18 @@ public class HttpService extends Ability {
 
                     HiLog.info(LABEL_LOG, "HttpService::WEAR_STATUS_CHANGED.uploadDeviceInfo deviceInfo: " + deviceInfoJson.toString());
                     deviceInfo = deviceInfoJson.toString();
-                    boolean success = uploadData(dataManager.getUploadDeviceInfoUrl(), deviceInfo);
+                    // 使用独立的设备信息缓存机制
+                    boolean success = uploadDeviceInfoWithCache(deviceInfo);
                     if (!success) {
-                        HiLog.error(LABEL_LOG, "HttpService::WEAR_STATUS_CHANGED.uploapDeviceInfo  失败: " + deviceInfo);
+                        HiLog.error(LABEL_LOG, "HttpService::WEAR_STATUS_CHANGED.uploadDeviceInfo 设备信息上传失败，已缓存: " + deviceInfo);
                     }
 
                 }
                 
-                // 使用新的带缓存的上传方法
-                boolean success = uploadDataWithCache(HealthDataCache.DataType.COMMON_EVENT, commonEventData, dataManager.getUploadCommonEventUrl());
+                // 使用独立的通用事件缓存机制
+                boolean success = uploadCommonEventWithCache(commonEventData);
                 if (!success) {
-                    HiLog.error(LABEL_LOG, "HttpService::uploadCommonEvent 上传失败，已缓存数据");
+                    HiLog.error(LABEL_LOG, "HttpService::uploadCommonEvent 通用事件上传失败，已缓存数据");
                 }
             } catch (Exception e) {
                 HiLog.error(LABEL_LOG, "HttpService::uploadCommonEvent 异常: " + e.getMessage());

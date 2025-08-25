@@ -1334,9 +1334,36 @@ def upload_common_event():
         #处理健康数据
         health_id=None
         if data.get('healthData'):
-            from .user_health_data import process_single_health_data
-            health_id=process_single_health_data(data['healthData']['data'])
-            if health_id:alert.health_id=health_id
+            print(f"🏥 发现healthData字段: {data['healthData']}")
+            
+            # 检查healthData的结构
+            health_data = data['healthData']
+            if isinstance(health_data, dict):
+                print(f"🏥 healthData是字典类型，键: {list(health_data.keys())}")
+                
+                # 尝试从不同的可能路径提取数据
+                actual_health_data = None
+                if 'data' in health_data:
+                    actual_health_data = health_data['data']
+                    print(f"🏥 从healthData.data提取: {actual_health_data}")
+                else:
+                    actual_health_data = health_data
+                    print(f"🏥 直接使用healthData: {actual_health_data}")
+                
+                # 处理健康数据
+                if actual_health_data:
+                    from .user_health_data import process_single_health_data
+                    print(f"🏥 准备处理健康数据: {actual_health_data}")
+                    health_id = process_single_health_data(actual_health_data)
+                    print(f"🏥 健康数据处理结果，health_id: {health_id}")
+                    if health_id:
+                        alert.health_id = health_id
+                else:
+                    print("🏥 ❌ 无法提取有效的健康数据")
+            else:
+                print(f"🏥 ❌ healthData不是字典类型: {type(health_data)}, 值: {health_data}")
+        else:
+            print("🏥 ❌ 数据中没有healthData字段")
         
         db.session.commit()
         

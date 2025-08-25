@@ -368,7 +368,7 @@ class CustomerConfig(db.Model):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     customer_name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    upload_method = Column(Enum('wifi', 'bluetooth'), default='wifi', nullable=True)
+    upload_method = Column(Enum('wifi', 'bluetooth', 'common_event'), default='wifi', nullable=True)
     license_key = Column(Integer, nullable=False)
     is_support_license = Column(Boolean, nullable=False)
     is_deleted = Column(Boolean, default=False, nullable=True)

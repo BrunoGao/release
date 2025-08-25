@@ -1,9 +1,9 @@
-# LJWX BigScreen 健康监控大屏系统 v1.3.3
+# LJWX BigScreen 健康监控大屏系统 v1.3.4
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.0+-green.svg)](https://flask.palletsprojects.com/)
 [![Docker](https://img.shields.io/badge/Docker-支持多架构-blue.svg)](https://docker.com/)
-[![版本](https://img.shields.io/badge/version-1.3.3-green.svg)](https://github.com/your-org/ljwx-bigscreen)
+[![版本](https://img.shields.io/badge/version-1.3.4-green.svg)](https://github.com/your-org/ljwx-bigscreen)
 [![许可证](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## 📋 项目概述
@@ -20,7 +20,41 @@ LJWX BigScreen 是一个专为工业环境设计的实时健康监控大屏系�
 - **🐳 多架构Docker支持**：AMD64/ARM64一键部署
 - **📈 性能监控面板**：实时系统状态和性能指标
 
-## 🆕 最新更新 v1.3.3
+## 🆕 最新更新 v1.3.4
+
+### 🎯 健康数据源区分系统
+
+**核心功能**：智能区分不同来源的健康数据，确保前端显示数据的准确性
+
+**主要改进**：
+- **数据源标识**：为通过 `upload_common_event` 上传的健康数据添加 `upload_method: "common_event"` 标识
+- **前端过滤**：管理端健康数据查看时自动过滤事件相关数据，仅显示正常健康监测数据
+- **增强调试**：添加详细的健康数据解析调试输出，支持多种数据结构格式
+
+**技术实现**：
+```python
+# 支持嵌套和平面两种健康数据结构
+if 'healthData' in data:
+    health_data = data['healthData']
+    # 支持 {healthData: {data: {...}}} 嵌套结构
+    if 'data' in health_data:
+        health_data = health_data['data']
+    
+    # 提取 upload_method 字段进行标识
+    upload_method = health_data.get('upload_method', 'wifi')
+    print(f"🏥 检测到健康数据上传方式: {upload_method}")
+```
+
+**数据流程优化**：
+```
+通用事件触发 → 生成健康数据(upload_method: "common_event")
+    ↓
+大屏系统接收 → 解析健康数据 → 标识数据来源
+    ↓  
+数据库存储 → 前端查询过滤 → 仅显示正常健康数据
+```
+
+### 📊 v1.3.3 CPU自适应批处理系统回顾
 
 ### 🚀 CPU自适应批处理系统升级
 
@@ -470,5 +504,5 @@ EVENT_MAX_WORKERS = cpu_cores * 1
 
 ---
 
-*最后更新：2025年8月22日*
-*当前版本：v1.3.3 - CPU自适应批处理系统*
+*最后更新：2025年8月25日*
+*当前版本：v1.3.4 - 健康数据源智能区分系统*

@@ -347,7 +347,66 @@ public class Utils {
         }
     }
 
+    /**
+     * 获取用于通用事件的健康数据，upload_method标识为"common_event"
+     * @return 健康数据JSON字符串
+     */
+    public static String getHealthInfoForCommonEvent() {
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            String timestamp = Instant.now().atZone(ZoneId.systemDefault()).format(formatter);
 
+            JSONObject healthInfoJson = new JSONObject();
+            
+            HiLog.info(LABEL_LOG, "Utils::getHealthInfoForCommonEvent deviceSn:" + dataManager.getDeviceSn());
+            healthInfoJson.put("deviceSn", dataManager.getDeviceSn());
+            
+            // 获取健康数据
+            int heartRate = dataManager.getHeartRate();
+            int bloodOxygen = dataManager.getBloodOxygen();
+            double temperature = dataManager.getTemperature();
+            int pressureHigh = dataManager.getPressureHigh();
+            int pressureLow = dataManager.getPressureLow();
+            
+            healthInfoJson.put("heart_rate", heartRate);
+            healthInfoJson.put("blood_oxygen", bloodOxygen);
+            healthInfoJson.put("body_temperature", String.format("%.1f", temperature));
+
+            healthInfoJson.put("step", dataManager.getStep());
+            healthInfoJson.put("distance", String.format("%.1f", dataManager.getDistance()));
+            healthInfoJson.put("calorie", String.format("%.1f", dataManager.getCalorie()));
+
+            BigDecimal latitude = dataManager.getLatitude();
+            BigDecimal longitude = dataManager.getLongitude();
+            BigDecimal altitude = dataManager.getAltitude();
+            
+            healthInfoJson.put("latitude", latitude != null ? latitude.toString() : "0");
+            healthInfoJson.put("longitude", longitude != null ? longitude.toString() : "0");
+            healthInfoJson.put("altitude", altitude != null ? altitude.toString() : "0");
+            healthInfoJson.put("stress", dataManager.getStress());
+            
+            // 关键修改：为通用事件设置特殊的upload_method标识
+            healthInfoJson.put("upload_method", "common_event");
+            healthInfoJson.put("blood_pressure_systolic", pressureHigh);
+            healthInfoJson.put("blood_pressure_diastolic", pressureLow);
+            healthInfoJson.put("sleepData", dataManager.getSleepData() != null ? dataManager.getSleepData() : "null");
+            healthInfoJson.put("exerciseDailyData", dataManager.getExerciseDailyData() != null ? dataManager.getExerciseDailyData() : "null");
+            healthInfoJson.put("exerciseWeekData", dataManager.getExerciseWeekData() != null ? dataManager.getExerciseWeekData() : "null");
+            healthInfoJson.put("scientificSleepData", dataManager.getScientificSleepData() != null ? dataManager.getScientificSleepData() : "null");
+            healthInfoJson.put("workoutData", dataManager.getWorkoutData() != null ? dataManager.getWorkoutData() : "null");
+            
+            healthInfoJson.put("timestamp", timestamp);
+            JSONObject resultJson = new JSONObject();
+            resultJson.put("data", healthInfoJson);
+            
+            HiLog.info(LABEL_LOG, "Utils::getHealthInfoForCommonEvent 生成通用事件健康数据");
+            return resultJson.toString();
+            
+        } catch (Exception e) {
+            HiLog.error(LABEL_LOG, "Utils::getHealthInfoForCommonEvent error: " + e.getMessage());
+            return "{}";
+        }
+    }
 
     public static void clearCache() {
         lastHealthInfo = null;

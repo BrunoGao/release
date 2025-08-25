@@ -2,7 +2,7 @@
 
 ![SpringBoot](https://img.shields.io/badge/Spring%20Boot-3.3-blue.svg)
 ![JDK](https://img.shields.io/badge/JDK-21+-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.0.12--SNAPSHOT-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.3.4-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-brunoGao-green.svg)](https://github.com/brunoGao)
@@ -17,6 +17,48 @@
 在市面上虽然存在众多出色的 Java 后端管理系统框架，但还是决定重复再造一个轮子。
 
 ### 🚀 最新更新
+
+#### v1.3.4 - 健康数据源区分与查询优化 (2025-08-25)
+
+**🎯 健康数据源智能识别系统**
+- **数据源标识**: 为健康数据添加 `upload_method` 字段区分不同数据来源
+  - 正常健康监测数据：`upload_method = "wifi"` 或 `"bluetooth"`
+  - 通用事件健康数据：`upload_method = "common_event"`
+- **查询过滤优化**: 健康数据查询接口自动过滤通用事件数据
+  - 前端健康信息展示仅显示正常健康监测数据
+  - 确保健康数据分析的准确性和一致性
+- **数据库增强**: 扩展 `t_user_health_data.upload_method` 枚举类型
+  - 从 `('wifi','bluetooth')` 扩展为 `('wifi','bluetooth','common_event')`
+
+**🔧 后端服务优化**
+- **智能查询**: `TUserHealthDataServiceImpl` 新增过滤条件
+  ```java
+  .ne(TUserHealthData::getUploadMethod, "common_event")
+  ```
+- **实体模型**: 健康数据实体类新增 `uploadMethod` 字段支持
+- **数据完整性**: 确保前端查询结果的数据源一致性
+
+**🏥 集成ljwx-bigscreen支持**  
+- **模型同步**: Flask SQLAlchemy模型支持新的枚举值
+- **调试增强**: 添加详细的健康数据解析调试信息
+- **兼容性**: 支持嵌套和平面两种健康数据结构格式
+
+**技术实现架构：**
+```
+手表端数据上传 → 标识数据来源(upload_method) → 数据库存储
+    ↓
+后端查询服务 → 过滤事件数据 → 前端健康展示
+    ↓
+数据分析准确 ← 源数据区分 ← 智能识别系统
+```
+
+**相关文件：**
+- 数据库: `t_user_health_data` 表结构扩展
+- 实体: `TUserHealthData.java` - 添加uploadMethod字段
+- 服务: `TUserHealthDataServiceImpl.java` - 查询过滤逻辑
+- 模型: `ljwx-bigscreen/models.py` - 枚举字段扩展
+
+---
 
 #### v1.3.3 - 用户批量导入功能与数据处理优化 (2025-08-20)
 

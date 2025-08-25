@@ -95,4 +95,9 @@ public class TUserHealthData extends BaseEntity {
 
     private Integer stress;
 
+    /**
+     * 上传方式：wifi、bluetooth、common_event
+     */
+    private String uploadMethod;
+
 }
