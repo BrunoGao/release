@@ -51,6 +51,7 @@ public class TAlertRulesServiceImpl extends ServiceImpl<TAlertRulesMapper, TAler
             .eq(ObjectUtils.isNotEmpty(tAlertRulesBO.getThresholdMax()), TAlertRules::getThresholdMax, tAlertRulesBO.getThresholdMax())
             .eq(ObjectUtils.isNotEmpty(tAlertRulesBO.getTrendDuration()), TAlertRules::getTrendDuration, tAlertRulesBO.getTrendDuration())
             .eq(ObjectUtils.isNotEmpty(tAlertRulesBO.getNotificationType()), TAlertRules::getNotificationType, tAlertRulesBO.getNotificationType())
+            .eq(ObjectUtils.isNotEmpty(tAlertRulesBO.getCustomerId()), TAlertRules::getCustomerId, tAlertRulesBO.getCustomerId())
             .orderByDesc(TAlertRules::getCreateTime);
         return baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
     }

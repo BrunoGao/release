@@ -1,6 +1,6 @@
 # 灵境万象健康管理系统 (LJWX)
 
-![Version](https://img.shields.io/badge/Version-1.3.3-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.3.6-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 ![Platform](https://img.shields.io/badge/Platform-Multi--architecture-green.svg)
 
@@ -11,11 +11,11 @@
 ### 🎯 核心特性
 
 - **🏥 健康数据监控**: 实时采集心率、血压、体温、运动数据等多维度健康指标
-- **🚨 智能告警系统**: 多渠道告警通知，支持微信、消息、大屏推送
+- **🚨 智能告警系统**: 多租户告警规则管理，支持微信、消息、大屏推送
 - **📊 可视化大屏**: 专业级监控大屏，实时展示健康状态和告警信息
 - **📱 移动端应用**: Flutter开发的移动APP，支持数据查看和设备管理
 - **⌚ 智能手表集成**: 支持华为Watch4等智能穿戴设备数据采集
-- **🏢 多租户架构**: 企业级权限管理，支持租户隔离和部门管理
+- **🏢 多租户架构**: 企业级权限管理，支持租户隔离和告警规则隔离
 
 ## 🏗️ 系统架构
 
@@ -42,7 +42,7 @@
 - **健康管理模块**: 10+健康指标实时监控、睡眠分析、运动追踪
 - **系统管理模块**: 多租户架构、RBAC权限控制、组织管理
 - **设备管理模块**: IoT设备生命周期管理、状态监控
-- **告警系统**: 智能阈值监控、多级告警处理
+- **多租户告警系统**: 智能阈值监控、多级告警处理、租户级别告警规则隔离
 - **地理围栏**: 虚拟边界监控、位置告警
 
 ### 🖥️ 前端管理 (ljwx-admin)
@@ -77,7 +77,46 @@
 - **紧急功能**: SOS按钮、跌倒检测、一键告警
 - **实时同步**: 蓝牙BLE/WiFi双通道、离线缓存
 
-## 🚀 最新功能 v1.3.3
+## 🚀 最新功能 v1.3.6
+
+### 🔧 多租户告警规则系统实现 (2025-08-26)
+
+#### **告警规则多租户隔离**
+- **租户级规则隔离**: 实现告警规则基于 `customer_id` 的完全隔离，不同租户拥有独立的告警规则集
+- **默认规则自动克隆**: 新建租户时自动从 `customer_id=0` 克隆默认告警规则
+- **多级告警支持**: 支持同一健康指标配置多个告警级别（如心率120-140中级，140-160高级）
+- **系统事件匹配**: 告警规则类型与手表系统事件完全匹配，支持直接规则匹配
+
+#### **告警类型国际化支持**
+- **英文键值系统**: 告警规则类型使用标准英文格式（如 `HEARTRATE_HIGH_ALERT`）
+- **中文显示支持**: 通过数据字典实现英文→中文映射，前端显示用户友好的中文
+- **完整映射体系**: 覆盖15种告警类型的完整中英文映射
+- **专业化命名**: 与智能手表系统事件命名规范保持一致
+
+#### **数据库优化**
+```sql
+-- 告警规则表新增字段
+ALTER TABLE t_alert_rules ADD COLUMN customer_id BIGINT;
+
+-- 支持多级告警的唯一约束
+ALTER TABLE t_alert_rules ADD UNIQUE KEY uk_alert_multi_level 
+(rule_type, physical_sign, severity_level, customer_id);
+
+-- 完整的告警类型字典映射
+INSERT INTO sys_dict_item (dict_code, value, zh_cn, en_us) VALUES
+('alert_type', 'HEARTRATE_HIGH_ALERT', '心率过高告警', 'HEARTRATE_HIGH_ALERT'),
+('alert_type', 'SOS_EVENT', 'SOS紧急求助', 'SOS_EVENT');
+```
+
+#### **系统架构升级**
+- **OrgUnitsChangeListener 扩展**: 新建租户时自动触发告警规则克隆
+- **多租户数据隔离**: 查询、创建、更新、删除操作均基于租户ID过滤
+- **Redis 缓存优化**: 告警规则缓存键支持租户级别隔离 `alert_rules_{customerId}`
+- **前端上下文传递**: 管理界面自动传递当前用户的 `customerId`
+
+---
+
+## 🚀 历史版本 v1.3.3
 
 ### 🔧 客户部署配置系统修复 (2025-08-20)
 

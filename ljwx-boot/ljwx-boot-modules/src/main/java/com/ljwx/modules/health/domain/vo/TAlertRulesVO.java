@@ -67,6 +67,8 @@ public class TAlertRulesVO extends BaseVO {
 
     private String notificationType;
 
+    private Long customerId;
+
     private String createUser;
 
     private LocalDateTime createTime;

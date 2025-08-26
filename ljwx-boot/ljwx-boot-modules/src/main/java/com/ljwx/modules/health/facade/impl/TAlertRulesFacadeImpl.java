@@ -34,6 +34,7 @@ import com.ljwx.modules.health.domain.entity.TAlertRules;
 import com.ljwx.modules.health.domain.vo.TAlertRulesVO;
 import com.ljwx.modules.health.facade.ITAlertRulesFacade;
 import com.ljwx.modules.health.service.ITAlertRulesService;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -76,13 +77,14 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
         TAlertRulesBO tAlertRulesBO = CglibUtil.convertObj(tAlertRulesAddDTO, TAlertRulesBO::new);
         boolean result = tAlertRulesService.save(tAlertRulesBO);
         if (result) {
-            // 更新Redis缓存
-            List<TAlertRules> list = tAlertRulesService.list();
+            // 更新Redis缓存 - 按customer_id分别缓存
+            Long customerId = tAlertRulesBO.getCustomerId();
+            List<TAlertRules> list = tAlertRulesService.list(new QueryWrapper<TAlertRules>().eq("customer_id", customerId));
             // 转换为 JSON 字符串存储
             String jsonString = JSON.toJSONString(list);
-            RedisUtil.set("alert_rules", jsonString);
+            RedisUtil.set("alert_rules_" + customerId, jsonString);
             // 发布更新消息
-            RedisUtil.publish("alert_rules_channel", "update");
+            RedisUtil.publish("alert_rules_channel", "update:" + customerId);
         }
         return result;
     }
@@ -94,13 +96,14 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
         boolean result = tAlertRulesService.updateById(tAlertRulesBO);
         System.out.println("更新缓存" + tAlertRulesBO.toString());
         if (result) {
-            // 更新Redis缓存
-            List<TAlertRules> list = tAlertRulesService.list();
+            // 更新Redis缓存 - 按customer_id分别缓存
+            Long customerId = tAlertRulesBO.getCustomerId();
+            List<TAlertRules> list = tAlertRulesService.list(new QueryWrapper<TAlertRules>().eq("customer_id", customerId));
             // 转换为 JSON 字符串存储
             String jsonString = JSON.toJSONString(list);
-            RedisUtil.set("alert_rules", jsonString);
+            RedisUtil.set("alert_rules_" + customerId, jsonString);
             // 发布更新消息
-            RedisUtil.publish("alert_rules_channel", "update");
+            RedisUtil.publish("alert_rules_channel", "update:" + customerId);
         }
         return result;
     }
@@ -109,15 +112,18 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
     @Transactional
     public boolean batchDelete(TAlertRulesDeleteDTO tAlertRulesDeleteDTO) {
         TAlertRulesBO tAlertRulesBO = CglibUtil.convertObj(tAlertRulesDeleteDTO, TAlertRulesBO::new);
+        // 获取要删除记录的customerId，用于更新缓存
+        List<TAlertRules> toDelete = tAlertRulesService.listByIds(tAlertRulesBO.getIds());
         boolean result = tAlertRulesService.removeBatchByIds(tAlertRulesBO.getIds(), true);
-        if (result) {
-            // 更新Redis缓存
-            List<TAlertRules> list = tAlertRulesService.list();
+        if (result && !toDelete.isEmpty()) {
+            // 更新Redis缓存 - 按customer_id分别缓存
+            Long customerId = toDelete.get(0).getCustomerId();
+            List<TAlertRules> list = tAlertRulesService.list(new QueryWrapper<TAlertRules>().eq("customer_id", customerId));
             // 转换为 JSON 字符串存储
             String jsonString = JSON.toJSONString(list);
-            RedisUtil.set("alert_rules", jsonString);
+            RedisUtil.set("alert_rules_" + customerId, jsonString);
             // 发布更新消息
-            RedisUtil.publish("alert_rules_channel", "update");
+            RedisUtil.publish("alert_rules_channel", "update:" + customerId);
         }
         return result;
     }

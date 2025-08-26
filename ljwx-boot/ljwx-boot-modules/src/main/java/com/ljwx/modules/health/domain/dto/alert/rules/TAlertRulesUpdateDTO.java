@@ -59,4 +59,7 @@ public class TAlertRulesUpdateDTO implements Serializable {
 
     private String notificationType;
 
+    @Schema(description = "客户ID")
+    private Long customerId;
+
 }

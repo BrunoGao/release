@@ -52,4 +52,6 @@ public class TAlertRulesSearchDTO implements Serializable {
 
     private String notificationType;
 
+    private Long customerId;
+
 }

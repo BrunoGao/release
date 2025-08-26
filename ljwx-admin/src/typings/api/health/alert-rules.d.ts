@@ -12,11 +12,12 @@ declare namespace Api {
       alertMessage: string;
       severityLevel: string;
       notificationType: string;
+      customerId: number;
     }>;
 
     /** AlertRules search params */
     type AlertRulesSearchParams = CommonType.RecordNullable<
-      Pick<Api.Health.AlertRules, 'ruleType' | 'physicalSign' | 'severityLevel'> & Api.Common.CommonSearchParams
+      Pick<Api.Health.AlertRules, 'ruleType' | 'physicalSign' | 'severityLevel' | 'customerId'> & Api.Common.CommonSearchParams
     >;
 
     /** AlertRules edit model */
@@ -33,6 +34,7 @@ declare namespace Api {
       | 'alertMessage'
       | 'severityLevel'
       | 'notificationType'
+      | 'customerId'
     >;
     /** AlertRules list */
     type AlertRulesList = Common.PaginatingQueryRecord<AlertRules>;

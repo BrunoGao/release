@@ -66,4 +66,6 @@ public class TAlertRules extends BaseEntity {
 
     private String notificationType;
 
+    private Long customerId;
+
 }

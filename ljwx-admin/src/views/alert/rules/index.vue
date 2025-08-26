@@ -4,6 +4,7 @@ import type { Ref } from 'vue';
 import { ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
+import { useAuthStore } from '@/store/modules/auth';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import { transDeleteParams } from '@/utils/common';
@@ -19,19 +20,20 @@ defineOptions({
 const operateType = ref<NaiveUI.TableOperateType>('add');
 
 const appStore = useAppStore();
-
+const authStore = useAuthStore();
 const { hasAuth } = useAuth();
 
 const { dictTag } = useDict();
 
 const editingData: Ref<Api.Health.AlertRules | null> = ref(null);
-
+const customerId = authStore.userInfo?.customerId;
 const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams } = useTable({
   apiFn: fetchGetAlertRulesList,
   apiParams: {
     page: 1,
     pageSize: 20,
     ruleType: null,
+    customerId,
     physicalSign: null
   },
   columns: () => [

@@ -6,6 +6,8 @@ import com.ljwx.modules.customer.domain.entity.TInterface;
 import com.ljwx.modules.customer.service.ITCustomerConfigService;
 import com.ljwx.modules.customer.service.ITHealthDataConfigService;
 import com.ljwx.modules.customer.service.ITInterfaceService;
+import com.ljwx.modules.health.domain.entity.TAlertRules;
+import com.ljwx.modules.health.service.ITAlertRulesService;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.system.event.SysOrgUnitsChangeEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,9 @@ public class OrgUnitsChangeListener {
     @Autowired
     private ITHealthDataConfigService healthDataConfigService;
     
+    @Autowired
+    private ITAlertRulesService alertRulesService;
+    
     @Transactional(rollbackFor = Exception.class)
     @EventListener(SysOrgUnitsChangeEvent.class)
     public void handleOrgUnitsChange(SysOrgUnitsChangeEvent event) {
@@ -43,12 +48,14 @@ public class OrgUnitsChangeListener {
             cloneCustomerConfig(orgUnit);
             cloneInterface(orgUnit);
             cloneHealthDataConfig(orgUnit);
+            cloneAlertRules(orgUnit);
             log.info("Cloned config for new orgId={}", orgUnit.getId());
         }
         if (orgUnit.getParentId() == 0 && orgUnit.getIsDeleted() == 1) {
             customerConfigService.lambdaUpdate().eq(TCustomerConfig::getId, orgUnit.getId()).set(TCustomerConfig::getIsDeleted, 1).update();
             interfaceService.lambdaUpdate().eq(TInterface::getCustomerId, orgUnit.getId()).set(TInterface::getDeleted, 1).update();
             healthDataConfigService.lambdaUpdate().eq(THealthDataConfig::getCustomerId, orgUnit.getId()).set(THealthDataConfig::getIsDeleted, 1).update();
+            alertRulesService.lambdaUpdate().eq(TAlertRules::getCustomerId, orgUnit.getId()).set(TAlertRules::getDeleted, 1).update();
             log.info("Deleted org and related config for orgId={}", orgUnit.getId());
         }
     }
@@ -101,6 +108,30 @@ public class OrgUnitsChangeListener {
             n.setWarningHigh(h.getWarningHigh()); n.setWarningLow(h.getWarningLow()); n.setWarningCnt(h.getWarningCnt());
             n.setIsDeleted(0); n.setCreateTime(h.getCreateTime()); n.setUpdateTime(h.getUpdateTime()); n.setWeight(h.getWeight());
             healthDataConfigService.saveOrUpdate(n);
+        });
+    }
+    
+    private void cloneAlertRules(SysOrgUnits o) {
+        log.warn("cloneAlertRules called for orgId={}", o.getId());
+        alertRulesService.remove(new QueryWrapper<TAlertRules>().eq("customer_id", o.getId()));
+        alertRulesService.list(new QueryWrapper<TAlertRules>().eq("customer_id", 0).eq("is_deleted", 0)).forEach(a -> {
+            TAlertRules n = new TAlertRules();
+            n.setCustomerId(o.getId());
+            n.setRuleType(a.getRuleType());
+            n.setPhysicalSign(a.getPhysicalSign());
+            n.setThresholdMin(a.getThresholdMin());
+            n.setThresholdMax(a.getThresholdMax());
+            n.setDeviationPercentage(a.getDeviationPercentage());
+            n.setTrendDuration(a.getTrendDuration());
+            n.setParameters(a.getParameters());
+            n.setTriggerCondition(a.getTriggerCondition());
+            n.setAlertMessage(a.getAlertMessage());
+            n.setSeverityLevel(a.getSeverityLevel());
+            n.setNotificationType(a.getNotificationType());
+            n.setDeleted(0);
+            n.setCreateTime(a.getCreateTime());
+            n.setUpdateTime(a.getUpdateTime());
+            alertRulesService.saveOrUpdate(n);
         });
     }
 

@@ -4,6 +4,7 @@ import { useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 import { fetchAddAlertRules, fetchUpdateAlertRulesInfo } from '@/service/api';
 import { useDict } from '@/hooks/business/dict';
+import { useAuthStore } from '@/store/modules/auth';
 
 defineOptions({
   name: 'TAlertRulesOperateDrawer'
@@ -30,6 +31,7 @@ const visible = defineModel<boolean>('visible', {
 
 const { dictOptions } = useDict();
 const { formRef, validate, restoreValidation } = useNaiveForm();
+const authStore = useAuthStore();
 
 const title = computed(() => {
   const titles: Record<NaiveUI.TableOperateType, string> = {
@@ -57,6 +59,7 @@ function createDefaultModel(): Model {
     alertMessage: '',
     severityLevel: '',
     notificationType: '',
+    customerId: authStore.userInfo?.customerId || 0,
     createUser: '',
     createTime: '',
     updateUser: '',
