@@ -3441,7 +3441,7 @@ document.addEventListener('click', function(event) {
     // 如果点击的不是筛选面板内的元素且面板是展开的
     if (!filterPanel.contains(event.target) && 
         !filterToggle.contains(event.target) && 
-        !filterPanel.classList.contains('collapsed')) {
+        filterPanel.classList.contains('expanded')) {
         toggleFilter();
     }
 });
