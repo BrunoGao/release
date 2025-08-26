@@ -137,11 +137,11 @@ public class MainAbilitySlice extends AbilitySlice {
             "    \"work_out\": \"1800:1:1:-1:-1:-1\"\n" +
             "  },\n" +
             "  \"interface_data\": {\n" +
-            "    \"事件上传接口\": \"http://42.192.53.33:8001/upload_common_event;5;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\",\n" +
-            "    \"健康数据上传接口\": \"http://42.192.53.33:8001/upload_health_data;60;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\",\n" +
-            "    \"平台消息交互接口\": \"http://42.192.53.33:8001/DeviceMessage;60;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\",\n" +
-            "    \"设备信息上传接口\": \"http://42.192.53.33:8001/upload_device_info;300;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\",\n" +
-            "    \"配置获取接口\": \"http://42.192.53.33:8001/fetch_health_data_config;36000;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\"\n" +
+            "    \"事件上传接口\": \"http://47.96.247.175:8001/upload_common_event;5;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\",\n" +
+            "    \"健康数据上传接口\": \"http://47.96.247.175:8001/upload_health_data;60;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\",\n" +
+            "    \"平台消息交互接口\": \"http://47.96.247.175:8001/DeviceMessage;60;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\",\n" +
+            "    \"设备信息上传接口\": \"http://47.96.247.175:8001/upload_device_info;300;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\",\n" +
+            "    \"配置获取接口\": \"http://47.96.247.175:8001/fetch_health_data_config;36000;1;ZNSB_SBSJ;Basic b3Blbl91c2VyOnVzZXJfMTIzIw==\"\n" +
             "  },\n" +
             "  \"is_support_license\": 0,\n" +
             "  \"license_key\": 400,\n" +

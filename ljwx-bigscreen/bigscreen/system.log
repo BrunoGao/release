@@ -3597,3 +3597,24 @@
 2025-06-19 06:35:45,316 [INFO] system: 监控指标模块初始化成功
 2025-06-19 06:35:45,317 [INFO] system: 告警webhook模块初始化成功
 2025-06-19 06:35:45,318 [ERROR] root: Redis ping 失败: AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?
+2025-08-22 22:53:46,115 [INFO] system: 实时统计API直接路由注册成功
+2025-08-22 22:53:46,116 [WARNING] system: 主路由模块导入失败: No module named 'models'
+2025-08-22 22:53:46,132 [INFO] system: 设备绑定模块注册成功
+2025-08-22 22:53:46,132 [WARNING] system: 监控指标模块导入失败: No module named 'prometheus_client'
+2025-08-22 22:53:46,132 [INFO] system: 当前Python路径: ['/Users/bg/work/codes/springboot/ljwx/yunxiang/ljwx-bigscreen/bigscreen', '/Users/bg/work/codes/springboot/ljwx/yunxiang/ljwx-bigscreen/bigscreen', '/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python313.zip']
+2025-08-22 22:53:46,133 [INFO] system: 告警webhook模块初始化成功
+2025-08-22 22:53:46,135 [ERROR] root: Redis ping 失败: AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?
+2025-08-22 22:56:21,265 [INFO] system: 实时统计API直接路由注册成功
+2025-08-22 22:56:21,266 [WARNING] system: 主路由模块导入失败: No module named 'models'
+2025-08-22 22:56:21,282 [INFO] system: 设备绑定模块注册成功
+2025-08-22 22:56:21,283 [WARNING] system: 监控指标模块导入失败: No module named 'prometheus_client'
+2025-08-22 22:56:21,283 [INFO] system: 当前Python路径: ['/Users/bg/work/codes/springboot/ljwx/yunxiang/ljwx-bigscreen/bigscreen', '/Users/bg/work/codes/springboot/ljwx/yunxiang/ljwx-bigscreen/bigscreen', '/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python313.zip']
+2025-08-22 22:56:21,284 [INFO] system: 告警webhook模块初始化成功
+2025-08-22 22:56:21,285 [ERROR] root: Redis ping 失败: AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?
+2025-08-26 19:35:03,795 [INFO] system: 实时统计API直接路由注册成功
+2025-08-26 19:35:03,797 [WARNING] system: 主路由模块导入失败: No module named 'models'
+2025-08-26 19:35:03,825 [INFO] system: 设备绑定模块注册成功
+2025-08-26 19:35:03,826 [WARNING] system: 监控指标模块导入失败: No module named 'prometheus_client'
+2025-08-26 19:35:03,826 [INFO] system: 当前Python路径: ['/Users/bg/work/codes/springboot/ljwx/yunxiang/ljwx-bigscreen/bigscreen', '', '/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python313.zip']
+2025-08-26 19:35:03,827 [INFO] system: 告警webhook模块初始化成功
+2025-08-26 19:35:03,828 [ERROR] root: Redis ping 失败: AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?

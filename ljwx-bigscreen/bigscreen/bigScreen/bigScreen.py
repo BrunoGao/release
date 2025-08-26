@@ -520,6 +520,13 @@ def personal_cool():
     #return render_template("bigscreen_new.html", deviceSn=deviceSn, userName=userName)
     return render_template("bigscreen_new.html", deviceSn=deviceSn)
 
+@app.route("/personal_modern")
+def personal_modern():
+    """现代化个人大屏 v2.0 - 全新设计界面"""
+    deviceSn = request.args.get('deviceSn')
+    logger.info(f"Personal Modern V2.0 - deviceSn: {deviceSn}")
+    return render_template("personal_modern_v2.html", deviceSn=deviceSn)
+
 @app.route("/main")
 def main_index():
     customerId = request.args.get('customerId')  # Get the deviceSn from query parameters
@@ -3096,6 +3103,371 @@ def phone_get_personal_info():
                     'user': user.to_dict() if user else None
                 }
             })
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'获取个人信息失败: {str(e)}'
+        })
+
+# 个人大屏实时数据API v1.3.5+
+@app.route('/api/personal/realtime_health', methods=['GET'])
+def get_personal_realtime_health():
+    """获取个人实时健康数据API"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'error': 'deviceSn参数是必需的'
+            }), 400
+        
+        # 获取用户信息
+        from .user import get_user_id_by_deviceSn
+        user_id = get_user_id_by_deviceSn(device_sn)
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': '未找到对应的用户信息'
+            }), 404
+        
+        # 获取最新健康数据
+        from .user_health_data import get_latest_health_data_by_device
+        health_data = get_latest_health_data_by_device(device_sn)
+        
+        if not health_data:
+            # 返回默认数据结构
+            return jsonify({
+                'success': True,
+                'data': {
+                    'deviceSn': device_sn,
+                    'heartRate': 0,
+                    'bloodOxygen': 0,
+                    'temperature': '0.0',
+                    'systolic': 0,
+                    'diastolic': 0,
+                    'stepCount': 0,
+                    'timestamp': datetime.now().isoformat(),
+                    'status': 'no_data'
+                }
+            })
+        
+        # 格式化返回数据
+        result = {
+            'success': True,
+            'data': {
+                'deviceSn': device_sn,
+                'heartRate': int(health_data.get('heartRate', 0)),
+                'bloodOxygen': int(health_data.get('bloodOxygen', 0)),
+                'temperature': str(health_data.get('temperature', '0.0')),
+                'systolic': int(health_data.get('pressureHigh', 0)),
+                'diastolic': int(health_data.get('pressureLow', 0)),
+                'stepCount': int(health_data.get('step', 0)),
+                'distance': float(health_data.get('distance', 0.0)),
+                'calorie': float(health_data.get('calorie', 0.0)),
+                'stress': int(health_data.get('stress', 0)),
+                'timestamp': health_data.get('timestamp', datetime.now()).isoformat(),
+                'status': 'active'
+            }
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        api_logger.error(f"获取个人实时健康数据失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取健康数据失败: {str(e)}'
+        }), 500
+
+@app.route('/api/personal/alerts', methods=['GET'])
+def get_personal_alerts():
+    """获取个人告警数据API"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'error': 'deviceSn参数是必需的'
+            }), 400
+        
+        # 获取用户信息
+        from .user import get_user_id_by_deviceSn
+        user_id = get_user_id_by_deviceSn(device_sn)
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': '未找到对应的用户信息'
+            }), 404
+        
+        # 获取个人告警数据
+        from .alert import fetch_alerts_by_orgIdAndUserId
+        alert_result = fetch_alerts_by_orgIdAndUserId(None, user_id, None)
+        
+        if not alert_result:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'alerts': [],
+                    'totalCount': 0,
+                    'pendingCount': 0
+                }
+            })
+        
+        # 处理告警数据
+        alert_data = alert_result.get_json() if hasattr(alert_result, 'get_json') else alert_result
+        alerts = alert_data.get('data', {}).get('alerts', []) if isinstance(alert_data, dict) else []
+        
+        # 统计告警
+        pending_alerts = [alert for alert in alerts if alert.get('alert_status') == 'pending']
+        
+        # 格式化告警数据
+        formatted_alerts = []
+        for alert in pending_alerts[:5]:  # 只返回最新5条
+            # 处理时间戳格式
+            alert_timestamp = alert.get('alert_timestamp')
+            if isinstance(alert_timestamp, str):
+                try:
+                    # 尝试解析字符串时间
+                    from datetime import datetime
+                    parsed_time = datetime.fromisoformat(alert_timestamp.replace('Z', '+00:00'))
+                    time_str = parsed_time.strftime('%H:%M')
+                except:
+                    # 如果解析失败，直接使用字符串的前5个字符
+                    time_str = alert_timestamp[:5] if len(alert_timestamp) >= 5 else alert_timestamp
+            elif hasattr(alert_timestamp, 'strftime'):
+                time_str = alert_timestamp.strftime('%H:%M')
+            else:
+                time_str = datetime.now().strftime('%H:%M')
+                
+            formatted_alerts.append({
+                'id': alert.get('id'),
+                'level': alert.get('alert_type', 'warning'),
+                'content': alert.get('alert_info', '健康异常'),
+                'time': time_str,
+                'status': alert.get('alert_status', 'pending')
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'alerts': formatted_alerts,
+                'totalCount': len(alerts),
+                'pendingCount': len(pending_alerts)
+            }
+        })
+        
+    except Exception as e:
+        api_logger.error(f"获取个人告警数据失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取告警数据失败: {str(e)}'
+        }), 500
+
+@app.route('/api/personal/messages', methods=['GET'])
+def get_personal_messages():
+    """获取个人消息数据API"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'error': 'deviceSn参数是必需的'
+            }), 400
+        
+        # 获取用户信息
+        from .user import get_user_id_by_deviceSn
+        user_id = get_user_id_by_deviceSn(device_sn)
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': '未找到对应的用户信息'
+            }), 404
+        
+        # 获取个人消息数据
+        from .message import fetch_messages_by_orgIdAndUserId
+        msg_result = fetch_messages_by_orgIdAndUserId(None, user_id, None)
+        
+        if not msg_result:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'messages': [],
+                    'totalCount': 0,
+                    'unreadCount': 0
+                }
+            })
+        
+        # 处理消息数据
+        msg_data = msg_result.get_json() if hasattr(msg_result, 'get_json') else msg_result
+        messages = msg_data.get('data', {}).get('messages', []) if isinstance(msg_data, dict) else []
+        
+        # 统计消息
+        unread_messages = [msg for msg in messages if msg.get('message_status') == 1 or msg.get('message_status') == '1']
+        
+        # 格式化消息数据
+        formatted_messages = []
+        for msg in messages[:10]:  # 只返回最新10条
+            # 处理时间戳格式
+            create_time = msg.get('create_time')
+            if isinstance(create_time, str):
+                try:
+                    # 尝试解析字符串时间
+                    parsed_time = datetime.fromisoformat(create_time.replace('Z', '+00:00'))
+                    time_str = parsed_time.strftime('%H:%M')
+                except:
+                    # 如果解析失败，直接使用字符串的前5个字符
+                    time_str = create_time[:5] if len(create_time) >= 5 else create_time
+            elif hasattr(create_time, 'strftime'):
+                time_str = create_time.strftime('%H:%M')
+            else:
+                time_str = datetime.now().strftime('%H:%M')
+                
+            formatted_messages.append({
+                'id': msg.get('id'),
+                'type': msg.get('message_type', 'system'),
+                'content': msg.get('message_info', '系统消息'),
+                'time': time_str,
+                'status': 'unread' if msg.get('message_status') == 1 else 'read'
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'messages': formatted_messages,
+                'totalCount': len(messages),
+                'unreadCount': len(unread_messages)
+            }
+        })
+        
+    except Exception as e:
+        api_logger.error(f"获取个人消息数据失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取消息数据失败: {str(e)}'
+        }), 500
+
+@app.route('/api/personal/device_status', methods=['GET'])
+def get_personal_device_status():
+    """获取个人设备状态API"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'error': 'deviceSn参数是必需的'
+            }), 400
+        
+        # 获取设备信息
+        from .device import fetch_device_info
+        device_result = fetch_device_info(device_sn)
+        
+        if not device_result:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'deviceSn': device_sn,
+                    'status': 'unknown',
+                    'batteryLevel': 0,
+                    'lastUpdate': None
+                }
+            })
+        
+        # 处理设备数据
+        device_data = device_result.get_json() if hasattr(device_result, 'get_json') else device_result
+        device_info = device_data.get('data', {}) if isinstance(device_data, dict) else {}
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'deviceSn': device_sn,
+                'status': device_info.get('status', 'unknown'),
+                'batteryLevel': int(device_info.get('battery_level', 0)),
+                'deviceName': device_info.get('device_name', 'LJWX智能手表'),
+                'firmwareVersion': device_info.get('firmware_version', '1.0.0'),
+                'lastUpdate': device_info.get('last_update', datetime.now()).isoformat()
+            }
+        })
+        
+    except Exception as e:
+        api_logger.error(f"获取个人设备状态失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取设备状态失败: {str(e)}'
+        }), 500
+
+@app.route('/api/personal/health_history', methods=['GET'])
+def get_personal_health_history():
+    """获取个人健康历史数据API"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        time_range = request.args.get('timeRange', '1h')  # 1h, 6h, 1d, 7d
+        
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'error': 'deviceSn参数是必需的'
+            }), 400
+        
+        # 计算时间范围
+        now = datetime.now()
+        if time_range == '1h':
+            start_time = now - timedelta(hours=1)
+        elif time_range == '6h':
+            start_time = now - timedelta(hours=6)
+        elif time_range == '1d':
+            start_time = now - timedelta(days=1)
+        elif time_range == '7d':
+            start_time = now - timedelta(days=7)
+        else:
+            start_time = now - timedelta(hours=1)
+        
+        # 获取历史数据
+        from .user_health_data import get_health_data_by_date_range
+        history_data = get_health_data_by_date_range(device_sn, start_time, now)
+        
+        if not history_data:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'heartRate': [],
+                    'bloodOxygen': [],
+                    'temperature': [],
+                    'timeRange': time_range
+                }
+            })
+        
+        # 格式化历史数据
+        heart_rate_data = []
+        blood_oxygen_data = []
+        temperature_data = []
+        
+        for record in history_data:
+            timestamp = record.get('timestamp', now)
+            heart_rate_data.append([timestamp.isoformat(), record.get('heartRate', 0)])
+            blood_oxygen_data.append([timestamp.isoformat(), record.get('bloodOxygen', 0)])
+            temperature_data.append([timestamp.isoformat(), float(record.get('temperature', 0))])
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'heartRate': heart_rate_data,
+                'bloodOxygen': blood_oxygen_data,
+                'temperature': temperature_data,
+                'timeRange': time_range,
+                'totalRecords': len(history_data)
+            }
+        })
+        
+    except Exception as e:
+        api_logger.error(f"获取个人健康历史数据失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取历史数据失败: {str(e)}'
+        }), 500
 
     except Exception as e:
         print(f"Error in phone_get_personal_info: {e}")

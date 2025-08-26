@@ -110,7 +110,7 @@ class BleSvc { //极简BLE服务
   List<int> _hb = [];
   bool _c = false;
   int _r = 0;
-  Timer? _t, _rt, _monitorTimer, _serviceCheckTimer; //扫描/重连/自动重连/服务检查定时器
+  Timer? _t, _rt, _monitorTimer, _serviceCheckTimer, _bindingStatusTimer; //扫描/重连/自动重连/服务检查/绑定状态检查定时器
   bool _isConnecting = false; //是否正在连接
   DateTime? _lastDataTime; //最后数据时间
   final Duration RECONNECT_INTERVAL = Duration(seconds: 30); //自动重连间隔
@@ -271,6 +271,7 @@ class BleSvc { //极简BLE服务
       _periodicServiceCheckTimer?.cancel(); // 取消定期服务检查定时器(新增)
       _mtuSubscription?.cancel(); // 取消MTU变化监听
       _dataMonitorTimer?.cancel(); // 取消数据监控定时器(新增)
+      _bindingStatusTimer?.cancel(); // 取消绑定状态检查定时器(新增)
       _healthMergerSubscription?.cancel();
       _dataCharacteristicSubscription?.cancel();
       _connectionStateSubscription?.cancel(); // 取消连接状态监听
@@ -934,9 +935,160 @@ class BleSvc { //极简BLE服务
       log('处理设备信息');
       v.add(data);
       _lastDataTime = DateTime.now();
+      
+      // 🔥 新增：处理设备绑定逻辑
+      _processDeviceBinding(data);
     } catch (e) {
       log('处理设备信息失败: $e');
     }
+  }
+
+  /// 处理设备绑定逻辑 #设备绑定处理
+  void _processDeviceBinding(Map<String, dynamic> deviceData) async {
+    try {
+      // 从设备信息中提取关键字段
+      String serialNumber = '';
+      String phoneNumber = '';
+      
+      // 尝试从不同字段名获取设备序列号
+      if (deviceData['data'] != null) {
+        var data = deviceData['data'];
+        serialNumber = data['SerialNumber'] ?? data['serial_number'] ?? '';
+      }
+      
+      // 获取当前手机号码（从全局配置或登录信息中）
+      if (global.loginData != null) {
+        phoneNumber = global.loginData!.phone;
+      }
+      
+      if (serialNumber.isEmpty || phoneNumber.isEmpty) {
+        log('设备绑定检查跳过：序列号或手机号为空 (SN:$serialNumber, Phone:$phoneNumber)');
+        return;
+      }
+      
+      log('开始设备绑定检查 - 设备序列号: $serialNumber, 手机号: $phoneNumber');
+      
+      // 调用API检查绑定状态
+      try {
+        var bindingResult = await ApiService().checkDeviceBinding(
+          serialNumber: serialNumber,
+          phoneNumber: phoneNumber,
+        );
+        
+        if (bindingResult['success'] == true) {
+          if (bindingResult['bound'] == true) {
+            // 设备已绑定 - 直接建立连接
+            log('设备已绑定，建立正常连接');
+            _handleBindingSuccess(serialNumber);
+          } else if (bindingResult['pending'] == true) {
+            // 已有申请待审批
+            log('设备绑定申请待审批中');
+            _handleBindingPending(serialNumber);
+          } else {
+            // 未绑定且无申请 - 提交绑定申请
+            log('设备未绑定，提交绑定申请');
+            await _submitBindingApplication(serialNumber, phoneNumber);
+          }
+        } else {
+          log('绑定检查失败: ${bindingResult['error'] ?? '未知错误'}');
+          _handleBindingError(bindingResult['error'] ?? '绑定检查失败');
+        }
+      } catch (e) {
+        log('设备绑定检查异常: $e');
+        _handleBindingError('网络连接失败');
+      }
+    } catch (e) {
+      log('处理设备绑定逻辑异常: $e');
+    }
+  }
+  
+  /// 提交绑定申请 #提交绑定申请
+  Future<void> _submitBindingApplication(String serialNumber, String phoneNumber) async {
+    try {
+      var result = await ApiService().submitDeviceBindingApplication({
+        'device_sn': serialNumber,
+        'phone_number': phoneNumber,
+        'user_id': global.loginData?.userId.toString() ?? '',
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+      
+      if (result['success'] == true) {
+        log('绑定申请提交成功');
+        _handleBindingPending(serialNumber);
+      } else {
+        log('绑定申请提交失败: ${result['error'] ?? '未知错误'}');
+        _handleBindingError(result['error'] ?? '申请提交失败');
+      }
+    } catch (e) {
+      log('提交绑定申请异常: $e');
+      _handleBindingError('网络连接失败');
+    }
+  }
+  
+  /// 处理绑定成功 #绑定成功处理
+  void _handleBindingSuccess(String serialNumber) {
+    log('设备绑定成功，允许数据传输');
+    // 更新蓝牙状态为已连接
+    _currentBluetoothState = "connected";
+    _updateBluetoothIconState();
+    
+    // 发送成功事件给UI
+    events.GlobalEvents.i.showSuccess('设备已成功绑定并连接');
+  }
+  
+  /// 处理绑定等待审批 #绑定等待处理
+  void _handleBindingPending(String serialNumber) {
+    log('设备绑定申请待审批，限制数据传输');
+    // 更新蓝牙状态为等待状态
+    _currentBluetoothState = "inactive";
+    _updateBluetoothIconState();
+    
+    // 发送等待事件给UI
+    events.GlobalEvents.i.showWarning('设备绑定申请已提交，等待管理员审批');
+    
+    // 启动定期检查绑定状态
+    _startBindingStatusCheck(serialNumber);
+  }
+  
+  /// 处理绑定错误 #绑定错误处理
+  void _handleBindingError(String error) {
+    log('设备绑定失败: $error');
+    // 更新蓝牙状态为错误状态
+    _currentBluetoothState = "disconnected";
+    _updateBluetoothIconState();
+    
+    // 发送错误事件给UI
+    events.GlobalEvents.i.showError('设备绑定失败: $error');
+  }
+  
+  /// 启动绑定状态检查定时器 #绑定状态检查
+  void _startBindingStatusCheck(String serialNumber) {
+    // 取消之前的检查定时器
+    _bindingStatusTimer?.cancel();
+    
+    log('启动绑定状态检查定时器');
+    _bindingStatusTimer = Timer.periodic(Duration(seconds: 30), (timer) async {
+      try {
+        if (global.loginData?.phone.isEmpty ?? true) {
+          timer.cancel();
+          return;
+        }
+        
+        var result = await ApiService().checkDeviceBinding(
+          serialNumber: serialNumber,
+          phoneNumber: global.loginData!.phone,
+        );
+        
+        if (result['success'] == true && result['bound'] == true) {
+          // 绑定已通过，停止检查
+          timer.cancel();
+          log('检测到绑定状态变更为已绑定');
+          _handleBindingSuccess(serialNumber);
+        }
+      } catch (e) {
+        log('定期绑定状态检查失败: $e');
+      }
+    });
   }
 
   /// 处理通用事件 #通用事件处理

@@ -162,7 +162,12 @@ class _AdminWebViewScreenState extends State<AdminWebViewScreen> {
 
   /// 自动填充登录表单 #自动登录功能
   void _autoFillLoginForm() {
-    if (widget.webUsername != null && widget.webPasswordSha != null) {
+    print('=== 管理端登录调试信息 ===');
+    print('webUsername: ${widget.webUsername}');
+    print('webPassword: ${widget.webPassword != null ? '***' : 'null'}');
+    print('webPasswordSha: ${widget.webPasswordSha != null ? '***' : 'null'}');
+    
+    if (widget.webUsername != null && widget.webPassword != null) {
       final script = '''
         // 检查是否是管理后台首页，如果是则尝试API登录 #管理后台API登录
         if (window.location.href.includes('/#/home')) {
@@ -174,7 +179,7 @@ class _AdminWebViewScreenState extends State<AdminWebViewScreen> {
             },
             body: JSON.stringify({
               userName: '${widget.webUsername}',
-              password: '${widget.webPasswordSha}'
+              password: '${widget.webPassword}'
             })
           })
           .then(response => response.json())
@@ -220,16 +225,22 @@ class _AdminWebViewScreenState extends State<AdminWebViewScreen> {
             
             // 填充用户名
             if (usernameInput) {
+              console.log('自动填充用户名: ${widget.webUsername}');
               usernameInput.value = '${widget.webUsername}';
               usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
               usernameInput.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+              console.log('未找到用户名输入框');
             }
             
-            // 填充SHA加密密码
+            // 填充原始密码
             if (passwordInput) {
-              passwordInput.value = '${widget.webPasswordSha}';
+              console.log('自动填充密码: ***');
+              passwordInput.value = '${widget.webPassword}';
               passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
               passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+              console.log('未找到密码输入框');
             }
             
             // 如果URL包含auto_login=true，尝试自动点击登录按钮
@@ -265,7 +276,14 @@ class _AdminWebViewScreenState extends State<AdminWebViewScreen> {
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: _switchToEmployeeView, // 使用新的切换方法
+          onPressed: () {
+            // 检查是否可以pop，如果不能则返回首页
+            if (Navigator.of(context).canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
         actions: [
           // 管理员首页按钮 #管理员首页按钮
@@ -282,12 +300,6 @@ class _AdminWebViewScreenState extends State<AdminWebViewScreen> {
               onPressed: () => _controller.reload(),
               tooltip: '刷新',
             ),
-          // 切换到员工界面按钮 #切换界面按钮
-          IconButton(
-            icon: const Icon(Icons.people),
-            onPressed: _switchToEmployeeView, // 使用新的切换方法
-            tooltip: '切换到员工界面',
-          ),
           // 更多选项
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -300,9 +312,6 @@ class _AdminWebViewScreenState extends State<AdminWebViewScreen> {
                   break;
                 case 'auto_fill':
                   _autoFillLoginForm();
-                  break;
-                case 'employee_view':
-                  _switchToEmployeeView(); // 使用新的切换方法
                   break;
                 case 'admin_home':
                   _showAdminHomePage();
@@ -355,16 +364,6 @@ class _AdminWebViewScreenState extends State<AdminWebViewScreen> {
                   ),
                 ),
               ],
-              const PopupMenuItem(
-                value: 'employee_view',
-                child: Row(
-                  children: [
-                    Icon(Icons.people, size: 20),
-                    SizedBox(width: 8),
-                    Text('切换到员工界面'),
-                  ],
-                ),
-              ),
               const PopupMenuItem(
                 value: 'logout', // 添加退出登录菜单项
                 child: Row(
@@ -524,26 +523,6 @@ class _AdminWebViewScreenState extends State<AdminWebViewScreen> {
           ),
           const SizedBox(height: 8),
           
-          // 员工界面 #员工界面入口
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.people, color: Colors.green),
-              ),
-              title: const Text('员工界面'),
-              subtitle: const Text('查看员工健康数据和设备信息'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: _switchToEmployeeView, // 使用新的切换方法
-            ),
-          ),
-          const SizedBox(height: 8),
           
           // 退出登录 #退出登录入口
           Card(

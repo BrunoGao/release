@@ -133,10 +133,14 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
                     vo.setUserName(userInfo.getUserName());
                 }
                 
-                // 统计
-                statusCounts.merge(alert.getAlertStatus(), 1, Integer::sum);
-                typeCounts.merge(alert.getAlertType(), 1, Integer::sum);
-                severityCounts.merge(alert.getSeverityLevel(), 1, Integer::sum);
+                // 统计 - 处理null值,避免JSON序列化错误
+                String alertStatus = alert.getAlertStatus() != null ? alert.getAlertStatus() : "UNKNOWN";
+                String alertType = alert.getAlertType() != null ? alert.getAlertType() : "UNKNOWN";  
+                String severityLevel = alert.getSeverityLevel() != null ? alert.getSeverityLevel() : "UNKNOWN";
+                
+                statusCounts.merge(alertStatus, 1, Integer::sum);
+                typeCounts.merge(alertType, 1, Integer::sum);
+                severityCounts.merge(severityLevel, 1, Integer::sum);
                 
                 return vo;
             })
@@ -209,11 +213,16 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
                 vo.setSystemSoftwareVersion(device.getSystemSoftwareVersion());
                 vo.setWearableStatus(device.getWearableStatus());
                 
-                // 统计
-                chargingCounts.merge(device.getChargingStatus(), 1, Integer::sum);
-                osCounts.merge(device.getSystemSoftwareVersion(), 1, Integer::sum);
-                statusCounts.merge(device.getStatus(), 1, Integer::sum);
-                wearableCounts.merge(device.getWearableStatus(), 1, Integer::sum);
+                // 统计 - 处理null值,避免JSON序列化错误
+                String chargingStatus = device.getChargingStatus() != null ? device.getChargingStatus() : "UNKNOWN";
+                String systemVersion = device.getSystemSoftwareVersion() != null ? device.getSystemSoftwareVersion() : "UNKNOWN";
+                String status = device.getStatus() != null ? device.getStatus() : "UNKNOWN";
+                String wearableStatus = device.getWearableStatus() != null ? device.getWearableStatus() : "UNKNOWN";
+                
+                chargingCounts.merge(chargingStatus, 1, Integer::sum);
+                osCounts.merge(systemVersion, 1, Integer::sum);
+                statusCounts.merge(status, 1, Integer::sum);
+                wearableCounts.merge(wearableStatus, 1, Integer::sum);
                 
                 return vo;
             })
@@ -320,9 +329,12 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
                 vo.setReceivedTime(message.getReceivedTime());
                 vo.setSentTime(message.getSentTime());
                 
-                // 统计
-                statusCounts.merge(message.getMessageStatus(), 1, Integer::sum);
-                typeCounts.merge(message.getMessageType(), 1, Integer::sum);
+                // 统计 - 处理null值,避免JSON序列化错误
+                String messageStatus = message.getMessageStatus() != null ? message.getMessageStatus() : "UNKNOWN";
+                String messageType = message.getMessageType() != null ? message.getMessageType() : "UNKNOWN";
+                
+                statusCounts.merge(messageStatus, 1, Integer::sum);
+                typeCounts.merge(messageType, 1, Integer::sum);
                 
                 return vo;
             })
@@ -422,9 +434,12 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
                     vo.setOrgName(orgNameMap.get(userOrgId));
                 }
                 
-                // 统计
-                deviceBindCounts.merge(vo.getBindStatus(), 1, Integer::sum);
-                userStatusCounts.merge(vo.getStatus(), 1, Integer::sum);
+                // 统计 - 处理null值,避免JSON序列化错误
+                String bindStatus = vo.getBindStatus() != null ? vo.getBindStatus() : "UNKNOWN";
+                String userStatus = vo.getStatus() != null ? vo.getStatus() : "UNKNOWN";
+                
+                deviceBindCounts.merge(bindStatus, 1, Integer::sum);
+                userStatusCounts.merge(userStatus, 1, Integer::sum);
                 
                 return vo;
             })

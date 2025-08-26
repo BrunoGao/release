@@ -306,9 +306,7 @@ else
             echo "✅ $image - 本地镜像可用"
         else
             echo "⚠️  $image - 本地镜像不存在"
-            MISSING_IMAGES="$MISSING_IMAGES $image"
-        fi
-    done
+      144e'e'e'e'ty'rdone
     
     if [ -n "$MISSING_IMAGES" ]; then
         echo ""

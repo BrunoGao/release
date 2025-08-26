@@ -30,6 +30,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   customer_config: () => import("@/views/customer/config/index.vue"),
   customer_data: () => import("@/views/customer/data/index.vue"),
   customer_interface: () => import("@/views/customer/interface/index.vue"),
+  device_bind: () => import("@/views/device/bind/index.vue"),
   device_config: () => import("@/views/device/config/index.vue"),
   device_info: () => import("@/views/device/info/index.vue"),
   device_message: () => import("@/views/device/message/index.vue"),

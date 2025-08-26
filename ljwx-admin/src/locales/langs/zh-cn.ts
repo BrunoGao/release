@@ -214,6 +214,7 @@ const local: App.I18n.Schema = {
     task: '任务管理',
     job: '作业指引',
     device: '设备管理',
+    device_bind: '设备绑定管理',
     device_config: '设备配置',
     device_user: '设备绑定历史',
     device_info: '设备列表',

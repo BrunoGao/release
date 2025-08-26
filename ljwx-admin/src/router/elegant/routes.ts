@@ -176,6 +176,18 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'device_bind',
+        path: '/device/bind',
+        component: 'view.device_bind',
+        meta: {
+          title: 'device_bind',
+          i18nKey: 'route.device_bind',
+          roles: ['R_ADMIN'],
+          icon: 'ic:round-link',
+          order: 1
+        }
+      },
+      {
         name: 'device_config',
         path: '/device/config',
         component: 'view.device_config',

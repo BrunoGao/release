@@ -1300,7 +1300,8 @@ def test_wechat_alert():
 def upload_common_event():
     try:
         data=request.json
-        print(f"事件接收:{data}")
+        print(f"📡 [upload_common_event] 接口被调用")
+        print(f"📡 [upload_common_event] 接收原始数据:{data}")
         
         #提取事件类型
         event_type=data.get('eventType','').split('.')[-1] #从com.tdtech.ohos.action.WEAR_STATUS_CHANGED提取WEAR_STATUS_CHANGED

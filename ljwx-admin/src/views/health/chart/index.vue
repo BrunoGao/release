@@ -117,7 +117,7 @@ async function fetchHealthData() {
   try {
     const response = await fetchUserHealthData({
       customerId: searchParams.value.customerId,
-      departmentInfo: searchParams.value.departmentInfo,
+      orgId: searchParams.value.orgId,
       userId: searchParams.value.userId,
       startDate: searchParams.value.startDate,
       endDate: searchParams.value.endDate,
@@ -222,7 +222,7 @@ async function handleInitOptions() {
 
 // 监听部门变化，更新员工列表
 watch(
-  () => searchParams.value.departmentInfo,
+  () => searchParams.value.orgId,
   async newValue => {
     if (newValue) {
       const result = await handleBindUsersByOrgId(String(newValue));

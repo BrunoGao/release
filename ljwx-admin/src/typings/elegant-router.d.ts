@@ -45,6 +45,7 @@ declare module "@elegant-router/types" {
     "customer_data": "/customer/data";
     "customer_interface": "/customer/interface";
     "device": "/device";
+    "device_bind": "/device/bind";
     "device_config": "/device/config";
     "device_info": "/device/info";
     "device_message": "/device/message";
@@ -202,6 +203,7 @@ declare module "@elegant-router/types" {
     | "customer_config"
     | "customer_data"
     | "customer_interface"
+    | "device_bind"
     | "device_config"
     | "device_info"
     | "device_message"

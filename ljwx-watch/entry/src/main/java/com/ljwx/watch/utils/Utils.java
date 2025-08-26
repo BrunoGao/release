@@ -334,6 +334,10 @@ public class Utils {
             } else if (lastHealthInfo != null) {
                 HiLog.warn(LABEL_LOG, "Utils::getHealthInfo 当前健康数据无效(心率、血氧均为0)，使用缓存数据");
                 return updateTimestampInHealthData(lastHealthInfo);
+            } else {
+                // 没有有效数据且没有缓存，返回null避免上传无效数据
+                HiLog.warn(LABEL_LOG, "Utils::getHealthInfo 健康数据无效且无缓存，不上传健康数据");
+                return null;
             }
             
             return lastHealthInfo;
@@ -349,7 +353,8 @@ public class Utils {
 
     /**
      * 获取用于通用事件的健康数据，upload_method标识为"common_event"
-     * @return 健康数据JSON字符串
+     * 如果心率为0，则返回null表示无有效健康数据
+     * @return 健康数据JSON字符串，如果心率为0则返回null
      */
     public static String getHealthInfoForCommonEvent() {
         try {
@@ -367,14 +372,36 @@ public class Utils {
             double temperature = dataManager.getTemperature();
             int pressureHigh = dataManager.getPressureHigh();
             int pressureLow = dataManager.getPressureLow();
+            int step = dataManager.getStep();
+            double distance = dataManager.getDistance();
+            double calorie = dataManager.getCalorie();
+            int stress = dataManager.getStress();
+            
+            // 详细打印所有健康数据字段
+            HiLog.info(LABEL_LOG, "Utils::getHealthInfoForCommonEvent 健康数据详情:");
+            HiLog.info(LABEL_LOG, "  心率(heart_rate): " + heartRate);
+            HiLog.info(LABEL_LOG, "  血氧(blood_oxygen): " + bloodOxygen);
+            HiLog.info(LABEL_LOG, "  体温(body_temperature): " + temperature);
+            HiLog.info(LABEL_LOG, "  高压(blood_pressure_systolic): " + pressureHigh);
+            HiLog.info(LABEL_LOG, "  低压(blood_pressure_diastolic): " + pressureLow);
+            HiLog.info(LABEL_LOG, "  步数(step): " + step);
+            HiLog.info(LABEL_LOG, "  距离(distance): " + distance);
+            HiLog.info(LABEL_LOG, "  卡路里(calorie): " + calorie);
+            HiLog.info(LABEL_LOG, "  压力(stress): " + stress);
+            
+            // 检查心率是否为0，如果为0则不上传健康数据
+            if (heartRate == 0) {
+                HiLog.warn(LABEL_LOG, "Utils::getHealthInfoForCommonEvent 心率为0，跳过健康数据上传");
+                return null;  // 返回null表示无有效健康数据
+            }
             
             healthInfoJson.put("heart_rate", heartRate);
             healthInfoJson.put("blood_oxygen", bloodOxygen);
             healthInfoJson.put("body_temperature", String.format("%.1f", temperature));
 
-            healthInfoJson.put("step", dataManager.getStep());
-            healthInfoJson.put("distance", String.format("%.1f", dataManager.getDistance()));
-            healthInfoJson.put("calorie", String.format("%.1f", dataManager.getCalorie()));
+            healthInfoJson.put("step", step);
+            healthInfoJson.put("distance", String.format("%.1f", distance));
+            healthInfoJson.put("calorie", String.format("%.1f", calorie));
 
             BigDecimal latitude = dataManager.getLatitude();
             BigDecimal longitude = dataManager.getLongitude();
@@ -383,7 +410,7 @@ public class Utils {
             healthInfoJson.put("latitude", latitude != null ? latitude.toString() : "0");
             healthInfoJson.put("longitude", longitude != null ? longitude.toString() : "0");
             healthInfoJson.put("altitude", altitude != null ? altitude.toString() : "0");
-            healthInfoJson.put("stress", dataManager.getStress());
+            healthInfoJson.put("stress", stress);
             
             // 关键修改：为通用事件设置特殊的upload_method标识
             healthInfoJson.put("upload_method", "common_event");

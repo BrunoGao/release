@@ -191,6 +191,7 @@ const routeMap: RouteMap = {
   "customer_data": "/customer/data",
   "customer_interface": "/customer/interface",
   "device": "/device",
+  "device_bind": "/device/bind",
   "device_config": "/device/config",
   "device_info": "/device/info",
   "device_message": "/device/message",

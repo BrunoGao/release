@@ -374,7 +374,7 @@ public class HealthDataService extends Ability {
     }
 
     private void getScientificSleepData(long startTime, long endTime){
-        HealthManager.getInstance(getContext()).queryScientificSleepRecords(new SleepQueryConfig.Builder().setStartTime(startTime).setEndTime(endTime).build(), new ScientificSleepListener()
+        HealthManager.getInstance(getContext()).queryScientificSleepRecords(new SleepQueryConfig.Builder().build(), new ScientificSleepListener()
     {
         @Override
         public void onReceive(int i, String s) {
@@ -501,7 +501,7 @@ public class HealthDataService extends Ability {
 
         String spo2Json = "";
         try {
-            spo2Json = HealthManager.getInstance(getContext()).querySpo2Records(new Spo2QueryConfig.Builder().setStartTime(startTime).setEndTime(endTime).build());
+            spo2Json = HealthManager.getInstance(getContext()).querySpo2Records(new Spo2QueryConfig.Builder().build());
             HiLog.info(LABEL_LOG, "jjgao::spo2Json " + spo2Json);
             int spo2Value = (int) fetchFromJson(spo2Json);
             if (spo2Value != 0) {
@@ -539,7 +539,7 @@ public class HealthDataService extends Ability {
         String temperatureJson = "";
         
         try {
-            temperatureJson = HealthManager.getInstance(getContext()).queryBodyTemperatureRecords(new BodyTemperatureQueryConfig.Builder().setStartTime(startTime).setEndTime(endTime).build());
+            temperatureJson = HealthManager.getInstance(getContext()).queryBodyTemperatureRecords(new BodyTemperatureQueryConfig.Builder().build());
             HiLog.info(LABEL_LOG, "jjgao::temperatureJson " + temperatureJson);
             double temperature = fetchFromJson(temperatureJson);
             //HiLog.info(LABEL_LOG, "jjgao::Temperature:history" + temperature);

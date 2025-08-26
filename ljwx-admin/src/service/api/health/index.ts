@@ -13,3 +13,4 @@ export * from './health';
 export * from './health-baseline';
 export * from './health-score';
 export * from './health-feature';
+export * from './device-binding';

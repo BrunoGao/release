@@ -4,8 +4,8 @@ services:
     container_name: ljwx-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-123456}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-lj-06}
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: lj-06
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
       MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
       TZ: Asia/Shanghai
@@ -52,29 +52,29 @@ services:
       - ljwx-network
 
   ljwx-boot:
-    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-boot:1.2.16
+    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-boot:1.3.3
     container_name: ljwx-boot
     restart: unless-stopped
     env_file:
       - custom-config.env
     environment:
       SPRING_PROFILES_ACTIVE: common
-      MYSQL_HOST: ${MYSQL_HOST:-mysql}
-      MYSQL_PORT: ${MYSQL_PORT:-3306}
-      MYSQL_USER: ${MYSQL_USER:-root}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-123456}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-lj-06}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: "123456"
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 123456
+      MYSQL_DATABASE: lj-06
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 123456
       TZ: Asia/Shanghai
-      SPRING_DATASOURCE_URL: jdbc:mysql://${MYSQL_HOST:-mysql}:${MYSQL_PORT:-3306}/${MYSQL_DATABASE:-lj-06}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-123456}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/lj-06?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      SPRING_DATA_REDIS_HOST: ${REDIS_HOST:-redis}
-      SPRING_DATA_REDIS_PORT: ${REDIS_PORT:-6379}
-      SPRING_DATA_REDIS_PASSWORD: "123456"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: 123456
     ports:
       - "9998:9998"
     volumes:
@@ -92,20 +92,20 @@ services:
       - ljwx-network
 
   ljwx-bigscreen:
-    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-bigscreen:1.2.16
+    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-bigscreen:1.3.3
     container_name: ljwx-bigscreen
     restart: unless-stopped
     env_file:
       - custom-config.env
     environment:
-      MYSQL_HOST: ${MYSQL_HOST:-mysql}
-      MYSQL_PORT: ${MYSQL_PORT:-3306}
-      MYSQL_USER: ${MYSQL_USER:-root}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-123456}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-lj-06}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-123456}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 123456
+      MYSQL_DATABASE: lj-06
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 123456
       IS_DOCKER: "true"
       APP_PORT: 8001
       TZ: Asia/Shanghai
@@ -128,15 +128,15 @@ services:
       - ljwx-network
 
   ljwx-admin:
-    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-admin:1.2.16
+    image: crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-admin:1.3.3
     container_name: ljwx-admin
     restart: unless-stopped
     env_file:
       - custom-config.env
     environment:
       VITE_API_URL: http://ljwx-boot:9998
-      VITE_BIGSCREEN_URL: ${VITE_BIGSCREEN_URL:-http://localhost:8001}
-      VITE_APP_TITLE: ${VITE_APP_TITLE:-穿戴管理演示系统}
+      VITE_BIGSCREEN_URL: http://192.168.1.6:8001
+      VITE_APP_TITLE: 穿戴健康管理平台
       TZ: Asia/Shanghai
     ports:
       - "8080:80"

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:ljwx_health_new/models/login_response.dart';
 import 'package:ljwx_health_new/models/personal_data.dart';
@@ -164,7 +165,20 @@ class ApiService {
               ?.map((role) => UserRole.fromJson(role))
               .toList() ?? [], // 添加角色列表
           adminUrl: data['adminUrl'] as String?, // 添加管理后台地址
+          webUsername: data['is_admin'] == true ? data['user_name'] : null, // 管理员使用自己的用户名
+          webPassword: data['is_admin'] == true ? password : null, // 管理员使用自己的密码
+          webPasswordSha: data['is_admin'] == true ? _generateShaPassword(password) : null, // 生成SHA密码
         );
+
+        // 调试信息 - 查看管理员登录数据
+        if (data['is_admin'] == true) {
+          print('=== API服务 - 管理员登录数据调试 ===');
+          print('is_admin: ${data['is_admin']}');
+          print('user_name: ${data['user_name']}');
+          print('phone: $phone');
+          print('设置的webUsername: ${data['user_name']}');
+          print('设置的webPassword: ${password != null ? '***' : 'null'}');
+        }
 
         setLoginData(loginData);
         _config.setDeviceSn(data['device_sn']); // 更新配置中的设备序列号
@@ -1016,6 +1030,118 @@ class ApiService {
       return {
         'success': false,
         'error': '重置密码失败：$e'
+      };
+    }
+  }
+
+  /// 生成SHA加密密码 #SHA密码生成
+  String _generateShaPassword(String password) {
+    try {
+      var bytes = utf8.encode(password);
+      var digest = sha256.convert(bytes);
+      return digest.toString();
+    } catch (e) {
+      debugPrint('生成SHA密码失败: $e');
+      return password; // 如果SHA加密失败，返回原密码
+    }
+  }
+
+  /// 检查设备绑定状态 #检查设备绑定
+  Future<Map<String, dynamic>> checkDeviceBinding({
+    required String serialNumber,
+    required String phoneNumber,
+    int retryCount = 3
+  }) async {
+    for (int i = 0; i < retryCount; i++) {
+      try {
+        debugPrint('检查设备绑定状态请求 - 设备序列号: $serialNumber, 手机号: $phoneNumber');
+        
+        final response = await http.post(
+          Uri.parse('${_config.apiBaseUrl}/api/device/check_binding'),
+          headers: _headers,
+          body: jsonEncode({
+            'serial_number': serialNumber,
+            'phone_number': phoneNumber
+          }),
+        ).timeout(_timeout);
+        
+        debugPrint('检查绑定状态响应状态: ${response.statusCode}');
+        debugPrint('检查绑定状态响应内容: ${response.body}');
+        
+        if (response.statusCode == 200) {
+          final jsonData = jsonDecode(response.body);
+          return jsonData;
+        } else {
+          throw Exception('服务器错误 (${response.statusCode}): ${response.body}');
+        }
+      } catch (e) {
+        debugPrint('检查设备绑定状态失败 (第${i+1}次): $e');
+        if (i == retryCount - 1) rethrow;
+        await Future.delayed(Duration(seconds: 2 * (i + 1)));
+      }
+    }
+    throw Exception('网络请求失败');
+  }
+
+  /// 提交设备绑定申请 #提交设备绑定申请
+  Future<Map<String, dynamic>> submitDeviceBindingApplication(Map<String, dynamic> applicationData) async {
+    try {
+      debugPrint('提交设备绑定申请请求: $applicationData');
+      
+      final response = await http.post(
+        Uri.parse('${_config.apiBaseUrl}/api/device/binding_application'),
+        headers: _headers,
+        body: jsonEncode(applicationData),
+      ).timeout(_timeout);
+      
+      debugPrint('提交绑定申请响应状态: ${response.statusCode}');
+      debugPrint('提交绑定申请响应内容: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        return jsonData;
+      } else {
+        return {
+          'success': false,
+          'error': '服务器错误 (${response.statusCode}): ${response.body}'
+        };
+      }
+    } catch (e) {
+      debugPrint('提交设备绑定申请失败: $e');
+      return {
+        'success': false,
+        'error': '提交申请失败：$e'
+      };
+    }
+  }
+
+  /// 获取用户设备绑定状态列表 #获取绑定状态列表
+  Future<Map<String, dynamic>> getUserBindingStatus(String userId) async {
+    try {
+      debugPrint('获取用户绑定状态请求，用户ID: $userId');
+      
+      final response = await http.get(
+        Uri.parse('${_config.apiBaseUrl}/api/device/user_bindings?user_id=$userId'),
+        headers: _headers,
+      ).timeout(_timeout);
+      
+      debugPrint('获取绑定状态响应状态: ${response.statusCode}');
+      debugPrint('获取绑定状态响应内容: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        return jsonData;
+      } else {
+        return {
+          'success': false,
+          'error': '服务器错误 (${response.statusCode}): ${response.body}'
+        };
+      }
+    } catch (e) {
+      debugPrint('获取用户绑定状态失败: $e');
+      return {
+        'success': false,
+        'error': '获取绑定状态失败：$e'
       };
     }
   }

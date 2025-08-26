@@ -1476,14 +1476,39 @@ def upload_health_data(health_data):
        return jsonify({"status": "success", "message": "数据已接收并处理"})
 
 def process_single_health_data(data):
+    print(f"🏥 process_single_health_data 接收到的数据: {data}")
+    print(f"🏥 数据类型: {type(data)}")
+    print(f"🏥 数据键: {list(data.keys()) if isinstance(data, dict) else '非字典类型'}")
+    
+    # 修复数值字段解析问题：使用 is not None 判断而不是 or 操作符，避免0值被误判为空
     uploadMethod = data.get("upload_method") or data.get("uploadMethod")  # 默认使用wifi作为上传方式
-    heartRate = data.get("heart_rate") or data.get("heartRate") or data.get("xlv")
-    pressureHigh = data.get("blood_pressure_systolic") or data.get("pressureHigh") or data.get("gxy")
-    pressureLow = data.get("blood_pressure_diastolic") or data.get("pressureLow") or data.get("dxy")
-    bloodOxygen = data.get("blood_oxygen") or data.get("bloodOxygen") or data.get("xy")
-    temperature = data.get("body_temperature") or data.get("temperature") or data.get("tw")
-    stress = data.get("stress") or data.get("yl")
-    step = data.get("step") or data.get("bs")
+    
+    # 心率解析 - 优先级: heart_rate > heartRate > xlv
+    heartRate = data.get("heart_rate") if data.get("heart_rate") is not None else (
+        data.get("heartRate") if data.get("heartRate") is not None else data.get("xlv")
+    )
+    
+    # 血压解析
+    pressureHigh = data.get("blood_pressure_systolic") if data.get("blood_pressure_systolic") is not None else (
+        data.get("pressureHigh") if data.get("pressureHigh") is not None else data.get("gxy")
+    )
+    pressureLow = data.get("blood_pressure_diastolic") if data.get("blood_pressure_diastolic") is not None else (
+        data.get("pressureLow") if data.get("pressureLow") is not None else data.get("dxy")
+    )
+    
+    # 血氧解析 - 修复关键问题：避免0值被or操作符跳过
+    bloodOxygen = data.get("blood_oxygen") if data.get("blood_oxygen") is not None else (
+        data.get("bloodOxygen") if data.get("bloodOxygen") is not None else data.get("xy")
+    )
+    
+    # 体温解析
+    temperature = data.get("body_temperature") if data.get("body_temperature") is not None else (
+        data.get("temperature") if data.get("temperature") is not None else data.get("tw")
+    )
+    
+    # 压力和步数解析
+    stress = data.get("stress") if data.get("stress") is not None else data.get("yl")
+    step = data.get("step") if data.get("step") is not None else data.get("bs")
     timestamp = data.get("timestamp") or data.get("cjsj")
     deviceSn = data.get("deviceSn") or data.get("id")
     distance = data.get("distance") or data.get("jl")
@@ -1496,6 +1521,14 @@ def process_single_health_data(data):
     exerciseDailyWeekData = data.get("exerciseDailyWeekData") or data.get("ydWeekData")
     scientificSleepData = data.get("scientificSleepData") or data.get("kxsmData")
     workoutData = data.get("workoutData") or data.get("ydData")
+    
+    print(f"🏥 解析后的关键字段:")
+    print(f"  - deviceSn: {deviceSn}")
+    print(f"  - heartRate: {heartRate}")
+    print(f"  - bloodOxygen: {bloodOxygen}")
+    print(f"  - temperature: {temperature}")
+    print(f"  - uploadMethod: {uploadMethod}")
+    print(f"  - timestamp: {timestamp}")
 
     # 处理时间戳
     if isinstance(timestamp, str):
@@ -2869,4 +2902,70 @@ def get_today_health_data(orgId=None): #今日健康数据#
         return get_all_health_data_optimized(orgId=orgId, startDate=today, endDate=today)
     except Exception as e:
         print(f"今日健康数据查询失败: {e}")
+        return {"success": False, "error": str(e)}
+
+# 个人大屏实时数据API辅助函数 v1.3.5+
+def get_latest_health_data_by_device(device_sn):
+    """获取指定设备的最新健康数据"""
+    try:
+        # 查询最新的一条健康数据记录
+        latest_record = UserHealthData.query.filter_by(device_sn=device_sn).order_by(
+            UserHealthData.timestamp.desc()
+        ).first()
+        
+        if not latest_record:
+            return None
+        
+        return {
+            'heartRate': latest_record.heart_rate,
+            'bloodOxygen': latest_record.blood_oxygen,
+            'temperature': str(latest_record.temperature) if latest_record.temperature else '0.0',
+            'pressureHigh': latest_record.pressure_high,
+            'pressureLow': latest_record.pressure_low,
+            'step': latest_record.step,
+            'distance': float(latest_record.distance) if latest_record.distance else 0.0,
+            'calorie': float(latest_record.calorie) if latest_record.calorie else 0.0,
+            'stress': latest_record.stress,
+            'timestamp': latest_record.timestamp,
+            'deviceSn': latest_record.device_sn
+        }
+        
+    except Exception as e:
+        print(f"获取最新健康数据失败: {e}")
+        return None
+
+def get_health_data_by_date_range(device_sn, start_time, end_time):
+    """获取指定设备和时间范围的健康数据历史记录"""
+    try:
+        # 查询指定时间范围内的健康数据
+        records = UserHealthData.query.filter(
+            UserHealthData.device_sn == device_sn,
+            UserHealthData.timestamp >= start_time,
+            UserHealthData.timestamp <= end_time
+        ).order_by(UserHealthData.timestamp.asc()).limit(100).all()
+        
+        if not records:
+            return []
+        
+        result = []
+        for record in records:
+            result.append({
+                'heartRate': record.heart_rate,
+                'bloodOxygen': record.blood_oxygen,
+                'temperature': str(record.temperature) if record.temperature else '0.0',
+                'pressureHigh': record.pressure_high,
+                'pressureLow': record.pressure_low,
+                'step': record.step,
+                'distance': float(record.distance) if record.distance else 0.0,
+                'calorie': float(record.calorie) if record.calorie else 0.0,
+                'stress': record.stress,
+                'timestamp': record.timestamp,
+                'deviceSn': record.device_sn
+            })
+        
+        return result
+        
+    except Exception as e:
+        print(f"获取健康数据历史记录失败: {e}")
+        return []
         return {"success": False, "error": str(e)}
