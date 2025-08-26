@@ -17,71 +17,91 @@
 - **电池优化**：统一定时器调度，续航提升至15-18小时
 - **企业级稳定性**：完善的错误处理和自恢复机制
 
-## 🆕 最新功能：健康数据源区分 (v1.3.4)
+## 🆕 最新功能：自定义日志系统 (v1.3.4)
 
 ### 功能概述
-为了更好地管理不同来源的健康数据，系统现在支持对不同上传方式的健康数据进行区分标识，确保前端显示的数据准确性。
+为了解决HarmonyOS HiLog日志打印不完整且不支持中文的问题，系统新增了自定义日志工具，能够完整打印断点续传时的健康信息、设备信息和通用事件数据。
 
 ### 主要改进
-- **数据源标识**：为通过 `upload_common_event` 上传的健康数据添加独特标识
-- **前端过滤**：管理端健康数据查看时自动过滤事件相关数据
-- **独立缓存机制**：三种数据类型（健康数据、设备信息、通用事件）使用独立缓存
+- **完整数据打印**：解决HiLog数据截断问题，通过分段输出保证完整性
+- **中文字符支持**：原生支持中文字符输出，无需编码转换
+- **专业化日志方法**：针对健康数据、设备信息、通用事件提供专用日志方法
+- **断点续传调试**：重点加强断点续传场景下的数据追踪能力
 
 ### 技术实现
 
-#### 1. 专用健康数据生成
+#### 1. 自定义日志工具类
 ```java
 /**
- * 获取用于通用事件的健康数据，upload_method标识为"common_event"
- * @return 健康数据JSON字符串
+ * 分段打印长数据，避免HiLog截断
  */
-public static String getHealthInfoForCommonEvent() {
-    // ... 生成健康数据
-    healthInfoJson.put("upload_method", "common_event");
-    // ...
-    return resultJson.toString();
-}
-```
-
-#### 2. 独立缓存机制
-```java
-// 设备信息专用缓存上传
-private boolean uploadDeviceInfoWithCache(String deviceInfoData) {
-    healthDataCache.addToCache(HealthDataCache.DataType.DEVICE_INFO, deviceInfoData);
-    // ... 处理逻辑
-}
-
-// 通用事件专用缓存上传  
-private boolean uploadCommonEventWithCache(String commonEventData) {
-    healthDataCache.addToCache(HealthDataCache.DataType.COMMON_EVENT, commonEventData);
-    // ... 处理逻辑
-}
-```
-
-#### 3. 配置等待机制
-```java
-private void waitForConfigAndStart() {
-    // 等待健康配置加载完成再启动数据采集
-    while (waitCount < maxWait) {
-        if (dataManager.getConfig() != null) {
-            startHealthDataCollection();
-            return;
-        }
-        Thread.sleep(1000);
+public static void logLongData(String tag, String title, String data) {
+    // 每段500字符分段输出
+    final int chunkSize = 500;
+    int chunkCount = (totalLength + chunkSize - 1) / chunkSize;
+    
+    for (int i = 0; i < chunkCount; i++) {
+        String chunk = data.substring(start, end);
+        info(tag, String.format("%s 第%d/%d段: %s", title, i + 1, chunkCount, chunk));
     }
 }
 ```
 
-### 数据流程
+#### 2. 专业化日志方法
+```java
+// 健康数据专用日志
+CustomLogger.logHealthInfo("断点续传", healthData);
+
+// 设备信息专用日志
+CustomLogger.logDeviceInfo("设备状态检查", deviceData);
+
+// 通用事件专用日志
+CustomLogger.logCommonEvent("SOS事件", deviceInfo, healthInfo);
 ```
-手表启动 → 等待配置加载 → 启动健康数据采集
-    ↓
-通用事件触发 → 生成专用健康数据 → upload_method: "common_event"
-    ↓
-数据上传到服务器 → 独立缓存处理 → 数据库存储
-    ↓
-前端查询 → 自动过滤事件数据 → 仅显示正常健康数据
+
+#### 3. 断点续传增强调试
+```java
+// 在HttpService中添加完整数据日志
+CustomLogger.info("HttpService::uploadAllCachedData", "开始打印完整上传数据");
+CustomLogger.logLongData("HttpService::uploadAllCachedData", "准备上传的完整缓存数据", uploadData);
 ```
+
+### 日志系统优势
+
+#### 1. 解决HiLog限制
+- **数据截断问题**：HiLog默认对长数据进行截断，导致重要信息丢失
+- **中文字符问题**：原生HiLog对中文字符显示支持不够完善
+- **调试效率**：完整的数据输出大幅提升调试效率
+
+#### 2. 空间占用统计
+基于实际日志数据统计的缓存空间占用：
+- **健康数据**：480字节/条，100条约47KB
+- **设备信息**：425字节/条，100条约41KB  
+- **通用事件**：1,397字节/条，100条约136KB
+- **总计**：三种数据类型缓存满载约224KB
+
+#### 3. 使用场景
+```java
+// 断点续传场景下的完整数据追踪
+public void uploadAllCachedData() {
+    List<String> healthDataList = healthDataCache.getAllCachedData(DataType.HEALTH_DATA);
+    
+    // 使用自定义日志完整打印缓存内容
+    for (String healthData : healthDataList) {
+        CustomLogger.logHealthInfo("缓存数据上传", healthData);
+    }
+    
+    // 打印上传的完整JSON数据
+    String uploadData = finalJson.toString();
+    CustomLogger.logLongData("HttpService", "上传数据", uploadData);
+}
+```
+
+### 调试建议
+- 使用 `CustomLogger.logHealthInfo()` 查看健康数据详情
+- 使用 `CustomLogger.logDeviceInfo()` 检查设备状态
+- 使用 `CustomLogger.logLongData()` 输出完整JSON数据
+- 关注断点续传场景下的数据完整性验证
 
 ## 🔋 耗电性能优化（v1.3.3）
 
@@ -162,6 +182,11 @@ masterHttpTimer.schedule(new TimerTask() {
 │ MainAbilitySlice│ HealthDataCache │    BluetoothService     │
 │   配置管理      │   数据分片处理   │       HttpService       │
 │   状态显示      │   智能缓存      │      二进制协议         │
+├─────────────────┼─────────────────┼─────────────────────────┤
+│   工具支撑层    │     健康服务层   │       设备管理层        │
+│  CustomLogger   │ HealthDataService│      DeviceManager      │
+│  完整日志输出   │   体征数据采集   │       设备状态管理       │
+│  中文字符支持   │   智能告警      │       电池优化管理       │
 └─────────────────┴─────────────────┴─────────────────────────┘
 ```
 
@@ -191,6 +216,12 @@ masterHttpTimer.schedule(new TimerTask() {
    - 三种数据类型独立缓存
    - 环形队列管理
    - 分片存储机制
+
+6. **自定义日志模块 (CustomLogger)**
+   - 解决HiLog数据截断问题
+   - 支持中文字符完整输出
+   - 专业化日志方法支持
+   - 断点续传调试增强
 
 ## ⚙️ 配置管理
 
@@ -275,7 +306,26 @@ masterHttpTimer.schedule(new TimerTask() {
 
 ## 🔧 开发与调试
 
-### 日志级别配置
+### 自定义日志系统
+```java
+// 使用自定义日志工具类
+import com.ljwx.watch.utils.CustomLogger;
+
+// 基础日志输出
+CustomLogger.info("Tag", "信息日志，支持中文");
+CustomLogger.warn("Tag", "警告日志");
+CustomLogger.error("Tag", "错误日志");
+
+// 长数据分段输出（解决HiLog截断问题）
+CustomLogger.logLongData("HttpService", "上传数据", jsonData);
+
+// 专业化日志方法
+CustomLogger.logHealthInfo("断点续传", healthData);
+CustomLogger.logDeviceInfo("设备检查", deviceInfo);
+CustomLogger.logCommonEvent("SOS事件", deviceInfo, healthInfo);
+```
+
+### 传统日志级别配置
 ```java
 // 启用详细日志输出
 DataManager.getInstance().setDebugMode(true);
@@ -291,7 +341,18 @@ HealthDataCache.getInstance().logCacheStatus();
 
 // 监控数据传输
 BluetoothService.printTransferStats();
+
+// 缓存空间监控
+String summary = healthDataCache.getCacheStatusSummary();
+CustomLogger.info("CacheMonitor", summary);
 ```
+
+### 调试最佳实践
+1. **断点续传调试**：使用 `CustomLogger.logLongData()` 完整查看上传数据
+2. **健康数据验证**：使用 `CustomLogger.logHealthInfo()` 检查数据字段
+3. **设备状态监控**：使用 `CustomLogger.logDeviceInfo()` 跟踪设备变化
+4. **缓存状态追踪**：定期打印缓存统计信息
+5. **中文日志输出**：直接使用中文描述，无需编码转换
 
 ## 🛠️ 核心特性详解
 
@@ -339,4 +400,4 @@ BluetoothService.printTransferStats();
 
 ---
 
-*最后更新：2025年8月22日*
+*最后更新：2025年8月26日 - 新增自定义日志系统，解决HiLog截断和中文显示问题*
