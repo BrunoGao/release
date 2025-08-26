@@ -27,6 +27,99 @@ const { hasAuth } = useAuth();
 
 const { dictTag } = useDict();
 
+// 告警类型中英文映射
+const alertTypeMap = {
+  'Heartrate Low': '心率过低',
+  'Heartrate High': '心率过高',
+  'Blood Pressure Low': '血压过低',
+  'Blood Pressure High': '血压过高',
+  'Temperature Low': '体温过低',
+  'Temperature High': '体温过高',
+  'Blood Oxygen Low': '血氧过低',
+  'Blood Oxygen High': '血氧过高',
+  'Stress High': '压力过高',
+  'Step Low': '步数不足',
+  'Location Alert': '位置告警',
+  'Device Offline': '设备离线',
+  'Data Abnormal': '数据异常'
+};
+
+// 告警状态中英文映射
+const alertStatusMap = {
+  'pending': '待处理',
+  'processing': '处理中',
+  'responded': '已处理',
+  'resolved': '已解决',
+  'closed': '已关闭'
+};
+
+// 严重级别中英文映射
+const severityLevelMap = {
+  'low': '低',
+  'medium': '中',
+  'high': '高',
+  'critical': '紧急'
+};
+
+// 获取告警类型标签颜色
+const getAlertTypeColor = (type: string) => {
+  const colorMap: Record<string, string> = {
+    'Heartrate Low': '#ff4d4f',
+    'Heartrate High': '#ff7875',
+    'Blood Pressure Low': '#faad14',
+    'Blood Pressure High': '#fa8c16',
+    'Temperature Low': '#1890ff',
+    'Temperature High': '#ff4d4f',
+    'Blood Oxygen Low': '#722ed1',
+    'Blood Oxygen High': '#9254de',
+    'Stress High': '#f5222d',
+    'Step Low': '#52c41a',
+    'Location Alert': '#13c2c2',
+    'Device Offline': '#666',
+    'Data Abnormal': '#fa541c'
+  };
+  return colorMap[type] || '#666';
+};
+
+// 增强的字典标签函数，支持告警类型、状态、严重级别中文映射
+const enhancedDictTag = (code: string, value: string | null) => {
+  if (!value) return null;
+  
+  if (code === 'alert_type' && alertTypeMap[value as keyof typeof alertTypeMap]) {
+    const chineseValue = alertTypeMap[value as keyof typeof alertTypeMap];
+    const color = getAlertTypeColor(value);
+    return <span style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}>{chineseValue}</span>;
+  }
+  
+  if (code === 'alert_status' && alertStatusMap[value as keyof typeof alertStatusMap]) {
+    const chineseValue = alertStatusMap[value as keyof typeof alertStatusMap];
+    const statusColors: Record<string, string> = {
+      'pending': '#faad14',
+      'processing': '#1890ff',
+      'responded': '#52c41a',
+      'resolved': '#52c41a',
+      'closed': '#666'
+    };
+    const color = statusColors[value] || '#666';
+    return <span style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}>{chineseValue}</span>;
+  }
+  
+  if (code === 'severity_level' && severityLevelMap[value as keyof typeof severityLevelMap]) {
+    const chineseValue = severityLevelMap[value as keyof typeof severityLevelMap];
+    const levelColors: Record<string, string> = {
+      'low': '#52c41a',
+      'medium': '#faad14',
+      'high': '#fa8c16',
+      'critical': '#ff4d4f'
+    };
+    const color = levelColors[value] || '#666';
+    return <span style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}>{chineseValue}</span>;
+  }
+  
+  // 否则使用原来的字典标签
+  return dictTag(code, value);
+};
+
 const editingData: Ref<Api.Health.AlertInfo | null> = ref(null);
 
 const customerId = authStore.userInfo?.customerId;
@@ -67,7 +160,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       title: $t('page.health.alert.info.alertType'),
       align: 'center',
       minWidth: 100,
-      render: row => dictTag('alert_type', row.alertType)
+      render: row => enhancedDictTag('alert_type', row.alertType)
     },
 
     {
@@ -75,7 +168,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       title: $t('page.health.alert.info.alertStatus'),
       align: 'center',
       minWidth: 100,
-      render: row => dictTag('alert_status', row.alertStatus)
+      render: row => enhancedDictTag('alert_status', row.alertStatus)
     },
     {
       key: 'alertDesc' as any as any,
@@ -123,45 +216,56 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
         };
 
         const renderHealthInfo = () => {
-          if (fetchLoading.value) return <div style="color: #1890ff;">⏳ 数据加载中...</div>;
-          if (fetchError.value) return <div style="color: #ff4d4f;">❌ {fetchError.value}</div>;
-          if (!healthInfo.value) return <div style="color: #999;">📋 暂无数据</div>;
+          if (fetchLoading.value) return <div style="color: #1890ff; padding: 12px;">⏳ 数据加载中...</div>;
+          if (fetchError.value) return <div style="color: #ff4d4f; padding: 12px;">❌ {fetchError.value}</div>;
+          if (!healthInfo.value) return <div style="color: #666; padding: 12px;">📋 暂无数据</div>;
 
-          const d = healthInfo.value; // #简化变量名
+          const d = healthInfo.value;
           return (
-            <div style="max-width: 350px; padding: 12px; font-size: 13px; line-height: 1.6; background: #fafafa; border-radius: 6px;">
-              <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
-                <span><strong>💓 心率:</strong></span>
-                <span style="color: #1890ff; font-weight: 500;">{formatValue(d.heartRate, ' bpm')}</span>
+            <div style="max-width: 380px; padding: 16px; font-size: 14px; line-height: 1.8; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0;">
+              <div style="margin-bottom: 12px; font-size: 15px; font-weight: 600; color: #1e293b; text-align: center; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">
+                🏥 健康数据详情
               </div>
-              <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
-                <span><strong>🩸 血压:</strong></span>
-                <span style="color: #52c41a; font-weight: 500;">{formatValue(d.pressureHigh)}/{formatValue(d.pressureLow)} mmHg</span>
+              
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #ef4444;">
+                <span style="color: #374151; font-weight: 600;"><strong>💓 心率:</strong></span>
+                <span style="color: #ef4444; font-weight: 700; font-size: 15px;">{formatValue(d.heartRate, ' bpm')}</span>
               </div>
-              <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
-                <span><strong>🌡️ 体温:</strong></span>
-                <span style="color: #fa8c16; font-weight: 500;">{formatValue(d.temperature, '°C')}</span>
+              
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #22c55e;">
+                <span style="color: #374151; font-weight: 600;"><strong>🩸 血压:</strong></span>
+                <span style="color: #22c55e; font-weight: 700; font-size: 15px;">{formatValue(d.pressureHigh)}/{formatValue(d.pressureLow)} mmHg</span>
               </div>
-              <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
-                <span><strong>🫁 血氧:</strong></span>
-                <span style="color: #722ed1; font-weight: 500;">{formatValue(d.bloodOxygen, '%')}</span>
+              
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #f59e0b;">
+                <span style="color: #374151; font-weight: 600;"><strong>🌡️ 体温:</strong></span>
+                <span style="color: #f59e0b; font-weight: 700; font-size: 15px;">{formatValue(d.temperature, '°C')}</span>
               </div>
-              <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
-                <span><strong>😰 压力:</strong></span>
-                <span style="color: #f5222d; font-weight: 500;">{formatValue(d.stress)}</span>
+              
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                <span style="color: #374151; font-weight: 600;"><strong>🫁 血氧:</strong></span>
+                <span style="color: #8b5cf6; font-weight: 700; font-size: 15px;">{formatValue(d.bloodOxygen, '%')}</span>
               </div>
-              <div style="margin-bottom: 6px; display: flex; justify-content: space-between;">
-                <span><strong>👟 步数:</strong></span>
-                <span style="color: #13c2c2; font-weight: 500;">{formatValue(d.step)}</span>
+              
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #f97316;">
+                <span style="color: #374151; font-weight: 600;"><strong>😰 压力:</strong></span>
+                <span style="color: #f97316; font-weight: 700; font-size: 15px;">{formatValue(d.stress)}</span>
               </div>
-              <div style="margin-bottom: 8px; border-top: 1px solid #e8e8e8; padding-top: 6px;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 4px;"><strong>📍 位置信息:</strong></div>
-                <div style="font-size: 11px; color: #999;">
+              
+              <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #06b6d4;">
+                <span style="color: #374151; font-weight: 600;"><strong>👟 步数:</strong></span>
+                <span style="color: #06b6d4; font-weight: 700; font-size: 15px;">{formatValue(d.step)}</span>
+              </div>
+              
+              <div style="margin-bottom: 10px; padding: 10px 12px; background: rgba(255,255,255,0.9); border-radius: 8px; border-top: 2px solid #64748b;">
+                <div style="font-size: 13px; color: #475569; margin-bottom: 6px; font-weight: 600;"><strong>📍 位置信息:</strong></div>
+                <div style="font-size: 12px; color: #64748b; line-height: 1.4;">
                   {d.latitude && d.longitude ? `${d.latitude.toFixed(6)}°, ${d.longitude.toFixed(6)}°` : '无位置数据'}
                   {d.altitude > 0 ? ` (海拔${d.altitude}m)` : ''}
                 </div>
               </div>
-              <div style="font-size: 11px; color: #999; text-align: center; padding-top: 4px; border-top: 1px solid #e8e8e8;">
+              
+              <div style="font-size: 12px; color: #64748b; text-align: center; padding: 8px 12px; background: rgba(255,255,255,0.9); border-radius: 8px; font-weight: 500;">
                 📅 {d.timestamp ? new Date(d.timestamp).toLocaleString('zh-CN') : '时间未知'}
               </div>
             </div>
@@ -187,7 +291,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       title: $t('page.health.alert.info.severityLevel'),
       align: 'center',
       minWidth: 100,
-      render: row => dictTag('severity_level', row.severityLevel)
+      render: row => enhancedDictTag('severity_level', row.severityLevel)
     },
     {
       key: 'alertTimestamp' as any as any,
