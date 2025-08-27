@@ -31,14 +31,22 @@ declare namespace Api {
 
     type AlertConfigWechat = Common.CommonRecord<{
       customerId: number;
-      /** WeChat App ID */
-      appId: string;
-      /** WeChat App Secret */
-      appSecret: string;
+      /** WeChat Type: enterprise/official */
+      type: string;
+      /** Enterprise WeChat Corp ID */
+      corpId: string;
+      /** Enterprise WeChat Agent ID */
+      agentId: string;
+      /** Enterprise WeChat Secret */
+      secret: string;
+      /** Official WeChat App ID */
+      appid: string;
+      /** Official WeChat App Secret */
+      appsecret: string;
       /** WeChat Template ID */
       templateId: string;
-      /** WeChat User OpenID */
-      userOpenid: string;
+      /** Whether enabled */
+      enabled: boolean;
       /** User who created the record */
       createUser: string;
       /** Creation timestamp */
@@ -47,13 +55,13 @@ declare namespace Api {
 
     /** Wechaalerconfig search params */
     type AlertConfigWechatSearchParams = CommonType.RecordNullable<
-      Pick<Api.Health.AlertConfigWechat, 'appId' | 'appSecret' | 'templateId' | 'userOpenid'> & Api.Common.CommonSearchParams
+      Pick<Api.Health.AlertConfigWechat, 'type' | 'corpId' | 'agentId' | 'appid' | 'templateId' | 'enabled'> & Api.Common.CommonSearchParams
     >;
 
     /** Wechaalerconfig edit model */
     type AlertConfigWechatEdit = Pick<
       Api.Health.AlertConfigWechat,
-      'id' | 'appId' | 'appSecret' | 'templateId' | 'userOpenid' | 'createUser' | 'createTime'
+      'id' | 'customerId' | 'type' | 'corpId' | 'agentId' | 'secret' | 'appid' | 'appsecret' | 'templateId' | 'enabled' | 'createUser' | 'createTime'
     >;
 
     /** Wechaalerconfig list */

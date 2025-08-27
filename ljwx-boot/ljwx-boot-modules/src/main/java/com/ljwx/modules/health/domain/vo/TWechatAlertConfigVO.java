@@ -44,17 +44,32 @@ import java.time.LocalDateTime;
 @Schema(name = "TWechatAlertConfigVO", description = "Table to store WeChat alert configuration VO 对象")
 public class TWechatAlertConfigVO extends BaseVO {
 
-    @Schema(description = "WeChat App ID")
-    private String appId;
+    @Schema(description = "Client ID")
+    private Long customerId;
 
-    @Schema(description = "WeChat App Secret")
-    private String appSecret;
+    @Schema(description = "WeChat Type: enterprise/official")
+    private String type;
+
+    @Schema(description = "Enterprise WeChat Corp ID")
+    private String corpId;
+
+    @Schema(description = "Enterprise WeChat Agent ID")
+    private String agentId;
+
+    @Schema(description = "Enterprise WeChat Secret")
+    private String secret;
+
+    @Schema(description = "Official WeChat App ID")
+    private String appid;
+
+    @Schema(description = "Official WeChat App Secret")
+    private String appsecret;
 
     @Schema(description = "WeChat Template ID")
     private String templateId;
 
-    @Schema(description = "WeChat User OpenID")
-    private String userOpenid;
+    @Schema(description = "Whether enabled")
+    private Boolean enabled;
 
     @Schema(description = "User who created the record")
     private String createUser;

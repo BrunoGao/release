@@ -140,7 +140,7 @@ services:
       VITE_APP_TITLE: ${VITE_APP_TITLE:-穿戴管理演示系统}
       TZ: Asia/Shanghai
     ports:
-      - "8080:80"
+      - "8088:80"
     volumes:
       - ./logs/ljwx-admin:/var/log/nginx
       - ./custom-admin-config.js:/tmp/custom-admin-config.js:ro

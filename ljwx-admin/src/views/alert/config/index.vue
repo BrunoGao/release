@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { NButton, NTabs, NTabPane, NCard, NPopconfirm, NDataTable } from 'naive-ui';
 import type { Ref } from 'vue';
-import { ref } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { convertToBeijingTime } from '@/utils/date';
 import { useAuth } from '@/hooks/business/auth';
@@ -15,6 +15,7 @@ import {
 } from '@/service/api/health/alert-config-wechat';
 import AlertConfigWechatSearch from './modules/alertconfigwechat-search.vue';
 import AlertConfigWechatOperateDrawer from './modules/alert-config-wechat-operate-drawer.vue';
+import TableHeaderOperation from '@/components/advanced/table-header-operation.vue';
 
 defineOptions({
   name: 'AlertConfigPage'
@@ -23,275 +24,218 @@ defineOptions({
 // 当前激活的tab
 const activeTab = ref('enterprise');
 
-// 企业微信配置
-const enterpriseOperateType = ref<NaiveUI.TableOperateType>('add');
-const enterpriseEditingData: Ref<Api.Health.AlertConfigWechat | null> = ref(null);
-
-// 微信公众号配置
-const officialOperateType = ref<NaiveUI.TableOperateType>('add');
-const officialEditingData: Ref<Api.Health.AlertConfigWechat | null> = ref(null);
+const operateType = ref<NaiveUI.TableOperateType>('add');
+const editingData: Ref<Api.Health.AlertConfigWechat | null> = ref(null);
 
 const appStore = useAppStore();
 const { hasAuth } = useAuth();
 const authStore = useAuthStore();
 const customerId = authStore.userInfo?.customerId;
 
-// 企业微信表格配置
-const {
-  columns: enterpriseColumns,
-  columnChecks: enterpriseColumnChecks,
-  data: enterpriseData,
-  loading: enterpriseLoading,
-  getData: getEnterpriseData,
-  getDataByPage: getEnterpriseDataByPage,
-  mobilePagination: enterpriseMobilePagination,
-  searchParams: enterpriseSearchParams,
-  resetSearchParams: resetEnterpriseSearchParams
+// 使用单个useTable
+const { 
+  columns, 
+  columnChecks, 
+  data, 
+  loading, 
+  getData, 
+  getDataByPage, 
+  mobilePagination, 
+  searchParams, 
+  updateSearchParams,
+  resetSearchParams,
+  reloadColumns
 } = useTable({
   apiFn: fetchGetAlertConfigWechatList,
   apiParams: {
     page: 1,
     pageSize: 20,
     customerId,
-    type: 'enterprise',
+    type: activeTab.value,
     enabled: null
   },
-  columns: () => [
-    {
-      key: 'index',
-      title: $t('common.index'),
-      width: 64,
-      align: 'center'
-    },
-    {
-      key: 'corpId',
-      title: '企业ID',
-      align: 'center',
-      width: 150,
-      render: row => row.corpId || '-'
-    },
-    {
-      key: 'agentId',
-      title: '应用ID',
-      align: 'center',
-      width: 100,
-      render: row => row.agentId || '-'
-    },
-    {
-      key: 'templateId',
-      title: '模板ID',
-      align: 'center',
-      width: 200,
-      render: row => row.templateId || '-'
-    },
-    {
-      key: 'enabled',
-      title: '启用状态',
-      align: 'center',
-      width: 100,
-      render: row => row.enabled ? '启用' : '禁用'
-    },
-    {
-      key: 'createTime',
-      title: $t('page.health.alert.config.wechat.createTime'),
-      align: 'center',
-      width: 150,
-      render: row => convertToBeijingTime(row.createTime)
-    },
-    {
-      key: 'operate',
-      title: $t('common.operate'),
-      align: 'center',
-      width: 120,
-      minWidth: 120,
-      render: row => (
-        <div class="flex-center gap-8px">
-          {hasAuth('t:wechat:alarm:config:update') && (
-            <NButton type="primary" quaternary size="small" onClick={() => editEnterprise(row)}>
-              {$t('common.edit')}
-            </NButton>
-          )}
-          {hasAuth('t:wechat:alarm:config:delete') && (
-            <NPopconfirm onPositiveClick={() => handleDeleteEnterprise(row.id)}>
-              {{
-                default: () => $t('common.confirmDelete'),
-                trigger: () => (
-                  <NButton type="error" quaternary size="small">
-                    {$t('common.delete')}
-                  </NButton>
-                )
-              }}
-            </NPopconfirm>
-          )}
-        </div>
-      )
-    }
-  ]
-});
+  columns: () => {
+    // 基础列
+    const baseColumns = [
+      {
+        key: 'index',
+        title: $t('common.index'),
+        width: 64,
+        align: 'center'
+      }
+    ];
 
-// 微信公众号表格配置
-const {
-  columns: officialColumns,
-  columnChecks: officialColumnChecks,
-  data: officialData,
-  loading: officialLoading,
-  getData: getOfficialData,
-  getDataByPage: getOfficialDataByPage,
-  mobilePagination: officialMobilePagination,
-  searchParams: officialSearchParams,
-  resetSearchParams: resetOfficialSearchParams
-} = useTable({
-  apiFn: fetchGetAlertConfigWechatList,
-  apiParams: {
-    page: 1,
-    pageSize: 20,
-    customerId,
-    type: 'official',
-    enabled: null
-  },
-  columns: () => [
-    {
-      key: 'index',
-      title: $t('common.index'),
-      width: 64,
-      align: 'center'
-    },
-    {
-      key: 'appid',
-      title: 'AppID',
-      align: 'center',
-      width: 150,
-      render: row => row.appid || '-'
-    },
-    {
-      key: 'templateId',
-      title: '模板ID',
-      align: 'center',
-      width: 200,
-      render: row => row.templateId || '-'
-    },
-    {
-      key: 'enabled',
-      title: '启用状态',
-      align: 'center',
-      width: 100,
-      render: row => row.enabled ? '启用' : '禁用'
-    },
-    {
-      key: 'createTime',
-      title: $t('page.health.alert.config.wechat.createTime'),
-      align: 'center',
-      width: 150,
-      render: row => convertToBeijingTime(row.createTime)
-    },
-    {
-      key: 'operate',
-      title: $t('common.operate'),
-      align: 'center',
-      width: 120,
-      minWidth: 120,
-      render: row => (
-        <div class="flex-center gap-8px">
-          {hasAuth('t:wechat:alarm:config:update') && (
-            <NButton type="primary" quaternary size="small" onClick={() => editOfficial(row)}>
-              {$t('common.edit')}
-            </NButton>
-          )}
-          {hasAuth('t:wechat:alarm:config:delete') && (
-            <NPopconfirm onPositiveClick={() => handleDeleteOfficial(row.id)}>
-              {{
-                default: () => $t('common.confirmDelete'),
-                trigger: () => (
-                  <NButton type="error" quaternary size="small">
-                    {$t('common.delete')}
-                  </NButton>
-                )
-              }}
-            </NPopconfirm>
-          )}
-        </div>
-      )
-    }
-  ]
+    // 根据当前选中的类型显示不同的列
+    const typeSpecificColumns = activeTab.value === 'enterprise' 
+      ? [
+          // 企业微信专属字段
+          {
+            key: 'corpId',
+            title: '企业ID',
+            align: 'center',
+            width: 150,
+            render: (row: any) => row.corpId || '-'
+          },
+          {
+            key: 'agentId',
+            title: '应用ID',
+            align: 'center',
+            width: 100,
+            render: (row: any) => row.agentId || '-'
+          },
+          {
+            key: 'secret',
+            title: '应用Secret',
+            align: 'center',
+            width: 120,
+            render: (row: any) => row.secret ? '***' + row.secret.slice(-4) : '-'
+          }
+        ]
+      : [
+          // 微信公众号专属字段
+          {
+            key: 'appid',
+            title: 'AppID',
+            align: 'center',
+            width: 150,
+            render: (row: any) => row.appid || '-'
+          },
+          {
+            key: 'appsecret',
+            title: 'AppSecret',
+            align: 'center',
+            width: 120,
+            render: (row: any) => row.appsecret ? '***' + row.appsecret.slice(-4) : '-'
+          },
+          {
+            key: 'wechatId',
+            title: '微信ID',
+            align: 'center',
+            width: 120,
+            render: (row: any) => row.appid || '-'  // 临时使用appid作为微信ID
+          }
+        ];
+
+    // 通用列
+    const commonColumns = [
+      {
+        key: 'templateId',
+        title: '模板ID',
+        align: 'center',
+        width: 200,
+        render: (row: any) => row.templateId || '-'
+      },
+      {
+        key: 'enabled',
+        title: '启用状态',
+        align: 'center',
+        width: 100,
+        render: (row: any) => row.enabled ? '启用' : '禁用'
+      },
+      {
+        key: 'createTime',
+        title: $t('page.health.alert.config.wechat.createTime'),
+        align: 'center',
+        width: 150,
+        render: (row: any) => convertToBeijingTime(row.createTime)
+      },
+      {
+        key: 'operate',
+        title: $t('common.operate'),
+        align: 'center',
+        width: 120,
+        minWidth: 120,
+        render: (row: any) => (
+          <div class="flex-center gap-8px">
+            {hasAuth('t:wechat:alarm:config:update') && (
+              <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
+                {$t('common.edit')}
+              </NButton>
+            )}
+            {hasAuth('t:wechat:alarm:config:delete') && (
+              <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
+                {{
+                  default: () => $t('common.confirmDelete'),
+                  trigger: () => (
+                    <NButton type="error" quaternary size="small">
+                      {$t('common.delete')}
+                    </NButton>
+                  )
+                }}
+              </NPopconfirm>
+            )}
+          </div>
+        )
+      }
+    ];
+
+    return [...baseColumns, ...typeSpecificColumns, ...commonColumns];
+  }
 });
 
 const { 
-  drawerVisible: enterpriseDrawerVisible, 
-  openDrawer: openEnterpriseDrawer, 
-  checkedRowKeys: enterpriseCheckedRowKeys, 
-  onDeleted: onEnterpriseDeleted, 
-  onBatchDeleted: onEnterpriseBatchDeleted 
-} = useTableOperate(enterpriseData, getEnterpriseData);
+  drawerVisible, 
+  openDrawer, 
+  checkedRowKeys, 
+  onDeleted, 
+  onBatchDeleted 
+} = useTableOperate(data, getData);
 
-const { 
-  drawerVisible: officialDrawerVisible, 
-  openDrawer: openOfficialDrawer, 
-  checkedRowKeys: officialCheckedRowKeys, 
-  onDeleted: onOfficialDeleted, 
-  onBatchDeleted: onOfficialBatchDeleted 
-} = useTableOperate(officialData, getOfficialData);
-
-// 企业微信操作
-function handleAddEnterprise() {
-  enterpriseOperateType.value = 'add';
-  openEnterpriseDrawer();
+// 操作函数
+function handleAdd() {
+  operateType.value = 'add';
+  openDrawer();
 }
 
-function editEnterprise(item: Api.Health.AlertConfigWechat) {
-  enterpriseOperateType.value = 'edit';
-  enterpriseEditingData.value = { ...item };
-  openEnterpriseDrawer();
+function edit(item: Api.Health.AlertConfigWechat) {
+  operateType.value = 'edit';
+  editingData.value = { ...item };
+  openDrawer();
 }
 
-async function handleDeleteEnterprise(id: string) {
+async function handleDelete(id: string) {
   const { error, data: result } = await fetchDeleteAlertConfigWechat(transDeleteParams([id]));
   if (!error && result) {
-    await onEnterpriseDeleted();
+    await onDeleted();
   }
 }
 
-async function handleEnterpriseBatchDelete() {
-  const { error, data: result } = await fetchDeleteAlertConfigWechat(transDeleteParams(enterpriseCheckedRowKeys.value));
+async function handleBatchDelete() {
+  const { error, data: result } = await fetchDeleteAlertConfigWechat(transDeleteParams(checkedRowKeys.value));
   if (!error && result) {
-    await onEnterpriseBatchDeleted();
+    await onBatchDeleted();
   }
 }
 
-// 微信公众号操作
-function handleAddOfficial() {
-  officialOperateType.value = 'add';
-  openOfficialDrawer();
-}
-
-function editOfficial(item: Api.Health.AlertConfigWechat) {
-  officialOperateType.value = 'edit';
-  officialEditingData.value = { ...item };
-  openOfficialDrawer();
-}
-
-async function handleDeleteOfficial(id: string) {
-  const { error, data: result } = await fetchDeleteAlertConfigWechat(transDeleteParams([id]));
-  if (!error && result) {
-    await onOfficialDeleted();
-  }
-}
-
-async function handleOfficialBatchDelete() {
-  const { error, data: result } = await fetchDeleteAlertConfigWechat(transDeleteParams(officialCheckedRowKeys.value));
-  if (!error && result) {
-    await onOfficialBatchDeleted();
-  }
-}
 
 // Tab切换时重新加载数据
 function handleTabChange(value: string) {
   activeTab.value = value;
-  if (value === 'enterprise') {
-    getEnterpriseData();
-  } else if (value === 'official') {
-    getOfficialData();
-  }
+  
+  // 使用updateSearchParams方法来确保参数正确更新
+  updateSearchParams({
+    type: value,
+    page: 1,
+    pageSize: searchParams.pageSize || 20,
+    customerId
+  });
+  
+  // 强制重新计算列定义
+  reloadColumns();
+  
+  // 重新加载数据
+  getData();
 }
+
+// 确保初始数据加载时使用正确的type
+onMounted(() => {
+  // 如果当前searchParams.type与activeTab.value不一致，更新searchParams
+  if (searchParams.type !== activeTab.value) {
+    searchParams.type = activeTab.value;
+    getData();
+  }
+});
+
 </script>
 
 <template>
@@ -302,36 +246,37 @@ function handleTabChange(value: string) {
         <NTabPane name="enterprise" tab="企业微信配置">
           <div class="flex-col-stretch gap-8px">
             <AlertConfigWechatSearch 
-              v-model:model="enterpriseSearchParams" 
+              v-model:model="searchParams" 
               type="enterprise"
-              @reset="resetEnterpriseSearchParams" 
-              @search="getEnterpriseDataByPage" 
+              @reset="resetSearchParams" 
+              @search="getDataByPage" 
             />
             <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
               <TableHeaderOperation
-                v-model:columns="enterpriseColumnChecks"
-                :checked-row-keys="enterpriseCheckedRowKeys"
-                :loading="enterpriseLoading"
+                v-model:columns="columnChecks"
+                :checked-row-keys="checkedRowKeys"
+                :loading="loading"
                 add-auth="t:wechat:alarm:config:add"
                 delete-auth="t:wechat:alarm:config:delete"
-                @add="handleAddEnterprise"
-                @delete="handleEnterpriseBatchDelete"
-                @refresh="getEnterpriseData"
+                @add="handleAdd"
+                @delete="handleBatchDelete"
+                @refresh="getData"
               />
+              
               <NDataTable
-                v-model:checked-row-keys="enterpriseCheckedRowKeys"
+                v-model:checked-row-keys="checkedRowKeys"
                 remote
                 striped
                 size="small"
                 class="sm:h-full"
-                :data="enterpriseData"
+                :data="data"
                 :scroll-x="962"
-                :columns="enterpriseColumns"
+                :columns="columns"
                 :flex-height="!appStore.isMobile"
-                :loading="enterpriseLoading"
+                :loading="loading"
                 :single-line="false"
-                :row-key="row => row.id"
-                :pagination="enterpriseMobilePagination"
+                :row-key="(row: any) => row.id"
+                :pagination="mobilePagination"
               />
             </NCard>
           </div>
@@ -341,36 +286,37 @@ function handleTabChange(value: string) {
         <NTabPane name="official" tab="微信公众号配置">
           <div class="flex-col-stretch gap-8px">
             <AlertConfigWechatSearch 
-              v-model:model="officialSearchParams" 
+              v-model:model="searchParams" 
               type="official"
-              @reset="resetOfficialSearchParams" 
-              @search="getOfficialDataByPage" 
+              @reset="resetSearchParams" 
+              @search="getDataByPage" 
             />
             <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
               <TableHeaderOperation
-                v-model:columns="officialColumnChecks"
-                :checked-row-keys="officialCheckedRowKeys"
-                :loading="officialLoading"
+                v-model:columns="columnChecks"
+                :checked-row-keys="checkedRowKeys"
+                :loading="loading"
                 add-auth="t:wechat:alarm:config:add"
                 delete-auth="t:wechat:alarm:config:delete"
-                @add="handleAddOfficial"
-                @delete="handleOfficialBatchDelete"
-                @refresh="getOfficialData"
+                @add="handleAdd"
+                @delete="handleBatchDelete"
+                @refresh="getData"
               />
+              
               <NDataTable
-                v-model:checked-row-keys="officialCheckedRowKeys"
+                v-model:checked-row-keys="checkedRowKeys"
                 remote
                 striped
                 size="small"
                 class="sm:h-full"
-                :data="officialData"
+                :data="data"
                 :scroll-x="962"
-                :columns="officialColumns"
+                :columns="columns"
                 :flex-height="!appStore.isMobile"
-                :loading="officialLoading"
+                :loading="loading"
                 :single-line="false"
-                :row-key="row => row.id"
-                :pagination="officialMobilePagination"
+                :row-key="(row: any) => row.id"
+                :pagination="mobilePagination"
               />
             </NCard>
           </div>
@@ -380,19 +326,11 @@ function handleTabChange(value: string) {
 
     <!-- 弹窗 -->
     <AlertConfigWechatOperateDrawer
-      v-model:visible="enterpriseDrawerVisible"
-      :operate-type="enterpriseOperateType"
-      :row-data="enterpriseEditingData"
-      type="enterprise"
-      @submitted="getEnterpriseDataByPage"
-    />
-    
-    <AlertConfigWechatOperateDrawer
-      v-model:visible="officialDrawerVisible"
-      :operate-type="officialOperateType"
-      :row-data="officialEditingData"
-      type="official"
-      @submitted="getOfficialDataByPage"
+      v-model:visible="drawerVisible"
+      :operate-type="operateType"
+      :row-data="editingData"
+      :type="activeTab"
+      @submitted="getDataByPage"
     />
   </div>
 </template>
