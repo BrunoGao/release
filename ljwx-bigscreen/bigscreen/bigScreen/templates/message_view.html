@@ -92,7 +92,7 @@
         }
 
         /* 消息内容单元格特殊处理 */
-        td:nth-child(4) {
+        td:nth-child(5) {
             max-width: 400px;
             white-space: normal;
             line-height: 1.4;
@@ -100,6 +100,12 @@
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
+        }
+        
+        /* 员工姓名列宽度设置 */
+        td:nth-child(4) {
+            max-width: 120px;
+            text-align: center;
         }
 
         /* 条带效果 */
@@ -1038,6 +1044,7 @@
                             <th>消息ID</th>
                             <th>消息类型</th>
                             <th>部门</th>
+                            <th>员工姓名</th>
                             <th>内容</th>
                             <th>发送时间</th>
                             <th>接收时间</th>
@@ -1054,6 +1061,7 @@
                                     </span>
                                 </td>
                                 <td>${msg.department_name}</td>
+                                <td>${msg.user_name || '-'}</td>
                                 <td>${msg.message}</td>
                                 <td>${msg.sent_time}</td>
                                 <td>${msg.received_time || '-'}</td>

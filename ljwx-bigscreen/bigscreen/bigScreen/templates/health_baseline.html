@@ -94,16 +94,22 @@
       grid-template-rows: auto;
     }
     
-    /* 单指标模式 - 传统布局 */
+    /* 单指标模式 - 优化布局 */
     .charts-grid.single-metric { 
       grid-template-columns: 1fr 1fr; 
-      grid-template-rows: 400px 350px 300px;
+      grid-template-rows: 400px 400px 400px;
+      gap: 20px;
+      max-width: 100%;
+      width: 100%;
     }
     
     /* 多指标模式 - 九宫格 */
     .charts-grid.multi-metric {
+      display: grid;
       grid-template-columns: repeat(3, 1fr);
-      grid-auto-rows: 300px;
+      gap: 20px;
+      padding: 20px;
+      grid-auto-rows: 350px;
     }
     
     .chart-panel {
@@ -126,7 +132,7 @@
       border:1px solid rgba(0,234,255,0.3);
     }
     
-    .chart-container { width:100%; height:100%; }
+    .chart-container { width:100%; height:100%; min-height:280px; }
     
     /* 体征标题样式 */
     .metric-title {
@@ -238,40 +244,40 @@
   <!-- 图表网格 -->
   <div class="charts-grid single-metric" id="chartsGrid" style="display: grid;">
     <!-- 单指标模式布局 -->
-    <div id="singleMetricLayout" style="display: block;">
+    <div id="singleMetricLayout" style="display: contents;">
       <!-- 基线趋势对比 -->
-      <div class="chart-panel full-width" style="min-height: 400px;">
+      <div class="chart-panel" style="min-height: 400px;">
         <div class="chart-header">📈 健康基线趋势演进 - 部门 vs 个人</div>
         <div class="stats-panel">
           <div class="stats-item">数据点: <span class="stats-value" id="dataPoints">-</span></div>
           <div class="stats-item">用户数: <span class="stats-value" id="userCount">-</span></div>
           <div class="stats-item">异常率: <span class="stats-value" id="anomalyRate">-</span></div>
         </div>
-        <div class="chart-container" id="trendChart" style="width:100%; height:100%; min-height:350px;"></div>
+        <div class="chart-container" id="trendChart" style="width:100%; height:100%; min-height:320px;"></div>
       </div>
       
       <!-- 部门内员工基线对比 -->
-      <div class="chart-panel" style="min-height: 350px;">
+      <div class="chart-panel" style="min-height: 400px;">
         <div class="chart-header">👥 部门内员工基线对比</div>
-        <div class="chart-container" id="comparisonChart" style="width:100%; height:100%; min-height:300px;"></div>
-      </div>
-      
-      <!-- 异常数据分布 -->
-      <div class="chart-panel" style="min-height: 350px;">
-        <div class="chart-header">⚠️ 异常数据分布热力图</div>
-        <div class="chart-container" id="heatmapChart" style="width:100%; height:100%; min-height:300px;"></div>
+        <div class="chart-container" id="comparisonChart" style="width:100%; height:100%; min-height:320px;"></div>
       </div>
       
       <!-- 基线统计雷达图 -->
-      <div class="chart-panel" style="min-height: 300px;">
+      <div class="chart-panel" style="min-height: 400px;">
         <div class="chart-header">🎯 多维基线统计雷达</div>
-        <div class="chart-container" id="radarChart" style="width:100%; height:100%; min-height:250px;"></div>
+        <div class="chart-container" id="radarChart" style="width:100%; height:100%; min-height:320px;"></div>
+      </div>
+      
+      <!-- 异常数据分布 -->
+      <div class="chart-panel" style="min-height: 400px;">
+        <div class="chart-header">⚠️ 异常数据分布热力图</div>
+        <div class="chart-container" id="heatmapChart" style="width:100%; height:100%; min-height:320px;"></div>
       </div>
       
       <!-- 时间分布分析 -->
-      <div class="chart-panel" style="min-height: 300px;">
+      <div class="chart-panel full-width" style="min-height: 400px;">
         <div class="chart-header">⏰ 基线时间分布分析</div>
-        <div class="chart-container" id="timeDistChart" style="width:100%; height:100%; min-height:250px;"></div>
+        <div class="chart-container" id="timeDistChart" style="width:100%; height:100%; min-height:320px;"></div>
       </div>
     </div>
     
@@ -339,7 +345,7 @@
       const chartsGrid = document.getElementById('chartsGrid');
       const singleLayout = document.getElementById('singleMetricLayout');
       chartsGrid.style.display = 'grid';
-      singleLayout.style.display = 'block';
+      singleLayout.style.display = 'contents';
       
       // 立即加载默认基线数据（部门数据）
       console.log('🔄 开始加载默认基线数据...');
@@ -798,9 +804,9 @@
       }
       
       if (selectedMetrics.length === 1) {
-        // 单指标模式 - 传统布局
+        // 单指标模式 - 网格布局
         chartsGrid.className = 'charts-grid single-metric';
-        singleLayout.style.display = 'block';
+        singleLayout.style.display = 'contents';
         multiLayout.style.display = 'none';
         deptPanel.style.display = 'none';
         
@@ -810,14 +816,13 @@
         renderRadarChart(data);        // 雷达统计图
         renderTimeDistChart(data);     // 时间分布分析
       } else {
-        // 多指标模式 - 九宫格布局
+        // 多指标模式 - 九宫格布局  
         chartsGrid.className = 'charts-grid multi-metric';
         singleLayout.style.display = 'none';
         multiLayout.style.display = 'block';
-        deptPanel.style.display = 'block';
+        deptPanel.style.display = 'none';
         
         renderMultiMetricGridCharts(data);  // 九宫格体征图表
-        renderDeptComparisonTrendChart(data); // 部门对比曲线图
       }
     }
     
@@ -831,7 +836,7 @@
       if (selectedMetrics.length === 1) {
         // 单指标模式 - 显示详细统计
         chartsGrid.className = 'charts-grid single-metric';
-        singleLayout.style.display = 'block';
+        singleLayout.style.display = 'contents';
         multiLayout.style.display = 'none';
         deptPanel.style.display = 'none';
         
@@ -1112,19 +1117,21 @@
       selectedMetrics.forEach((metricCode, index) => {
         const metric = metrics.find(m => m.code === metricCode);
         html += `
-          <div class="chart-panel">
+          <div class="chart-panel" style="height: 350px;">
             <div class="chart-header">${metric.name}</div>
-            <div class="chart-container" id="metricChart_${metricCode}"></div>
+            <div class="chart-container" id="metricChart_${metricCode}" style="width:100%; height:100%; padding-top:30px;"></div>
           </div>
         `;
       });
       
       multiLayout.innerHTML = html;
       
-      // 为每个体征渲染基线统计图表
-      selectedMetrics.forEach(metricCode => {
-        renderBaselineStatsSimpleChart(metricCode, data);
-      });
+      // 延迟渲染确保DOM元素完全创建
+      setTimeout(() => {
+        selectedMetrics.forEach(metricCode => {
+          renderBaselineStatsSimpleChart(metricCode, data);
+        });
+      }, 50);
     }
     
     // 简化的基线统计图表（用于九宫格）
@@ -1136,7 +1143,13 @@
         return;
       }
       
-      const chart = echarts.init(document.getElementById(`metricChart_${metricCode}`));
+      const chartElement = document.getElementById(`metricChart_${metricCode}`);
+      if (!chartElement) {
+        console.error(`❌ Chart element not found: metricChart_${metricCode}`);
+        return;
+      }
+      
+      const chart = echarts.init(chartElement);
       const metric = metrics.find(m => m.code === metricCode);
       const userName = data.user_map[selectedUserId || 'dept']?.user_name || '数据源';
       
@@ -1210,24 +1223,32 @@
       selectedMetrics.forEach((metricCode, index) => {
         const metric = metrics.find(m => m.code === metricCode);
         html += `
-          <div class="chart-panel">
+          <div class="chart-panel" style="height: 350px;">
             <div class="chart-header">${metric.name}</div>
-            <div class="chart-container" id="metricChart_${metricCode}"></div>
+            <div class="chart-container" id="metricChart_${metricCode}" style="width:100%; height:100%; padding-top:30px;"></div>
           </div>
         `;
       });
       
       multiLayout.innerHTML = html;
       
-      // 为每个体征渲染独立图表
-      selectedMetrics.forEach(metricCode => {
-        renderSingleMetricChart(metricCode, data);
-      });
+      // 延迟渲染确保DOM元素完全创建
+      setTimeout(() => {
+        selectedMetrics.forEach(metricCode => {
+          renderSingleMetricChart(metricCode, data);
+        });
+      }, 50);
     }
     
     // 单个体征基线图表
     function renderSingleMetricChart(metricCode, data) {
-      const chart = echarts.init(document.getElementById(`metricChart_${metricCode}`));
+      const chartElement = document.getElementById(`metricChart_${metricCode}`);
+      if (!chartElement) {
+        console.error(`❌ Chart element not found: metricChart_${metricCode}`);
+        return;
+      }
+      
+      const chart = echarts.init(chartElement);
       const metric = metrics.find(m => m.code === metricCode);
       const series = [];
       
@@ -1977,7 +1998,13 @@
         return;
       }
       
-      const chart = echarts.init(document.getElementById(`metricChart_${metricCode}`));
+      const chartElement = document.getElementById(`metricChart_${metricCode}`);
+      if (!chartElement) {
+        console.error(`❌ Chart element not found: metricChart_${metricCode}`);
+        return;
+      }
+      
+      const chart = echarts.init(chartElement);
       const metric = metrics.find(m => m.code === metricCode);
       const userName = data.user_map[selectedUserId || 'dept']?.user_name || '数据源';
       

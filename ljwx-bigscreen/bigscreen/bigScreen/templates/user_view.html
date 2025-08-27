@@ -211,11 +211,45 @@
             gap: 15px;
             transition: transform 0.2s;
             border: 1px solid rgba(0, 228, 255, 0.2);
+            position: relative;
         }
 
         .user-card:hover {
             transform: translateY(-5px);
             border-color: rgba(0, 228, 255, 0.5);
+        }
+        
+        /* 可点击的用户卡片样式 */
+        .user-card[onclick] {
+            background: rgba(37, 39, 41, 0.95);
+            transition: all 0.3s ease;
+        }
+        
+        .user-card[onclick]:hover {
+            background: rgba(0, 228, 255, 0.08);
+            border-color: rgba(0, 228, 255, 0.6);
+            box-shadow: 0 8px 25px rgba(0, 228, 255, 0.15);
+            transform: translateY(-8px);
+        }
+        
+        /* 点击提示图标 */
+        .click-hint {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: rgba(0, 228, 255, 0.6);
+            font-size: 12px;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+        
+        .user-card[onclick] .click-hint {
+            opacity: 1;
+        }
+        
+        .user-card[onclick]:hover .click-hint {
+            color: #00e4ff;
+            transform: scale(1.1);
         }
 
         .card-header {
@@ -290,6 +324,13 @@
         .device-link:hover {
             color: #fff;
             text-shadow: 0 0 10px rgba(0, 228, 255, 0.5);
+        }
+        
+        /* 设备信息样式 */
+        .device-info {
+            color: #00e4ff;
+            font-family: monospace;
+            font-weight: 500;
         }
 
         /* 弹出层样式 */
@@ -926,7 +967,11 @@
         function displayUsers(users) {
             const container = document.getElementById('userCards');
             container.innerHTML = users.map(user => `
-                <div class="user-card">
+                <div class="user-card" ${user.device_sn && user.device_sn !== '-' && user.device_sn !== '' ? 
+                    `onclick="showUserProfile('${user.device_sn}')" style="cursor: pointer;"` : 
+                    'style="cursor: default;"'}>
+                    ${user.device_sn && user.device_sn !== '-' && user.device_sn !== '' ? 
+                        '<div class="click-hint">👆 点击查看</div>' : ''}
                     <div class="card-header">
                         <img class="avatar" src="${user.avatar || 'https://i.pravatar.cc/100'}" alt="${user.user_name}" onerror="this.src='https://i.pravatar.cc/100'">
                         <div class="user-info">
@@ -956,7 +1001,7 @@
                             <span class="info-label">设备号：</span>
                             <span class="info-value">
                                 ${user.device_sn && user.device_sn !== '-' && user.device_sn !== '' ? 
-                                    `<a class="device-link" onclick="showUserProfile('${user.device_sn}')">${user.device_sn}</a>` : 
+                                    `<span class="device-info">${user.device_sn}</span>` : 
                                     '<span style="color: #ff6b6b;">未配备</span>'
                                 }
                             </span>
