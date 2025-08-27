@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { $t } from '@/locales';
 import { useDict } from '@/hooks/business/dict';
 
@@ -21,6 +21,13 @@ interface Emits {
 const emit = defineEmits<Emits>();
 
 const model = defineModel<Api.Health.AlertConfigWechatSearchParams>('model', { required: true });
+
+// 监听props.type变化，自动设置model中的type字段
+watch(() => props.type, (newType) => {
+  if (newType) {
+    model.value.type = newType;
+  }
+}, { immediate: true });
 
 const { dictOptions } = useDict();
 

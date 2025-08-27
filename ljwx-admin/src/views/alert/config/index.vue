@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { NButton, NTabs, NTabPane, NCard, NPopconfirm, NDataTable } from 'naive-ui';
 import type { Ref } from 'vue';
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, h } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { convertToBeijingTime } from '@/utils/date';
 import { useAuth } from '@/hooks/business/auth';
@@ -32,6 +32,80 @@ const { hasAuth } = useAuth();
 const authStore = useAuthStore();
 const customerId = authStore.userInfo?.customerId;
 
+// 企业微信列定义
+const enterpriseColumns = computed(() => [
+  { key: 'index', title: '序号', width: 64, align: 'center' },
+  { key: 'corpId', title: '企业ID', align: 'center', width: 150, render: (row: any) => row.corpId || '-' },
+  { key: 'agentId', title: '应用ID', align: 'center', width: 100, render: (row: any) => row.agentId || '-' },
+  { key: 'secret', title: '应用Secret', align: 'center', width: 120, render: (row: any) => row.secret ? '***' + row.secret.slice(-4) : '-' },
+  { key: 'templateId', title: '模板ID', align: 'center', width: 200, render: (row: any) => row.templateId || '-' },
+  { key: 'enabled', title: '启用状态', align: 'center', width: 100, render: (row: any) => row.enabled ? '启用' : '禁用' },
+  { key: 'createTime', title: '创建时间', align: 'center', width: 150, render: (row: any) => convertToBeijingTime(row.createTime) },
+  { 
+    key: 'operate', 
+    title: '操作', 
+    align: 'center', 
+    width: 120, 
+    render: (row: any) => {
+      return h('div', { class: 'flex-center gap-8px' }, [
+        hasAuth('t:wechat:alarm:config:update') && h(NButton, {
+          type: 'primary',
+          quaternary: true,
+          size: 'small',
+          onClick: () => edit(row)
+        }, () => '编辑'),
+        hasAuth('t:wechat:alarm:config:delete') && h(NPopconfirm, {
+          onPositiveClick: () => handleDelete(row.id)
+        }, {
+          default: () => '确认删除？',
+          trigger: () => h(NButton, {
+            type: 'error',
+            quaternary: true,
+            size: 'small'
+          }, () => '删除')
+        })
+      ].filter(Boolean));
+    }
+  }
+]);
+
+// 微信公众号列定义
+const officialColumns = computed(() => [
+  { key: 'index', title: '序号', width: 64, align: 'center' },
+  { key: 'appid', title: 'AppID', align: 'center', width: 150, render: (row: any) => row.appid || '-' },
+  { key: 'appsecret', title: 'AppSecret', align: 'center', width: 120, render: (row: any) => row.appsecret ? '***' + row.appsecret.slice(-4) : '-' },
+  { key: 'wechatId', title: '微信ID', align: 'center', width: 120, render: (row: any) => row.appid || '-' },
+  { key: 'templateId', title: '模板ID', align: 'center', width: 200, render: (row: any) => row.templateId || '-' },
+  { key: 'enabled', title: '启用状态', align: 'center', width: 100, render: (row: any) => row.enabled ? '启用' : '禁用' },
+  { key: 'createTime', title: '创建时间', align: 'center', width: 150, render: (row: any) => convertToBeijingTime(row.createTime) },
+  { 
+    key: 'operate', 
+    title: '操作', 
+    align: 'center', 
+    width: 120, 
+    render: (row: any) => {
+      return h('div', { class: 'flex-center gap-8px' }, [
+        hasAuth('t:wechat:alarm:config:update') && h(NButton, {
+          type: 'primary',
+          quaternary: true,
+          size: 'small',
+          onClick: () => edit(row)
+        }, () => '编辑'),
+        hasAuth('t:wechat:alarm:config:delete') && h(NPopconfirm, {
+          onPositiveClick: () => handleDelete(row.id)
+        }, {
+          default: () => '确认删除？',
+          trigger: () => h(NButton, {
+            type: 'error',
+            quaternary: true,
+            size: 'small'
+          }, () => '删除')
+        })
+      ].filter(Boolean));
+    }
+  }
+]);
+
 // 使用单个useTable
 const { 
   columns, 
@@ -51,7 +125,7 @@ const {
     page: 1,
     pageSize: 20,
     customerId,
-    type: activeTab.value,
+    type: 'enterprise', // 明确设置初始type
     enabled: null
   },
   columns: () => {
@@ -208,6 +282,7 @@ async function handleBatchDelete() {
 }
 
 
+
 // Tab切换时重新加载数据
 function handleTabChange(value: string) {
   activeTab.value = value;
@@ -229,11 +304,15 @@ function handleTabChange(value: string) {
 
 // 确保初始数据加载时使用正确的type
 onMounted(() => {
-  // 如果当前searchParams.type与activeTab.value不一致，更新searchParams
-  if (searchParams.type !== activeTab.value) {
-    searchParams.type = activeTab.value;
-    getData();
-  }
+  // 强制设置searchParams的type字段
+  updateSearchParams({
+    ...searchParams,
+    type: activeTab.value,
+    customerId
+  });
+  
+  // 加载初始数据
+  getData();
 });
 
 </script>
@@ -252,31 +331,29 @@ onMounted(() => {
               @search="getDataByPage" 
             />
             <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
-              <TableHeaderOperation
-                v-model:columns="columnChecks"
-                :checked-row-keys="checkedRowKeys"
-                :loading="loading"
-                add-auth="t:wechat:alarm:config:add"
-                delete-auth="t:wechat:alarm:config:delete"
-                @add="handleAdd"
-                @delete="handleBatchDelete"
-                @refresh="getData"
-              />
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div>
+                  <NButton type="primary" @click="handleAdd" v-if="hasAuth('t:wechat:alarm:config:add')">
+                    新增
+                  </NButton>
+                  <NButton type="error" @click="handleBatchDelete" :disabled="checkedRowKeys.length === 0" v-if="hasAuth('t:wechat:alarm:config:delete')" style="margin-left: 8px;">
+                    批量删除
+                  </NButton>
+                </div>
+                <NButton @click="getData" :loading="loading">
+                  刷新
+                </NButton>
+              </div>
+              
               
               <NDataTable
                 v-model:checked-row-keys="checkedRowKeys"
-                remote
-                striped
-                size="small"
-                class="sm:h-full"
                 :data="data"
-                :scroll-x="962"
-                :columns="columns"
-                :flex-height="!appStore.isMobile"
-                :loading="loading"
-                :single-line="false"
+                :columns="enterpriseColumns"
                 :row-key="(row: any) => row.id"
-                :pagination="mobilePagination"
+                size="small"
+                striped
+                :loading="loading"
               />
             </NCard>
           </div>
@@ -292,37 +369,36 @@ onMounted(() => {
               @search="getDataByPage" 
             />
             <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
-              <TableHeaderOperation
-                v-model:columns="columnChecks"
-                :checked-row-keys="checkedRowKeys"
-                :loading="loading"
-                add-auth="t:wechat:alarm:config:add"
-                delete-auth="t:wechat:alarm:config:delete"
-                @add="handleAdd"
-                @delete="handleBatchDelete"
-                @refresh="getData"
-              />
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div>
+                  <NButton type="primary" @click="handleAdd" v-if="hasAuth('t:wechat:alarm:config:add')">
+                    新增
+                  </NButton>
+                  <NButton type="error" @click="handleBatchDelete" :disabled="checkedRowKeys.length === 0" v-if="hasAuth('t:wechat:alarm:config:delete')" style="margin-left: 8px;">
+                    批量删除
+                  </NButton>
+                </div>
+                <NButton @click="getData" :loading="loading">
+                  刷新
+                </NButton>
+              </div>
+              
               
               <NDataTable
                 v-model:checked-row-keys="checkedRowKeys"
-                remote
-                striped
-                size="small"
-                class="sm:h-full"
                 :data="data"
-                :scroll-x="962"
-                :columns="columns"
-                :flex-height="!appStore.isMobile"
-                :loading="loading"
-                :single-line="false"
+                :columns="officialColumns"
                 :row-key="(row: any) => row.id"
-                :pagination="mobilePagination"
+                size="small"
+                striped
+                :loading="loading"
               />
             </NCard>
           </div>
         </NTabPane>
       </NTabs>
     </NCard>
+
 
     <!-- 弹窗 -->
     <AlertConfigWechatOperateDrawer
