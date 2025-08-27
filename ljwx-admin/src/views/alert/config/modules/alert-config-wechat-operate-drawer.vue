@@ -4,9 +4,10 @@ import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 import { fetchAddAlertConfigWechat, fetchUpdateAlertConfigWechatInfo } from '@/service/api';
 import { useDict } from '@/hooks/business/dict';
+import { useAuthStore } from '@/store/modules/auth';
 
 defineOptions({
-  name: 'TWechatAlertConfigOperateDrawer'
+  name: 'AlertConfigWechatOperateDrawer'
 });
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
   operateType: NaiveUI.TableOperateType;
   /** the edit row data */
   rowData?: Api.Health.AlertConfigWechat | null;
+  /** wechat type: enterprise or official */
+  type?: string;
 }
 
 const props = defineProps<Props>();
@@ -30,13 +33,13 @@ const visible = defineModel<boolean>('visible', {
 
 const { dictOptions } = useDict();
 const { formRef, validate, restoreValidation } = useNaiveForm();
+const authStore = useAuthStore();
+const customerId = authStore.userInfo?.customerId;
 
 const title = computed(() => {
-  const titles: Record<NaiveUI.TableOperateType, string> = {
-    add: $t('common.add'),
-    edit: $t('common.edit')
-  };
-  return titles[props.operateType];
+  const typeText = props.type === 'enterprise' ? '企业微信' : '微信公众号';
+  const operationText = props.operateType === 'add' ? '新增' : '编辑';
+  return `${operationText}${typeText}配置`;
 });
 
 type Model = Api.Health.AlertConfigWechat;
@@ -45,10 +48,15 @@ const model: Model = reactive(createDefaultModel());
 
 function createDefaultModel(): Model {
   return {
-    appId: '',
-    appSecret: '',
+    type: props.type || 'enterprise',
+    customerId: customerId,
+    corpId: '',
+    agentId: '',
+    secret: '',
+    appid: '',
+    appsecret: '',
     templateId: '',
-    userOpenid: '',
+    enabled: true,
     createUser: '',
     createTime: '',
     id: '',
@@ -93,25 +101,44 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="360">
+  <NDrawer v-model:show="visible" display-directive="show" :width="480">
     <NDrawerContent :title="title" :native-scrollbar="false" closable>
-      <NForm ref="formRef" :model="model">
-        <NFormItem label="微信 App ID" path="appId">
-          <NInput v-model:value="model.appId" />
+      <NForm ref="formRef" :model="model" label-placement="left" :label-width="100">
+        <!-- 企业微信配置 -->
+        <template v-if="props.type === 'enterprise'">
+          <NFormItem label="企业ID" path="corpId" required>
+            <NInput v-model:value="model.corpId" placeholder="请输入企业微信企业ID" />
+          </NFormItem>
+          <NFormItem label="应用ID" path="agentId" required>
+            <NInput v-model:value="model.agentId" placeholder="请输入企业微信应用ID" />
+          </NFormItem>
+          <NFormItem label="应用Secret" path="secret" required>
+            <NInput v-model:value="model.secret" type="password" placeholder="请输入企业微信应用Secret" />
+          </NFormItem>
+        </template>
+        
+        <!-- 微信公众号配置 -->
+        <template v-else>
+          <NFormItem label="AppID" path="appid" required>
+            <NInput v-model:value="model.appid" placeholder="请输入微信公众号AppID" />
+          </NFormItem>
+          <NFormItem label="AppSecret" path="appsecret" required>
+            <NInput v-model:value="model.appsecret" type="password" placeholder="请输入微信公众号AppSecret" />
+          </NFormItem>
+        </template>
+        
+        <!-- 通用配置 -->
+        <NFormItem label="模板ID" path="templateId" required>
+          <NInput v-model:value="model.templateId" placeholder="请输入消息模板ID" />
         </NFormItem>
-        <NFormItem label="微信 App Secret" path="appSecret">
-          <NInput v-model:value="model.appSecret" />
-        </NFormItem>
-        <NFormItem label="微信 Template ID" path="templateId">
-          <NInput v-model:value="model.templateId" />
-        </NFormItem>
-        <NFormItem label="微信 User OpenID" path="userOpenid">
-          <NInput v-model:value="model.userOpenid" />
+        
+        <NFormItem label="启用状态" path="enabled">
+          <NSwitch v-model:value="model.enabled" />
         </NFormItem>
       </NForm>
       <template #footer>
-        <NSpace>
-          <NButton quaternary @click="closeDrawer">{{ $t('common.cancel') }}</NButton>
+        <NSpace :size="16">
+          <NButton @click="closeDrawer">{{ $t('common.cancel') }}</NButton>
           <NButton type="primary" @click="handleSubmit">{{ $t('common.confirm') }}</NButton>
         </NSpace>
       </template>

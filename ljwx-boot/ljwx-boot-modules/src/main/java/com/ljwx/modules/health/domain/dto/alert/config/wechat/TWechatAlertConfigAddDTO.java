@@ -1,5 +1,5 @@
 /*
-* All Rights Reserved: Copyright [2024] [Zhuang Pan (brunoGao@gmail.com)]
+* All Rights Reserved: Copyright [2024] [ljwx (brunoGao@gmail.com)]
 * Open Source Agreement: Apache License, Version 2.0
 * For educational purposes only, commercial use shall comply with the author's copyright information.
 * The author does not guarantee or assume any responsibility for the risks of using software.
@@ -38,8 +38,8 @@ import java.io.Serializable;
 @Schema(name = "TWechatAlertConfigAddDTO", description = "微信告警配置新增 DTO 对象")
 public class TWechatAlertConfigAddDTO implements Serializable {
 
-    @Schema(description = "租户ID", required = true)
-    private Long tenantId;
+    @Schema(description = "客户ID（租户标识）", required = true)
+    private Long customerId;
 
     @Schema(description = "微信类型: enterprise/official", required = true)
     private String type;

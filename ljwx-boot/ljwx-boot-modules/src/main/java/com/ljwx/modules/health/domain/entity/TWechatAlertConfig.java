@@ -1,5 +1,5 @@
 /*
-* All Rights Reserved: Copyright [2024] [Zhuang Pan (brunoGao@gmail.com)]
+* All Rights Reserved: Copyright [2024] [ljwx (brunoGao@gmail.com)]
 * Open Source Agreement: Apache License, Version 2.0
 * For educational purposes only, commercial use shall comply with the author's copyright information.
 * The author does not guarantee or assume any responsibility for the risks of using software.
@@ -19,12 +19,14 @@
 
 package com.ljwx.modules.health.domain.entity;
 
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.ljwx.infrastructure.domain.BaseEntity;
+import com.baomidou.mybatisplus.annotation.IdType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
+
+import java.time.LocalDateTime;
 
 /**
 * Table to store WeChat alert configuration Entity 实体类
@@ -36,16 +38,21 @@ import lombok.experimental.SuperBuilder;
 */
 
 @Data
-@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("t_wechat_alert_config")
-public class TWechatAlertConfig extends BaseEntity {
+@TableName("t_wechat_alarm_config")
+public class TWechatAlertConfig {
 
     /**
-     * 租户ID
+     * 主键ID
      */
-    private Long tenantId;
+    @TableId(value = "id", type = IdType.AUTO)
+    private Long id;
+
+    /**
+     * 客户ID（租户标识）
+     */
+    private Long customerId;
 
     /**
      * 微信类型: enterprise/official
@@ -86,5 +93,15 @@ public class TWechatAlertConfig extends BaseEntity {
      * 是否启用
      */
     private Boolean enabled;
+
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createTime;
+
+    /**
+     * 更新时间
+     */
+    private LocalDateTime updateTime;
 
 }

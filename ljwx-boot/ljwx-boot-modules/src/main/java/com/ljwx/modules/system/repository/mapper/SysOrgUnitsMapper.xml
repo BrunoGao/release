@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!--
- All Rights Reserved: Copyright [2024] [Zhuang Pan]
+ All Rights Reserved: Copyright [2024] [ljwx]
  Open Source Agreement: Apache License, Version 2.0
  For educational purposes only, commercial use shall comply with the author's copyright information.
  The author does not guarantee or assume any responsibility for the risks of using software.

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!--
- All Rights Reserved: Copyright [2024] [Zhuang Pan]
+ All Rights Reserved: Copyright [2024] [ljwx]
  Open Source Agreement: Apache License, Version 2.0
  For educational purposes only, commercial use shall comply with the author's copyright information.
  The author does not guarantee or assume any responsibility for the risks of using software.
@@ -23,31 +23,34 @@
 
     <!-- 通用查询映射结果 -->
     <resultMap id="TWechatAlertConfigResultMap" type="com.ljwx.modules.health.domain.entity.TWechatAlertConfig">
-        <result column="app_id" property="appId"/>
-        <result column="app_secret" property="appSecret"/>
-        <result column="template_id" property="templateId"/>
-        <result column="user_openid" property="userOpenid"/>
         <result column="id" property="id"/>
-        <result column="is_deleted" property="leted"/>
-        <result column="create_user" property="createUser"/>
-        <result column="create_user_id" property="createUserId"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="type" property="type"/>
+        <result column="corp_id" property="corpId"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="secret" property="secret"/>
+        <result column="appid" property="appid"/>
+        <result column="appsecret" property="appsecret"/>
+        <result column="template_id" property="templateId"/>
+        <result column="enabled" property="enabled"/>
         <result column="create_time" property="createTime"/>
-        <result column="update_user" property="updateUser"/>
-        <result column="update_user_id" property="updateUserId"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <!-- 通用查询结果列 -->
     <sql id="TWechatAlertConfigColumnList">
         id,
-        is_deleted,
-        create_user,
-        create_user_id,
+        customer_id,
+        type,
+        corp_id,
+        agent_id,
+        secret,
+        appid,
+        appsecret,
+        template_id,
+        enabled,
         create_time,
-        update_user,
-        update_user_id,
-        update_time,
-        app_id, app_secret, template_id, user_openid
+        update_time
     </sql>
 
 </mapper>

@@ -1,5 +1,5 @@
 /*
-* All Rights Reserved: Copyright [2024] [Zhuang Pan (paynezhuang@gmail.com)]
+* All Rights Reserved: Copyright [2024] [ljwx (paynezhuang@gmail.com)]
 * Open Source Agreement: Apache License, Version 2.0
 * For educational purposes only, commercial use shall comply with the author's copyright information.
 * The author does not guarantee or assume any responsibility for the risks of using software.

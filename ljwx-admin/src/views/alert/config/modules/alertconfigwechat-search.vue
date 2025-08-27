@@ -1,10 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { $t } from '@/locales';
 import { useDict } from '@/hooks/business/dict';
 
 defineOptions({
-  name: 'TWechatAlertConfigSearch'
+  name: 'AlertConfigWechatSearch'
 });
+
+interface Props {
+  type?: string;
+}
+
+const props = defineProps<Props>();
 
 interface Emits {
   (e: 'reset'): void;
@@ -17,6 +24,20 @@ const model = defineModel<Api.Health.AlertConfigWechatSearchParams>('model', { r
 
 const { dictOptions } = useDict();
 
+// 计算属性处理条件字段绑定
+const searchValue = computed({
+  get() {
+    return props.type === 'enterprise' ? model.value.corpId : model.value.appid;
+  },
+  set(value: string) {
+    if (props.type === 'enterprise') {
+      model.value.corpId = value;
+    } else {
+      model.value.appid = value;
+    }
+  }
+});
+
 function reset() {
   emit('reset');
 }
@@ -27,40 +48,52 @@ function search() {
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper">
-    <NForm :model="model" label-placement="left" :show-feedback="false" :label-width="80">
-      <NGrid responsive="screen" item-responsive :x-gap="8" :y-gap="8" cols="1 s:1 m:5 l:5 xl:5 2xl:5">
-        <NGridItem span="4">
-          <NGrid responsive="screen" item-responsive :x-gap="8">
-            <NFormItemGi span="24 s:8 m:6" :label="$t('page.health.alert.config.wechat.templateId')" path="templateId">
-              <NInput v-model:value="model.templateId" size="small" :placeholder="$t('page.health.alert.config.wechat.form.templateId')" />
-            </NFormItemGi>
-            <NFormItemGi span="24 s:8 m:6" :label="$t('page.health.alert.config.wechat.userOpenid')" path="userOpenid">
-              <NInput v-model:value="model.userOpenid" size="small" :placeholder="$t('page.health.alert.config.wechat.form.userOpenid')" />
-            </NFormItemGi>
-          </NGrid>
-        </NGridItem>
-        <NGridItem>
-          <NFormItemGi span="24 s:8 m:6">
-            <NSpace class="w-full" justify="end">
-              <NButton type="primary" ghost @click="search">
-                <template #icon>
-                  <icon-ic-round-search class="text-icon" />
-                </template>
-                {{ $t('common.search') }}
-              </NButton>
-              <NButton quaternary @click="reset">
-                <template #icon>
-                  <icon-ic-round-refresh class="text-icon" />
-                </template>
-                {{ $t('common.reset') }}
-              </NButton>
-            </NSpace>
-          </NFormItemGi>
-        </NGridItem>
+  <NCard :bordered="false" class="card-wrapper">
+    <NForm ref="queryFormRef" :model="model" label-placement="left" :label-width="80">
+      <NGrid responsive="screen" item-responsive>
+        <NFormItemGi span="24 s:12 m:6" :label="props.type === 'enterprise' ? '企业ID' : 'AppID'" path="corpId" class="pr-24px">
+          <NInput 
+            v-model:value="searchValue" 
+            :placeholder="props.type === 'enterprise' ? '请输入企业ID' : '请输入AppID'" 
+          />
+        </NFormItemGi>
+        <NFormItemGi span="24 s:12 m:6" label="模板ID" path="templateId" class="pr-24px">
+          <NInput v-model:value="model.templateId" placeholder="请输入模板ID" />
+        </NFormItemGi>
+        <NFormItemGi span="24 s:12 m:6" label="启用状态" path="enabled" class="pr-24px">
+          <NSelect
+            v-model:value="model.enabled"
+            placeholder="请选择启用状态"
+            clearable
+            :options="[
+              { label: '启用', value: true },
+              { label: '禁用', value: false }
+            ]"
+          />
+        </NFormItemGi>
+        <NFormItemGi span="24 s:12 m:6" class="pr-24px">
+          <NSpace class="w-full" justify="end">
+            <NButton @click="reset">
+              <template #icon>
+                <icon-ic-round-refresh class="text-icon" />
+              </template>
+              {{ $t('common.reset') }}
+            </NButton>
+            <NButton type="primary" ghost @click="search">
+              <template #icon>
+                <icon-ic-round-search class="text-icon" />
+              </template>
+              {{ $t('common.search') }}
+            </NButton>
+          </NSpace>
+        </NFormItemGi>
       </NGrid>
     </NForm>
   </NCard>
 </template>
 
-<style scoped></style>
+<style scoped>
+.card-wrapper {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+</style>

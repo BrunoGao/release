@@ -1,5 +1,5 @@
 /*
- * All Rights Reserved: Copyright [2024] [Zhuang Pan (brunoGao@gmail.com)]
+ * All Rights Reserved: Copyright [2024] [ljwx (brunoGao@gmail.com)]
  * Open Source Agreement: Apache License, Version 2.0
  * For educational purposes only, commercial use shall comply with the author's copyright information.
  * The author does not guarantee or assume any responsibility for the risks of using software.
@@ -44,6 +44,25 @@ public class TWechatAlertConfigServiceImpl extends ServiceImpl<TWechatAlertConfi
     @Override
     public IPage<TWechatAlertConfig> listTWechatAlertConfigPage(PageQuery pageQuery, TWechatAlertConfigBO tWechatAlertConfigBO) {
         LambdaQueryWrapper<TWechatAlertConfig> queryWrapper = new LambdaQueryWrapper<TWechatAlertConfig>();
+        
+        // 数据权限过滤
+        if (tWechatAlertConfigBO.getCustomerId() != null) {
+            if (tWechatAlertConfigBO.getCustomerId() == 0L) {
+                // admin用户，查看所有数据，无需过滤
+            } else {
+                // 租户用户，查看admin创建的(customer_id=0)和自己租户的数据
+                queryWrapper.and(wrapper -> 
+                    wrapper.eq(TWechatAlertConfig::getCustomerId, 0L)
+                           .or()
+                           .eq(TWechatAlertConfig::getCustomerId, tWechatAlertConfigBO.getCustomerId())
+                );
+            }
+        }
+        
+        // 其他条件
+        queryWrapper.eq(tWechatAlertConfigBO.getType() != null, TWechatAlertConfig::getType, tWechatAlertConfigBO.getType())
+                   .eq(tWechatAlertConfigBO.getEnabled() != null, TWechatAlertConfig::getEnabled, tWechatAlertConfigBO.getEnabled());
+                   
         return baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
     }
 
