@@ -38,9 +38,9 @@ const authStore = useAuthStore();
 const { formRef, validate, restoreValidation } = useNaiveForm();
 const { defaultRequiredRule } = useFormRules();
 
-// 判断是否是管理员（可以创建租户）
+// 判断是否是超级管理员（admin用户，可以管理所有租户）
 const isAdmin = computed(() => {
-  return authStore.userInfo?.userName === 'admin' || authStore.userInfo?.roleIds?.includes('admin');
+  return authStore.userInfo?.userName === 'admin';
 });
 
 // 判断当前操作是否为租户操作（只有管理员创建顶级组织才算租户）
@@ -57,16 +57,11 @@ const title = computed(() => {
   if (props.operateType === 'addChild') {
     return $t('page.manage.orgUnits.addChildOrgUnits');
   }
-  
+
   if (isDeptOperation.value) {
-    return props.operateType === 'add' 
-      ? $t('page.manage.orgUnits.dept.addDept')
-      : $t('page.manage.orgUnits.dept.editDept');
-  } else {
-    return props.operateType === 'add'
-      ? $t('page.manage.orgUnits.addOrgUnits')
-      : $t('page.manage.orgUnits.editOrgUnits');
+    return props.operateType === 'add' ? $t('page.manage.orgUnits.dept.addDept') : $t('page.manage.orgUnits.dept.editDept');
   }
+  return props.operateType === 'add' ? $t('page.manage.orgUnits.addOrgUnits') : $t('page.manage.orgUnits.editOrgUnits');
 });
 
 type Model = Api.SystemManage.OrgUnitsEdit;
@@ -98,7 +93,7 @@ const rules: Record<RuleKey, App.Global.FormRule> = {
 
 function handleInitModel() {
   Object.assign(model, createDefaultModel());
-  
+
   // 如果不是管理员，且是新增操作，设置parentId为当前用户的部门ID
   if (!isAdmin.value && props.operateType === 'add') {
     const currentUserOrgId = authStore.userInfo?.customerId;
@@ -152,13 +147,22 @@ watch(visible, () => {
     <NDrawerContent :title="title" :native-scrollbar="false" closable>
       <NForm ref="formRef" :model="model" :rules="rules">
         <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.name') : $t('page.manage.orgUnits.name')" path="name">
-          <NInput v-model:value="model.name" :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.name') : $t('page.manage.orgUnits.form.name')" />
+          <NInput
+            v-model:value="model.name"
+            :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.name') : $t('page.manage.orgUnits.form.name')"
+          />
         </NFormItem>
         <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.code') : $t('page.manage.orgUnits.code')" path="code">
-          <NInput v-model:value="model.code" :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.code') : $t('page.manage.orgUnits.form.code')" />
+          <NInput
+            v-model:value="model.code"
+            :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.code') : $t('page.manage.orgUnits.form.code')"
+          />
         </NFormItem>
         <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.abbr') : $t('page.manage.orgUnits.abbr')" path="abbr">
-          <NInput v-model:value="model.abbr" :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.abbr') : $t('page.manage.orgUnits.form.abbr')" />
+          <NInput
+            v-model:value="model.abbr"
+            :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.abbr') : $t('page.manage.orgUnits.form.abbr')"
+          />
         </NFormItem>
         <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.status') : $t('page.manage.orgUnits.status')" path="status">
           <NRadioGroup v-model:value="model.status">
@@ -169,7 +173,10 @@ watch(visible, () => {
           <NInputNumber v-model:value="model.sort" :placeholder="$t('page.manage.orgUnits.form.sort')" />
         </NFormItem>
         <NFormItem :label="isDeptOperation ? $t('page.manage.orgUnits.dept.description') : $t('page.manage.orgUnits.description')" path="description">
-          <NInput v-model:value="model.description" :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.description') : $t('page.manage.orgUnits.form.description')" />
+          <NInput
+            v-model:value="model.description"
+            :placeholder="isDeptOperation ? $t('page.manage.orgUnits.dept.form.description') : $t('page.manage.orgUnits.form.description')"
+          />
         </NFormItem>
       </NForm>
       <template #footer>

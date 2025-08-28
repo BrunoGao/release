@@ -18,19 +18,18 @@ declare namespace Api {
       orgId: string;
       /** weight */
       weight: number;
+      /** customer id for multi-tenant */
+      customerId?: number | null;
     }>;
 
     /** position page list */
     type PositionPageList = Common.PaginatingQueryRecord<Position>;
 
     /** position search params */
-    type PositionSearchParams = CommonType.RecordNullable<Pick<Api.SystemManage.Position, 'name' | 'status' | 'orgId'>> &
+    type PositionSearchParams = CommonType.RecordNullable<Pick<Api.SystemManage.Position, 'name' | 'status' | 'orgId' | 'customerId'>> &
       Api.Common.CommonSearchParams;
 
     /** position edit model */
-    type PositionEdit = Pick<
-      Api.SystemManage.Position,
-      'id' | 'code' | 'name' | 'abbr' | 'sort' | 'description' | 'status' | 'orgId' | 'weight'
-    >;
+    type PositionEdit = Pick<Api.SystemManage.Position, 'id' | 'code' | 'name' | 'abbr' | 'sort' | 'description' | 'status' | 'orgId' | 'weight' | 'customerId'>;
   }
 }

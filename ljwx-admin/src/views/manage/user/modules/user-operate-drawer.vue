@@ -121,11 +121,7 @@ watch(visible, () => {
     <NDrawerContent :title="title" :native-scrollbar="false" closable>
       <NForm ref="formRef" :model="model" :rules="rules">
         <NFormItem :label="$t('page.manage.user.userName')" path="userName">
-          <NInput
-            v-model:value="model.userName"
-            :placeholder="$t('page.manage.user.form.userName')"
-            :disabled="!isAdd"
-          />
+          <NInput v-model:value="model.userName" :placeholder="$t('page.manage.user.form.userName')" :disabled="!isAdd" />
         </NFormItem>
         <NFormItem :label="$t('page.manage.user.gender')" path="gender">
           <NRadioGroup v-model:value="model.gender">
@@ -136,16 +132,10 @@ watch(visible, () => {
           <NInput v-model:value="model.userCardNumber" :placeholder="$t('page.manage.user.form.userCardNumber')" />
         </NFormItem>
         <NFormItem :label="$t('page.manage.user.phone')" path="phone">
-          <NInput
-            v-model:value="model.phone"
-            :placeholder="$t('page.manage.user.form.phone')"
-          />
+          <NInput v-model:value="model.phone" :placeholder="$t('page.manage.user.form.phone')" />
         </NFormItem>
         <NFormItem :label="$t('page.manage.user.workingYears')" path="workingYears">
-          <NInput
-            v-model:value="model.workingYears"
-            :placeholder="$t('page.manage.user.form.workingYears')"
-          />
+          <NInput v-model:value="model.workingYears" :placeholder="$t('page.manage.user.form.workingYears')" />
         </NFormItem>
         <NFormItem :label="$t('page.manage.user.deviceSn')" path="deviceSn">
           <NSelect v-model:value="model.deviceSn" :placeholder="$t('page.manage.user.form.deviceSn')" :options="deviceOptions" filterable />

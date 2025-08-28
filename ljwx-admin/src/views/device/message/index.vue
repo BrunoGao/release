@@ -118,7 +118,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       title: $t('page.health.device.message.receivedTime'),
       align: 'center',
       minWidth: 50,
-      render: row => row.receivedTime ? convertToBeijingTime(row.receivedTime) : '未接收' // 空值显示未接收#
+      render: row => (row.receivedTime ? convertToBeijingTime(row.receivedTime) : '未接收') // 空值显示未接收#
     },
     {
       key: 'operate',

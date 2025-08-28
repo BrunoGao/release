@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+import { computed } from 'vue';
 import { NButton, NPopconfirm } from 'naive-ui';
 import { $t } from '@/locales';
 import { fetchDeletePosition, fetchGetPositionPageList } from '@/service/api';
@@ -23,6 +24,11 @@ const customerId = authStore.userInfo?.customerId;
 console.log('customerId', customerId);
 const { dictTag } = useDict();
 
+// 判断是否是超级管理员（admin用户，可以管理所有租户的岗位）
+const isAdmin = computed(() => {
+  return authStore.userInfo?.userName === 'admin';
+});
+
 const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams } = useTable({
   apiFn: fetchGetPositionPageList,
   apiParams: {
@@ -30,7 +36,9 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     pageSize: 20,
     name: null,
     status: null,
-    orgId: customerId
+    orgId: customerId,
+    // 非admin用户只查看自己租户的岗位
+    customerId: isAdmin.value ? null : customerId
   },
   columns: () => [
     {
@@ -65,6 +73,14 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center',
       minWidth: 100
     },
+    // 只有admin用户才显示租户列
+    ...(isAdmin.value ? [{
+      key: 'customerId',
+      title: '租户ID',
+      align: 'center',
+      width: 100,
+      render: row => row.customerId || '全局'
+    }] : []),
     {
       key: 'weight',
       title: $t('page.manage.position.weight'),
@@ -179,6 +195,7 @@ async function handleBatchDelete() {
         :operate-type="operateType"
         :row-data="editingData"
         :customer-id="customerId"
+        :is-admin="isAdmin"
         @submitted="getDataByPage"
       />
     </NCard>

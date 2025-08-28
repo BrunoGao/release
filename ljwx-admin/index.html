@@ -6,29 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>%VITE_APP_TITLE%</title>
-  
-<script>
-// 全局Vue错误防护 - 最后防线
-window.addEventListener('error', function(e) {
-  if (e.message && (e.message.includes('refs') || e.message.includes('push'))) {
-    console.warn('🔧 全局错误拦截:', e.message)
-    e.preventDefault()
-    return true
-  }
-})
 
-window.addEventListener('unhandledrejection', function(e) {
-  const msg = e.reason?.message || String(e.reason)
-  if (msg.includes('refs') || msg.includes('push') || msg.includes('Cannot read properties')) {
-    console.warn('🔧 全局Promise拦截:', msg)
-    e.preventDefault()
-  }
-})
+    <script>
+      // 全局Vue错误防护 - 最后防线
+      window.addEventListener('error', function (e) {
+        if (e.message && (e.message.includes('refs') || e.message.includes('push'))) {
+          console.warn('🔧 全局错误拦截:', e.message);
+          e.preventDefault();
+          return true;
+        }
+      });
 
-// 超级安全模式
-window.SAFE_MODE = true
-</script>
-</head>
+      window.addEventListener('unhandledrejection', function (e) {
+        const msg = e.reason?.message || String(e.reason);
+        if (msg.includes('refs') || msg.includes('push') || msg.includes('Cannot read properties')) {
+          console.warn('🔧 全局Promise拦截:', msg);
+          e.preventDefault();
+        }
+      });
+
+      // 超级安全模式
+      window.SAFE_MODE = true;
+    </script>
+  </head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>

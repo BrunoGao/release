@@ -49,7 +49,7 @@ const model: Model = reactive(createDefaultModel());
 function createDefaultModel(): Model {
   return {
     type: props.type || 'enterprise',
-    customerId: customerId,
+    customerId,
     corpId: '',
     agentId: '',
     secret: '',
@@ -116,7 +116,7 @@ watch(visible, () => {
             <NInput v-model:value="model.secret" type="password" placeholder="请输入企业微信应用Secret" />
           </NFormItem>
         </template>
-        
+
         <!-- 微信公众号配置 -->
         <template v-else>
           <NFormItem label="AppID" path="appid" required>
@@ -126,12 +126,12 @@ watch(visible, () => {
             <NInput v-model:value="model.appsecret" type="password" placeholder="请输入微信公众号AppSecret" />
           </NFormItem>
         </template>
-        
+
         <!-- 通用配置 -->
         <NFormItem label="模板ID" path="templateId" required>
           <NInput v-model:value="model.templateId" placeholder="请输入消息模板ID" />
         </NFormItem>
-        
+
         <NFormItem label="启用状态" path="enabled">
           <NSwitch v-model:value="model.enabled" />
         </NFormItem>

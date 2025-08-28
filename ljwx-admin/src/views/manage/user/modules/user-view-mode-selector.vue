@@ -52,16 +52,11 @@ const viewModeOptions = [
 
 <template>
   <div class="view-mode-selector">
-    <NRadioGroup
-      v-model:value="viewMode"
-      :disabled="loading"
-      size="small"
-      type="button"
-    >
+    <NRadioGroup v-model:value="viewMode" :disabled="loading" size="small" type="button">
       <template v-for="option in viewModeOptions" :key="option.value">
         <NRadioButton :value="option.value" class="view-mode-button">
           <div class="flex items-center gap-1">
-            <div :class="[option.icon, 'text-icon']" />
+            <div class="text-icon" :class="[option.icon]" />
             <span>{{ option.label }}</span>
           </div>
         </NRadioButton>

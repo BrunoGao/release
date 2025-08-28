@@ -1,15 +1,7 @@
 <script setup lang="ts">
 import { onUnmounted } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
-import {
-  barOptions,
-  gaugeOptions,
-  getPictorialBarOption,
-  getScatterOption,
-  lineOptions,
-  pieOptions,
-  radarOptions
-} from './data';
+import { barOptions, gaugeOptions, getPictorialBarOption, getScatterOption, lineOptions, pieOptions, radarOptions } from './data';
 
 const { domRef: pieRef } = useEcharts(() => pieOptions, { onRender() {} });
 const { domRef: lineRef } = useEcharts(() => lineOptions, { onRender() {} });

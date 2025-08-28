@@ -16,6 +16,8 @@ interface Props {
   rowData?: Api.SystemManage.Position | null;
   /** the customer id */
   customerId: string;
+  /** is admin user */
+  isAdmin: boolean;
 }
 
 const props = defineProps<Props>();
@@ -57,7 +59,9 @@ function createDefaultModel(): Model {
     sort: 1,
     status: '1',
     orgId: Number(props.customerId),
-    weight: 1.0
+    weight: 1.0,
+    // 非admin用户创建的岗位自动关联到当前租户
+    customerId: props.isAdmin ? null : Number(props.customerId)
   };
 }
 console.log('orgId', model.orgId);
@@ -120,6 +124,15 @@ watch(visible, () => {
             <NRadio v-for="item in dictOptions('status')" :key="item.value" :value="item.value" :label="item.label" />
           </NRadioGroup>
         </NFormItem>
+        <!-- 只有admin用户才能选择租户 -->
+        <NFormItem v-if="isAdmin" label="租户ID" path="customerId">
+          <NInputNumber 
+            v-model:value="model.customerId" 
+            placeholder="留空为全局岗位" 
+            :show-button="false"
+            clearable
+          />
+        </NFormItem>
         <NFormItem :label="$t('page.manage.position.sort')" path="sort">
           <NInputNumber v-model:value="model.sort" :placeholder="$t('page.manage.position.form.sort')" />
         </NFormItem>
@@ -129,7 +142,7 @@ watch(visible, () => {
             :placeholder="$t('page.manage.position.form.weight')"
             :precision="2"
             :min="0.01"
-            :max="10.00"
+            :max="10.0"
             :step="0.1"
           />
         </NFormItem>

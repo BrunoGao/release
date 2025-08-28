@@ -96,13 +96,18 @@ const techStack = {
     </NCard>
 
     <NCard title="系统核心功能" :bordered="false" size="small" segmented class="card-wrapper">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div v-for="feature in systemFeatures" :key="feature.name" class="p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-          <div class="flex items-center gap-2 mb-2">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div v-for="feature in systemFeatures" :key="feature.name" class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+          <div class="mb-2 flex items-center gap-2">
             <NIcon size="16" color="#18a058">
-              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <svg viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                />
+              </svg>
             </NIcon>
-            <span class="font-medium text-primary">{{ feature.name }}</span>
+            <span class="text-primary font-medium">{{ feature.name }}</span>
           </div>
           <p class="text-sm text-gray-600 dark:text-gray-300">{{ feature.description }}</p>
         </div>

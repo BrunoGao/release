@@ -46,19 +46,19 @@ const alertTypeMap = {
 
 // 告警状态中英文映射
 const alertStatusMap = {
-  'pending': '待处理',
-  'processing': '处理中',
-  'responded': '已处理',
-  'resolved': '已解决',
-  'closed': '已关闭'
+  pending: '待处理',
+  processing: '处理中',
+  responded: '已处理',
+  resolved: '已解决',
+  closed: '已关闭'
 };
 
 // 严重级别中英文映射
 const severityLevelMap = {
-  'low': '低',
-  'medium': '中',
-  'high': '高',
-  'critical': '紧急'
+  low: '低',
+  medium: '中',
+  high: '高',
+  critical: '紧急'
 };
 
 // 获取告警类型标签颜色
@@ -84,38 +84,56 @@ const getAlertTypeColor = (type: string) => {
 // 增强的字典标签函数，支持告警类型、状态、严重级别中文映射
 const enhancedDictTag = (code: string, value: string | null) => {
   if (!value) return null;
-  
+
   if (code === 'alert_type' && alertTypeMap[value as keyof typeof alertTypeMap]) {
     const chineseValue = alertTypeMap[value as keyof typeof alertTypeMap];
     const color = getAlertTypeColor(value);
-    return <span style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}>{chineseValue}</span>;
+    return (
+      <span
+        style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}
+      >
+        {chineseValue}
+      </span>
+    );
   }
-  
+
   if (code === 'alert_status' && alertStatusMap[value as keyof typeof alertStatusMap]) {
     const chineseValue = alertStatusMap[value as keyof typeof alertStatusMap];
     const statusColors: Record<string, string> = {
-      'pending': '#faad14',
-      'processing': '#1890ff',
-      'responded': '#52c41a',
-      'resolved': '#52c41a',
-      'closed': '#666'
+      pending: '#faad14',
+      processing: '#1890ff',
+      responded: '#52c41a',
+      resolved: '#52c41a',
+      closed: '#666'
     };
     const color = statusColors[value] || '#666';
-    return <span style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}>{chineseValue}</span>;
+    return (
+      <span
+        style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}
+      >
+        {chineseValue}
+      </span>
+    );
   }
-  
+
   if (code === 'severity_level' && severityLevelMap[value as keyof typeof severityLevelMap]) {
     const chineseValue = severityLevelMap[value as keyof typeof severityLevelMap];
     const levelColors: Record<string, string> = {
-      'low': '#52c41a',
-      'medium': '#faad14',
-      'high': '#fa8c16',
-      'critical': '#ff4d4f'
+      low: '#52c41a',
+      medium: '#faad14',
+      high: '#fa8c16',
+      critical: '#ff4d4f'
     };
     const color = levelColors[value] || '#666';
-    return <span style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}>{chineseValue}</span>;
+    return (
+      <span
+        style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}
+      >
+        {chineseValue}
+      </span>
+    );
   }
-  
+
   // 否则使用原来的字典标签
   return dictTag(code, value);
 };
@@ -176,7 +194,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center',
       minWidth: 100
     },
-        {
+    {
       key: 'healthId' as any as any,
       title: $t('page.health.alert.info.healthId'),
       align: 'center',
@@ -209,7 +227,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           }
         });
 
-        const formatValue = (value: any, unit = '') => { // #优化格式化函数
+        const formatValue = (value: any, unit = '') => {
+          // #优化格式化函数
           if (value === null || value === undefined) return '无数据';
           if (value === 0) return `0${unit}`; // #0值也要显示
           return `${value}${unit}`;
@@ -226,45 +245,61 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
               <div style="margin-bottom: 12px; font-size: 15px; font-weight: 600; color: #1e293b; text-align: center; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">
                 🏥 健康数据详情
               </div>
-              
+
               <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #ef4444;">
-                <span style="color: #374151; font-weight: 600;"><strong>💓 心率:</strong></span>
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>💓 心率:</strong>
+                </span>
                 <span style="color: #ef4444; font-weight: 700; font-size: 15px;">{formatValue(d.heartRate, ' bpm')}</span>
               </div>
-              
+
               <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #22c55e;">
-                <span style="color: #374151; font-weight: 600;"><strong>🩸 血压:</strong></span>
-                <span style="color: #22c55e; font-weight: 700; font-size: 15px;">{formatValue(d.pressureHigh)}/{formatValue(d.pressureLow)} mmHg</span>
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>🩸 血压:</strong>
+                </span>
+                <span style="color: #22c55e; font-weight: 700; font-size: 15px;">
+                  {formatValue(d.pressureHigh)}/{formatValue(d.pressureLow)} mmHg
+                </span>
               </div>
-              
+
               <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #f59e0b;">
-                <span style="color: #374151; font-weight: 600;"><strong>🌡️ 体温:</strong></span>
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>🌡️ 体温:</strong>
+                </span>
                 <span style="color: #f59e0b; font-weight: 700; font-size: 15px;">{formatValue(d.temperature, '°C')}</span>
               </div>
-              
+
               <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #8b5cf6;">
-                <span style="color: #374151; font-weight: 600;"><strong>🫁 血氧:</strong></span>
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>🫁 血氧:</strong>
+                </span>
                 <span style="color: #8b5cf6; font-weight: 700; font-size: 15px;">{formatValue(d.bloodOxygen, '%')}</span>
               </div>
-              
+
               <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #f97316;">
-                <span style="color: #374151; font-weight: 600;"><strong>😰 压力:</strong></span>
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>😰 压力:</strong>
+                </span>
                 <span style="color: #f97316; font-weight: 700; font-size: 15px;">{formatValue(d.stress)}</span>
               </div>
-              
+
               <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #06b6d4;">
-                <span style="color: #374151; font-weight: 600;"><strong>👟 步数:</strong></span>
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>👟 步数:</strong>
+                </span>
                 <span style="color: #06b6d4; font-weight: 700; font-size: 15px;">{formatValue(d.step)}</span>
               </div>
-              
+
               <div style="margin-bottom: 10px; padding: 10px 12px; background: rgba(255,255,255,0.9); border-radius: 8px; border-top: 2px solid #64748b;">
-                <div style="font-size: 13px; color: #475569; margin-bottom: 6px; font-weight: 600;"><strong>📍 位置信息:</strong></div>
+                <div style="font-size: 13px; color: #475569; margin-bottom: 6px; font-weight: 600;">
+                  <strong>📍 位置信息:</strong>
+                </div>
                 <div style="font-size: 12px; color: #64748b; line-height: 1.4;">
                   {d.latitude && d.longitude ? `${d.latitude.toFixed(6)}°, ${d.longitude.toFixed(6)}°` : '无位置数据'}
                   {d.altitude > 0 ? ` (海拔${d.altitude}m)` : ''}
                 </div>
               </div>
-              
+
               <div style="font-size: 12px; color: #64748b; text-align: center; padding: 8px 12px; background: rgba(255,255,255,0.9); border-radius: 8px; font-weight: 500;">
                 📅 {d.timestamp ? new Date(d.timestamp).toLocaleString('zh-CN') : '时间未知'}
               </div>
@@ -359,7 +394,7 @@ async function handleBatchProcessAlert() {
   // 检查选中告警的状态
   const selectedAlerts = data.value.filter(item => checkedRowKeys.value.includes(item.id));
   const respondedAlerts = selectedAlerts.filter(item => item.alertStatus === 'responded');
-  
+
   // 如果有已响应的告警，提示用户
   if (respondedAlerts.length > 0) {
     const message = `选中的告警中有 ${respondedAlerts.length} 条已经处理过，是否继续批量处理？`;
@@ -373,7 +408,7 @@ async function handleBatchProcessAlert() {
         onNegativeClick: () => resolve(false)
       });
     });
-    
+
     if (!confirmed) {
       return;
     }

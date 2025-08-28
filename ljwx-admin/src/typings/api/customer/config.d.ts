@@ -16,7 +16,10 @@ declare namespace Api {
     type CustomerConfigSearchParams = CommonType.RecordNullable<Pick<Api.Customer.CustomerConfig, 'id'> & Api.Common.CommonSearchParams>;
 
     /** CustomerConfig edit model */
-    type CustomerConfigEdit = Pick<Api.Customer.CustomerConfig, 'customerName' | 'description' | 'uploadMethod' | 'licenseKey' | 'supportLicense' | 'enableResume' | 'uploadRetryCount' | 'cacheMaxCount'>;
+    type CustomerConfigEdit = Pick<
+      Api.Customer.CustomerConfig,
+      'customerName' | 'description' | 'uploadMethod' | 'licenseKey' | 'supportLicense' | 'enableResume' | 'uploadRetryCount' | 'cacheMaxCount'
+    >;
     /** CustomerConfig list */
     type CustomerConfigList = Common.PaginatingQueryRecord<CustomerConfig>;
   }

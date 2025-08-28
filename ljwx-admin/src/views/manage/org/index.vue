@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { NButton, NPopconfirm } from 'naive-ui';
 import type { Ref } from 'vue';
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useAuth } from '@/hooks/business/auth';
 import { useAuthStore } from '@/store/modules/auth';
 import { useTable, useTableOperate } from '@/hooks/common/table';
@@ -25,9 +25,14 @@ const authStore = useAuthStore();
 
 const { dictTag } = useDict();
 
-// 判断是否是管理员（可以创建租户）
+// 判断是否是超级管理员（admin用户，可以管理所有租户）
 const isAdmin = computed(() => {
-  return authStore.userInfo?.userName === 'admin' || authStore.userInfo?.roleIds?.includes('admin');
+  return authStore.userInfo?.userName === 'admin';
+});
+
+// 判断是否是租户管理员（只能管理自己租户）
+const isTenantAdmin = computed(() => {
+  return authStore.userInfo?.roleIds?.includes('R_ADMIN') && !isAdmin.value;
 });
 
 const operateType = ref<OperateType>('add');
@@ -57,28 +62,28 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     },
     {
       key: 'name',
-      title: $t('page.manage.orgUnits.name'),
+      title: isAdmin.value ? $t('page.manage.orgUnits.name') : $t('page.manage.orgUnits.dept.name'),
       align: 'center',
       width: 150,
       minWidth: 150
     },
     {
       key: 'code',
-      title: $t('page.manage.orgUnits.code'),
+      title: isAdmin.value ? $t('page.manage.orgUnits.code') : $t('page.manage.orgUnits.dept.code'),
       align: 'center',
       width: 100,
       minWidth: 100
     },
     {
       key: 'abbr',
-      title: $t('page.manage.orgUnits.abbr'),
+      title: isAdmin.value ? $t('page.manage.orgUnits.abbr') : $t('page.manage.orgUnits.dept.abbr'),
       align: 'center',
       width: 100,
       minWidth: 100
     },
     {
       key: 'description',
-      title: $t('page.manage.orgUnits.description'),
+      title: isAdmin.value ? $t('page.manage.orgUnits.description') : $t('page.manage.orgUnits.dept.description'),
       align: 'center',
       width: 120,
       minWidth: 120
@@ -92,7 +97,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     },
     {
       key: 'status',
-      title: $t('page.manage.orgUnits.status'),
+      title: isAdmin.value ? $t('page.manage.orgUnits.status') : $t('page.manage.orgUnits.dept.status'),
       align: 'center',
       width: 60,
       minWidth: 60,
@@ -172,6 +177,16 @@ async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
+    <NCard :bordered="false" size="small" class="mb-2">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <span class="text-16px font-bold">{{ isAdmin ? '租户与部门管理' : '部门管理' }}</span>
+          <span class="text-12px text-gray-500">
+            {{ isAdmin ? '超级管理员可以创建租户和管理所有部门' : '租户管理员只能管理本租户下的部门' }}
+          </span>
+        </div>
+      </template>
+    </NCard>
     <OrgUnitsSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <TableHeaderOperation

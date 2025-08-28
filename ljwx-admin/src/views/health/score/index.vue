@@ -14,7 +14,7 @@ import HealthScoreSearch from './modules/health-score-search.vue';
 import HealthScoreOperateDrawer from './modules/health-score-operate-drawer.vue';
 
 defineOptions({
-    name: 'THealthScorePage'
+  name: 'THealthScorePage'
 });
 
 const operateType = ref<NaiveUI.TableOperateType>('add');
@@ -32,184 +32,182 @@ const startDate = new Date(today.setHours(0, 0, 0, 0)).getTime();
 const endDate = new Date(today.setHours(23, 59, 59, 999)).getTime();
 
 const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams } = useTable({
-    apiFn: fetchGetHealthScoreList,
-    apiParams: {
-        page: 1,
-        pageSize: 20,
-        customerId: customerId,
-        orgId:  null,
-        userId: null,
-        feature:  null,
-        startDate:  startDate,
-        endDate:  endDate,
+  apiFn: fetchGetHealthScoreList,
+  apiParams: {
+    page: 1,
+    pageSize: 20,
+    customerId,
+    orgId: null,
+    userId: null,
+    feature: null,
+    startDate,
+    endDate
+  },
+  columns: () => [
+    {
+      key: 'index',
+      title: $t('common.index'),
+      width: 64,
+      align: 'center'
     },
-    columns: () => [
-        {
-            key: 'index',
-            title: $t('common.index'),
-            width: 64,
-            align: 'center'
-        },
-        {
-            key: 'orgName',
-            title: $t('page.health.data.score.orgName'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'userName',
-            title: $t('page.health.data.score.userName'),
-            align: 'center',
-            minWidth: 100
-        },
+    {
+      key: 'orgName',
+      title: $t('page.health.data.score.orgName'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'userName',
+      title: $t('page.health.data.score.userName'),
+      align: 'center',
+      minWidth: 100
+    },
 
-        {
-            key: 'featureName',
-            title: $t('page.health.data.score.featureName'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'avgValue',
-            title: $t('page.health.data.score.avgValue'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'healthScore',
-            title: $t('page.health.data.score.healthScore'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'weightedScore',
-            title: $t('page.health.data.score.weightedScore'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'finalScore',
-            title: $t('page.health.data.score.finalScore'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'featureWeight',
-            title: $t('page.health.data.score.featureWeight'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'positionWeight',
-            title: $t('page.health.data.score.positionWeight'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'baselineMean',
-            title: $t('page.health.data.score.baselineMean'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'baselineStd',
-            title: $t('page.health.data.score.baselineStd'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'currentValue',
-            title: $t('page.health.data.score.currentValue'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'scoreValue',
-            title: $t('page.health.data.score.scoreValue'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'penaltyValue',
-            title: $t('page.health.data.score.penaltyValue'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'baselineTime',
-            title: $t('page.health.data.score.baselineTime'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'scoreDate',
-            title: $t('page.health.data.score.scoreDate'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'createTime',
-            title: $t('page.health.data.score.createTime'),
-            align: 'center',
-            minWidth: 100
-        },
-        {
-            key: 'operate',
-            title: $t('common.operate'),
-            align: 'center',
-            width: 200,
-            minWidth: 200,
-            render: row => (
-                <div class="flex-center gap-8px">
-                    {hasAuth('t:health:score:update') && (
-                        <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
-                            {$t('common.edit')}
-                        </NButton>
-                    )}
-                    {hasAuth('t:health:score:delete') && (
-                        <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
-                            {{
-                                default: () => $t('common.confirmDelete'),
-                                trigger: () => (
-                                    <NButton type="error" quaternary size="small">
-                                        {$t('common.delete')}
-                                    </NButton>
-                                )
-                            }}
-                        </NPopconfirm>
-                    )}
-                </div>
-            )
-        }
-    ]
+    {
+      key: 'featureName',
+      title: $t('page.health.data.score.featureName'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'avgValue',
+      title: $t('page.health.data.score.avgValue'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'healthScore',
+      title: $t('page.health.data.score.healthScore'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'weightedScore',
+      title: $t('page.health.data.score.weightedScore'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'finalScore',
+      title: $t('page.health.data.score.finalScore'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'featureWeight',
+      title: $t('page.health.data.score.featureWeight'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'positionWeight',
+      title: $t('page.health.data.score.positionWeight'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'baselineMean',
+      title: $t('page.health.data.score.baselineMean'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'baselineStd',
+      title: $t('page.health.data.score.baselineStd'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'currentValue',
+      title: $t('page.health.data.score.currentValue'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'scoreValue',
+      title: $t('page.health.data.score.scoreValue'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'penaltyValue',
+      title: $t('page.health.data.score.penaltyValue'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'baselineTime',
+      title: $t('page.health.data.score.baselineTime'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'scoreDate',
+      title: $t('page.health.data.score.scoreDate'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'createTime',
+      title: $t('page.health.data.score.createTime'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'operate',
+      title: $t('common.operate'),
+      align: 'center',
+      width: 200,
+      minWidth: 200,
+      render: row => (
+        <div class="flex-center gap-8px">
+          {hasAuth('t:health:score:update') && (
+            <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
+              {$t('common.edit')}
+            </NButton>
+          )}
+          {hasAuth('t:health:score:delete') && (
+            <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
+              {{
+                default: () => $t('common.confirmDelete'),
+                trigger: () => (
+                  <NButton type="error" quaternary size="small">
+                    {$t('common.delete')}
+                  </NButton>
+                )
+              }}
+            </NPopconfirm>
+          )}
+        </div>
+      )
+    }
+  ]
 });
 
 const { drawerVisible, openDrawer, checkedRowKeys, onDeleted, onBatchDeleted } = useTableOperate(data, getData);
 
-function handleAdd() {
-
-}
+function handleAdd() {}
 
 function edit(item: Api.Health.HealthScore) {
-    operateType.value = 'edit';
-    editingData.value = { ...item };
-    openDrawer();
+  operateType.value = 'edit';
+  editingData.value = { ...item };
+  openDrawer();
 }
 
 async function handleDelete(id: string) {
-    // request
-    const { error, data: result } = await fetchDeleteHealthScore(transDeleteParams([id]));
-    if (!error && result) {
-        await onDeleted();
-    }
+  // request
+  const { error, data: result } = await fetchDeleteHealthScore(transDeleteParams([id]));
+  if (!error && result) {
+    await onDeleted();
+  }
 }
 
 async function handleBatchDelete() {
-    // request
-    const { error, data: result } = await fetchDeleteHealthScore(transDeleteParams(checkedRowKeys.value));
-    if (!error && result) {
-        await onBatchDeleted();
-    }
+  // request
+  const { error, data: result } = await fetchDeleteHealthScore(transDeleteParams(checkedRowKeys.value));
+  if (!error && result) {
+    await onBatchDeleted();
+  }
 }
 
 type OrgUnitsTree = Api.SystemManage.OrgUnitsTree;
@@ -250,39 +248,45 @@ watch(
 onMounted(() => {
   handleInitOptions();
 });
-
 </script>
 
 <template>
-<div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
-    <HealthScoreSearch v-model:model="searchParams" :org-units-tree="orgUnitsTree" :user-options="userOptions" :customer-id="customerId" @reset="resetSearchParams" @search="getDataByPage" />
+  <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
+    <HealthScoreSearch
+      v-model:model="searchParams"
+      :org-units-tree="orgUnitsTree"
+      :user-options="userOptions"
+      :customer-id="customerId"
+      @reset="resetSearchParams"
+      @search="getDataByPage"
+    />
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
-        <TableHeaderOperation
-            v-model:columns="columnChecks"
-            :checked-row-keys="checkedRowKeys"
-            :loading="loading"
-            add-auth="t:health:score:add"
-            delete-auth="t:health:score:delete"
-            @add="handleAdd"
-            @delete="handleBatchDelete"
-            @refresh="getData"
-        />
-        <NDataTable
-            v-model:checked-row-keys="checkedRowKeys"
-            remote
-            striped
-            size="small"
-            class="sm:h-full"
-            :data="data"
-            :scroll-x="962"
-            :columns="columns"
-            :flex-height="!appStore.isMobile"
-            :loading="loading"
-            :single-line="false"
-            :row-key="row => row.id"
-            :pagination="mobilePagination"
-        />
-        <HealthScoreOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" @submitted="getDataByPage" />
+      <TableHeaderOperation
+        v-model:columns="columnChecks"
+        :checked-row-keys="checkedRowKeys"
+        :loading="loading"
+        add-auth="t:health:score:add"
+        delete-auth="t:health:score:delete"
+        @add="handleAdd"
+        @delete="handleBatchDelete"
+        @refresh="getData"
+      />
+      <NDataTable
+        v-model:checked-row-keys="checkedRowKeys"
+        remote
+        striped
+        size="small"
+        class="sm:h-full"
+        :data="data"
+        :scroll-x="962"
+        :columns="columns"
+        :flex-height="!appStore.isMobile"
+        :loading="loading"
+        :single-line="false"
+        :row-key="row => row.id"
+        :pagination="mobilePagination"
+      />
+      <HealthScoreOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" @submitted="getDataByPage" />
     </NCard>
-</div>
+  </div>
 </template>

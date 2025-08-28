@@ -14,6 +14,10 @@ interface Props {
   operateType: NaiveUI.TableOperateType;
   /** the edit row data */
   rowData?: Api.SystemManage.Role | null;
+  /** is admin user */
+  isAdmin: boolean;
+  /** current customer id */
+  currentCustomerId: number | null;
 }
 
 const props = defineProps<Props>();
@@ -53,7 +57,9 @@ function createDefaultModel(): Model {
     description: '',
     status: '1',
     sort: 1,
-    isAdmin: 0
+    isAdmin: 0,
+    // 非 admin 用户创建的角色自动关联到当前租户
+    customerId: props.isAdmin ? null : props.currentCustomerId
   };
 }
 
@@ -111,6 +117,15 @@ watch(visible, () => {
           <NRadioGroup v-model:value="model.status">
             <NRadio v-for="item in dictOptions('status')" :key="item.value" :value="item.value" :label="item.label" />
           </NRadioGroup>
+        </NFormItem>
+        <!-- 只有admin用户才能选择租户 -->
+        <NFormItem v-if="isAdmin" label="租户" path="customerId">
+          <NInputNumber 
+            v-model:value="model.customerId" 
+            placeholder="留空为全局角色" 
+            :show-button="false"
+            clearable
+          />
         </NFormItem>
         <NFormItem :label="$t('page.manage.role.isAdmin')" path="isAdmin">
           <NRadioGroup v-model:value="model.isAdmin">

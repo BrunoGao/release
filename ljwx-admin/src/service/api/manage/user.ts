@@ -69,8 +69,6 @@ export function fetchCheckUserDeviceBinding(data: Api.Common.DeleteParams) {
   });
 }
 
-
-
 /** edit delete user */
 export function fetchResetUserPassword(userId: string) {
   return request<string>({
@@ -127,11 +125,11 @@ export async function fetchBatchImportUsersDirect(file: File, orgIds: string) {
   console.log('文件类型:', typeof file);
   console.log('是否为File实例:', file instanceof File);
   console.log('文件属性:', { name: file.name, size: file.size, type: file.type });
-  
+
   const formData = new FormData();
   formData.append('file', file);
   formData.append('orgIds', orgIds);
-  
+
   // 检查FormData内容
   console.log('FormData entries:');
   for (const [key, value] of formData.entries()) {
@@ -142,20 +140,20 @@ export async function fetchBatchImportUsersDirect(file: File, orgIds: string) {
   const { baseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
   const token = localStg.get('token') || '';
   const authorization = token ? `Bearer ${token}` : '';
-  
+
   try {
     const response = await fetch(`${baseURL}/sys_user/batch-import`, {
       method: 'POST',
       headers: {
-        'Authorization': authorization,
+        Authorization: authorization
       },
       body: formData
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const result = await response.json();
     return { data: result.data, error: null };
   } catch (error) {
@@ -170,17 +168,17 @@ export function fetchBatchImportUsers(file: File, orgIds: string) {
   console.log('文件类型:', typeof file);
   console.log('是否为File实例:', file instanceof File);
   console.log('文件属性:', { name: file.name, size: file.size, type: file.type });
-  
+
   const formData = new FormData();
   formData.append('file', file);
   formData.append('orgIds', orgIds);
-  
+
   // 检查FormData内容
   console.log('FormData entries:');
   for (const [key, value] of formData.entries()) {
     console.log(key, value, typeof value);
   }
-  
+
   return request<{
     success: Array<{ row: number; name: string; userId: string }>;
     failed: Array<{ row: number; reason: string; data: any }>;

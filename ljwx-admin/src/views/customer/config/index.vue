@@ -44,19 +44,19 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     },
     {
       key: 'id',
-      title: '客户ID',
+      title: '租户ID',
       align: 'center',
       minWidth: 150
     },
     {
       key: 'customerName',
-      title: '客户名称',
+      title: '租户名称',
       align: 'center',
       minWidth: 100
     },
     {
       key: 'description',
-      title: '客户描述',
+      title: '租户描述',
       align: 'center',
       minWidth: 100
     },
@@ -78,14 +78,14 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       title: '支持许可证',
       align: 'center',
       minWidth: 100,
-      render: row => row.supportLicense ? '是' : '否'
+      render: row => (row.supportLicense ? '是' : '否')
     },
     {
       key: 'enableResume',
       title: '是否启用续传',
       align: 'center',
       minWidth: 100,
-      render: row => row.enableResume ? '是' : '否'
+      render: row => (row.enableResume ? '是' : '否')
     },
     {
       key: 'uploadRetryCount',

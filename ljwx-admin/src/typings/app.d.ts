@@ -805,7 +805,7 @@ declare namespace App {
                 email: string;
                 createUser: string;
                 createTime: string;
-              }
+              };
             };
           };
           data: {

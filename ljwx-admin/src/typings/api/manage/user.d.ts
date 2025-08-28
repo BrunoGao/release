@@ -70,7 +70,18 @@ declare namespace Api {
     /** user edit model */
     type UserEdit = Pick<
       Api.SystemManage.User,
-      'id' | 'userName' | 'gender' | 'nickName' | 'realName' | 'phone' | 'email' | 'deviceSn' | 'status' | 'userCardNumber' | 'orgIds' | 'workingYears'
+      | 'id'
+      | 'userName'
+      | 'gender'
+      | 'nickName'
+      | 'realName'
+      | 'phone'
+      | 'email'
+      | 'deviceSn'
+      | 'status'
+      | 'userCardNumber'
+      | 'orgIds'
+      | 'workingYears'
     >;
 
     /** user list */

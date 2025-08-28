@@ -51,7 +51,7 @@ export function fetchUserHealthData(params?: Api.Health.HealthChartSearchParams)
   if (filteredParams.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request({
     url: '/t_user_health_data/getUserHealthData',
     params: filteredParams

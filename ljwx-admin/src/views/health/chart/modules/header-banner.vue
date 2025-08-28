@@ -42,9 +42,7 @@ const weatherDesc = ref('');
 
 onMounted(async () => {
   try {
-    const response = await axios.get(
-      `https://restapi.amap.com/v3/weather/weatherInfo?city=深圳&key=d45f28e481665db5b1145a5aa989e68a`
-    );
+    const response = await axios.get(`https://restapi.amap.com/v3/weather/weatherInfo?city=深圳&key=d45f28e481665db5b1145a5aa989e68a`);
     if (response.data && response.data.lives && response.data.lives.length > 0) {
       const weatherInfo = response.data.lives[0];
       weatherDesc.value = `${$t('page.health.chart.weather')}: ${weatherInfo.weather}, ${$t('page.health.chart.temperature')}: ${weatherInfo.temperature}°C, ${$t('page.health.chart.humidity')}: ${weatherInfo.humidity}%`;

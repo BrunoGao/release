@@ -15,13 +15,13 @@
     "types": ["vite/client", "node", "unplugin-icons/types/vue", "naive-ui/volar"],
     "strict": false,
     "strictNullChecks": false,
-    "noUnusedLocals": false,
     "noImplicitAny": false,
-    "skipLibCheck": true,
+    "noUnusedLocals": false,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "skipLibCheck": true
   },
   "include": ["./**/*.ts", "./**/*.tsx", "./**/*.vue"],
   "exclude": ["node_modules", "dist"]

@@ -242,13 +242,27 @@ onMounted(() => {
 
 <template>
   <NSpace vertical :size="16">
-    <HealthChartSearch v-model:model="searchParams" :org-units-tree="orgUnitsTree" :user-options="userOptions" :customer-id="customerId" @search="fetchHealthData" />
+    <HealthChartSearch
+      v-model:model="searchParams"
+      :org-units-tree="orgUnitsTree"
+      :user-options="userOptions"
+      :customer-id="customerId"
+      @search="fetchHealthData"
+    />
 
-    <NCard v-if="searchParams.dataType === 'all' || searchParams.dataType === null|| searchParams.dataType === 'heart_rate'" :bordered="false" class=".chart-container">
+    <NCard
+      v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'heart_rate'"
+      :bordered="false"
+      class=".chart-container"
+    >
       <LineChart :data="healthData.heartRate" :timestamps="healthData.timestamps" />
     </NCard>
 
-    <NCard v-if="searchParams.dataType === 'all' || searchParams.dataType === null|| searchParams.dataType === 'temperature'" :bordered="false" class="chart-container card-wrapper">
+    <NCard
+      v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'temperature'"
+      :bordered="false"
+      class="chart-container card-wrapper"
+    >
       <TemperatureChart :data="healthData.temperature" :timestamps="healthData.timestamps" />
     </NCard>
 
@@ -261,31 +275,55 @@ onMounted(() => {
     </NCard>
 
     <NCard
-      v-if="searchParams.dataType === 'all' || searchParams.dataType === null|| searchParams.dataType === 'blood_pressure'"
+      v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'blood_pressure'"
       :bordered="false"
       class="chart-container card-wrapper"
     >
       <PressureLowChart :data="healthData.pressureLow" :timestamps="healthData.timestamps" />
     </NCard>
 
-    <NCard v-if="searchParams.dataType === 'all' || searchParams.dataType === null ||searchParams.dataType === 'blood_oxygen'" :bordered="false" class="chart-container card-wrapper">
+    <NCard
+      v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'blood_oxygen'"
+      :bordered="false"
+      class="chart-container card-wrapper"
+    >
       <BloodOxygenChart :data="healthData.bloodOxygen" :timestamps="healthData.timestamps" />
     </NCard>
 
-    <NCard v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'step'" :bordered="false" class="chart-container card-wrapper">
+    <NCard
+      v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'step'"
+      :bordered="false"
+      class="chart-container card-wrapper"
+    >
       <StepChart :data="healthData.step" :timestamps="healthData.timestamps" />
     </NCard>
 
-    <NCard v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'sleep'" :bordered="false" class="chart-container card-wrapper">
+    <NCard
+      v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'sleep'"
+      :bordered="false"
+      class="chart-container card-wrapper"
+    >
       <SleepChart :data="healthData.sleep" :timestamps="healthData.timestamps" />
     </NCard>
-    <NCard v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'stress'" :bordered="false" class="chart-container card-wrapper">
+    <NCard
+      v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'stress'"
+      :bordered="false"
+      class="chart-container card-wrapper"
+    >
       <StressChart :data="healthData.stress" :timestamps="healthData.timestamps" />
     </NCard>
-    <NCard v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'calorie'" :bordered="false" class="chart-container card-wrapper">
+    <NCard
+      v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'calorie'"
+      :bordered="false"
+      class="chart-container card-wrapper"
+    >
       <CalorieChart :data="healthData.calorie" :timestamps="healthData.timestamps" />
     </NCard>
-    <NCard v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'distance'" :bordered="false" class="chart-container card-wrapper">
+    <NCard
+      v-if="searchParams.dataType === 'all' || searchParams.dataType === null || searchParams.dataType === 'distance'"
+      :bordered="false"
+      class="chart-container card-wrapper"
+    >
       <DistanceChart :data="healthData.distance" :timestamps="healthData.timestamps" />
     </NCard>
   </NSpace>

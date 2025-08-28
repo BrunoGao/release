@@ -32,10 +32,7 @@ async function loadFeatureOptions() {
   try {
     const response = await fetchBaseFeatures(props.customerId);
     if (response && response.data) {
-      featureOptions.value = [
-        { label: '全部', value: 'all' },
-        ...response.data
-      ];
+      featureOptions.value = [{ label: '全部', value: 'all' }, ...response.data];
       console.log('✅ 加载特征选项成功:', featureOptions.value);
     }
   } catch (error) {
@@ -66,7 +63,7 @@ function search() {
 // 监听dataType变化，如果选择全部则设置为null
 watch(
   () => model.value.dataType,
-  (dataType_val) => {
+  dataType_val => {
     if (dataType_val === 'all') model.value.dataType = null;
   }
 );
@@ -111,7 +108,7 @@ onMounted(() => {
                 :options="featureOptions"
                 :loading="featureOptions.length === 0"
               />
-          </NFormItemGi>
+            </NFormItemGi>
             <NFormItemGi span="24 s:8 m:6" :label="$t('page.health.data.info.startDate')" path="startDate">
               <NDatePicker v-model:value="model.startDate" size="small" :placeholder="$t('page.health.data.info.form.startDate')" />
             </NFormItemGi>

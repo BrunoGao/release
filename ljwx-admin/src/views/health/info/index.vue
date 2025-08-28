@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { NButton,  NTooltip } from 'naive-ui';
+import { NButton, NTooltip } from 'naive-ui';
 import { type Ref, h, onMounted, ref, shallowRef, watch } from 'vue';
 import { utils, writeFile } from 'xlsx';
 
@@ -40,12 +40,11 @@ const endDate = new Date(today.setHours(23, 59, 59, 999)).getTime();
 const columns = ref<any[]>([]);
 const enabledDataTypes = ref<Set<string>>(new Set());
 
-
 // 初始化列配置
 async function initColumns() {
   try {
     const params: Api.Customer.HealthDataConfigSearchParams = {
-      customerId: customerId,
+      customerId,
       departmentInfo: searchParams.departmentInfo || null,
       page: 1,
       pageSize: 20
@@ -294,7 +293,7 @@ const {
   apiParams: {
     page: 1,
     pageSize: 20,
-    customerId: customerId,
+    customerId,
     departmentInfo: null,
     userId: null,
     startDate,
@@ -571,12 +570,7 @@ watch(
         :row-key="row => row.id"
         :pagination="mobilePagination"
       />
-      <UserHealthDataOperateDrawer
-        v-model:visible="drawerVisible"
-        :operate-type="operateType"
-        :row-data="editingData"
-        @submitted="getDataByPage"
-      />
+      <UserHealthDataOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" @submitted="getDataByPage" />
     </NCard>
   </div>
 </template>

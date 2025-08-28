@@ -35,8 +35,7 @@ const visible = defineModel<boolean>('visible', {
   default: false
 });
 
-
-const { formRef, validate} = useNaiveForm();
+const { formRef, validate } = useNaiveForm();
 
 const title = computed(() => {
   const titles: Record<NaiveUI.TableOperateType, string> = {

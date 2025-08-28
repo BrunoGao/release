@@ -57,15 +57,15 @@ const translations = {
 // 使用系统主题色彩 - 更专业的配色方案
 const colors = computed(() => ({
   messageType: {
-    system: '#34495e',           // 系统-深灰
-    alert: '#e74c3c',           // 告警-红色
-    notification: '#f39c12',     // 通知-橙色
-    reminder: '#3498db',        // 提醒-蓝色
-    warning: '#e67e22',         // 警告-深橙
-    info: '#1abc9c',            // 信息-青色
-    announcement: '#9b59b6',     // 公告-紫色
-    job: '#2c3e50',             // 作业-深蓝灰
-    task: '#27ae60',            // 任务-绿色
+    system: '#34495e', // 系统-深灰
+    alert: '#e74c3c', // 告警-红色
+    notification: '#f39c12', // 通知-橙色
+    reminder: '#3498db', // 提醒-蓝色
+    warning: '#e67e22', // 警告-深橙
+    info: '#1abc9c', // 信息-青色
+    announcement: '#9b59b6', // 公告-紫色
+    job: '#2c3e50', // 作业-深蓝灰
+    task: '#27ae60', // 任务-绿色
     作业指引消息: '#2c3e50',
     任务管理消息: '#27ae60',
     公告消息: '#9b59b6',
@@ -73,11 +73,11 @@ const colors = computed(() => ({
     '2': '#f39c12'
   },
   messageStatus: {
-    sent: '#27ae60',      // 已发送-绿色
+    sent: '#27ae60', // 已发送-绿色
     delivered: '#3498db', // 已送达-蓝色
-    read: '#95a5a6',      // 已读-灰色
-    failed: '#e74c3c',    // 失败-红色
-    pending: '#f39c12'    // 待发送-橙色
+    read: '#95a5a6', // 已读-灰色
+    failed: '#e74c3c', // 失败-红色
+    pending: '#f39c12' // 待发送-橙色
   }
 }));
 
@@ -90,7 +90,8 @@ function processMessageTimelineData() {
   const dailyData = new Map<string, { messageType: Map<string, number>; messageStatus: Map<string, number> }>();
 
   const today = new Date();
-  for (let i = 13; i >= 0; i -= 1) { // 最近14天
+  for (let i = 13; i >= 0; i -= 1) {
+    // 最近14天
     const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
     const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
     dates.push(dateStr);
@@ -126,7 +127,8 @@ function processMessageTimelineData() {
     const data = dates.map(date => dailyData.get(date)?.messageType.get(type) || 0);
     const total = data.reduce((sum, val) => sum + val, 0);
 
-    if (total > 0) { // 只显示有数据的系列
+    if (total > 0) {
+      // 只显示有数据的系列
       series.push({
         name: translations.messageType[type as keyof typeof translations.messageType] || type,
         type: 'line',
@@ -145,7 +147,8 @@ function processMessageTimelineData() {
     const data = dates.map(date => dailyData.get(date)?.messageStatus.get(status) || 0);
     const total = data.reduce((sum, val) => sum + val, 0);
 
-    if (total > 0) { // 只显示有数据的系列
+    if (total > 0) {
+      // 只显示有数据的系列
       series.push({
         name: translations.messageStatus[status as keyof typeof translations.messageStatus] || status,
         type: 'line',

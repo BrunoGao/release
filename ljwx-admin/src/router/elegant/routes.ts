@@ -134,7 +134,8 @@ export const generatedRoutes: GeneratedRoute[] = [
     component: 'layout.base',
     meta: {
       title: 'customer',
-      i18nKey: 'route.customer'
+      i18nKey: 'route.customer',
+      roles: ['R_ADMIN']
     },
     children: [
       {
@@ -143,7 +144,8 @@ export const generatedRoutes: GeneratedRoute[] = [
         component: 'view.customer_config',
         meta: {
           title: 'customer_config',
-          i18nKey: 'route.customer_config'
+          i18nKey: 'route.customer_config',
+          roles: ['R_ADMIN']
         }
       },
       {
@@ -152,7 +154,8 @@ export const generatedRoutes: GeneratedRoute[] = [
         component: 'view.customer_data',
         meta: {
           title: 'customer_data',
-          i18nKey: 'route.customer_data'
+          i18nKey: 'route.customer_data',
+          roles: ['R_ADMIN']
         }
       },
       {
@@ -161,7 +164,8 @@ export const generatedRoutes: GeneratedRoute[] = [
         component: 'view.customer_interface',
         meta: {
           title: 'customer_interface',
-          i18nKey: 'route.customer_interface'
+          i18nKey: 'route.customer_interface',
+          roles: ['R_ADMIN']
         }
       }
     ]

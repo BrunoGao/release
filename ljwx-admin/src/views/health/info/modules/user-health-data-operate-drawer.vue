@@ -14,7 +14,6 @@ interface Props {
   operateType: NaiveUI.TableOperateType;
   /** the edit row data */
   rowData?: Api.Health.UserHealthData | null;
-
 }
 
 const props = defineProps<Props>();
@@ -112,11 +111,7 @@ watch(visible, () => {
           <NInput v-model:value="model.phoneNumber" :placeholder="$t('page.health.data.info.form.phoneNumber')" :disabled="!isAdd" />
         </NFormItem>
         <NFormItem :label="$t('page.health.data.info.devicesn')" path="deviceSn">
-          <NSelect
-            v-model:value="model.deviceSn"
-            size="small"
-            :placeholder="$t('page.health.data.info.form.deviceSn')"
-          />
+          <NSelect v-model:value="model.deviceSn" size="small" :placeholder="$t('page.health.data.info.form.deviceSn')" />
         </NFormItem>
         <NFormItem :label="$t('page.health.data.info.username')" path="userName">
           <NInput v-model:value="model.userName" :placeholder="$t('page.health.data.info.form.userName')" :disabled="!isAdd" />

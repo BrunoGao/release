@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+import { computed } from 'vue';
 import { NButton, NPopconfirm, NTag } from 'naive-ui';
 import { useBoolean } from '@sa/hooks';
 import { fetchDeleteRole, fetchGetRoleList } from '@/service/api';
@@ -8,12 +9,14 @@ import { $t } from '@/locales';
 import { transDeleteParams } from '@/utils/common';
 import { useAuth } from '@/hooks/business/auth';
 import { useDict } from '@/hooks/business/dict';
+import { useAuthStore } from '@/store/modules/auth';
 import RoleOperateDrawer from './modules/role-operate-drawer.vue';
 import RoleSearch from './modules/role-search.vue';
 import MenuAuthModal from './modules/menu-auth-modal.vue';
 import ButtonAuthModal from './modules/button-auth-modal.vue';
 
 const appStore = useAppStore();
+const authStore = useAuthStore();
 
 const { bool: menuModalVisible, setTrue: openMenuModal } = useBoolean();
 
@@ -22,6 +25,14 @@ const { bool: buttonModalVisible, setTrue: openButtonModal } = useBoolean();
 const { hasAuth } = useAuth();
 
 const { dictTag } = useDict();
+
+// 判断是否是超级管理员（admin用户，可以管理所有租户的角色）
+const isAdmin = computed(() => {
+  return authStore.userInfo?.userName === 'admin';
+});
+
+// 当前用户的租户ID
+const currentCustomerId = authStore.userInfo?.customerId || null;
 
 const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams } = useTable({
   apiFn: fetchGetRoleList,
@@ -32,7 +43,9 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     // the value can not be undefined, otherwise the property in Form will not be reactive
     status: null,
     roleName: null,
-    roleCode: null
+    roleCode: null,
+    // \u975e admin \u7528\u6237\u53ea\u67e5\u770b\u81ea\u5df1\u79df\u6237\u7684\u89d2\u8272
+    customerId: isAdmin.value ? null : currentCustomerId
   },
   columns: () => [
     {
@@ -58,6 +71,14 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center',
       minWidth: 120
     },
+    // 只有admin用户才显示租户列
+    ...(isAdmin.value ? [{
+      key: 'customerId',
+      title: '租户ID',
+      align: 'center',
+      width: 100,
+      render: row => row.customerId || '全局'
+    }] : []),
     {
       key: 'isAdmin',
       title: $t('page.manage.role.isAdmin'),
@@ -191,7 +212,14 @@ function handleButtonAuth(id: string) {
         :row-key="row => row.id"
         :pagination="mobilePagination"
       />
-      <RoleOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" @submitted="getDataByPage" />
+      <RoleOperateDrawer 
+        v-model:visible="drawerVisible" 
+        :operate-type="operateType" 
+        :row-data="editingData" 
+        :is-admin="isAdmin"
+        :current-customer-id="currentCustomerId"
+        @submitted="getDataByPage" 
+      />
       <MenuAuthModal v-model:visible="menuModalVisible" :role-id="editingId" />
       <ButtonAuthModal v-model:visible="buttonModalVisible" :role-id="editingId" />
     </NCard>

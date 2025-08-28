@@ -14,15 +14,17 @@ declare namespace Api {
       status: Common.EnableStatus | null;
       /** is admin role */
       isAdmin?: number;
+      /** customer id for multi-tenant */
+      customerId?: number | null;
     }>;
 
     /** role search params */
     type RoleSearchParams = CommonType.RecordNullable<
-      Pick<Api.SystemManage.Role, 'roleName' | 'roleCode' | 'status'> & Api.Common.CommonSearchParams
+      Pick<Api.SystemManage.Role, 'roleName' | 'roleCode' | 'status' | 'customerId'> & Api.Common.CommonSearchParams
     >;
 
     /** role edit model */
-    type RoleEdit = Pick<Api.SystemManage.Role, 'id' | 'roleName' | 'roleCode' | 'description' | 'status' | 'sort' | 'isAdmin'>;
+    type RoleEdit = Pick<Api.SystemManage.Role, 'id' | 'roleName' | 'roleCode' | 'description' | 'status' | 'sort' | 'isAdmin' | 'customerId'>;
 
     /** role list */
     type RoleList = Common.PaginatingQueryRecord<Role>;

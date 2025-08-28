@@ -23,11 +23,15 @@ const emit = defineEmits<Emits>();
 const model = defineModel<Api.Health.AlertConfigWechatSearchParams>('model', { required: true });
 
 // 监听props.type变化，自动设置model中的type字段
-watch(() => props.type, (newType) => {
-  if (newType) {
-    model.value.type = newType;
-  }
-}, { immediate: true });
+watch(
+  () => props.type,
+  newType => {
+    if (newType) {
+      model.value.type = newType;
+    }
+  },
+  { immediate: true }
+);
 
 const { dictOptions } = useDict();
 
@@ -59,10 +63,7 @@ function search() {
     <NForm ref="queryFormRef" :model="model" label-placement="left" :label-width="80">
       <NGrid responsive="screen" item-responsive>
         <NFormItemGi span="24 s:12 m:6" :label="props.type === 'enterprise' ? '企业ID' : 'AppID'" path="corpId" class="pr-24px">
-          <NInput 
-            v-model:value="searchValue" 
-            :placeholder="props.type === 'enterprise' ? '请输入企业ID' : '请输入AppID'" 
-          />
+          <NInput v-model:value="searchValue" :placeholder="props.type === 'enterprise' ? '请输入企业ID' : '请输入AppID'" />
         </NFormItemGi>
         <NFormItemGi span="24 s:12 m:6" label="模板ID" path="templateId" class="pr-24px">
           <NInput v-model:value="model.templateId" placeholder="请输入模板ID" />

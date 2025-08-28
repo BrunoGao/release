@@ -63,14 +63,14 @@ const translations = {
 // 使用系统主题色彩 - 更专业的配色方案
 const colors = computed(() => ({
   alertType: {
-    heart_rate: '#e74c3c',        // 心率-红色
-    blood_pressure: '#9b59b6',    // 血压-紫色
-    temperature: '#f39c12',       // 体温-橙色
-    blood_oxygen: '#3498db',      // 血氧-蓝色
-    stress: '#e67e22',           // 压力-深橙
-    sleep: '#2c3e50',            // 睡眠-深蓝灰
-    fall_down: '#c0392b',        // 跌倒-深红
-    one_key_alarm: '#8e44ad',    // 一键告警-深紫
+    heart_rate: '#e74c3c', // 心率-红色
+    blood_pressure: '#9b59b6', // 血压-紫色
+    temperature: '#f39c12', // 体温-橙色
+    blood_oxygen: '#3498db', // 血氧-蓝色
+    stress: '#e67e22', // 压力-深橙
+    sleep: '#2c3e50', // 睡眠-深蓝灰
+    fall_down: '#c0392b', // 跌倒-深红
+    one_key_alarm: '#8e44ad', // 一键告警-深紫
     作业指引消息: themeStore.themeColor,
     任务管理消息: '#27ae60',
     公告消息: '#f1c40f',
@@ -83,9 +83,9 @@ const colors = computed(() => ({
     resolved: '#27ae60'
   },
   severityLevel: {
-    low: '#27ae60',      // 低风险-绿色
-    medium: '#f39c12',   // 中风险-橙色
-    high: '#e74c3c',     // 高风险-红色
+    low: '#27ae60', // 低风险-绿色
+    medium: '#f39c12', // 中风险-橙色
+    high: '#e74c3c', // 高风险-红色
     critical: '#8e44ad', // 危急-紫色
     '1': '#27ae60',
     '2': '#f39c12'
@@ -130,11 +130,10 @@ function processTimelineData() {
   const series: any[] = [];
 
   // 告警类型系列（折线图）- 按重要性排序
-  const allAlertTypes = [...new Set(alerts.value.map((a: Alert) => a.alertType || '其他'))]
-    .sort((a, b) => {
-      const priority: Record<string, number> = { 'one_key_alarm': 1, 'fall_down': 2, 'heart_rate': 3, 'blood_pressure': 4, 'sleep': 5 };
-      return (priority[a] || 99) - (priority[b] || 99);
-    });
+  const allAlertTypes = [...new Set(alerts.value.map((a: Alert) => a.alertType || '其他'))].sort((a, b) => {
+    const priority: Record<string, number> = { one_key_alarm: 1, fall_down: 2, heart_rate: 3, blood_pressure: 4, sleep: 5 };
+    return (priority[a] || 99) - (priority[b] || 99);
+  });
 
   allAlertTypes.forEach(type => {
     const data = dates.map(date => dailyData.get(date)?.alertType.get(type) || 0);
@@ -161,8 +160,9 @@ function processTimelineData() {
 
   // 严重程度系列（柱状图）- 按严重程度排序
   const severityOrder = ['critical', 'high', 'medium', 'low', '2', '1'];
-  const allSeverityLevels = [...new Set(alerts.value.map((a: Alert) => a.severityLevel || '1'))]
-    .sort((a, b) => severityOrder.indexOf(a) - severityOrder.indexOf(b));
+  const allSeverityLevels = [...new Set(alerts.value.map((a: Alert) => a.severityLevel || '1'))].sort(
+    (a, b) => severityOrder.indexOf(a) - severityOrder.indexOf(b)
+  );
 
   allSeverityLevels.forEach(level => {
     const data = dates.map(date => dailyData.get(date)?.severityLevel.get(level) || 0);

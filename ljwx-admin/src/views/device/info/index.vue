@@ -235,17 +235,14 @@ async function fetchDeviceInactiveThreshold() {
   const { error, data: interfaceData } = await fetchGetInterfaceList({
     customerId,
     page: 1,
-    pageSize: 100,
+    pageSize: 100
   });
 
   if (!error && interfaceData?.records?.length > 0) {
-    const uploadDeviceInterface = interfaceData.records.find((item) =>
-      item.url?.includes('upload_device_info')
-    );
+    const uploadDeviceInterface = interfaceData.records.find(item => item.url?.includes('upload_device_info'));
 
     if (uploadDeviceInterface) {
-      deviceInactiveThreshold.value =
-        (uploadDeviceInterface.callInterval || 60) * 1000; // 转换为毫秒
+      deviceInactiveThreshold.value = (uploadDeviceInterface.callInterval || 60) * 1000; // 转换为毫秒
     }
   }
 }

@@ -1,1 +1,3 @@
-export interface TotalInfo { [key: string]: any; }
+export interface TotalInfo {
+  [key: string]: any;
+}
