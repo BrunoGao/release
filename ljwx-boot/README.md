@@ -2,7 +2,7 @@
 
 ![SpringBoot](https://img.shields.io/badge/Spring%20Boot-3.3-blue.svg)
 ![JDK](https://img.shields.io/badge/JDK-21+-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.3.4-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.3.6-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-brunoGao-green.svg)](https://github.com/brunoGao)
@@ -17,6 +17,80 @@
 在市面上虽然存在众多出色的 Java 后端管理系统框架，但还是决定重复再造一个轮子。
 
 ### 🚀 最新更新
+
+#### v1.3.6 - 多租户角色岗位系统完整实现 (2025-08-28)
+
+**🏢 企业级多租户角色岗位管理系统**
+- **智能角色继承**: 新建租户时自动从全局角色模板(customerId=0)复制标准角色配置
+  - 全局角色：4个标准角色（超级管理员、系统管理员等）
+  - 租户角色：每个租户独立拥有4个角色副本，支持个性化定制
+- **岗位自动配置**: 租户创建时自动配置标准岗位体系
+  - 全局岗位：6个标准岗位（技术总监、产品经理、开发工程师、测试工程师、运维工程师、业务专员）
+  - 租户岗位：每个租户独立岗位配置，支持权重排序和灵活管理
+- **数据隔离保障**: 严格的多租户数据隔离机制
+  - 角色数据：`sys_role.customer_id` 字段实现租户级角色隔离
+  - 岗位数据：`sys_position.customer_id` 字段实现租户级岗位隔离
+  - 自动清理：删除租户时级联清理相关角色岗位数据
+
+**🔄 事件驱动的自动化管理**
+- **OrgUnitsChangeListener 增强**: 组织变更事件监听器完整重构
+  ```java
+  // 新增租户时自动执行
+  cloneRoles(orgUnit);      // 复制全局角色到新租户
+  clonePositions(orgUnit);  // 复制全局岗位到新租户
+  
+  // 删除租户时自动清理
+  roleService.lambdaUpdate().eq(SysRole::getCustomerId, orgUnit.getId())
+            .set(SysRole::getDeleted, 1).update();
+  positionService.lambdaUpdate().eq(SysPosition::getCustomerId, orgUnit.getId())
+                .set(SysPosition::getDeleted, 1).update();
+  ```
+- **批量数据同步**: 为6个现有租户完成历史数据同步
+  - 角色同步：24个租户角色记录（6租户 × 4角色）
+  - 岗位同步：36个租户岗位记录（6租户 × 6岗位）
+
+**🛠️ 数据库架构优化**
+- **索引性能优化**: 新增多租户查询索引
+  ```sql
+  CREATE INDEX idx_sys_role_customer_id ON sys_role(customer_id);
+  CREATE INDEX idx_sys_role_customer_status ON sys_role(customer_id, status);
+  CREATE INDEX idx_sys_position_customer_id ON sys_position(customer_id);
+  CREATE INDEX idx_sys_position_customer_status ON sys_position(customer_id, status);
+  ```
+- **完整迁移脚本**: 提供 `database-migration.sql` 完整迁移方案
+- **字段名标准化**: 修复监听器中的字段名称不一致问题
+
+**📊 最终数据分布**
+```
+├── 全局角色配置: 4个 (customer_id=0) 
+├── 租户角色数据: 6个租户 × 4个角色 = 24个
+├── 全局岗位配置: 6个 (customer_id=0)
+└── 租户岗位数据: 6个租户 × 6个岗位 = 36个
+```
+
+**🎯 技术架构亮点**
+- **事件驱动**: Spring Event 机制实现组织变更自动响应
+- **模板模式**: 全局配置作为模板，租户数据继承并独立管理
+- **数据一致性**: 事务保证多表数据同步的原子性
+- **扩展性**: 支持任意数量租户的角色岗位独立管理
+
+**相关文件：**
+- 实体: `SysRole.java` - 添加customerId多租户支持
+- 监听器: `OrgUnitsChangeListener.java` - 角色岗位自动管理逻辑
+- 迁移脚本: `database-migration.sql` - 完整数据库迁移方案
+- 文档: `ljwx-admin/CLAUDE.md` - 详细实现文档和故障排查指南
+
+---
+
+#### v1.3.5 - 微信告警配置管理功能完整实现 (2025-08-27)
+
+**🚨 企业微信告警配置管理系统**
+- **配置管理界面**: 完整的CRUD操作支持，包括企业微信和公众号微信两种类型
+- **表格功能增强**: 支持分页、搜索、排序、批量操作
+- **数据验证**: 前后端完整的数据验证机制
+- **权限控制**: 基于多租户的权限隔离
+
+---
 
 #### v1.3.4 - 健康数据源区分与查询优化 (2025-08-25)
 

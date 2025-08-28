@@ -52,6 +52,7 @@ public class DruidConfiguration {
      * @CreateTime 2024-11-29 - 14:16:06
      */
     @Bean
+    @ConfigurationProperties("spring.datasource.druid")
     public DataSource druidPrimary(
             @Value("${spring.datasource.url}") String url,
             @Value("${spring.datasource.username}") String username,

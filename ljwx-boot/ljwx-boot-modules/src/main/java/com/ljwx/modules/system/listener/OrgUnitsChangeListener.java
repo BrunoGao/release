@@ -9,6 +9,10 @@ import com.ljwx.modules.customer.service.ITInterfaceService;
 import com.ljwx.modules.health.domain.entity.TAlertRules;
 import com.ljwx.modules.health.service.ITAlertRulesService;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
+import com.ljwx.modules.system.domain.entity.SysRole;
+import com.ljwx.modules.system.domain.entity.SysPosition;
+import com.ljwx.modules.system.service.ISysRoleService;
+import com.ljwx.modules.system.service.ISysPositionService;
 import com.ljwx.modules.system.event.SysOrgUnitsChangeEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +42,12 @@ public class OrgUnitsChangeListener {
     @Autowired
     private ITAlertRulesService alertRulesService;
     
+    @Autowired
+    private ISysRoleService roleService;
+    
+    @Autowired
+    private ISysPositionService positionService;
+    
     @Transactional(rollbackFor = Exception.class)
     @EventListener(SysOrgUnitsChangeEvent.class)
     public void handleOrgUnitsChange(SysOrgUnitsChangeEvent event) {
@@ -49,14 +59,18 @@ public class OrgUnitsChangeListener {
             cloneInterface(orgUnit);
             cloneHealthDataConfig(orgUnit);
             cloneAlertRules(orgUnit);
-            log.info("Cloned config for new orgId={}", orgUnit.getId());
+            cloneRoles(orgUnit);
+            clonePositions(orgUnit);
+            log.info("Cloned config, roles and positions for new orgId={}", orgUnit.getId());
         }
         if (orgUnit.getParentId() == 0 && orgUnit.getIsDeleted() == 1) {
             customerConfigService.lambdaUpdate().eq(TCustomerConfig::getId, orgUnit.getId()).set(TCustomerConfig::getIsDeleted, 1).update();
             interfaceService.lambdaUpdate().eq(TInterface::getCustomerId, orgUnit.getId()).set(TInterface::getDeleted, 1).update();
             healthDataConfigService.lambdaUpdate().eq(THealthDataConfig::getCustomerId, orgUnit.getId()).set(THealthDataConfig::getIsDeleted, 1).update();
             alertRulesService.lambdaUpdate().eq(TAlertRules::getCustomerId, orgUnit.getId()).set(TAlertRules::getDeleted, 1).update();
-            log.info("Deleted org and related config for orgId={}", orgUnit.getId());
+            roleService.lambdaUpdate().eq(SysRole::getCustomerId, orgUnit.getId()).set(SysRole::getDeleted, 1).update();
+            positionService.lambdaUpdate().eq(SysPosition::getCustomerId, orgUnit.getId()).set(SysPosition::getDeleted, 1).update();
+            log.info("Deleted org and related config, roles, positions for orgId={}", orgUnit.getId());
         }
     }
     
@@ -132,6 +146,63 @@ public class OrgUnitsChangeListener {
             n.setCreateTime(a.getCreateTime());
             n.setUpdateTime(a.getUpdateTime());
             alertRulesService.saveOrUpdate(n);
+        });
+    }
+    
+    private void cloneRoles(SysOrgUnits o) { // 复制角色
+        log.warn("cloneRoles called for orgId={}", o.getId());
+        // 先清理当前租户的角色（避免重复）
+        roleService.lambdaUpdate().eq(SysRole::getCustomerId, o.getId()).set(SysRole::getDeleted, 1).update();
+        
+        // 获取所有全局角色（customer_id = 0）
+        roleService.list(new QueryWrapper<SysRole>().eq("customer_id", 0).eq("is_deleted", 0)).forEach(r -> {
+            SysRole n = new SysRole();
+            n.setParentId(r.getParentId());
+            n.setRoleName(r.getRoleName());
+            n.setRoleCode(r.getRoleCode());
+            n.setDescription(r.getDescription());
+            n.setSort(r.getSort());
+            n.setCreateUser(r.getCreateUser());
+            n.setCreateUserId(r.getCreateUserId());
+            n.setCreateTime(r.getCreateTime());
+            n.setUpdateUser(r.getUpdateUser());
+            n.setUpdateUserId(r.getUpdateUserId());
+            n.setUpdateTime(r.getUpdateTime());
+            n.setStatus(r.getStatus());
+            n.setIsAdmin(r.getIsAdmin());
+            n.setDeleted(0);
+            n.setCustomerId(o.getId()); // 设置为当前租户ID
+            roleService.save(n);
+            log.info("Cloned role {} for tenant {}", r.getRoleName(), o.getId());
+        });
+    }
+    
+    private void clonePositions(SysOrgUnits o) { // 复制岗位
+        log.warn("clonePositions called for orgId={}", o.getId());
+        // 先清理当前租户的岗位（避免重复）
+        positionService.lambdaUpdate().eq(SysPosition::getCustomerId, o.getId()).set(SysPosition::getDeleted, 1).update();
+        
+        // 获取所有全局岗位（customer_id = 0）
+        positionService.list(new QueryWrapper<SysPosition>().eq("customer_id", 0).eq("is_deleted", 0)).forEach(p -> {
+            SysPosition n = new SysPosition();
+            n.setName(p.getName());
+            n.setCode(p.getCode());
+            n.setAbbr(p.getAbbr());
+            n.setDescription(p.getDescription());
+            n.setSort(p.getSort());
+            n.setCreateUser(p.getCreateUser());
+            n.setCreateUserId(p.getCreateUserId());
+            n.setCreateTime(p.getCreateTime());
+            n.setUpdateUser(p.getUpdateUser());
+            n.setUpdateUserId(p.getUpdateUserId());
+            n.setUpdateTime(p.getUpdateTime());
+            n.setStatus(p.getStatus());
+            n.setDeleted(0);
+            n.setOrgId(o.getId()); // 设置组织ID为当前租户ID
+            n.setWeight(p.getWeight());
+            n.setCustomerId(o.getId()); // 设置为当前租户ID
+            positionService.save(n);
+            log.info("Cloned position {} for tenant {}", p.getName(), o.getId());
         });
     }
 
