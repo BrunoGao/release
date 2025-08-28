@@ -53,10 +53,10 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
     @Autowired
     private IDeviceUserMappingService deviceUserMappingService;
 
+
     @Override
     public IPage<TDeviceInfo> listTDeviceInfoPage(PageQuery pageQuery, TDeviceInfoBO tDeviceInfoBO) {
         // 构建基本查询条件
-       // ... existing code ...
         LambdaQueryWrapper<TDeviceInfo> queryWrapper = new LambdaQueryWrapper<TDeviceInfo>()
         .eq(ObjectUtils.isNotEmpty(tDeviceInfoBO.getChargingStatus()), TDeviceInfo::getChargingStatus, tDeviceInfoBO.getChargingStatus())
         .eq(ObjectUtils.isNotEmpty(tDeviceInfoBO.getWearableStatus()), TDeviceInfo::getWearableStatus, tDeviceInfoBO.getWearableStatus())
@@ -64,7 +64,16 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
         .eq(ObjectUtils.isNotEmpty(tDeviceInfoBO.getStatus()), TDeviceInfo::getStatus, tDeviceInfoBO.getStatus())
         .inSql(TDeviceInfo::getId, "SELECT id FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY serial_number ORDER BY timestamp DESC) as rn FROM t_device_info) t WHERE rn = 1")
         .orderByDesc(TDeviceInfo::getTimestamp);
-// ... existing code ...
+
+        // 添加租户过滤 - 直接使用传入的customerId
+        if (tDeviceInfoBO.getCustomerId() != null && tDeviceInfoBO.getCustomerId() != 0L) {
+            // 租户用户，查看全局设备(customer_id=0)和自己租户的设备
+            queryWrapper.and(wrapper -> 
+                wrapper.eq(TDeviceInfo::getCustomerId, 0L)
+                       .or()
+                       .eq(TDeviceInfo::getCustomerId, tDeviceInfoBO.getCustomerId())
+            );
+        }
         // 🔧 设备过滤逻辑: 根据用户ID或部门ID过滤设备，特殊处理orgId=0的情况
         System.out.println("🔍 查询条件 - userIdStr: " + tDeviceInfoBO.getUserIdStr() + ", departmentInfo: " + tDeviceInfoBO.getDepartmentInfo());
         System.out.println("🔍 过滤条件判断 - userIdStr isEmpty: " + ObjectUtils.isEmpty(tDeviceInfoBO.getUserIdStr()) 

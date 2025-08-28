@@ -51,9 +51,5 @@ public class TAlertInfoBO extends TAlertInfo {
      */
     private String departmentInfo;
 
-    /**
-     * 用户ID
-     */
-    private String userId;
 
 }

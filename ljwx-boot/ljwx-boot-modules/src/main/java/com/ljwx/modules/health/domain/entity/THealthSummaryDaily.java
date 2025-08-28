@@ -53,6 +53,11 @@ public class THealthSummaryDaily extends BaseEntity {
     private Long userId;
 
     /**
+     * 租户ID，继承自用户所属租户
+     */
+    private Long customerId;
+
+    /**
     * 健康数据所属日期
     */
     private LocalDate date;

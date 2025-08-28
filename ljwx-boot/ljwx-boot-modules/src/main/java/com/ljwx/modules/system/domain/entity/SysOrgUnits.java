@@ -103,4 +103,10 @@ public class SysOrgUnits extends BaseEntity {
      */
     @Builder.Default
     private Integer isDeleted = 0; // 默认未删除
+
+    /**
+     * 租户ID (0表示全局组织，顶级组织ID表示租户)
+     */
+    @Builder.Default
+    private Long customerId = 0L;
 }

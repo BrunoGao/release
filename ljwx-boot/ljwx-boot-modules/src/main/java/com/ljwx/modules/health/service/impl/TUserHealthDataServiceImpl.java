@@ -88,6 +88,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
     @Autowired
     private ISysOrgUnitsService sysOrgUnitsService;
 
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -160,6 +161,18 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
     // 3. 基础 Wrapper
     LambdaQueryWrapper<TUserHealthData> query = new LambdaQueryWrapper<>();
     
+    // 4. 添加租户过滤 - 直接使用传入的customerId
+    Long customerId = tUserHealthDataBO.getCustomerId();
+    
+    if (customerId != null && customerId != 0L) {
+        // 租户用户，查看全局数据(customer_id=0)和自己租户的数据
+        query.and(wrapper -> 
+            wrapper.eq(TUserHealthData::getCustomerId, 0L)
+                   .or()
+                   .eq(TUserHealthData::getCustomerId, customerId)
+        );
+    }
+    
     // 如果指定了具体用户，获取该用户指定时间范围内的所有数据
     if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getUserId()) && 
         !"0".equals(tUserHealthDataBO.getUserId()) && 
@@ -208,6 +221,15 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
         tempQuery.ge(TUserHealthData::getTimestamp, startDate)
                  .le(TUserHealthData::getTimestamp, endDate)
                  .in(TUserHealthData::getDeviceSn, deviceSnList);
+        
+        // 添加租户过滤到临时查询
+        if (customerId != null && customerId != 0L) {
+            tempQuery.and(wrapper -> 
+                wrapper.eq(TUserHealthData::getCustomerId, 0L)
+                       .or()
+                       .eq(TUserHealthData::getCustomerId, customerId)
+            );
+        }
                  
         List<TUserHealthData> allData = baseMapper.selectList(tempQuery);
         System.out.println("📊 查询到原始数据条数: " + allData.size());

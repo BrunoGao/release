@@ -75,6 +75,13 @@ public class OrgUnitsChangeListener {
     }
     
     private void cloneCustomerConfig(SysOrgUnits o) { // 复制客户配置
+        // 检查是否已存在配置，避免循环创建
+        TCustomerConfig existingConfig = customerConfigService.getById(o.getId());
+        if (existingConfig != null) {
+            log.info("CustomerConfig already exists for orgId={}, skipping clone", o.getId());
+            return;
+        }
+        
         customerConfigService.list(new QueryWrapper<TCustomerConfig>().eq("id", 1)).forEach(c -> {
             TCustomerConfig n = new TCustomerConfig();
             n.setId(o.getId()); n.setCustomerName(o.getName());
@@ -85,6 +92,7 @@ public class OrgUnitsChangeListener {
             n.setUploadRetryCount(c.getUploadRetryCount());
             n.setCacheMaxCount(c.getCacheMaxCount());
             n.setUploadRetryInterval(c.getUploadRetryInterval());
+            n.setCustomerId(o.getId()); // 设置customer_id
             customerConfigService.saveOrUpdate(n);
         });
     }

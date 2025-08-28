@@ -99,4 +99,10 @@ public class TDeviceInfo extends BaseEntity {
     @JsonFormat(shape = JsonFormat.Shape.STRING) // 防止前端精度丢失
     private Long userId; // 用户ID
 
+    /**
+     * 租户ID，继承自当前绑定用户，0表示全局设备
+     */
+    @JsonFormat(shape = JsonFormat.Shape.STRING) // 防止前端精度丢失
+    private Long customerId;
+
 }

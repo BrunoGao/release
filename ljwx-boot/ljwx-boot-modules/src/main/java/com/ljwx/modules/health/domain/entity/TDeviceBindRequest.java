@@ -55,6 +55,11 @@ public class TDeviceBindRequest extends BaseEntity {
     private String userId;
 
     /**
+     * 租户ID，继承自申请用户的租户信息
+     */
+    private Long customerId;
+
+    /**
     * 申请用户姓名
     */
     private String userName;

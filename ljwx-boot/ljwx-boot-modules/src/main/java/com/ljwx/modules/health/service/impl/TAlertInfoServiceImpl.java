@@ -53,6 +53,7 @@ public class TAlertInfoServiceImpl extends ServiceImpl<TAlertInfoMapper, TAlertI
     @Autowired
     private IDeviceUserMappingService deviceUserMappingService;
 
+
     @Override
     public IPage<TAlertInfo> listTAlertInfoPage(PageQuery pageQuery, TAlertInfoBO tAlertInfoBO) {
         
@@ -60,10 +61,20 @@ public class TAlertInfoServiceImpl extends ServiceImpl<TAlertInfoMapper, TAlertI
             .eq(ObjectUtils.isNotEmpty(tAlertInfoBO.getAlertType()), TAlertInfo::getAlertType, tAlertInfoBO.getAlertType())
             .eq(ObjectUtils.isNotEmpty(tAlertInfoBO.getAlertStatus()), TAlertInfo::getAlertStatus, tAlertInfoBO.getAlertStatus())
             .orderByDesc(TAlertInfo::getAlertTimestamp);
+
+        // 添加租户过滤 - 直接使用传入的customerId
+        if (tAlertInfoBO.getCustomerId() != null && tAlertInfoBO.getCustomerId() != 0L) {
+            // 租户用户，查看全局告警(customer_id=0)和自己租户的告警
+            queryWrapper.and(wrapper -> 
+                wrapper.eq(TAlertInfo::getCustomerId, 0L)
+                       .or()
+                       .eq(TAlertInfo::getCustomerId, tAlertInfoBO.getCustomerId())
+            );
+        }
         if (ObjectUtils.isNotEmpty(tAlertInfoBO.getUserId()) || ObjectUtils.isNotEmpty(tAlertInfoBO.getDepartmentInfo())) {
             // 获取设备序列号列表
             List<String> deviceSnList = deviceUserMappingService.getDeviceSnList(
-                tAlertInfoBO.getUserId(),
+                tAlertInfoBO.getUserId() != null ? tAlertInfoBO.getUserId().toString() : null,
                 tAlertInfoBO.getDepartmentInfo()
             );
             

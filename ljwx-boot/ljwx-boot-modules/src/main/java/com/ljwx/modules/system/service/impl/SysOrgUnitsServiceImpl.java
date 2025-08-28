@@ -157,16 +157,6 @@ public class SysOrgUnitsServiceImpl extends ServiceImpl<SysOrgUnitsMapper, SysOr
         return result;
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public boolean save(SysOrgUnits entity) {
-        boolean result = super.save(entity);
-        if (result && entity.getParentId() == 0) {
-            // 发布组织机构变更事件
-            eventPublisher.publishEvent(new SysOrgUnitsChangeEvent(this, entity, "CREATE"));
-        }
-        return result;
-    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -220,6 +210,71 @@ public class SysOrgUnitsServiceImpl extends ServiceImpl<SysOrgUnitsMapper, SysOr
         
         // 如果ancestors都是0，说明当前部门就是顶级部门
         return orgId;
+    }
+
+    @Override
+    public List<SysOrgUnits> listOrgUnitsByCustomerId(Long customerId, String status) {
+        log.debug("listOrgUnitsByCustomerId - customerId: {}, status: {}", customerId, status);
+
+        LambdaQueryWrapper<SysOrgUnits> queryWrapper = new LambdaQueryWrapper<SysOrgUnits>()
+                .eq(SysOrgUnits::getCustomerId, customerId)
+                .eq(StrUtil.isNotBlank(status), SysOrgUnits::getStatus, status)
+                .eq(SysOrgUnits::getIsDeleted, 0);
+
+        List<SysOrgUnits> result = baseMapper.selectList(queryWrapper);
+        log.debug("Query result size: {}", result.size());
+        return result;
+    }
+
+    @Override
+    public IPage<SysOrgUnits> listSysOrgUnitsPageByCustomerId(PageQuery pageQuery, Long customerId, SysOrgUnitsBO sysOrgUnitsBO) {
+        log.debug("listSysOrgUnitsPageByCustomerId - customerId: {}, pageQuery: {}", customerId, pageQuery);
+
+        LambdaQueryWrapper<SysOrgUnits> queryWrapper = new LambdaQueryWrapper<SysOrgUnits>()
+                .eq(SysOrgUnits::getCustomerId, customerId)
+                .eq(SysOrgUnits::getIsDeleted, 0)
+                .like(StrUtil.isNotBlank(sysOrgUnitsBO.getName()), SysOrgUnits::getName, sysOrgUnitsBO.getName())
+                .eq(StrUtil.isNotBlank(sysOrgUnitsBO.getStatus()), SysOrgUnits::getStatus, sysOrgUnitsBO.getStatus())
+                .orderByAsc(SysOrgUnits::getSort, SysOrgUnits::getId);
+
+        IPage<SysOrgUnits> result = baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
+        log.debug("Page query result - total: {}, records: {}", result.getTotal(), result.getRecords().size());
+        return result;
+    }
+
+    @Override
+    public Long getCustomerIdByOrgId(Long orgId) {
+        if (orgId == null) {
+            return null;
+        }
+
+        SysOrgUnits org = this.getById(orgId);
+        return org != null ? org.getCustomerId() : null;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean save(SysOrgUnits entity) {
+        // 为顶级组织设置customer_id为自身ID
+        if (entity.getParentId() == null || entity.getParentId() == 0) {
+            entity.setCustomerId(0L); // 临时设置，保存后更新
+        } else {
+            // 子组织继承父组织的customer_id
+            Long parentCustomerId = getCustomerIdByOrgId(entity.getParentId());
+            entity.setCustomerId(parentCustomerId != null ? parentCustomerId : 0L);
+        }
+
+        boolean result = super.save(entity);
+        
+        // 顶级组织保存后，将customer_id更新为自身ID
+        if (result && (entity.getParentId() == null || entity.getParentId() == 0)) {
+            entity.setCustomerId(entity.getId());
+            super.updateById(entity);
+            // 发布组织机构变更事件
+            eventPublisher.publishEvent(new SysOrgUnitsChangeEvent(this, entity, "CREATE"));
+        }
+        
+        return result;
     }
 
 }

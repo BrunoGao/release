@@ -57,6 +57,11 @@ public class THealthBaseline extends BaseEntity {
     private Long userId;
 
     /**
+     * 租户ID，继承自用户所属租户
+     */
+    private Long customerId;
+
+    /**
     * 设备序列号
     */
     private String deviceSn;

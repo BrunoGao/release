@@ -40,6 +40,7 @@
  import java.util.List;
  import java.util.Set;
  import java.util.concurrent.atomic.AtomicBoolean;
+ import java.util.stream.Collectors;
  
  /**
   * 用户组织/部门/子部门管理 Service 服务接口实现层
@@ -104,8 +105,15 @@
                      // 进行新增数据
                      if (!CollectionUtils.isEmpty(addOrgIdSet)) {
                          List<SysUserOrg> sysUserOrgList = addOrgIdSet.stream()
-                                 .map(orgId -> new SysUserOrg(userId, orgId, StringUtil.boolToString(principalSet.contains(orgId))))
-                                 .toList();
+                                 .map(orgId -> {
+                                     SysUserOrg sysUserOrg = new SysUserOrg();
+                                     sysUserOrg.setUserId(userId);
+                                     sysUserOrg.setOrgId(orgId);
+                                     sysUserOrg.setPrincipal(StringUtil.boolToString(principalSet.contains(orgId)));
+                                     sysUserOrg.setCustomerId(0L); // 默认租户ID
+                                     return sysUserOrg;
+                                 })
+                                 .collect(Collectors.toList());
                          saveResult.set(Db.saveBatch(sysUserOrgList));
                      }
                  }

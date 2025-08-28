@@ -55,6 +55,11 @@ public class TDeviceUser extends BaseEntity {
     private String userId;
 
     /**
+     * 租户ID，继承自用户的租户信息
+     */
+    private Long customerId;
+
+    /**
     * 用户名称
     */
     private String userName;

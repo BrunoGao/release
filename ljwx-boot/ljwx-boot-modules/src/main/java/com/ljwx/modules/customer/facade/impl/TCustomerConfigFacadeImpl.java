@@ -70,6 +70,12 @@ public class TCustomerConfigFacadeImpl implements ITCustomerConfigFacade {
     @Transactional
     public boolean add(TCustomerConfigAddDTO tCustomerConfigAddDTO) {
         TCustomerConfigBO tCustomerConfigBO = CglibUtil.convertObj(tCustomerConfigAddDTO, TCustomerConfigBO::new);
+        
+        // 处理字段映射：supportLicense -> isSupportLicense
+        if (tCustomerConfigAddDTO.getSupportLicense() != null) {
+            tCustomerConfigBO.setIsSupportLicense(tCustomerConfigAddDTO.getSupportLicense());
+        }
+        
         return tCustomerConfigService.save(tCustomerConfigBO);
     }
 

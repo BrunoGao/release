@@ -2,7 +2,7 @@
 
 ![SpringBoot](https://img.shields.io/badge/Spring%20Boot-3.3-blue.svg)
 ![JDK](https://img.shields.io/badge/JDK-21+-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.3.6-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.3.7-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-brunoGao-green.svg)](https://github.com/brunoGao)
@@ -17,6 +17,63 @@
 在市面上虽然存在众多出色的 Java 后端管理系统框架，但还是决定重复再造一个轮子。
 
 ### 🚀 最新更新
+
+#### v1.3.7 - 多租户客户配置管理功能完整实现 (2025-08-28)
+
+**🏢 多租户客户配置管理系统**
+- **客户配置新增**: 完整的客户配置创建功能，支持多字段配置
+  - 客户名称、描述、上传方式(wifi/bluetooth)、许可证配置
+  - 断点续传、重试策略、缓存配置等高级参数
+  - 自动设置必需字段默认值，解决数据库约束问题
+
+- **同步组织创建**: 客户配置保存成功后自动创建对应组织机构
+  ```java
+  // 客户配置保存成功 → 创建对应的SysOrgUnits记录
+  SysOrgUnits orgUnit = new SysOrgUnits();
+  orgUnit.setId(entity.getId());           // 与客户配置ID保持一致
+  orgUnit.setName(entity.getCustomerName()); // 组织名称使用客户名称
+  orgUnit.setCustomerId(entity.getId());    // 设置为自身租户ID
+  ```
+
+- **智能配置同步**: 通过事件监听器自动同步相关配置
+  - 接口配置(`t_interface`)、健康数据配置(`t_health_data_config`)
+  - 告警规则(`t_alert_rules`)、角色(`sys_role`)、岗位(`sys_position`)
+  - 防循环创建：监听器检查配置是否已存在，避免重复创建
+
+**🔧 技术架构优化**
+- **字段映射处理**: 前端`supportLicense` ↔ 后端`isSupportLicense`字段映射
+- **数据库约束修复**: 
+  - 解决`license_key`字段无默认值错误
+  - 自动设置`customer_name`、`customer_id`等必需字段默认值
+- **防循环依赖**: OrgUnitsChangeListener增加存在性检查
+  ```java
+  // 检查是否已存在配置，避免循环创建
+  TCustomerConfig existingConfig = customerConfigService.getById(o.getId());
+  if (existingConfig != null) {
+      log.info("CustomerConfig already exists for orgId={}, skipping clone", o.getId());
+      return;
+  }
+  ```
+
+**🎯 完整业务流程**
+```
+客户配置创建 → TCustomerConfigServiceImpl.save()
+       ↓
+   自动创建SysOrgUnits → 触发SysOrgUnitsChangeEvent.CREATE
+       ↓
+   OrgUnitsChangeListener → 同步复制相关配置
+       ↓
+   ✅ 多租户环境完整初始化
+```
+
+**相关文件：**
+- 实体: `TCustomerConfig.java` - 添加字段映射注解
+- DTO: `TCustomerConfigAddDTO.java` - 完善新增字段
+- 服务: `TCustomerConfigServiceImpl.java` - 同步创建组织逻辑
+- 门面: `TCustomerConfigFacadeImpl.java` - 字段映射处理
+- 监听器: `OrgUnitsChangeListener.java` - 防循环创建优化
+
+---
 
 #### v1.3.6 - 多租户角色岗位系统完整实现 (2025-08-28)
 

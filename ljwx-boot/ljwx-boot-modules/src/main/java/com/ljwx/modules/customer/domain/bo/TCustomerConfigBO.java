@@ -41,7 +41,7 @@ public class TCustomerConfigBO extends TCustomerConfig {
     private List<Long> ids;
 
     /**
-     * 客户ID
+     * 主键ID（覆盖父类的id）
      */
     private Long id;
 

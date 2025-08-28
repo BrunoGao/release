@@ -78,4 +78,13 @@ public class TAlertInfo extends BaseEntity {
 
     private Long assignedUserId;
 
+    private Long userId;
+
+    private Long orgId;
+
+    /**
+     * 租户ID，0表示全局告警，其他值表示特定租户告警
+     */
+    private Long customerId;
+
 }

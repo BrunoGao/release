@@ -43,18 +43,26 @@ import lombok.experimental.SuperBuilder;
 @TableName("t_customer_config")
 public class TCustomerConfig extends BaseEntity {
 
+    @TableField("customer_name")
     private String customerName;
 
     private String description;
 
     private String uploadMethod;
 
+    @TableField(value = "license_key")
     private Integer licenseKey;
 
     @TableField("is_support_license")
     private Boolean isSupportLicense;
 
     private Long id;
+    
+    /**
+     * 租户ID，0表示全局数据，其他值表示特定租户
+     */
+    @TableField("customer_id")
+    private Long customerId;
 
     private Integer isDeleted;
 

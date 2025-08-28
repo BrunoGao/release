@@ -53,6 +53,11 @@ public class TUserHealthDataWeekly { // #不继承BaseEntity，避免字段不�
     private String deviceSn; // #设备序列号
     private Long orgId;
     private Long userId;
+
+    /**
+     * 租户ID，继承自用户所属租户
+     */
+    private Long customerId;
     
     @TableField("week_start")
     private LocalDate timestamp; // #周开始日期(映射到数据库week_start字段)

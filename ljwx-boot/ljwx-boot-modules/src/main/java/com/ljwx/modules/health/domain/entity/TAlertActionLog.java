@@ -67,6 +67,11 @@ public class TAlertActionLog extends BaseEntity {
 
     private Long alertId;
 
+    /**
+     * 租户ID，继承自告警所属租户
+     */
+    private Long customerId;
+
     private String action;
 
     private LocalDateTime actionTimestamp;

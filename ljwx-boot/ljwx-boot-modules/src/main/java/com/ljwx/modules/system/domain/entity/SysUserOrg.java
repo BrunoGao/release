@@ -61,4 +61,9 @@ public class SysUserOrg extends BaseEntity {
      * 组织/部门/子部门负责人(0:否,1:是)
      */
     private String principal;
+
+    /**
+     * 租户ID，继承自组织或用户
+     */
+    private Long customerId;
 }

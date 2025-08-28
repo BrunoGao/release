@@ -51,6 +51,11 @@ public class TUserHealthData extends BaseEntity {
     private Long userId;
 
     /**
+     * 租户ID，0表示全局数据，其他值表示特定租户
+     */
+    private Long customerId;
+
+    /**
      * 用户ID
      */
     @TableField(exist = false)

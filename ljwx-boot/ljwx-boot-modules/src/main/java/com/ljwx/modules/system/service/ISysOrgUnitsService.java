@@ -100,4 +100,37 @@ public interface ISysOrgUnitsService extends IService<SysOrgUnits> {
      */
     Long getTopLevelDeptIdByOrgId(Long orgId);
 
+    /**
+     * 根据租户ID查询组织列表
+     *
+     * @param customerId 租户ID (0表示查询全局组织)
+     * @param status 状态
+     * @return {@link List }<{@link SysOrgUnits }> 组织列表
+     * @author bruno.gao
+     * @CreateTime 2025-08-28
+     */
+    List<SysOrgUnits> listOrgUnitsByCustomerId(Long customerId, String status);
+
+    /**
+     * 根据租户ID分页查询组织
+     *
+     * @param pageQuery 分页对象
+     * @param customerId 租户ID
+     * @param sysOrgUnitsBO BO 查询对象
+     * @return {@link IPage }<{@link SysOrgUnits }> 分页结果
+     * @author bruno.gao
+     * @CreateTime 2025-08-28
+     */
+    IPage<SysOrgUnits> listSysOrgUnitsPageByCustomerId(PageQuery pageQuery, Long customerId, SysOrgUnitsBO sysOrgUnitsBO);
+
+    /**
+     * 获取组织的租户ID
+     *
+     * @param orgId 组织ID
+     * @return 租户ID
+     * @author bruno.gao
+     * @CreateTime 2025-08-28
+     */
+    Long getCustomerIdByOrgId(Long orgId);
+
 }

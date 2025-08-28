@@ -38,4 +38,34 @@ import java.io.Serializable;
 @Schema(name = "TCustomerConfigAddDTO", description = " 新增 DTO 对象")
 public class TCustomerConfigAddDTO implements Serializable {
 
+    @Schema(description = "客户名称")
+    private String customerName;
+    
+    @Schema(description = "描述")
+    private String description;
+    
+    @Schema(description = "上传方式")
+    private String uploadMethod;
+    
+    @Schema(description = "许可证密钥")
+    private Integer licenseKey;
+    
+    @Schema(description = "是否支持许可证")
+    private Boolean supportLicense;
+    
+    @Schema(description = "租户ID")
+    private Long customerId;
+    
+    @Schema(description = "是否支持断点续传")
+    private Boolean enableResume;
+    
+    @Schema(description = "上传重试次数")
+    private Integer uploadRetryCount;
+    
+    @Schema(description = "缓存最大条数")
+    private Integer cacheMaxCount;
+    
+    @Schema(description = "上传重试间隔")
+    private Integer uploadRetryInterval;
+
 }

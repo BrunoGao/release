@@ -46,4 +46,9 @@ public class TDeviceMessageDepartment extends BaseEntity {
 
     private Long departmentId;
 
+    /**
+     * 租户ID，继承自消息或部门所属租户
+     */
+    private Long customerId;
+
 }

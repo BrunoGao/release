@@ -50,6 +50,11 @@ public class TDeviceMessage extends BaseEntity {
 
     private String userId;
 
+    /**
+     * 租户ID，继承自设备所属租户
+     */
+    private Long customerId;
+
     private String deviceSn;
 
     private String message;
