@@ -7,6 +7,16 @@ import { getServiceBaseURL } from '@/utils/service';
 import { getAuthorization, getLanguage, handleExpiredRequest, showErrorMsg } from './shared';
 import type { RequestInstanceState } from './type';
 
+// 不需要自动添加customerId的API白名单
+const EXCLUDE_CUSTOMER_ID_URLS = [
+  '/auth/',           // 认证相关
+  '/login',           // 登录
+  '/refresh',         // 刷新token
+  '/sys/dict',        // 字典数据(全局)
+  '/captcha',         // 验证码
+  '/logout'           // 登出
+];
+
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
 const { baseURL, otherBaseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
 
@@ -16,8 +26,42 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
   },
   {
     async onRequest(config) {
+      const authStore = useAuthStore();
       const Authorization = getAuthorization();
       const language = getLanguage();
+
+      // 自动添加customerId (排除白名单URL)
+      const shouldAddCustomerId = authStore.userInfo.customerId !== undefined && 
+        !EXCLUDE_CUSTOMER_ID_URLS.some(excludeUrl => config.url?.includes(excludeUrl));
+        
+      if (shouldAddCustomerId) {
+        const customerId = authStore.userInfo.customerId;
+        
+        if (config.method?.toLowerCase() === 'get') {
+          // GET请求：添加到查询参数
+          config.params = config.params || {};
+          // 只有当参数中没有customerId时才添加（避免覆盖显式传入的值）
+          if (config.params.customerId === undefined) {
+            config.params.customerId = customerId;
+          }
+        } else {
+          // POST/PUT/DELETE等请求：添加到请求体
+          if (config.data === undefined || config.data === null) {
+            config.data = {};
+          }
+          // 处理FormData类型的请求体
+          if (config.data instanceof FormData) {
+            if (!config.data.has('customerId')) {
+              config.data.append('customerId', String(customerId));
+            }
+          } else if (typeof config.data === 'object') {
+            // 只有当请求体中没有customerId时才添加
+            if (config.data.customerId === undefined) {
+              config.data.customerId = customerId;
+            }
+          }
+        }
+      }
 
       Object.assign(config.headers, { Authorization, [REQUEST_LANGUAGE]: language });
 

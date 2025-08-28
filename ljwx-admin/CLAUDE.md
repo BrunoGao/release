@@ -274,6 +274,100 @@ const tableColumns = computed(() => [
 
 通过建立这套分层排查方法和文档化的最佳实践，类似问题的排查时间可以从数小时缩短到数分钟。
 
+## 多租户 CustomerId 自动注入功能
+
+### 功能概述
+为了更好地支持多租户架构，在前端 ljwx-admin 中实现了全局自动注入 `customerId` 的功能。该功能在请求拦截器层面统一处理，无需在每个 API 调用中手动添加 `customerId` 参数。
+
+### 实现原理
+在 `src/service/request/index.ts` 的 `onRequest` 拦截器中实现：
+
+1. **自动检测**：检查当前用户的 `customerId` 是否存在
+2. **白名单过滤**：排除不需要 `customerId` 的特殊 API（如认证、字典等）
+3. **智能注入**：
+   - GET 请求：添加到 `params` 查询参数
+   - POST/PUT/DELETE 请求：添加到 `data` 请求体
+   - FormData 请求：作为表单字段添加
+4. **防重复**：只有当请求中没有显式传入 `customerId` 时才自动添加
+
+### 白名单配置
+```typescript
+const EXCLUDE_CUSTOMER_ID_URLS = [
+  '/auth/',           // 认证相关
+  '/login',           // 登录
+  '/refresh',         // 刷新token
+  '/sys/dict',        // 字典数据(全局)
+  '/captcha',         // 验证码
+  '/logout'           // 登出
+];
+```
+
+### 使用示例
+
+#### 原来需要手动添加
+```typescript
+// 旧方式：每个API调用都要手动添加 customerId
+fetchGetUserList({
+  page: 1,
+  pageSize: 20,
+  customerId: authStore.userInfo.customerId
+});
+```
+
+#### 现在自动注入
+```typescript
+// 新方式：系统自动注入，无需手动添加
+fetchGetUserList({
+  page: 1,
+  pageSize: 20
+  // customerId 会被自动添加
+});
+```
+
+### 特殊情况处理
+
+#### 1. 显式传入 customerId
+```typescript
+// 显式传入的值会被保留，不会被自动注入覆盖
+fetchGetUserList({
+  page: 1,
+  pageSize: 20,
+  customerId: 999  // 使用这个值，不会被自动注入覆盖
+});
+```
+
+#### 2. 超级管理员（customerId = 0）
+```typescript
+// customerId = 0 的超级管理员也会正常注入参数
+// 后端可以根据 customerId = 0 判断是否返回全局数据
+```
+
+#### 3. FormData 类型请求
+```typescript
+// 文件上传等 FormData 请求也会自动添加 customerId
+const formData = new FormData();
+formData.append('file', file);
+// 系统自动添加: formData.append('customerId', userInfo.customerId);
+```
+
+### 技术优势
+
+1. **零侵入**：不需要修改现有 70+ 个文件的 API 调用代码
+2. **向后兼容**：已有的 `customerId` 参数不会被覆盖
+3. **统一管理**：在一个地方控制所有 API 的多租户行为
+4. **灵活配置**：通过白名单机制精确控制哪些 API 需要自动注入
+5. **类型安全**：TypeScript 完全支持，不需要修改类型定义
+
+### 调试方法
+如需调试，可在 `onRequest` 拦截器中添加 console.log：
+```typescript
+if (shouldAddCustomerId) {
+  const customerId = authStore.userInfo.customerId;
+  console.log(`[CustomerId Auto-Injection] URL: ${config.url}, Method: ${config.method}, CustomerId: ${customerId}`);
+  // ... 注入逻辑
+}
+```
+
 ---
 
 ## 项目开发注意事项

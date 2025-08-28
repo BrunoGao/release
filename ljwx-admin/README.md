@@ -1,7 +1,7 @@
 # LjwxAdmin 后台管理系统
 
 ![Node](https://img.shields.io/badge/Node-18-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.3.6-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.3.7-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-paynezhuang-green.svg)](https://github.com/paynezhuang)
@@ -400,7 +400,54 @@ Content-Type: application/json
 }
 ```
 
-### 🔧 微信告警配置管理 (最新)
+### 🚀 多租户 CustomerId 全局自动注入系统 (最新)
+
+#### 功能概述
+- 实现请求拦截器层面的 customerId 全局自动注入功能
+- 零侵入式架构升级，无需修改现有 API 调用代码
+- 支持多租户数据隔离的统一管理和自动化处理
+
+#### 技术特点
+1. **智能请求处理**：
+   - **GET 请求**：自动添加到查询参数 `params`
+   - **POST/PUT/DELETE 请求**：自动添加到请求体 `data`
+   - **FormData 请求**：作为表单字段自动添加
+   - **防重复机制**：显式传入的 customerId 优先级更高
+
+2. **白名单配置**：
+   - 精确控制认证、登录、字典等全局 API 的排除
+   - 灵活配置不需要租户隔离的特殊接口
+   - 支持动态调整白名单规则
+
+3. **向后兼容**：
+   - 不影响现有 70+ 个文件的 API 调用逻辑
+   - TypeScript 类型安全完全支持
+   - 渐进式升级，可随时启用或禁用
+
+#### 使用示例
+```typescript
+// 旧方式：需要手动添加 customerId
+fetchGetUserList({
+  page: 1,
+  pageSize: 20,
+  customerId: authStore.userInfo.customerId
+});
+
+// 新方式：系统自动注入，简化开发
+fetchGetUserList({
+  page: 1,
+  pageSize: 20
+  // customerId 自动添加，无需手动处理
+});
+```
+
+#### 技术实现
+- **核心文件**：`src/service/request/index.ts` 请求拦截器
+- **配置管理**：白名单配置和排除规则
+- **调试支持**：可添加日志跟踪自动注入过程
+- **性能优化**：最小化运行时开销，高效参数处理
+
+### 🔧 微信告警配置管理
 
 #### 功能概述
 - 支持企业微信和微信公众号两种类型的告警配置管理
@@ -470,6 +517,22 @@ Content-Type: application/json
 ```
 
 ## 📝 更新日志
+
+### v1.3.7 - 多租户 CustomerId 全局自动注入系统 (2025-08-28)
+- 🚀 **全局自动注入 CustomerId 功能**
+  - 实现请求拦截器层面的 customerId 自动注入，零侵入式升级
+  - 支持 GET/POST/PUT/DELETE/FormData 等所有类型请求的智能参数添加
+  - 配置白名单机制，精确控制认证、字典等全局 API 的排除逻辑
+  - 防重复覆盖机制，显式传入的 customerId 参数优先级更高
+- 🔧 **技术架构优化**
+  - 修改 `src/service/request/index.ts` 请求拦截器核心逻辑
+  - 无需修改现有 70+ 个文件的 API 调用代码，完全向后兼容
+  - TypeScript 类型安全支持，无需额外类型定义修改
+  - 统一的多租户数据隔离管理，简化开发维护成本
+- 📚 **开发文档完善**
+  - CLAUDE.md 新增多租户 CustomerId 自动注入功能详细说明
+  - 提供使用示例、特殊情况处理和调试方法指南
+  - 建立最佳实践规范，提升团队开发效率
 
 ### v1.3.6 - 多租户角色岗位系统前端支持 (2025-08-28)
 - 🏢 **完善多租户角色岗位管理前端支持**
