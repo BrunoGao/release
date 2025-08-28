@@ -1,7 +1,7 @@
 # LjwxAdmin 后台管理系统
 
 ![Node](https://img.shields.io/badge/Node-18-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.3.4-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.3.6-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-paynezhuang-green.svg)](https://github.com/paynezhuang)
@@ -471,7 +471,18 @@ Content-Type: application/json
 
 ## 📝 更新日志
 
-### v1.3.6 (2025-08-27)
+### v1.3.6 - 多租户角色岗位系统前端支持 (2025-08-28)
+- 🏢 **完善多租户角色岗位管理前端支持**
+  - 后端多租户角色岗位系统已完整实现，支持租户级角色岗位隔离
+  - 自动化租户创建时的角色岗位配置，从全局模板继承标准配置
+  - 前端界面已准备好对接多租户角色岗位管理功能
+  - 为未来的前端多租户角色管理界面奠定技术基础
+- 📚 **技术文档完善**
+  - 完善 CLAUDE.md 开发文档，新增多租户系统实现说明
+  - 记录角色岗位自动配置的技术架构和实现细节
+  - 建立数据隔离和权限控制的开发指南
+
+### v1.3.5 (2025-08-27)
 - 🐛 **修复微信告警配置表格显示空白问题**
   - 解决 NDataTable 的 `remote` 属性与本地数据冲突导致的渲染失败
   - 移除导致问题的属性组合：`remote`、复杂分页配置、动态高度设置
