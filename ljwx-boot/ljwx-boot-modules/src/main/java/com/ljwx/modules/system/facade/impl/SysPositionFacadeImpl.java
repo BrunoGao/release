@@ -170,8 +170,8 @@ public class SysPositionFacadeImpl implements ISysPositionFacade {
     }
 
     @Override
-    public List<Options<Long>> queryAllPositionListConvertOptions(Long orgId) {
-        System.out.println("queryAllPositionListConvertOptions.orgId: " + orgId);
+    public List<Options<Long>> queryAllPositionListConvertOptions(Long orgId, Long customerId) {
+        System.out.println("queryAllPositionListConvertOptions.orgId: " + orgId + ", customerId: " + customerId);
         
         Long currentUserId = getCurrentUserId();
         List<SysPositionBO> allRole;
@@ -180,12 +180,12 @@ public class SysPositionFacadeImpl implements ISysPositionFacade {
             // 超级管理员(admin用户)：可以查看所有数据
             if (orgId != null) {
                 if (orgId == 0L) {
-                    allRole = sysPositionService.queryAllPositionList(); // 查询所有岗位
+                    allRole = sysPositionService.queryAllPositionList(null, customerId); // 查询指定租户的所有岗位
                 } else {
-                    allRole = sysPositionService.queryAllPositionList(orgId); // 按orgId过滤
+                    allRole = sysPositionService.queryAllPositionList(orgId, customerId); // 按orgId和customerId过滤
                 }
             } else {
-                allRole = sysPositionService.queryAllPositionList(); // 查询所有岗位
+                allRole = sysPositionService.queryAllPositionList(null, customerId); // 查询指定租户的所有岗位
             }
             System.out.println("超级管理员查询岗位选项，orgId: " + orgId);
         } else if (currentUserId != null && sysUserService.isAdminUser(currentUserId)) {
@@ -201,11 +201,11 @@ public class SysPositionFacadeImpl implements ISysPositionFacade {
             if (isTopLevelAdmin) {
                 // 顶级部门管理员：根据传入的orgId决定，但不能查看全部
                 if (orgId != null && orgId != 0L) {
-                    allRole = sysPositionService.queryAllPositionList(orgId); // 按orgId过滤
+                    allRole = sysPositionService.queryAllPositionList(orgId, customerId); // 按orgId和customerId过滤
                 } else {
                     // 查询全局岗位 + 自己部门岗位
-                    List<SysPositionBO> globalPositions = sysPositionService.queryAllPositionList(0L);
-                    List<SysPositionBO> deptPositions = sysPositionService.queryAllPositionList(userOrgIds.get(0));
+                    List<SysPositionBO> globalPositions = sysPositionService.queryAllPositionList(0L, customerId);
+                    List<SysPositionBO> deptPositions = sysPositionService.queryAllPositionList(userOrgIds.get(0), customerId);
                     allRole = new ArrayList<>(globalPositions);
                     allRole.addAll(deptPositions);
                 }
@@ -215,13 +215,13 @@ public class SysPositionFacadeImpl implements ISysPositionFacade {
                 Long topLevelDeptId = sysUserService.getUserTopLevelDeptId(currentUserId);
                 if (topLevelDeptId != null) {
                     // 查询全局岗位 + 顶级部门岗位
-                    List<SysPositionBO> globalPositions = sysPositionService.queryAllPositionList(0L);
-                    List<SysPositionBO> deptPositions = sysPositionService.queryAllPositionList(topLevelDeptId);
+                    List<SysPositionBO> globalPositions = sysPositionService.queryAllPositionList(0L, customerId);
+                    List<SysPositionBO> deptPositions = sysPositionService.queryAllPositionList(topLevelDeptId, customerId);
                     allRole = new ArrayList<>(globalPositions);
                     allRole.addAll(deptPositions);
                     System.out.println("下级部门管理员 " + currentUserId + " 查询岗位选项，顶级部门ID: " + topLevelDeptId);
                 } else {
-                    allRole = sysPositionService.queryAllPositionList(0L); // 只能查看全局岗位
+                    allRole = sysPositionService.queryAllPositionList(0L, customerId); // 只能查看全局岗位
                     System.out.println("用户 " + currentUserId + " 只能查看全局岗位选项");
                 }
             }

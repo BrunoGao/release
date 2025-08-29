@@ -23,6 +23,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 
 /**
@@ -59,5 +60,14 @@ public class TCustomerConfigUpdateDTO implements Serializable {
     private Integer cacheMaxCount;
 
     private Integer uploadRetryInterval;
+
+    @Schema(description = "客户自定义logo地址")
+    private String logoUrl;
+
+    @Schema(description = "logo文件名")
+    private String logoFileName;
+
+    @Schema(description = "logo上传时间")
+    private LocalDateTime logoUploadTime;
 
 }

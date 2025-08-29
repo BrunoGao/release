@@ -34,6 +34,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                 .like(ObjectUtils.isNotEmpty(sysRoleBO.getRoleName()), SysRole::getRoleName, sysRoleBO.getRoleName())
                 .like(ObjectUtils.isNotEmpty(sysRoleBO.getRoleCode()), SysRole::getRoleCode, sysRoleBO.getRoleCode())
                 .eq(ObjectUtils.isNotEmpty(sysRoleBO.getStatus()), SysRole::getStatus, sysRoleBO.getStatus())
+                .eq(ObjectUtils.isNotEmpty(sysRoleBO.getCustomerId()), SysRole::getCustomerId, sysRoleBO.getCustomerId())
                 .orderByAsc(SysRole::getSort);
         return baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
     }
@@ -50,8 +51,9 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     }
 
     @Override
-    public List<SysRoleBO> queryAllRoleList() {
+    public List<SysRoleBO> queryAllRoleList(Long customerId) {
         var queryWrapper = new LambdaQueryWrapper<SysRole>()
+                .eq(ObjectUtils.isNotEmpty(customerId), SysRole::getCustomerId, customerId)
                 .orderByAsc(SysRole::getSort);
         return CglibUtil.convertList(baseMapper.selectList(queryWrapper), SysRoleBO::new);
     }

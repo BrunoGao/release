@@ -2,7 +2,7 @@
 
 ![SpringBoot](https://img.shields.io/badge/Spring%20Boot-3.3-blue.svg)
 ![JDK](https://img.shields.io/badge/JDK-21+-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.3.7-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.3.8-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 <br/>
 [![Author](https://img.shields.io/badge/Author-brunoGao-green.svg)](https://github.com/brunoGao)
@@ -17,6 +17,36 @@
 在市面上虽然存在众多出色的 Java 后端管理系统框架，但还是决定重复再造一个轮子。
 
 ### 🚀 最新更新
+
+#### v1.3.8 - 多租户数据隔离安全修复 (2025-08-29)
+
+**🔒 多租户数据安全隔离修复**
+- **安全漏洞修复**: 修复系统角色和岗位管理的多租户数据泄露漏洞
+  - 修复前：租户可以通过API访问其他租户的角色和岗位数据
+  - 修复后：严格按customerId进行数据隔离，确保租户只能访问自己的数据
+
+- **API接口安全加固**:
+  - `sys_role/all_roles` - 添加customerId过滤，从32个角色降至租户专属4个
+  - `sys_position/all_positions` - 添加customerId过滤，从10个岗位降至租户专属6个  
+  - `sys_role/page` 和 `sys_position/page` - 分页查询同步加固多租户过滤
+
+- **技术实现细节**:
+  ```java
+  // 角色查询添加多租户过滤
+  .eq(ObjectUtils.isNotEmpty(customerId), SysRole::getCustomerId, customerId)
+  
+  // 岗位查询添加多租户过滤  
+  .eq(ObjectUtils.isNotEmpty(orgId), SysPosition::getOrgId, orgId)
+  .eq(ObjectUtils.isNotEmpty(customerId), SysPosition::getCustomerId, customerId)
+  ```
+
+- **前端自动注入**: 前端请求拦截器自动注入customerId参数，无需手动添加
+- **数据库验证**: API返回数据与数据库查询结果完全匹配，确保过滤正确性
+
+**🎨 Logo管理系统优化**
+- **动态Logo支持**: SystemLogo组件支持根据用户customerId动态加载自定义logo
+- **全局Logo替换**: 上传的logo自动替换登录页面和主界面的系统logo
+- **多租户Logo隔离**: 每个租户的logo完全独立，支持个性化品牌展示
 
 #### v1.3.7 - 多租户客户配置管理功能完整实现 (2025-08-28)
 

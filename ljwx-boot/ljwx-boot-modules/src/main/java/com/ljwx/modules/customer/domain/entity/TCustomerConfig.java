@@ -27,6 +27,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.time.LocalDateTime;
+
 /**
 *  Entity 实体类
 *
@@ -82,5 +84,17 @@ public class TCustomerConfig extends BaseEntity {
     /** 上传失败后重试间隔 */
     @TableField("upload_retry_interval")
     private Integer uploadRetryInterval;
+
+    /** 客户自定义logo地址 */
+    @TableField("logo_url")
+    private String logoUrl;
+
+    /** logo文件名 */
+    @TableField("logo_file_name")
+    private String logoFileName;
+
+    /** logo上传时间 */
+    @TableField("logo_upload_time")
+    private LocalDateTime logoUploadTime;
 
 }

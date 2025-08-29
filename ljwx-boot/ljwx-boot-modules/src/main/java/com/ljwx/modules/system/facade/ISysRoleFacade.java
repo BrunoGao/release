@@ -76,9 +76,10 @@ public interface ISysRoleFacade {
     /**
      * 获取所有角色信息集合
      *
+     * @param customerId 租户ID
      * @return {@linkplain List} 角色集合
      * @author payne.zhuang
      * @CreateTime 2024-04-06 18:57
      */
-    List<Options<Long>> queryAllRoleListConvertOptions();
+    List<Options<Long>> queryAllRoleListConvertOptions(Long customerId);
 }

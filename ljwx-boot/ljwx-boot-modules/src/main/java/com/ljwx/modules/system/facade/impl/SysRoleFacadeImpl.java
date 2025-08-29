@@ -72,8 +72,8 @@ public class SysRoleFacadeImpl implements ISysRoleFacade {
     }
 
     @Override
-    public List<Options<Long>> queryAllRoleListConvertOptions() {
-        List<SysRoleBO> allRole = sysRoleService.queryAllRoleList();
+    public List<Options<Long>> queryAllRoleListConvertOptions(Long customerId) {
+        List<SysRoleBO> allRole = sysRoleService.queryAllRoleList(customerId);
         return allRole.stream()
                 .map(item -> Options.<Long>builder()
                         .label(item.getRoleName())

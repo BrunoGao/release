@@ -66,4 +66,13 @@ public class TCustomerConfigVO extends BaseVO {
 
     private Integer uploadRetryInterval;
 
+    @Schema(description = "客户自定义logo地址")
+    private String logoUrl;
+
+    @Schema(description = "logo文件名")
+    private String logoFileName;
+
+    @Schema(description = "logo上传时间")
+    private LocalDateTime logoUploadTime;
+
 }

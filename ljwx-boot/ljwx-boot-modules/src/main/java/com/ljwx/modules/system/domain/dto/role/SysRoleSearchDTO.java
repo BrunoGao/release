@@ -32,4 +32,7 @@ public class SysRoleSearchDTO implements Serializable {
     @Schema(description = "是否启用(0:禁用,1:启用)")
     private String status;
 
+    @Schema(description = "租户ID")
+    private Long customerId;
+
 }

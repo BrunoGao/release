@@ -31,11 +31,12 @@ public interface ISysRoleService extends IService<SysRole> {
     /**
      * 获取所有角色信息
      *
+     * @param customerId 租户ID
      * @return {@linkplain List} 角色集合
      * @author payne.zhuang
      * @CreateTime 2024-04-07 11:51
      */
-    List<SysRoleBO> queryAllRoleList();
+    List<SysRoleBO> queryAllRoleList(Long customerId);
 
     /**
      * 根据用户ID查询角色代码列表

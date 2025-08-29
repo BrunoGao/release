@@ -33,4 +33,7 @@ public class SysPositionSearchDTO implements Serializable {
     @Schema(description = "组织ID")
     private Long orgId;
 
+    @Schema(description = "租户ID")
+    private Long customerId;
+
 }

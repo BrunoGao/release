@@ -95,10 +95,12 @@ public interface ISysPositionFacade {
     /**
      * 获取所有岗位信息集合
      *
+     * @param orgId 组织ID
+     * @param customerId 租户ID
      * @return {@link List }<{@link Options }<{@link Long }>> 岗位信息集合
      * @author payne.zhuang
      * @CreateTime 2024-07-19 - 18:34:31
      */
-    List<Options<Long>> queryAllPositionListConvertOptions(Long orgId);
+    List<Options<Long>> queryAllPositionListConvertOptions(Long orgId, Long customerId);
 
 }

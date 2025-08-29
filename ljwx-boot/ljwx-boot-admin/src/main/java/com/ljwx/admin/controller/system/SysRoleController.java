@@ -77,8 +77,8 @@ public class SysRoleController {
     @GetMapping("/all_roles")
     @SaCheckPermission("sys:role:allRoles")
     @Operation(operationId = "6", summary = "获取所有角色信息集合")
-    public Result<List<Options<Long>>> queryAllRoleListConvertOptions() {
-        return Result.data(sysRoleFacade.queryAllRoleListConvertOptions());
+    public Result<List<Options<Long>>> queryAllRoleListConvertOptions(@Parameter(description = "租户ID") @RequestParam(required = false) Long customerId) {
+        return Result.data(sysRoleFacade.queryAllRoleListConvertOptions(customerId));
     }
 
 }

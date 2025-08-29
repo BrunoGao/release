@@ -49,7 +49,8 @@ public class SysPositionServiceImpl extends ServiceImpl<SysPositionMapper, SysPo
     public IPage<SysPosition> listSysPositionPage(PageQuery pageQuery, SysPositionBO sysPositionBO) {
         LambdaQueryWrapper<SysPosition> queryWrapper = new LambdaQueryWrapper<SysPosition>()
                 .like(ObjectUtils.isNotEmpty(sysPositionBO.getName()), SysPosition::getName, sysPositionBO.getName())
-                .eq(ObjectUtils.isNotEmpty(sysPositionBO.getStatus()), SysPosition::getStatus, sysPositionBO.getStatus());
+                .eq(ObjectUtils.isNotEmpty(sysPositionBO.getStatus()), SysPosition::getStatus, sysPositionBO.getStatus())
+                .eq(ObjectUtils.isNotEmpty(sysPositionBO.getCustomerId()), SysPosition::getCustomerId, sysPositionBO.getCustomerId());
                 
         // 部门过滤（基于orgId）
         if (sysPositionBO.getOrgIds() != null && !sysPositionBO.getOrgIds().isEmpty()) {
@@ -72,6 +73,16 @@ public class SysPositionServiceImpl extends ServiceImpl<SysPositionMapper, SysPo
     @Override
     public List<SysPositionBO> queryAllPositionList() {
         LambdaQueryWrapper<SysPosition> queryWrapper = new LambdaQueryWrapper<SysPosition>()
+                .orderByAsc(SysPosition::getSort);
+        return CglibUtil.convertList(baseMapper.selectList(queryWrapper), SysPositionBO::new);
+    }
+    
+    // 新增：按orgId和customerId过滤的岗位查询
+    @Override
+    public List<SysPositionBO> queryAllPositionList(Long orgId, Long customerId) {   
+        LambdaQueryWrapper<SysPosition> queryWrapper = new LambdaQueryWrapper<SysPosition>()
+                .eq(ObjectUtils.isNotEmpty(orgId), SysPosition::getOrgId, orgId)
+                .eq(ObjectUtils.isNotEmpty(customerId), SysPosition::getCustomerId, customerId)
                 .orderByAsc(SysPosition::getSort);
         return CglibUtil.convertList(baseMapper.selectList(queryWrapper), SysPositionBO::new);
     }

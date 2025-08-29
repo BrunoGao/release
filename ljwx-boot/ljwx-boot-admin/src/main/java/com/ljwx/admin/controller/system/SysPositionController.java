@@ -127,9 +127,10 @@ public class SysPositionController {
     @GetMapping("/all_positions")
     @SaCheckPermission("sys:position:allPositions")
     @Operation(operationId = "7", summary = "获取所有岗位信息集合")
-    public Result<List<Options<Long>>> queryAllPositionOptions(@Parameter(description = "组织ID") @RequestParam("orgId") Long orgId) {
-        System.out.println("queryAllPositionOptions.orgId: " + orgId);
-        return Result.data(sysPositionFacade.queryAllPositionListConvertOptions(orgId));
+    public Result<List<Options<Long>>> queryAllPositionOptions(@Parameter(description = "组织ID") @RequestParam("orgId") Long orgId,
+                                                               @Parameter(description = "租户ID") @RequestParam(required = false) Long customerId) {
+        System.out.println("queryAllPositionOptions.orgId: " + orgId + ", customerId: " + customerId);
+        return Result.data(sysPositionFacade.queryAllPositionListConvertOptions(orgId, customerId));
     }
 
 
