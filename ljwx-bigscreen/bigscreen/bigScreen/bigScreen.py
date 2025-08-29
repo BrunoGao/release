@@ -10,6 +10,7 @@ from .system_event_alert import get_processor
 from .alert import fetch_alerts as alert_fetch_alerts, upload_alerts as alert_upload_alerts, upload_common_event as alert_upload_common_event
 from .alert import test_wechat_alert as alert_test_wechat_alert, generate_alert_json as alert_generate_alert_json, gather_deal_alert as alert_gather_deal_alert
 from .alert import generate_alert_chart as alert_generate_alert_chart, deal_alert as alert_deal_alert, generate_alert_stats as alert_generate_alert_stats, generate_alert_chart_by_type
+from .alert import acknowledge_alert as alert_acknowledge_alert
 from .alert import fetch_alerts_by_orgIdAndUserId as alert_fetch_alerts_by_orgIdAndUserId
 from .message import fetch_messages as message_fetch_messages, send_message as message_send_message, received_messages as message_received_messages, generate_message_stats as message_generate_message_stats, fetch_messages_by_orgIdAndUserId as message_fetch_messages_by_orgIdAndUserId
 from .user import get_user_info as user_get_user_info, get_all_users as user_get_all_users, get_user_deviceSn as user_get_user_deviceSn, get_user_id as user_get_user_id
@@ -822,6 +823,18 @@ def fetch_health_data(deviceSn=None):
     if deviceSn is None:
         deviceSn = request.args.get('deviceSn')
     return user_fetch_health_data(deviceSn)
+
+@app.route('/api/phone/alerts/process', methods=['POST'])
+def phone_process_alert():
+    """手机端告警确认处理接口"""
+    try:
+        return alert_acknowledge_alert()
+    except Exception as e:
+        api_logger.error(f"手机端告警处理失败: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'告警处理失败: {str(e)}'
+        }), 500
 
 @app.route('/dealAlert', methods=['GET'])
 def deal_alert(alertId=None):
