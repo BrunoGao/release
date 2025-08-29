@@ -4,7 +4,7 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)](https://flutter.dev/)
 [![Dart](https://img.shields.io/badge/Dart-3.0+-blue.svg)](https://dart.dev/)
-[![Version](https://img.shields.io/badge/Version-1.0.0+1-green.svg)](#)
+[![Version](https://img.shields.io/badge/Version-1.0.1+3-green.svg)](#)
 [![License](https://img.shields.io/badge/License-Private-red.svg)](#)
 
 ## 🎯 项目概述
@@ -36,7 +36,40 @@
 - **健康徽章系统**：不同健康级别对应不同的徽章图标
 - **个性化建议**：基于评分提供定制化的健康建议
 
-## 🚀 最新更新 (2025-08-22)
+## 🚀 最新更新 (2025-08-29)
+
+### ✨ 大屏系统Excel导出优化与UI体验升级
+
+**协同优化内容**：
+- **🔗 系统协同性增强**：配合大屏系统Excel导出功能修复，确保移动端管理界面数据导出功能稳定
+- **🎨 弹窗系统统一**：与大屏系统保持一致的自定义弹窗设计语言，提升整体用户体验
+- **📱 WebView管理优化**：管理端界面与大屏系统无缝对接，数据流转更加顺畅
+- **🔧 静态资源管理**：优化移动端资源加载，确保与后端系统资源路径一致性
+
+**技术协同详情**：
+```dart
+// 与大屏系统保持一致的弹窗API
+showCustomAlert(
+  message: '数据导出成功！',
+  type: AlertType.success,
+  onConfirm: () => Navigator.pop(context),
+);
+
+// 统一的资源加载策略
+const String staticBaseUrl = '/static/';
+const String jsResourcePath = '${staticBaseUrl}js/';
+const String cssResourcePath = '${staticBaseUrl}css/';
+```
+
+**移动端特有优化**：
+- **📊 数据同步优化**：与大屏系统健康数据表格保持实时同步
+- **🎯 管理界面增强**：WebView中的管理页面响应速度提升
+- **🔄 缓存机制改进**：本地缓存与服务端数据一致性保证
+- **📈 性能监控**：移动端网络请求性能优化，减少数据传输延迟
+
+---
+
+## 🆕 历史更新 (2025-08-22)
 
 ### ✅ 管理端WebView问题修复
 
@@ -256,6 +289,14 @@ double calculateHealthScore() {
 
 ## 📈 版本历史
 
+### v1.0.1+3 (2025-08-29)
+- ✨ 配合大屏系统Excel导出功能优化，确保系统协同性
+- 🎨 统一弹窗系统设计语言，提升用户体验一致性
+- 📱 WebView管理界面优化，与后端系统无缝对接
+- 🔧 静态资源路径管理优化，确保资源加载稳定性
+- 📊 数据同步机制改进，提升实时性和一致性
+- 🔄 缓存策略优化，减少网络请求延迟
+
 ### v1.0.1+2 (2025-08-22)
 - 🐛 修复管理端WebView中Vue.js属性错误
 - 🌐 完善国际化翻译支持(中英文)
@@ -302,5 +343,5 @@ double calculateHealthScore() {
   
   **Built with ❤️ by ljwx Team**
   
-  `Last Updated: 2025-08-22`
+  `Last Updated: 2025-08-29`
 </div>
