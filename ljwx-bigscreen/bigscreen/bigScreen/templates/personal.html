@@ -126,13 +126,104 @@
         /* 主网格布局 */
         .main-grid {
             display: grid;
-            grid-template-columns: 350px 1fr 350px;
-            grid-template-rows: 80px 1fr;
-            gap: 20px;
+            grid-template-columns: 360px 1fr 360px;
+            grid-template-rows: 90px 1fr;
+            gap: 24px;
             height: 100vh;
-            padding: 20px;
+            padding: 24px;
             position: relative;
             z-index: 1;
+        }
+
+        /* ============= 员工信息面板 ============= */
+        .employee-info-panel {
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .employee-info-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            animation: scan 4s infinite;
+        }
+
+        .employee-avatar {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid var(--primary-color);
+            box-shadow: 0 0 20px rgba(0, 255, 157, 0.4);
+        }
+
+        .employee-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .online-indicator {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            background: #00ff3c;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            box-shadow: 0 0 10px rgba(0, 255, 60, 0.8);
+            animation: pulse 2s infinite;
+        }
+
+        .employee-details {
+            flex: 1;
+            color: #ffffff;
+        }
+
+        .employee-details h3 {
+            margin: 0 0 8px 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .employee-details p {
+            margin: 4px 0;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .confirm-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: #000;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .confirm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 255, 157, 0.4);
         }
 
         /* ============= 顶部导航栏 ============= */
@@ -207,17 +298,29 @@
         .device-status {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             color: #ffffff;
+            padding: 8px 16px;
+            background: rgba(0, 21, 41, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 157, 0.2);
         }
 
         .status-indicator {
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             background: #00ff9d;
             box-shadow: 0 0 10px rgba(0, 255, 157, 0.8);
             animation: pulse 2s infinite;
+            flex-shrink: 0;
+        }
+
+        #deviceStatusText {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            white-space: nowrap;
         }
 
         @keyframes pulse {
@@ -1035,6 +1138,7 @@
         }
 
         /* ============= 健康指标卡片 ============= */
+        /* 健康卡片点击效果和提示 */
         .health-card {
             background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
             border: 1px solid rgba(0, 255, 157, 0.2);
@@ -1044,6 +1148,31 @@
             overflow: hidden;
             backdrop-filter: blur(10px);
             transition: all 0.3s ease;
+            text-align: center; /* 水平居中 */
+            filter: none; /* 移除蓝色滤镜 */
+            cursor: pointer; /* 添加点击手势 */
+        }
+
+        .health-card::after {
+            content: "点击查看详情 >";
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .health-card:hover::after {
+            opacity: 1;
+        }
+
+        .health-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            border-color: rgba(0, 255, 157, 0.5);
+            box-shadow: 0 10px 30px rgba(0, 255, 157, 0.2);
         }
 
         .health-card::before {
@@ -1075,8 +1204,12 @@
             align-items: center;
             gap: 10px;
             color: #ffffff;
-            font-size: 16px;
+            font-size: 18px; /* 增大标题字体 */
             font-weight: 600;
+            margin-bottom: 15px; /* 增加间距避免重叠 */
+            line-height: 1.5;
+            word-spacing: 2px;
+            justify-content: center; /* 居中对齐 */
         }
 
         .card-icon {
@@ -1123,33 +1256,42 @@
 
         .gauge-value-display {
             position: absolute;
-            top: 50%;
+            top: 45%; /* 调整位置避免重叠 */
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
-            z-index: 2;
+            z-index: 10; /* 提高层级 */
+            width: 100%;
         }
 
         .gauge-value {
             font-family: "NumFont", monospace;
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 32px; /* 放大字体 */
+            font-weight: 900; /* 增加字重 */
             color: #00ff9d;
-            text-shadow: 0 0 10px rgba(0, 255, 157, 0.8);
+            text-shadow: 0 0 15px rgba(0, 255, 157, 1);
             line-height: 1;
+            text-align: center; /* 水平居中 */
+            letter-spacing: 2px; /* 增加字符间距 */
         }
 
         .gauge-unit {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-top: 4px;
+            font-size: 16px; /* 放大单位字体 */
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 6px;
+            text-align: center;
+            font-weight: 600;
+            letter-spacing: 1px;
         }
 
         .health-details {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            font-size: 12px;
+            gap: 12px;
+            font-size: 14px; /* 增大详情字体 */
+            text-align: center; /* 居中对齐 */
+            justify-content: center;
+            margin-top: 15px;
         }
 
         .detail-item {
@@ -1167,14 +1309,145 @@
 
         .detail-value {
             color: #00e4ff;
-            font-weight: 600;
+            font-weight: 700; /* 加粗数值 */
+            font-size: 16px; /* 放大详情数值 */
         }
 
         /* ============= 中央区域 ============= */
         .center-panel {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-rows: auto 300px 1fr 200px; /* 四层布局 */
             gap: 20px;
+        }
+
+        /* 健康综合评分区域 */
+        .health-score-section {
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, var(--primary-color), var(--secondary-color), var(--accent-color), var(--primary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            position: relative;
+            animation: rotate 20s linear infinite;
+        }
+
+        .score-circle::before {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            background: var(--background-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .score-number {
+            position: absolute;
+            font-size: 36px;
+            font-weight: 900;
+            color: var(--primary-color);
+            z-index: 2;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 实时波形图区域 */
+        .vital-wave-section {
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .wave-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .wave-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .wave-btn {
+            padding: 6px 12px;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            border-radius: 6px;
+            color: #ff6b6b;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .wave-btn.active {
+            background: rgba(255, 107, 107, 0.3);
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+        }
+
+        /* 健康对比趋势区域 */
+        .trend-comparison {
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(0, 228, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .trend-item {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 21, 41, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 157, 0.1);
+        }
+
+        .trend-label {
+            display: block;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+        }
+
+        .trend-value {
+            font-size: 24px;
+            font-weight: bold;
+            display: block;
+        }
+
+        .trend-value.positive {
+            color: #00ff3c;
+        }
+
+        .trend-value.negative {
+            color: #ff4757;
+        }
+
+        .trend-value.neutral {
+            color: #ffaa00;
         }
 
         .main-chart-container {
@@ -2093,8 +2366,22 @@
 
             <!-- 左侧健康指标面板 -->
             <aside class="left-panel">
+                <!-- 员工信息面板 -->
+                <div class="employee-info-panel">
+                    <div class="employee-avatar">
+                        <img id="employeePhoto" src="/static/health-assets/default-avatar.png" alt="员工头像" onerror="this.src='/static/default-avatar.png'">
+                        <div class="online-indicator"></div>
+                    </div>
+                    <div class="employee-details">
+                        <h3 id="employeeName">员工姓名</h3>
+                        <p id="employeeId">工号: --</p>
+                        <p id="employeeDept">部门: --</p>
+                        <span class="confirm-btn" onclick="confirmEmployee()">✓ 确认身份</span>
+                    </div>
+                </div>
+
                 <!-- 心率卡片 -->
-                <div class="health-card" id="heartRateCard">
+                <div class="health-card" id="heartRateCard" onclick="showHealthDetails('heartRate')">
                     <div class="card-header">
                         <div class="card-title">
                             <span class="card-icon">💓</span>
@@ -2132,7 +2419,7 @@
                 </div>
 
                 <!-- 血氧卡片 -->
-                <div class="health-card" id="bloodOxygenCard">
+                <div class="health-card" id="bloodOxygenCard" onclick="showHealthDetails('bloodOxygen')">
                     <div class="card-header">
                         <div class="card-title">
                             <span class="card-icon">🩸</span>
@@ -2172,6 +2459,29 @@
 
             <!-- 中央图表区域 -->
             <main class="center-panel">
+                <!-- 健康综合评分 -->
+                <div class="health-score-section">
+                    <div class="score-circle" id="healthScoreCircle">
+                        <div class="score-number" id="healthScore">95</div>
+                    </div>
+                    <h3 style="color: #ffffff; margin: 0;">健康综合评分</h3>
+                    <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 5px 0 0 0;">基于实时体征数据智能评估</p>
+                </div>
+
+                <!-- 实时生命体征波形 -->
+                <div class="vital-wave-section">
+                    <div class="wave-header">
+                        <h4 style="color: #ffffff; margin: 0;">📈 实时生命体征</h4>
+                        <div class="wave-controls">
+                            <button class="wave-btn active" onclick="switchWaveType('heart')">心率波形</button>
+                            <button class="wave-btn" onclick="switchWaveType('oxygen')">血氧变化</button>
+                            <button class="wave-btn" onclick="switchWaveType('temp')">体温曲线</button>
+                        </div>
+                    </div>
+                    <div id="vitalWaveChart" style="height: 200px; width: 100%;"></div>
+                </div>
+
+                <!-- 原有主趋势图 -->
                 <div class="main-chart-container">
                     <div class="chart-header">
                         <div class="chart-title">
@@ -2187,12 +2497,28 @@
                     </div>
                     <div id="mainChart" class="main-chart"></div>
                 </div>
+
+                <!-- 健康对比趋势 -->
+                <div class="trend-comparison">
+                    <div class="trend-item">
+                        <span class="trend-label">较昨日</span>
+                        <span class="trend-value positive" id="yesterdayTrend">+2%</span>
+                    </div>
+                    <div class="trend-item">
+                        <span class="trend-label">较本周</span>
+                        <span class="trend-value negative" id="weekTrend">-1%</span>
+                    </div>
+                    <div class="trend-item">
+                        <span class="trend-label">较本月</span>
+                        <span class="trend-value neutral" id="monthTrend">+0%</span>
+                    </div>
+                </div>
             </main>
 
             <!-- 右侧消息和告警面板 -->
             <aside class="right-panel">
                 <!-- 体温和血压卡片 -->
-                <div class="health-card" id="temperatureCard">
+                <div class="health-card" id="temperatureCard" onclick="showHealthDetails('temperature')">
                     <div class="card-header">
                         <div class="card-title">
                             <span class="card-icon">🌡️</span>
@@ -2278,6 +2604,14 @@
         let currentTimeRange = '1h';
         let healthData = {};
         let chartInstances = {};
+        let currentWaveType = 'heart';
+        let employeeData = {
+            name: '张三',
+            id: 'EMP001', 
+            department: '生产一线',
+            avatar: '/static/health-assets/default-avatar.png',
+            confirmed: false
+        };
 
         // ============= 初始化函数 =============
         document.addEventListener('DOMContentLoaded', function() {
@@ -2297,6 +2631,9 @@
             
             // 初始化图表
             initializeCharts();
+            
+            // 初始化员工信息
+            initializeEmployeeInfo();
             
             // 加载个性化设置
             loadPersonalizationSettings();
@@ -2320,12 +2657,349 @@
             // 初始化响应式布局
             initializeResponsive();
             
+            // 初始化波形图表
+            initializeWaveChart();
+            
             // 设置定时刷新
             setInterval(loadHealthData, 10000);     // 10秒刷新健康数据
             setInterval(loadMessages, 30000);       // 30秒刷新消息
             setInterval(loadAlerts, 30000);         // 30秒刷新告警
             setInterval(loadDeviceStatus, 60000);   // 60秒刷新设备状态
             setInterval(loadHistoryChart, 300000);  // 5分钟刷新历史数据
+        }
+
+        // ============= 员工信息管理 =============
+        function initializeEmployeeInfo() {
+            // 初始化员工信息显示
+            document.getElementById('employeeName').textContent = employeeData.name;
+            document.getElementById('employeeId').textContent = `工号: ${employeeData.id}`;
+            document.getElementById('employeeDept').textContent = `部门: ${employeeData.department}`;
+            
+            const photoElement = document.getElementById('employeePhoto');
+            if (photoElement) {
+                photoElement.src = employeeData.avatar;
+            }
+            
+            console.log('👤 员工信息初始化完成:', employeeData);
+        }
+
+        function confirmEmployee() {
+            if (!employeeData.confirmed) {
+                employeeData.confirmed = true;
+                const confirmBtn = document.querySelector('.confirm-btn');
+                confirmBtn.textContent = '✓ 已确认';
+                confirmBtn.style.background = 'linear-gradient(45deg, #00ff3c, #00e635)';
+                
+                // 添加确认动效
+                confirmBtn.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    confirmBtn.style.transform = 'scale(1)';
+                }, 200);
+                
+                console.log('✅ 员工身份已确认:', employeeData.name);
+                showToast(`员工 ${employeeData.name} 身份确认成功`, 'success');
+            }
+        }
+
+        // ============= 波形图表功能 =============
+        function initializeWaveChart() {
+            // 初始化实时波形图
+            chartInstances.vitalWaveChart = echarts.init(document.getElementById('vitalWaveChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                grid: {
+                    left: '5%', right: '5%', top: '10%', bottom: '15%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: [],
+                    axisLine: { 
+                        lineStyle: { color: 'rgba(255,107,107,0.4)' }
+                    },
+                    axisLabel: { 
+                        color: 'rgba(255,255,255,0.8)',
+                        fontSize: 10
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { 
+                        lineStyle: { color: 'rgba(255,107,107,0.4)' }
+                    },
+                    axisLabel: { 
+                        color: 'rgba(255,255,255,0.8)',
+                        fontSize: 10
+                    },
+                    splitLine: {
+                        lineStyle: { 
+                            color: 'rgba(255,255,255,0.1)',
+                            type: 'dashed'
+                        }
+                    }
+                },
+                series: [{
+                    type: 'line',
+                    data: [],
+                    smooth: true,
+                    lineStyle: {
+                        color: '#ff6b6b',
+                        width: 3,
+                        shadowColor: '#ff6b6b',
+                        shadowBlur: 10
+                    },
+                    itemStyle: {
+                        color: '#ff6b6b'
+                    },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: 'rgba(255,107,107,0.3)' },
+                                { offset: 1, color: 'rgba(255,107,107,0.05)' }
+                            ]
+                        }
+                    }
+                }]
+            };
+            
+            chartInstances.vitalWaveChart.setOption(option);
+            
+            // 生成模拟实时数据
+            generateWaveData('heart');
+        }
+
+        function switchWaveType(waveType) {
+            currentWaveType = waveType;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.wave-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            generateWaveData(waveType);
+            console.log('📈 切换波形图类型:', waveType);
+        }
+
+        function generateWaveData(type) {
+            const now = new Date();
+            const data = [];
+            const timeLabels = [];
+            
+            for (let i = 29; i >= 0; i--) {
+                const time = new Date(now - i * 2000); // 每2秒一个数据点
+                timeLabels.push(time.toLocaleTimeString().slice(-8));
+                
+                let value;
+                if (type === 'heart') {
+                    // 心率波形 (60-100 BPM)
+                    value = 75 + Math.sin(i * 0.3) * 15 + Math.random() * 10 - 5;
+                } else if (type === 'oxygen') {
+                    // 血氧波形 (95-100%)
+                    value = 97 + Math.sin(i * 0.2) * 2 + Math.random() * 2 - 1;
+                } else if (type === 'temp') {
+                    // 体温波形 (36-38°C)
+                    value = 36.5 + Math.sin(i * 0.1) * 0.8 + Math.random() * 0.4 - 0.2;
+                }
+                data.push(Math.round(value * 100) / 100);
+            }
+            
+            // 更新图表颜色和标题
+            let color, title;
+            if (type === 'heart') {
+                color = '#ff6b6b';
+                title = '心率波形 (BPM)';
+            } else if (type === 'oxygen') {
+                color = '#00e4ff';
+                title = '血氧饱和度 (%)';
+            } else if (type === 'temp') {
+                color = '#ffaa00';
+                title = '体温变化 (°C)';
+            }
+            
+            chartInstances.vitalWaveChart.setOption({
+                title: {
+                    text: title,
+                    textStyle: { 
+                        color: color, 
+                        fontSize: 14 
+                    },
+                    left: 'center'
+                },
+                xAxis: { data: timeLabels },
+                series: [{
+                    data: data,
+                    lineStyle: { color: color, shadowColor: color },
+                    itemStyle: { color: color },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: color + '40' },
+                                { offset: 1, color: color + '08' }
+                            ]
+                        }
+                    }
+                }]
+            });
+        }
+
+        // ============= 健康详情二级界面 =============
+        function showHealthDetails(cardType) {
+            const titles = {
+                heartRate: '💓 心率详细分析',
+                bloodOxygen: '🩸 血氧详细分析', 
+                temperature: '🌡️ 体温详细分析'
+            };
+            
+            const detailModal = `
+                <div class="health-detail-modal" id="healthDetailModal" style="
+                    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(0,0,0,0.8); z-index: 10000;
+                    display: flex; align-items: center; justify-content: center;
+                    opacity: 0; transition: opacity 0.3s ease;
+                ">
+                    <div class="detail-content" style="
+                        background: linear-gradient(145deg, rgba(13,20,33,0.95), rgba(6,18,25,0.95));
+                        border: 1px solid rgba(0,255,157,0.3);
+                        border-radius: 16px; width: 90%; max-width: 800px; 
+                        max-height: 80vh; overflow-y: auto;
+                        backdrop-filter: blur(20px);
+                        transform: scale(0.9); transition: transform 0.3s ease;
+                    ">
+                        <div class="detail-header" style="
+                            padding: 20px; border-bottom: 1px solid rgba(0,255,157,0.2);
+                            display: flex; justify-content: space-between; align-items: center;
+                        ">
+                            <h2 style="color: #ffffff; margin: 0; font-size: 20px;">${titles[cardType]}</h2>
+                            <button onclick="closeHealthDetail()" style="
+                                background: transparent; border: 1px solid rgba(255,71,87,0.3);
+                                color: #ff4757; width: 32px; height: 32px; border-radius: 6px;
+                                cursor: pointer; font-size: 18px;
+                            ">✕</button>
+                        </div>
+                        <div class="detail-tabs" style="
+                            display: flex; background: rgba(0,21,41,0.3);
+                            border-bottom: 1px solid rgba(0,255,157,0.2);
+                        ">
+                            <button class="detail-tab active" data-tab="realtime" onclick="switchDetailTab('realtime')" style="
+                                flex: 1; padding: 15px; background: rgba(0,255,157,0.2);
+                                border: none; color: #00ff9d; cursor: pointer;
+                            ">实时监测</button>
+                            <button class="detail-tab" data-tab="history" onclick="switchDetailTab('history')" style="
+                                flex: 1; padding: 15px; background: transparent;
+                                border: none; color: rgba(255,255,255,0.7); cursor: pointer;
+                            ">历史趋势</button>
+                            <button class="detail-tab" data-tab="analysis" onclick="switchDetailTab('analysis')" style="
+                                flex: 1; padding: 15px; background: transparent;
+                                border: none; color: rgba(255,255,255,0.7); cursor: pointer;
+                            ">AI分析</button>
+                        </div>
+                        <div class="tab-content" id="detailTabContent" style="padding: 20px;">
+                            ${generateDetailContent(cardType, 'realtime')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', detailModal);
+            
+            // 显示动画
+            setTimeout(() => {
+                const modal = document.getElementById('healthDetailModal');
+                modal.style.opacity = '1';
+                modal.querySelector('.detail-content').style.transform = 'scale(1)';
+            }, 10);
+            
+            console.log('🔍 显示健康详情:', cardType);
+        }
+
+        function closeHealthDetail() {
+            const modal = document.getElementById('healthDetailModal');
+            if (modal) {
+                modal.style.opacity = '0';
+                modal.querySelector('.detail-content').style.transform = 'scale(0.9)';
+                setTimeout(() => modal.remove(), 300);
+            }
+        }
+
+        function switchDetailTab(tabType) {
+            // 更新标签状态
+            document.querySelectorAll('.detail-tab').forEach(tab => {
+                tab.classList.remove('active');
+                tab.style.background = 'transparent';
+                tab.style.color = 'rgba(255,255,255,0.7)';
+            });
+            
+            event.target.classList.add('active');
+            event.target.style.background = 'rgba(0,255,157,0.2)';
+            event.target.style.color = '#00ff9d';
+            
+            // 更新内容
+            const contentArea = document.getElementById('detailTabContent');
+            contentArea.innerHTML = generateDetailContent('heartRate', tabType); // 示例用心率
+        }
+
+        function generateDetailContent(cardType, tabType) {
+            if (tabType === 'realtime') {
+                return `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div style="text-align: center;">
+                            <h4 style="color: #00ff9d; margin-bottom: 15px;">当前数值</h4>
+                            <div style="font-size: 48px; font-weight: bold; color: #ff6b6b; margin: 20px 0;">75</div>
+                            <div style="color: rgba(255,255,255,0.8);">BPM</div>
+                            <div style="margin-top: 15px; padding: 10px; background: rgba(0,255,60,0.1); border-radius: 8px; color: #00ff3c;">
+                                ✓ 正常范围
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="color: #00ff9d; margin-bottom: 15px;">今日统计</h4>
+                            <div style="display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <span style="color: rgba(255,255,255,0.7);">最高:</span>
+                                <span style="color: #ffffff; font-weight: bold;">89 BPM</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <span style="color: rgba(255,255,255,0.7);">最低:</span>
+                                <span style="color: #ffffff; font-weight: bold;">62 BPM</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0;">
+                                <span style="color: rgba(255,255,255,0.7);">平均:</span>
+                                <span style="color: #ffffff; font-weight: bold;">75 BPM</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <h4 style="color: #00ff9d; margin-bottom: 10px;">健康建议</h4>
+                        <div style="background: rgba(0,228,255,0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #00e4ff;">
+                            <p style="color: #ffffff; margin: 0; line-height: 1.6;">
+                                您的心率处于正常范围内，建议保持规律的作息时间，适量运动，避免过度劳累。
+                            </p>
+                        </div>
+                    </div>
+                `;
+            } else if (tabType === 'history') {
+                return `
+                    <div style="text-align: center; color: rgba(255,255,255,0.8); padding: 40px;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
+                        <h3 style="color: #00ff9d;">历史趋势分析</h3>
+                        <p>显示过去7天的健康数据变化趋势</p>
+                        <div style="margin-top: 20px; padding: 15px; background: rgba(0,255,157,0.1); border-radius: 8px;">
+                            功能开发中，敬请期待...
+                        </div>
+                    </div>
+                `;
+            } else if (tabType === 'analysis') {
+                return `
+                    <div style="text-align: center; color: rgba(255,255,255,0.8); padding: 40px;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">🤖</div>
+                        <h3 style="color: #00ff9d;">AI智能分析</h3>
+                        <p>基于机器学习算法的健康状态评估</p>
+                        <div style="margin-top: 20px; padding: 15px; background: rgba(255,170,0,0.1); border-radius: 8px;">
+                            AI分析功能正在训练中...
+                        </div>
+                    </div>
+                `;
+            }
         }
 
         // ============= 设备状态管理 =============
@@ -3414,7 +4088,72 @@
             // 更新健康统计和趋势分析
             updateHealthStatistics(data);
             
+            // 更新健康综合评分
+            updateHealthScore(data);
+            
+            // 更新波形图表数据
+            updateWaveChart(data);
+            
             console.log('✅ 健康数据显示更新完成');
+        }
+
+        function updateHealthScore(data) {
+            // 计算综合健康评分
+            let score = 100;
+            
+            // 心率评分 (30%)
+            if (data.heartRate < 60 || data.heartRate > 100) {
+                score -= 15;
+            } else if (data.heartRate < 70 || data.heartRate > 90) {
+                score -= 5;
+            }
+            
+            // 血氧评分 (30%) 
+            if (data.bloodOxygen < 95) {
+                score -= 20;
+            } else if (data.bloodOxygen < 98) {
+                score -= 5;
+            }
+            
+            // 体温评分 (25%)
+            const temp = parseFloat(data.temperature);
+            if (temp < 36.1 || temp > 37.3) {
+                score -= 15;
+            } else if (temp < 36.5 || temp > 37.0) {
+                score -= 3;
+            }
+            
+            // 血压评分 (15%)
+            if (data.systolic > 140 || data.diastolic > 90) {
+                score -= 10;
+            } else if (data.systolic > 130 || data.diastolic > 85) {
+                score -= 3;
+            }
+            
+            score = Math.max(0, Math.min(100, Math.round(score)));
+            
+            const scoreElement = document.getElementById('healthScore');
+            if (scoreElement) {
+                scoreElement.textContent = score;
+                
+                // 根据评分更新颜色
+                if (score >= 90) {
+                    scoreElement.style.color = '#00ff3c';
+                } else if (score >= 75) {
+                    scoreElement.style.color = '#00ff9d';
+                } else if (score >= 60) {
+                    scoreElement.style.color = '#ffaa00';
+                } else {
+                    scoreElement.style.color = '#ff4757';
+                }
+            }
+        }
+
+        function updateWaveChart(data) {
+            // 实时更新波形图表数据
+            if (chartInstances.vitalWaveChart) {
+                generateWaveData(currentWaveType);
+            }
         }
 
         function updateHealthCardStatus(cardId, value, minNormal, maxNormal, criticalThreshold) {

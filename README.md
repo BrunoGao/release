@@ -1,6 +1,6 @@
 # 灵境万象健康管理系统 (LJWX)
 
-![Version](https://img.shields.io/badge/Version-1.3.6-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.3.8-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache%20License%202.0-B9D6AF.svg)](./LICENSE)
 ![Platform](https://img.shields.io/badge/Platform-Multi--architecture-green.svg)
 
@@ -77,7 +77,51 @@
 - **紧急功能**: SOS按钮、跌倒检测、一键告警
 - **实时同步**: 蓝牙BLE/WiFi双通道、离线缓存
 
-## 🚀 最新功能 v1.3.6
+## 🚀 最新功能 v1.3.8
+
+### 🔧 Excel导出功能修复与静态文件优化 (2025-08-29)
+
+#### **Excel导出功能完善**
+- **导出故障修复**: 修复health_table.html中Excel导出无错误日志的问题
+- **XLSX库路径修复**: 解决Flask静态文件路径配置导致的XLSX库加载失败
+- **增强错误处理**: 添加详细的调试日志和错误提示，提升用户体验
+- **CDN备用机制**: 实现本地XLSX库失败时的CDN自动降级加载
+
+#### **自定义弹窗系统**
+- **统一弹窗组件**: 创建可复用的`showCustomAlert`组件替代原生alert
+- **视觉效果升级**: 科技感弹窗设计，支持键盘快捷键（ESC、Enter）
+- **模块化设计**: 提取为独立的`custom-alert.js`文件供全局复用
+- **增强功能**: 支持确认框、回调函数、动画效果
+
+#### **静态文件架构优化**
+- **路径问题诊断**: 发现并修复静态文件错误放置在`/bigScreen/static/`的问题
+- **Flask配置确认**: 验证`static_folder='../static'`指向正确的`/bigscreen/static/`
+- **CDN文件迁移**: 将Bootstrap、FontAwesome、ECharts等离线CDN文件移至正确位置
+- **重复文件清理**: 删除错误位置的重复文件，避免开发者混淆
+
+```bash
+# 修复前的问题路径结构
+/bigscreen/bigScreen/static/    # ❌ 错误位置 - Flask无法访问
+├── css/bootstrap-5.1.3.min.css
+├── js/echarts.min.js
+└── js/xlsx-0.18.5.full.min.js
+
+# 修复后的正确路径结构  
+/bigscreen/static/              # ✅ 正确位置 - Flask可以访问
+├── css/bootstrap-5.1.3.min.css
+├── js/echarts.min.js
+└── js/xlsx-0.18.5.full.min.js
+```
+
+#### **技术改进详情**
+- **依赖库完整性**: 确保所有CDN离线文件在正确位置并可被Flask访问
+- **版本同步更新**: 使用最新版本的ECharts (1MB+) 替换旧版本 (700KB)
+- **开发体验优化**: 清理重复文件，建立清晰的静态文件组织结构
+- **系统稳定性**: 解决Excel导出"导出失败，请重试"无具体错误信息的问题
+
+---
+
+## 🚀 历史版本 v1.3.6
 
 ### 🔧 多租户告警规则系统实现 (2025-08-26)
 

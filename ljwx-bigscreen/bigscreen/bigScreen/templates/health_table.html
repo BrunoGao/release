@@ -8,7 +8,7 @@
   <!-- 字体图标 -->
   <link
     rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    href="{{ url_for('static', filename='css/font-awesome-6.0.0.min.css') }}"
   />
 
   <!-- 自定义样式 -->
@@ -19,12 +19,32 @@
 
   <!-- jQuery（如果有更多交互，可考虑换成原生或 Vue） -->
   <script
-    src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"
+    src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"
     defer
   ></script>
 
   <!-- XLSX库 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="{{ url_for('static', filename='js/xlsx-0.18.5.full.min.js') }}"></script>
+  <!-- XLSX库备用CDN -->
+  <script>
+    // 如果本地XLSX库加载失败，使用CDN备用
+    if (typeof XLSX === 'undefined') {
+      console.warn('本地XLSX库加载失败，使用CDN备用');
+      const xlsxScript = document.createElement('script');
+      xlsxScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      xlsxScript.crossOrigin = 'anonymous';
+      xlsxScript.onload = function() {
+        console.log('✅ CDN XLSX库加载成功');
+      };
+      xlsxScript.onerror = function() {
+        console.error('❌ CDN XLSX库也加载失败');
+      };
+      document.head.appendChild(xlsxScript);
+    }
+  </script>
+
+  <!-- 自定义弹窗组件 -->
+  <script src="{{ url_for('static', filename='js/custom-alert.js') }}"></script>
 
   <style>
     /* 页面基础样式 */
@@ -392,13 +412,33 @@
     document.getElementById('dateSearchBtn').onclick=()=>loadHealthData(1,pageSize);
     
     document.getElementById('exportExcelBtn').onclick=function(){
-      if(allData.length===0){alert('暂无数据可导出');return;}
+      console.log('🔄 开始导出Excel...');
+      console.log('📊 当前数据量:', allData.length);
+      console.log('📋 当前列:', currentColumns);
+      
+      if(allData.length===0){
+        console.log('❌ 无数据可导出');
+        showCustomAlert('暂无数据可导出');
+        return;
+      }
+      
+      // 检查XLSX库是否加载
+      if(typeof XLSX === 'undefined'){
+        console.error('❌ XLSX库未加载');
+        showCustomAlert('Excel导出库未加载，请刷新页面重试');
+        return;
+      }
+      console.log('✅ XLSX库已加载');
+      
       try{
+        console.log('🔧 开始构建Excel数据...');
+        
         // 使用动态列构建Excel表头和数据
         const headers = currentColumns.map(col => {
           const field = fieldMapping[col];
           return field ? field.title.replace(/<[^>]*>/g, '') : col; // 移除HTML标签
         });
+        console.log('📑 表头:', headers);
         
         const rows = allData.map(d => 
           currentColumns.map(col => {
@@ -410,20 +450,49 @@
             return value;
           })
         );
+        console.log('📊 数据行数:', rows.length);
         
+        console.log('🔧 创建工作表...');
         const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+        console.log('📋 工作表创建成功');
+        
+        console.log('🔧 创建工作簿...');
         const wb=XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb,ws,'健康数据');
-        const now=new Date(),fileName=`健康数据_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}.xlsx`;
+        console.log('📚 工作簿创建成功');
+        
+        const now=new Date();
+        const fileName=`健康数据_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}.xlsx`;
+        console.log('💾 开始写入文件:', fileName);
+        
         XLSX.writeFile(wb,fileName);
-        console.log(`导出成功: ${fileName}`);
+        console.log('✅ 导出成功:', fileName);
+        showCustomAlert('导出成功!');
       }catch(err){
-        console.error('导出失败:',err);
-        alert('导出失败，请重试');
+        console.error('❌ 导出失败:', err);
+        console.error('❌ 错误详情:', err.message);
+        console.error('❌ 错误堆栈:', err.stack);
+        showCustomAlert(`导出失败: ${err.message}`);
       }
     };
     
     window.onload=function(){
+      console.log('📄 页面加载完成');
+      
+      // 检查XLSX库是否加载成功
+      if(typeof XLSX !== 'undefined'){
+        console.log('✅ XLSX库加载成功, 版本:', XLSX.version || 'unknown');
+      } else {
+        console.error('❌ XLSX库未加载');
+      }
+      
+      // 检查jQuery是否加载
+      if(typeof $ !== 'undefined'){
+        console.log('✅ jQuery加载成功');
+      } else {
+        console.error('❌ jQuery未加载');
+      }
+      
       const today=new Date(),y=today.getFullYear(),m=(today.getMonth()+1).toString().padStart(2,'0'),d=today.getDate().toString().padStart(2,'0');
       document.getElementById('startDate').value=`${y}-${m}-01`;
       document.getElementById('endDate').value=`${y}-${m}-${d}`;
