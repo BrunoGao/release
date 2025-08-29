@@ -1145,4 +1145,53 @@ class ApiService {
       };
     }
   }
+
+  /// 处理告警信息 #处理告警API
+  Future<Map<String, dynamic>> processAlert(String alertId, String status) async {
+    try {
+      debugPrint('处理告警请求，告警ID: $alertId，状态: $status');
+      
+      final requestBody = {
+        'alert_id': alertId,
+        'status': status,
+        'processed_time': DateTime.now().toIso8601String(),
+      };
+      
+      final response = await http.post(
+        Uri.parse('${_config.apiBaseUrl}/api/alerts/process'),
+        headers: _headers,
+        body: jsonEncode(requestBody),
+      ).timeout(_timeout);
+      
+      debugPrint('处理告警响应状态: ${response.statusCode}');
+      debugPrint('处理告警响应内容: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        return jsonData;
+      } else {
+        return {
+          'success': false,
+          'error': '服务器错误 (${response.statusCode}): ${response.body}'
+        };
+      }
+    } catch (e) {
+      debugPrint('处理告警失败: $e');
+      return {
+        'success': false,
+        'error': '处理告警失败：$e'
+      };
+    }
+  }
+
+  /// 标记告警为已处理 #标记告警已处理
+  Future<bool> markAlertAsProcessed(String alertId) async {
+    try {
+      final result = await processAlert(alertId, 'processed');
+      return result['success'] == true;
+    } catch (e) {
+      debugPrint('标记告警已处理失败: $e');
+      return false;
+    }
+  }
 } 

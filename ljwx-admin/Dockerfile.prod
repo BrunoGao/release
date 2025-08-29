@@ -1,56 +1,4 @@
-# 多阶段构建，减小镜像体积
-FROM node:18-alpine AS builder
-
-# 设置北京时区
-ENV TZ=Asia/Shanghai
-RUN apk add --no-cache tzdata && \
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
-    echo $TZ > /etc/timezone
-
-RUN corepack enable && corepack prepare pnpm@10.8.0 --activate
-WORKDIR /app
-COPY package.json pnpm-lock.yaml .npmrc pnpm-workspace.yaml ./
-COPY packages/ ./packages/
-RUN pnpm install --frozen-lockfile
-COPY src/ ./src/
-COPY public/ ./public/
-COPY build/ ./build/
-COPY index.html ./
-COPY vite.config.ts ./
-COPY tsconfig.json ./
-COPY uno.config.ts ./
-ENV VITE_BASE_URL=./
-ARG VITE_APP_TITLE=穿戴健康管理平台
-ARG VITE_APP_DESC=穿戴健康管理平台
-ENV VITE_APP_TITLE=${VITE_APP_TITLE}
-ENV VITE_APP_DESC=${VITE_APP_DESC}
-ENV VITE_ICON_PREFIX=icon
-ENV VITE_ICON_LOCAL_PREFIX=icon-local
-ENV VITE_AUTH_ROUTE_MODE=dynamic
-ENV VITE_ROUTE_HOME=home
-ENV VITE_MENU_ICON=mdi:menu
-ENV VITE_HTTP_PROXY=Y
-ENV VITE_ROUTER_HISTORY_MODE=hash
-ENV VITE_SERVICE_SUCCESS_CODE=200
-ENV VITE_SERVICE_LOGOUT_CODES=600,401
-ENV VITE_SERVICE_MODAL_LOGOUT_CODES=401
-ENV VITE_SERVICE_EXPIRED_TOKEN_CODES=40101
-ENV VITE_STATIC_SUPER_ROLE=R_SUPER
-ENV VITE_AUTH_BUTTON_MODE=route_meta
-ENV VITE_SOURCE_MAP=N
-ENV VITE_STORAGE_PREFIX=SOY_
-ENV VITE_AUTOMATICALLY_DETECT_UPDATE=Y
-ENV VITE_HTTP_PROXY=Y
-ENV VITE_API_URL=/proxy-default
-ENV VITE_SERVICE_BASE_URL=/proxy-default
-ENV VITE_OTHER_SERVICE_BASE_URL='{"bigscreen": "/bigscreen/"}'
-ARG VITE_BIGSCREEN_URL=http://localhost:8001
-ARG VITE_CUSTOM_LOGO=false
-ENV VITE_BIGSCREEN_URL=${VITE_BIGSCREEN_URL}
-ENV VITE_CUSTOM_LOGO=${VITE_CUSTOM_LOGO}
-RUN pnpm run build
-
-# 生产环境nginx镜像
+# 使用预构建的 dist 目录
 FROM nginx:alpine
 
 # 设置北京时区
@@ -60,9 +8,10 @@ RUN apk add --no-cache tzdata && \
     echo $TZ > /etc/timezone
 
 RUN apk add --no-cache findutils # 添加find命令支持
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx/nginx.conf /etc/nginx/nginx.conf
-COPY docker-entrypoint.sh /docker-entrypoint.sh
+# 直接复制预构建的 dist 目录
+COPY ljwx-admin/dist /usr/share/nginx/html
+COPY ljwx-admin/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY ljwx-admin/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 EXPOSE 80
 ENTRYPOINT ["/docker-entrypoint.sh"]

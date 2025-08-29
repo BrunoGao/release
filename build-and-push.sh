@@ -156,6 +156,15 @@ build_app_image() {
             fi
             ;;
         "boot")
+            # 预构建 JAR 包
+            echo "🔨 预构建 Spring Boot JAR 包..."
+            if [ ! -f "ljwx-boot/ljwx-boot-admin/target/*.jar" ]; then
+                echo "⚠️ 未找到预构建的JAR文件，需要先构建Java项目"
+                echo "💡 请运行: cd ljwx-boot && mvn clean package -DskipTests"
+                exit 1
+            else
+                echo "✅ 找到预构建的JAR文件"
+            fi
             if [ "$LOCAL_BUILD" = "true" ] && [ "$PLATFORMS" = "linux/amd64" ]; then
                 docker build -t $tag -t $latest_tag . -f ljwx-boot/ljwx-boot-admin/Dockerfile.prod
             else
@@ -163,13 +172,36 @@ build_app_image() {
             fi
             ;;
         "bigscreen")
+            # 更新了使用Python 3.12
             if [ "$LOCAL_BUILD" = "true" ] && [ "$PLATFORMS" = "linux/amd64" ]; then
-                docker build -t $tag -t $latest_tag ljwx-bigscreen/bigscreen/ -f ljwx-bigscreen/bigscreen/Dockerfile.multiarch
+                docker build -t $tag -t $latest_tag ljwx-bigscreen/bigscreen/ -f ljwx-bigscreen/bigscreen/Dockerfile.prod
             else
-                docker $build_args -t $tag -t $latest_tag ljwx-bigscreen/bigscreen/ -f ljwx-bigscreen/bigscreen/Dockerfile.multiarch
+                docker $build_args -t $tag -t $latest_tag ljwx-bigscreen/bigscreen/ -f ljwx-bigscreen/bigscreen/Dockerfile.prod
             fi
             ;;
         "admin")
+            # 预构建前端资源
+            echo "🔨 预构建前端资源..."
+            if [ ! -d "ljwx-admin/dist" ]; then
+                echo "⚠️ 未找到预构建的dist目录，正在执行前端构建..."
+                cd ljwx-admin
+                if command -v pnpm >/dev/null 2>&1; then
+                    echo "使用 pnpm 构建..."
+                    pnpm install --frozen-lockfile
+                    pnpm run build
+                elif command -v npm >/dev/null 2>&1; then
+                    echo "使用 npm 构建..."
+                    npm install
+                    npm run build
+                else
+                    echo "❌ 未找到 pnpm 或 npm，请安装 Node.js 和包管理器"
+                    exit 1
+                fi
+                cd ..
+                echo "✅ 前端构建完成"
+            else
+                echo "✅ 找到预构建的dist目录"
+            fi
             if [ "$LOCAL_BUILD" = "true" ] && [ "$PLATFORMS" = "linux/amd64" ]; then
                 docker build -t $tag -t $latest_tag ljwx-admin/ -f ljwx-admin/Dockerfile.prod
             else

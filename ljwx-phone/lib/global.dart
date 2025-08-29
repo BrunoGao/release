@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ljwx_health_new/config/app_config.dart';
+import 'package:ljwx_health_new/models/login_response.dart';
 
 // 为了向后兼容，保留全局变量但从AppConfig获取值 #向后兼容全局变量
 String get deviceSn => AppConfig.instance.deviceSn; // 全局设备序列号
@@ -8,6 +9,9 @@ String get globalDeviceSn => AppConfig.instance.deviceSn; // 全局设备序列�
 String get customerName => AppConfig.instance.customerName; // 全局客户名称  
 String get uploadMethod => AppConfig.instance.uploadMethod; // 上传方式：bluetooth或wifi
 Map<String, dynamic> get systemConfig => AppConfig.instance.systemConfig; // 系统配置
+
+// 登录数据全局变量
+LoginData? loginData;
 
 // setter方法用于向后兼容 #向后兼容setter
 set deviceSn(String value) => AppConfig.instance.setDeviceSn(value);

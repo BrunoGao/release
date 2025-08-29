@@ -10,6 +10,7 @@
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
     
+    <link rel="stylesheet" href="/static/css/personal.css">
     <style>
         /* ============= 基础样式重置 ============= */
         * {
@@ -239,6 +240,7 @@
             backdrop-filter: blur(10px);
             position: relative;
             overflow: hidden;
+            min-height: 70px;
         }
 
         .top-header::before {
@@ -261,6 +263,145 @@
             display: flex;
             align-items: center;
             gap: 20px;
+        }
+
+        /* ============= 用户信息区域 ============= */
+        .header-user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: linear-gradient(145deg, rgba(0, 255, 157, 0.05), rgba(0, 228, 255, 0.05));
+            border: 1px solid rgba(0, 255, 157, 0.15);
+            border-radius: 25px;
+            padding: 8px 20px 8px 8px;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+
+        .header-user-info:hover {
+            border-color: rgba(0, 255, 157, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 255, 157, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .user-avatar {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid rgba(0, 255, 157, 0.3);
+            background: linear-gradient(45deg, rgba(0, 255, 157, 0.2), rgba(0, 228, 255, 0.2));
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .user-status-dot {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 12px;
+            height: 12px;
+            background: #00ff3c;
+            border: 2px solid rgba(13, 20, 33, 0.9);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 255, 60, 0.8);
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { 
+                box-shadow: 0 0 10px rgba(0, 255, 60, 0.8);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 15px rgba(0, 255, 60, 1);
+                transform: scale(1.1);
+            }
+        }
+
+        .user-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .user-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .user-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .user-id {
+            background: linear-gradient(45deg, rgba(0, 255, 157, 0.2), rgba(0, 228, 255, 0.2));
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            border: 1px solid rgba(0, 255, 157, 0.3);
+        }
+
+        .user-separator {
+            color: rgba(0, 255, 157, 0.6);
+        }
+
+        .user-dept {
+            font-weight: 500;
+        }
+
+        .user-status {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.online {
+            background: linear-gradient(45deg, rgba(0, 255, 60, 0.2), rgba(0, 255, 157, 0.2));
+            color: #00ff3c;
+            border: 1px solid rgba(0, 255, 60, 0.4);
+            box-shadow: 0 0 10px rgba(0, 255, 60, 0.2);
+        }
+
+        .device-info {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: right;
+        }
+
+        .device-label {
+            color: rgba(0, 255, 157, 0.8);
+            margin-right: 4px;
+        }
+
+        .device-sn {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 255, 157, 0.1);
+            padding: 1px 4px;
+            border-radius: 3px;
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .logo {
@@ -800,6 +941,28 @@
                 height: 60px;
             }
 
+            .header-user-info {
+                gap: 12px;
+                padding: 6px 16px 6px 6px;
+            }
+
+            .user-avatar {
+                width: 36px;
+                height: 36px;
+            }
+
+            .user-name {
+                font-size: 14px;
+            }
+
+            .user-meta {
+                font-size: 11px;
+            }
+
+            .user-dept {
+                display: none;
+            }
+
             .header-title {
                 font-size: 18px;
             }
@@ -881,6 +1044,46 @@
                 padding: 0 12px;
                 height: 50px;
                 min-height: 50px;
+            }
+
+            .header-user-info {
+                gap: 8px;
+                padding: 4px 10px 4px 4px;
+                border-radius: 18px;
+            }
+
+            .user-avatar {
+                width: 30px;
+                height: 30px;
+            }
+
+            .user-status-dot {
+                width: 8px;
+                height: 8px;
+                bottom: 1px;
+                right: 1px;
+            }
+
+            .user-name {
+                font-size: 11px;
+            }
+
+            .user-meta {
+                font-size: 9px;
+            }
+
+            .user-separator,
+            .user-dept {
+                display: none;
+            }
+
+            .status-badge {
+                padding: 2px 6px;
+                font-size: 8px;
+            }
+
+            .device-info {
+                display: none;
             }
 
             .logo {
@@ -1134,7 +1337,10 @@
         .left-panel {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 8px;
+            height: 100%;
+            overflow: hidden;
+            padding: 0;
         }
 
         /* ============= 健康指标卡片 ============= */
@@ -1143,7 +1349,7 @@
             background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
             border: 1px solid rgba(0, 255, 157, 0.2);
             border-radius: 12px;
-            padding: 24px;
+            padding: 12px;
             position: relative;
             overflow: hidden;
             backdrop-filter: blur(10px);
@@ -1151,23 +1357,13 @@
             text-align: center; /* 水平居中 */
             filter: none; /* 移除蓝色滤镜 */
             cursor: pointer; /* 添加点击手势 */
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
-        .health-card::after {
-            content: "点击查看详情 >";
-            position: absolute;
-            bottom: 8px;
-            right: 12px;
-            font-size: 11px;
-            color: rgba(255,255,255,0.6);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .health-card:hover::after {
-            opacity: 1;
-        }
 
         .health-card:hover {
             transform: translateY(-5px) scale(1.02);
@@ -1196,7 +1392,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 8px;
         }
 
         .card-title {
@@ -1243,9 +1439,9 @@
         /* ============= 高级仪表盘样式 ============= */
         .advanced-gauge {
             position: relative;
-            width: 120px;
-            height: 120px;
-            margin: 0 auto 20px;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 8px;
         }
 
         .gauge-container {
@@ -1266,19 +1462,19 @@
 
         .gauge-value {
             font-family: "NumFont", monospace;
-            font-size: 32px; /* 放大字体 */
-            font-weight: 900; /* 增加字重 */
+            font-size: 24px;
+            font-weight: 900;
             color: #00ff9d;
             text-shadow: 0 0 15px rgba(0, 255, 157, 1);
             line-height: 1;
-            text-align: center; /* 水平居中 */
-            letter-spacing: 2px; /* 增加字符间距 */
+            text-align: center;
+            letter-spacing: 1px;
         }
 
         .gauge-unit {
-            font-size: 16px; /* 放大单位字体 */
+            font-size: 12px;
             color: rgba(255, 255, 255, 0.9);
-            margin-top: 6px;
+            margin-top: 4px;
             text-align: center;
             font-weight: 600;
             letter-spacing: 1px;
@@ -1287,30 +1483,31 @@
         .health-details {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            font-size: 14px; /* 增大详情字体 */
-            text-align: center; /* 居中对齐 */
+            gap: 4px;
+            font-size: 10px;
+            text-align: center;
             justify-content: center;
-            margin-top: 15px;
+            margin-top: 6px;
         }
 
         .detail-item {
             display: flex;
             justify-content: space-between;
-            padding: 8px 12px;
+            padding: 3px 5px;
             background: rgba(0, 21, 41, 0.3);
-            border-radius: 6px;
+            border-radius: 3px;
             border: 1px solid rgba(0, 255, 157, 0.1);
         }
 
         .detail-label {
             color: rgba(255, 255, 255, 0.7);
+            font-size: 9px;
         }
 
         .detail-value {
             color: #00e4ff;
-            font-weight: 700; /* 加粗数值 */
-            font-size: 16px; /* 放大详情数值 */
+            font-weight: 700;
+            font-size: 10px;
         }
 
         /* ============= 中央区域 ============= */
@@ -1326,9 +1523,12 @@
             border: 1px solid rgba(0, 255, 157, 0.3);
             border-radius: 12px;
             padding: 20px;
-            text-align: center;
             backdrop-filter: blur(10px);
             position: relative;
+            display: grid;
+            grid-template-columns: 1fr 280px 1fr;
+            gap: 25px;
+            align-items: center;
         }
 
         .score-circle {
@@ -1363,9 +1563,240 @@
             z-index: 2;
         }
 
+        .health-score-center {
+            text-align: center;
+        }
+
+        /* ============= 健康预测模块 ============= */
+        .health-prediction {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .prediction-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .prediction-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 0 12px rgba(255, 107, 107, 0.4);
+        }
+
+        .prediction-title {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        .prediction-item {
+            background: rgba(255, 107, 107, 0.08);
+            border: 1px solid rgba(255, 107, 107, 0.25);
+            border-radius: 6px;
+            padding: 10px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .prediction-item:hover {
+            border-color: rgba(255, 107, 107, 0.4);
+            background: rgba(255, 107, 107, 0.12);
+        }
+
+        .prediction-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #ff6b6b, #ff4757);
+            border-radius: 0 2px 2px 0;
+        }
+
+        .prediction-label {
+            font-size: 11px;
+            color: rgba(255, 107, 107, 0.9);
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .prediction-content {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 12px;
+            line-height: 1.3;
+        }
+
+        .prediction-risk {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            background: rgba(255, 107, 107, 0.2);
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #ff6b6b;
+            margin-left: 6px;
+        }
+
+        /* ============= 健康建议模块 ============= */
+        .health-recommendations {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .recommendations-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .recommendations-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(45deg, #00e4ff, #00b8d4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 0 12px rgba(0, 228, 255, 0.4);
+        }
+
+        .recommendations-title {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        .recommendation-item {
+            background: rgba(0, 228, 255, 0.08);
+            border: 1px solid rgba(0, 228, 255, 0.25);
+            border-radius: 6px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .recommendation-item:hover {
+            border-color: rgba(0, 228, 255, 0.4);
+            background: rgba(0, 228, 255, 0.12);
+            transform: translateX(2px);
+        }
+
+        .recommendation-icon {
+            color: #00e4ff;
+            font-size: 12px;
+            margin-top: 1px;
+            flex-shrink: 0;
+        }
+
+        .recommendation-text {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            line-height: 1.3;
+        }
+
+        .recommendation-priority {
+            display: inline-block;
+            background: linear-gradient(45deg, #00e4ff, #00b8d4);
+            color: #000;
+            padding: 1px 5px;
+            border-radius: 6px;
+            font-size: 8px;
+            font-weight: 700;
+            margin-top: 3px;
+        }
+
         @keyframes rotate {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+        }
+
+        /* 响应式设计 - 健康评分区域 */
+        @media (max-width: 1200px) {
+            .health-score-section {
+                grid-template-columns: 1fr 240px 1fr;
+                gap: 20px;
+                padding: 15px;
+            }
+            
+            .prediction-title,
+            .recommendations-title {
+                font-size: 14px;
+            }
+            
+            .prediction-content,
+            .recommendation-text {
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .health-score-section {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+                text-align: center;
+                gap: 20px;
+            }
+            
+            .health-prediction,
+            .health-recommendations {
+                max-width: 400px;
+                margin: 0 auto;
+            }
+            
+            .score-circle {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .score-number {
+                font-size: 28px;
+            }
+        }
+
+        @media (max-width: 599px) {
+            .health-score-section {
+                padding: 12px;
+                gap: 15px;
+            }
+            
+            .prediction-header,
+            .recommendations-header {
+                justify-content: center;
+            }
+            
+            .prediction-item,
+            .recommendation-item {
+                padding: 8px;
+            }
+            
+            .score-circle {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .score-number {
+                font-size: 24px;
+            }
         }
 
         /* 实时波形图区域 */
@@ -2327,6 +2758,30 @@
                         <div class="header-subtitle">个人健康大屏 v1.3.5</div>
                     </div>
                 </div>
+                
+                <!-- 用户信息区域 -->
+                <div class="header-user-info">
+                    <div class="user-avatar">
+                        <img id="headerEmployeePhoto" src="/static/health-assets/default-avatar.png" alt="用户头像" onerror="this.src='/static/default-avatar.png'">
+                        <div class="user-status-dot"></div>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name" id="headerEmployeeName">张三</div>
+                        <div class="user-meta">
+                            <span class="user-id" id="headerEmployeeId">EMP001</span>
+                            <span class="user-separator">•</span>
+                            <span class="user-dept" id="headerEmployeeDept">生产一线</span>
+                        </div>
+                    </div>
+                    <div class="user-status">
+                        <div class="status-badge online">在线</div>
+                        <div class="device-info">
+                            <span class="device-label">设备</span>
+                            <span class="device-sn">{{ device_sn or "CRFTQ23409001890" }}</span>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="header-right">
                     <!-- 个性化控制区域 -->
                     <div class="personalization-controls">
@@ -2366,20 +2821,6 @@
 
             <!-- 左侧健康指标面板 -->
             <aside class="left-panel">
-                <!-- 员工信息面板 -->
-                <div class="employee-info-panel">
-                    <div class="employee-avatar">
-                        <img id="employeePhoto" src="/static/health-assets/default-avatar.png" alt="员工头像" onerror="this.src='/static/default-avatar.png'">
-                        <div class="online-indicator"></div>
-                    </div>
-                    <div class="employee-details">
-                        <h3 id="employeeName">员工姓名</h3>
-                        <p id="employeeId">工号: --</p>
-                        <p id="employeeDept">部门: --</p>
-                        <span class="confirm-btn" onclick="confirmEmployee()">✓ 确认身份</span>
-                    </div>
-                </div>
-
                 <!-- 心率卡片 -->
                 <div class="health-card" id="heartRateCard" onclick="showHealthDetails('heartRate')">
                     <div class="card-header">
@@ -2455,17 +2896,121 @@
                         </div>
                     </div>
                 </div>
-            </aside>
 
-            <!-- 中央图表区域 -->
+                <!-- 体温卡片 -->
+                <div class="health-card" id="temperatureCard" onclick="showHealthDetails('temperature')">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span class="card-icon">🌡️</span>
+                            <span>体温</span>
+                        </div>
+                        <div class="health-status" id="temperatureStatus"></div>
+                    </div>
+                    <div class="advanced-gauge">
+                        <div class="gauge-container">
+                            <div id="temperatureGauge" style="width: 100%; height: 100%;"></div>
+                            <div class="gauge-value-display">
+                                <div class="gauge-value" id="temperatureValue">--</div>
+                                <div class="gauge-unit">°C</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="health-details">
+                        <div class="detail-item">
+                            <span class="detail-label">收缩压</span>
+                            <span class="detail-value" id="systolicValue">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">舒张压</span>
+                            <span class="detail-value" id="diastolicValue">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">步数</span>
+                            <span class="detail-value" id="stepCount">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">活动</span>
+                            <span class="detail-value" id="activityLevel">轻度</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
             <main class="center-panel">
                 <!-- 健康综合评分 -->
                 <div class="health-score-section">
-                    <div class="score-circle" id="healthScoreCircle">
-                        <div class="score-number" id="healthScore">95</div>
+                    <!-- 健康预测 -->
+                    <div class="health-prediction">
+                        <div class="prediction-header">
+                            <div class="prediction-icon">🔮</div>
+                            <div class="prediction-title">健康预测</div>
+                        </div>
+                        <div class="prediction-item">
+                            <div class="prediction-label">疲劳风险</div>
+                            <div class="prediction-content">
+                                基于当前心率变异性，预计2小时后疲劳度上升
+                                <span class="prediction-risk">⚠️ 中风险</span>
+                            </div>
+                        </div>
+                        <div class="prediction-item">
+                            <div class="prediction-label">运动建议时间</div>
+                            <div class="prediction-content">
+                                建议在下午3-5点进行轻度有氧运动
+                                <span class="prediction-risk">✅ 最佳</span>
+                            </div>
+                        </div>
+                        <div class="prediction-item">
+                            <div class="prediction-label">健康趋势</div>
+                            <div class="prediction-content">
+                                本周整体健康状态呈上升趋势，继续保持
+                                <span class="prediction-risk">📈 良好</span>
+                            </div>
+                        </div>
                     </div>
-                    <h3 style="color: #ffffff; margin: 0;">健康综合评分</h3>
-                    <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 5px 0 0 0;">基于实时体征数据智能评估</p>
+
+                    <!-- 健康综合评分中心 -->
+                    <div class="health-score-center">
+                        <div class="score-circle" id="healthScoreCircle">
+                            <div class="score-number" id="healthScore">95</div>
+                        </div>
+                        <h3 style="color: #ffffff; margin: 0;">健康综合评分</h3>
+                        <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 5px 0 0 0;">基于实时体征数据智能评估</p>
+                    </div>
+
+                    <!-- 健康建议 -->
+                    <div class="health-recommendations">
+                        <div class="recommendations-header">
+                            <div class="recommendations-icon">💡</div>
+                            <div class="recommendations-title">健康建议</div>
+                        </div>
+                        <div class="recommendation-item">
+                            <div class="recommendation-icon">💧</div>
+                            <div class="recommendation-text">
+                                适当补充水分，建议每小时饮水200ml
+                                <div class="recommendation-priority">高优先级</div>
+                            </div>
+                        </div>
+                        <div class="recommendation-item">
+                            <div class="recommendation-icon">🏃</div>
+                            <div class="recommendation-text">
+                                心率较为平稳，可进行中等强度运动
+                                <div class="recommendation-priority">建议</div>
+                            </div>
+                        </div>
+                        <div class="recommendation-item">
+                            <div class="recommendation-icon">😴</div>
+                            <div class="recommendation-text">
+                                保证7-8小时优质睡眠时间
+                                <div class="recommendation-priority">日常</div>
+                            </div>
+                        </div>
+                        <div class="recommendation-item">
+                            <div class="recommendation-icon">🥗</div>
+                            <div class="recommendation-text">
+                                建议摄入富含维生素的蔬果类食物
+                                <div class="recommendation-priority">营养</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 实时生命体征波形 -->
@@ -2517,43 +3062,6 @@
 
             <!-- 右侧消息和告警面板 -->
             <aside class="right-panel">
-                <!-- 体温和血压卡片 -->
-                <div class="health-card" id="temperatureCard" onclick="showHealthDetails('temperature')">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span class="card-icon">🌡️</span>
-                            <span>体温</span>
-                        </div>
-                        <div class="health-status" id="temperatureStatus"></div>
-                    </div>
-                    <div class="advanced-gauge">
-                        <div class="gauge-container">
-                            <div id="temperatureGauge" style="width: 100%; height: 100%;"></div>
-                            <div class="gauge-value-display">
-                                <div class="gauge-value" id="temperatureValue">--</div>
-                                <div class="gauge-unit">°C</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="health-details">
-                        <div class="detail-item">
-                            <span class="detail-label">收缩压</span>
-                            <span class="detail-value" id="systolicValue">--</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">舒张压</span>
-                            <span class="detail-value" id="diastolicValue">--</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">步数</span>
-                            <span class="detail-value" id="stepCount">--</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">活动</span>
-                            <span class="detail-value" id="activityLevel">轻度</span>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- 消息通知面板 -->
                 <div class="message-panel">
@@ -2670,15 +3178,28 @@
 
         // ============= 员工信息管理 =============
         function initializeEmployeeInfo() {
-            // 初始化员工信息显示
-            document.getElementById('employeeName').textContent = employeeData.name;
-            document.getElementById('employeeId').textContent = `工号: ${employeeData.id}`;
-            document.getElementById('employeeDept').textContent = `部门: ${employeeData.department}`;
-            
+            // 检查员工信息元素是否存在（因为可能已被移除）
+            const employeeNameEl = document.getElementById('employeeName');
+            const employeeIdEl = document.getElementById('employeeId');
+            const employeeDeptEl = document.getElementById('employeeDept');
             const photoElement = document.getElementById('employeePhoto');
-            if (photoElement) {
-                photoElement.src = employeeData.avatar;
-            }
+            
+            // 更新头部用户信息
+            const headerEmployeeNameEl = document.getElementById('headerEmployeeName');
+            const headerEmployeeIdEl = document.getElementById('headerEmployeeId');
+            const headerEmployeeDeptEl = document.getElementById('headerEmployeeDept');
+            const headerPhotoElement = document.getElementById('headerEmployeePhoto');
+            
+            if (employeeNameEl) employeeNameEl.textContent = employeeData.name;
+            if (employeeIdEl) employeeIdEl.textContent = `工号: ${employeeData.id}`;
+            if (employeeDeptEl) employeeDeptEl.textContent = `部门: ${employeeData.department}`;
+            if (photoElement) photoElement.src = employeeData.avatar;
+            
+            // 更新头部显示
+            if (headerEmployeeNameEl) headerEmployeeNameEl.textContent = employeeData.name;
+            if (headerEmployeeIdEl) headerEmployeeIdEl.textContent = employeeData.id;
+            if (headerEmployeeDeptEl) headerEmployeeDeptEl.textContent = employeeData.department;
+            if (headerPhotoElement) headerPhotoElement.src = employeeData.avatar;
             
             console.log('👤 员工信息初始化完成:', employeeData);
         }
@@ -3238,19 +3759,9 @@
                         color: '#ffffff'
                     },
                     
-                    // 数值显示
+                    // 数值显示 - 禁用ECharts自带的显示，使用HTML覆盖层
                     detail: {
-                        show: true,
-                        offsetCenter: [0, '65%'],
-                        fontSize: 20,
-                        fontWeight: 'bold',
-                        color: '#ff6b6b',
-                        formatter: '{value} BPM',
-                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                        borderRadius: 8,
-                        padding: [5, 10],
-                        shadowColor: '#ff6b6b',
-                        shadowBlur: 10
+                        show: false
                     },
                     
                     data: [{ 
@@ -3370,18 +3881,9 @@
                         color: '#ffffff'
                     },
                     
+                    // 数值显示 - 禁用ECharts自带的显示，使用HTML覆盖层
                     detail: {
-                        show: true,
-                        offsetCenter: [0, '65%'],
-                        fontSize: 22,
-                        fontWeight: 'bold',
-                        color: '#00e4ff',
-                        formatter: '{value}%',
-                        backgroundColor: 'rgba(0, 228, 255, 0.1)',
-                        borderRadius: 8,
-                        padding: [5, 10],
-                        shadowColor: '#00e4ff',
-                        shadowBlur: 12
+                        show: false
                     },
                     
                     data: [{ 
@@ -3502,18 +4004,9 @@
                         color: '#ffffff'
                     },
                     
+                    // 数值显示 - 禁用ECharts自带的显示，使用HTML覆盖层
                     detail: {
-                        show: true,
-                        offsetCenter: [0, '65%'],
-                        fontSize: 20,
-                        fontWeight: 'bold',
-                        color: '#ffaa00',
-                        formatter: '{value}°C',
-                        backgroundColor: 'rgba(255, 170, 0, 0.1)',
-                        borderRadius: 8,
-                        padding: [5, 10],
-                        shadowColor: '#ffaa00',
-                        shadowBlur: 10
+                        show: false
                     },
                     
                     data: [{ 
@@ -4364,14 +4857,11 @@
                 series: [{
                     data: [{ 
                         value: heartRate,
-                        name: `💓 心率: ${heartRate} BPM`
+                        name: ''
                     }],
+                    // 禁用detail显示，使用HTML覆盖层
                     detail: {
-                        formatter: `{value} BPM`,
-                        color: alertColor,
-                        backgroundColor: `${alertColor}15`,
-                        shadowColor: alertColor,
-                        shadowBlur: status === 'normal' ? 10 : 20
+                        show: false
                     },
                     pointer: {
                         itemStyle: {
@@ -4410,14 +4900,11 @@
                 series: [{
                     data: [{ 
                         value: spo2,
-                        name: `🩸 血氧: ${spo2}%`
+                        name: ''
                     }],
+                    // 禁用detail显示，使用HTML覆盖层
                     detail: {
-                        formatter: `{value}%`,
-                        color: alertColor,
-                        backgroundColor: `${alertColor}15`,
-                        shadowColor: alertColor,
-                        shadowBlur: status === 'critical' ? 25 : 12
+                        show: false
                     },
                     pointer: {
                         itemStyle: {
@@ -4458,14 +4945,11 @@
                 series: [{
                     data: [{ 
                         value: temperature,
-                        name: `🌡️ ${tempLevel}: ${temperature}°C`
+                        name: ''
                     }],
+                    // 禁用detail显示，使用HTML覆盖层  
                     detail: {
-                        formatter: `{value}°C`,
-                        color: alertColor,
-                        backgroundColor: `${alertColor}15`,
-                        shadowColor: alertColor,
-                        shadowBlur: status === 'fever' ? 25 : 10
+                        show: false
                     },
                     pointer: {
                         itemStyle: {
@@ -5280,7 +5764,28 @@
             console.error('⚠️ 页面错误:', event.error);
         });
 
-        console.log('✅ 个人健康大屏初始化完成');
+    </script>
+
+    <!-- 外部JS文件引用 -->
+    <script src="/static/js/performance.js" defer></script>
+    <script src="/static/js/personal.js" defer></script>
+    
+    <!-- 页面初始化脚本 -->
+    <script>
+        // 页面特定配置
+        const PAGE_CONFIG = {
+            deviceSn: '{{ device_sn or "" }}',
+            orgId: '{{ org_id or "" }}', 
+            userId: '{{ user_id or "" }}',
+            apiEndpoint: '/api',
+            socketNamespace: '/personal',
+            // 性能配置
+            updateInterval: 8000,
+            chartUpdateInterval: 2000,
+            cacheEnabled: true
+        };
+        
+        console.log('🚀 个人健康大屏页面加载完成');
     </script>
 </body>
 </html>

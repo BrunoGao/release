@@ -246,6 +246,29 @@ class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
       suggestions.add((detail['suggestions'] as List<dynamic>? ?? []).cast<String>());
     }
 
+    // 确保至少有3个数据点用于雷达图
+    if (scores.length < 3) {
+      // 如果数据点不足3个，添加默认数据点
+      while (scores.length < 3) {
+        switch (scores.length) {
+          case 1:
+            metrics.add('心率');
+            scores.add(80.0); // 默认心率评分
+            statuses.add('normal');
+            messages.add('心率数据暂无记录');
+            suggestions.add(['建议定期监测心率']);
+            break;
+          case 2:
+            metrics.add('血氧');
+            scores.add(85.0); // 默认血氧评分
+            statuses.add('normal');
+            messages.add('血氧数据暂无记录');
+            suggestions.add(['建议定期监测血氧']);
+            break;
+        }
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -300,10 +323,15 @@ class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: metrics.length,
+          itemCount: sortedFactors.length, // 只显示真实数据
           itemBuilder: (context, index) {
             final factor = sortedFactors[index].value as Map<String, dynamic>;
             final detail = details[sortedFactors[index].key] as Map<String, dynamic>? ?? {};
+            final metricName = factor['name'] as String;
+            final score = factor['score'] as double;
+            final status = factor['status'] as String;
+            final message = detail['message'] as String? ?? '';
+            final suggestionsList = (detail['suggestions'] as List<dynamic>? ?? []).cast<String>();
             
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
@@ -316,7 +344,7 @@ class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          metrics[index],
+                          metricName,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -325,13 +353,13 @@ class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: _getStatusColor(statuses[index]).withOpacity(0.1),
+                            color: _getStatusColor(status).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            _getStatusText(statuses[index]),
+                            _getStatusText(status),
                             style: TextStyle(
-                              color: _getStatusColor(statuses[index]),
+                              color: _getStatusColor(status),
                               fontSize: 12,
                             ),
                           ),
@@ -340,13 +368,13 @@ class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      messages[index],
+                      message,
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.black87,
                       ),
                     ),
-                    if (suggestions[index].isNotEmpty) ...[
+                    if (suggestionsList.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       const Text(
                         '建议：',
@@ -356,7 +384,7 @@ class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      ...suggestions[index].map((suggestion) => Padding(
+                      ...suggestionsList.map((suggestion) => Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,

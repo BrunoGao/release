@@ -112,39 +112,151 @@ class _AlertsScreenState extends State<AlertsScreen> {
   }
 
   Widget _buildAlertDetails(alert.Alert alert, ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '告警详情',
-          style: theme.textTheme.titleLarge,
-        ),
-        const SizedBox(height: 16),
-        _buildInfoRow('设备名称', alert.deviceSn, theme),
-        _buildInfoRow('部门', alert.deptName, theme),
-        _buildInfoRow('状态', alert.alertStatus, theme),
-        _buildInfoRow('时间', alert.alertTimestamp, theme),
-        const SizedBox(height: 16),
-        Text(
-          '告警信息',
-          style: theme.textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        Text(alert.alertDesc),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton(
-              onPressed: () {
-                // TODO: 处理告警
-              },
-              child: Text('处理'),
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '告警详情',
+                style: theme.textTheme.titleLarge,
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildInfoRow('设备序列号', alert.deviceSn, theme),
+          _buildInfoRow('部门', alert.deptName, theme),
+          _buildInfoRow('告警类型', alert.alertType, theme),
+          _buildInfoRow('当前状态', alert.alertStatus, theme),
+          _buildInfoRow('告警时间', alert.alertTimestamp, theme),
+          const SizedBox(height: 16),
+          Text(
+            '告警信息',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              alert.alertDesc,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+          const SizedBox(height: 20),
+          // 处理按钮
+          if (alert.alertStatus.toLowerCase() != 'processed') ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('取消'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => _processAlert(alert),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('标记为已处理'),
+                ),
+              ],
+            ),
+          ] else ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green[700]),
+                  const SizedBox(width: 8),
+                  Text(
+                    '此告警已处理',
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
-        ),
-      ],
+        ],
+      ),
     );
+  }
+
+  // 处理告警的方法
+  Future<void> _processAlert(alert.Alert alert) async {
+    try {
+      // 显示加载指示器
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // 调用API处理告警
+      final success = await _apiService.markAlertAsProcessed(alert.alertId.toString());
+      
+      // 关闭加载指示器
+      Navigator.of(context).pop();
+      
+      if (success) {
+        // 处理成功
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('告警已标记为已处理'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // 关闭详情对话框
+        Navigator.of(context).pop();
+        
+        // 刷新数据
+        _fetchPersonalInfo();
+      } else {
+        // 处理失败
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('处理告警信息失败，请重试'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // 关闭可能存在的加载指示器
+      Navigator.of(context).pop();
+      
+      // 显示错误信息
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('处理告警失败：$e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildInfoRow(String label, String value, ThemeData theme) {
