@@ -223,18 +223,36 @@ const getDynamicColumns = (mode: Api.SystemManage.ViewMode) => {
       title: $t('common.operate'),
       align: 'center',
       fixed: 'right',
-      width: 150,
+      width: 200,
       render: (row: Api.SystemManage.User) => (
         <div class="flex-center gap-8px">
           {hasAuth('sys:user:update') && (!row.isAdmin || hasAuth('sys:user:manage:admin')) && (
-            <NButton type="primary" quaternary size="small" onClick={() => edit(row.id)}>
+            <NButton 
+              type="primary" 
+              size="small" 
+              class="operation-btn-edit"
+              onClick={() => edit(row.id)}
+            >
+              <template v-slots:icon={() => <icon-ic:round-edit class="text-sm" />}>
+                <icon-ic:round-edit class="text-sm" />
+              </template>
               {$t('common.edit')}
             </NButton>
           )}
-          <NButton type="primary" quaternary size="small" onClick={() => handleDeviceSubmitted(row.deviceSn)}>
+          <NButton 
+            type="success" 
+            size="small" 
+            class="operation-btn-health"
+            onClick={() => handleDeviceSubmitted(row.deviceSn)}
+          >
+            <template v-slots:icon={() => <icon-material-symbols:health-and-safety class="text-sm" />}>
+              <icon-material-symbols:health-and-safety class="text-sm" />
+            </template>
             {$t('route.health_profile')}
           </NButton>
-          {renderDropdown(row)}
+          <div class="operation-more-btn">
+            {renderDropdown(row)}
+          </div>
         </div>
       )
     }
@@ -550,13 +568,9 @@ watch(viewMode, () => {
         @delete="handleBatchDelete"
         @refresh="getData"
       >
+        <!-- 隐藏批量导入按钮 -->
         <template #suffix>
-          <NButton v-if="hasAuth('sys:user:add')" size="small" ghost type="info" @click="handleBatchImport">
-            <template #icon>
-              <icon-material-symbols:upload />
-            </template>
-            批量导入
-          </NButton>
+          <!-- 批量导入功能已隐藏 -->
         </template>
       </TableHeaderOperation>
       <NDataTable
@@ -713,5 +727,96 @@ watch(viewMode, () => {
 
 .gap-8px {
   gap: 8px;
+}
+
+/* 操作按钮美化样式 */
+:deep(.operation-btn-edit) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+:deep(.operation-btn-edit:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+:deep(.operation-btn-health) {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  border: none;
+  color: white;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(72, 187, 120, 0.3);
+}
+
+:deep(.operation-btn-health:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(72, 187, 120, 0.4);
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+}
+
+.operation-more-btn {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 更多按钮下拉菜单美化 */
+:deep(.operation-more-btn .n-dropdown-trigger) {
+  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+  border: none;
+  color: white;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(229, 62, 62, 0.3);
+  border-radius: 4px;
+  padding: 4px 12px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.operation-more-btn .n-dropdown-trigger:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(229, 62, 62, 0.4);
+  background: linear-gradient(135deg, #c53030 0%, #9c2626 100%);
+}
+
+/* 下拉菜单项美化 */
+:deep(.n-dropdown-menu .n-dropdown-option) {
+  transition: all 0.2s ease;
+}
+
+:deep(.n-dropdown-menu .n-dropdown-option:hover) {
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  transform: translateX(2px);
+}
+
+/* 操作列宽度调整 */
+:deep(.n-data-table-td:last-child) {
+  padding: 8px 12px;
+}
+
+/* 按钮容器间距优化 */
+.flex-center > * + * {
+  margin-left: 6px;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  :deep(.operation-btn-edit),
+  :deep(.operation-btn-health) {
+    padding: 2px 6px;
+    font-size: 12px;
+  }
+  
+  .flex-center > * + * {
+    margin-left: 4px;
+  }
 }
 </style>
