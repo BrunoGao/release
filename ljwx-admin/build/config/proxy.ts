@@ -16,6 +16,13 @@ export function createViteProxy(env: Env.ImportMeta, enable: boolean) {
 
   const proxy: Record<string, ProxyOptions> = createProxyItem({ baseURL, proxyPattern });
 
+  // 添加静态文件代理支持
+  proxy['/uploads'] = {
+    target: baseURL,
+    changeOrigin: true,
+    // 不重写路径，直接转发 /uploads/** 到后端
+  };
+
   other.forEach(item => {
     Object.assign(proxy, createProxyItem(item));
   });

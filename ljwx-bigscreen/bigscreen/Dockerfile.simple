@@ -1,25 +1,55 @@
-# 使用本地Python 3.9-slim镜像
-FROM python:3.9-slim
+# 简化版Docker构建 - Python 3.12
+FROM python:3.12-slim
 
-# 设置工作目录  
+# 构建参数
+ARG VERSION
+ARG BUILD_DATE
+ARG VCS_REF
+
+# 标签信息
+LABEL maintainer="brunogao <38455629@qq.com>" \
+      version="${VERSION}" \
+      description="LJWX BigScreen Simplified Application" \
+      build-date="${BUILD_DATE}" \
+      vcs-ref="${VCS_REF}"
+
+# 设置工作目录
 WORKDIR /app
 
-# 安装系统依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# 配置pip使用国内源
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip config set install.trusted-host mirrors.aliyun.com && \
+    pip config set global.timeout 300 && \
+    pip config set global.retries 3
+
+# 配置阿里云debian镜像源
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
+    sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources
+
+# 安装系统依赖 - 最小化安装，容错处理
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
+    curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# 复制依赖文件
+# 复制并安装Python依赖 - Python 3.12兼容性修复
 COPY requirements-docker.txt .
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements-docker.txt
 
-# 安装Python依赖，使用国内镜像源
-RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple/ -r requirements-docker.txt
+# 创建非root用户
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# 复制应用代码
+# 复制应用代码并设置权限
 COPY . .
+RUN chown -R appuser:appuser /app
+
+# 切换到非root用户
+USER appuser
 
 # 设置环境变量
 ENV MYSQL_HOST=host.docker.internal \
@@ -31,6 +61,10 @@ ENV MYSQL_HOST=host.docker.internal \
 
 # 暴露应用端口
 EXPOSE 5001
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:5001/api/health || exit 1
 
 # 启动应用
 CMD ["python3", "run.py"]

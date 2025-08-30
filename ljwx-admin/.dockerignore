@@ -1,5 +1,5 @@
 node_modules
-dist
+# dist  # 注释掉dist，因为预构建模式需要dist目录
 .git
 .gitignore
 .env

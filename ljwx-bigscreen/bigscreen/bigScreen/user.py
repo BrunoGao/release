@@ -1,6 +1,7 @@
 from flask import jsonify, render_template, request, Response
 from .models import UserInfo, UserOrg, OrgInfo, DeviceInfo, AlertInfo, Position, UserPosition, db
 from .redis_helper import RedisHelper
+from .tenant_context import with_tenant_context, get_current_customer_id, filter_by_tenant
 import json  # Import json module
 
 import os
@@ -33,9 +34,18 @@ def get_user_info(deviceSn):
     else:
         return "No user found"
 
+@with_tenant_context
 def get_all_users():
-    # Retrieve all users from the database
-    users = UserInfo.query.all()
+    # Retrieve all users from the database with tenant filtering
+    customer_id = get_current_customer_id()
+    
+    if customer_id == 0:
+        # 超级管理员，查看所有用户
+        users = UserInfo.query.all()
+    else:
+        # 租户用户，只查看本租户的用户
+        users = UserInfo.query.filter_by(customer_id=customer_id).all()
+    
     if users:
         # Convert each user object to a dictionary
         users_list = [
@@ -160,17 +170,22 @@ def get_org_info_by_user_id(user_id):
         return None
 
 
-def get_user_info_by_orgIdAndUserId(orgId=None, userId=None): #极致优化用户查询-解决N+1问题#
-    """极致优化的用户查询，专门解决2000用户的性能问题"""
+def get_user_info_by_orgIdAndUserId(orgId=None, userId=None, customer_id=None): #极致优化用户查询-解决N+1问题#
+    """极致优化的用户查询，专门解决2000用户的性能问题，支持多租户隔离"""
     try:
         from sqlalchemy import text
         from .redis_helper import RedisHelper
         from .models import db  # 在函数开始就导入db，避免局部变量问题
         from .admin_helper import admin_helper  # 导入admin判断工具
+        from .tenant_context import get_current_customer_id
         import json
         
+        # 确保有租户上下文
+        if customer_id is None:
+            customer_id = get_current_customer_id()
+        
         redis = RedisHelper()
-        cache_key = f"user_info_ultra_fast:{orgId}:{userId}"
+        cache_key = f"user_info_ultra_fast:{orgId}:{userId}:{customer_id}"
         
         # 缓存检查
         try:
@@ -209,10 +224,11 @@ def get_user_info_by_orgIdAndUserId(orgId=None, userId=None): #极致优化用�
                 LEFT JOIN sys_org_units o ON uo.org_id = o.id AND o.is_deleted = 0
                 LEFT JOIN t_device_info d ON u.device_sn = d.serial_number
                 WHERE u.id = :user_id AND u.is_deleted = 0
+                AND (:customer_id = 0 OR u.customer_id = :customer_id)
                 LIMIT 1
             """)
             
-            result = db.session.execute(sql, {'user_id': userId}).fetchone()
+            result = db.session.execute(sql, {'user_id': userId, 'customer_id': customer_id}).fetchone()
             
             if not result:
                 return {"success": False, "message": "用户不存在", "data": {"users": [], "totalUsers": 0}}
@@ -295,6 +311,8 @@ def get_user_info_by_orgIdAndUserId(orgId=None, userId=None): #极致优化用�
                 LEFT JOIN t_device_info d ON u.device_sn = d.serial_number
                 WHERE (o.id = :org_id OR o.ancestors LIKE :ancestors_pattern1 OR o.ancestors LIKE :ancestors_pattern2 OR o.ancestors LIKE :ancestors_pattern3 OR o.ancestors = :org_id_str)
                 AND u.is_deleted = 0 AND u.status = '1'
+                AND (:customer_id = 0 OR u.customer_id = :customer_id)
+                AND (:customer_id = 0 OR o.customer_id = :customer_id)
                 {admin_exclude_condition}
                 ORDER BY u.id
                 LIMIT 3000
@@ -310,7 +328,8 @@ def get_user_info_by_orgIdAndUserId(orgId=None, userId=None): #极致优化用�
                 'ancestors_pattern1': ancestors_pattern1,
                 'ancestors_pattern2': ancestors_pattern2,
                 'ancestors_pattern3': ancestors_pattern3,
-                'org_id_str': org_id_str
+                'org_id_str': org_id_str,
+                'customer_id': customer_id
             }).fetchall()
             
             if not results:

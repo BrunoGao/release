@@ -131,7 +131,12 @@ vector-store:
 # 本地开发环境标识
 ljwx:
   env: local
-  debug: true 
+  debug: true
+  # Logo上传配置 - 本地开发环境
+  logo:
+    # 本地开发使用相对路径，从项目根目录开始
+    upload-path: ljwx-boot/uploads
+    default-logo: ljwx-boot/uploads/logos/defaults/default-logo.svg 
 # 为DruidConfiguration兼容性添加标准Spring Boot数据源配置
 spring:
   datasource:

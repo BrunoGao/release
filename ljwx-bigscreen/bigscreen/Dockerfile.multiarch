@@ -1,6 +1,6 @@
 # 多架构构建 - 支持 AMD64 和 ARM64
 # 使用本地python镜像，避免网络问题
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # 构建参数
 ARG BUILDPLATFORM
@@ -22,25 +22,25 @@ LABEL maintainer="brunogao <38455629@qq.com>" \
 # 设置工作目录
 WORKDIR /app
 
-# 根据架构设置不同的源
+# 根据架构设置不同的源 - 更新为Bookworm适配Python 3.12
 RUN case "${TARGETARCH}" in \
       amd64) \
         echo "Setting up sources for AMD64..."; \
-        echo "deb http://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list; \
-        echo "deb-src http://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list; \
-        echo "deb http://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list; \
-        echo "deb-src http://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list; \
-        echo "deb http://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list; \
-        echo "deb-src http://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian/ bookworm main non-free-firmware" > /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian/ bookworm main non-free-firmware" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian-security/ bookworm-security main" >> /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian-security/ bookworm-security main" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian/ bookworm-updates main non-free-firmware" >> /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian/ bookworm-updates main non-free-firmware" >> /etc/apt/sources.list; \
         ;; \
       arm64) \
         echo "Setting up sources for ARM64..."; \
-        echo "deb http://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list; \
-        echo "deb-src http://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list; \
-        echo "deb http://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list; \
-        echo "deb-src http://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list; \
-        echo "deb http://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list; \
-        echo "deb-src http://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian/ bookworm main non-free-firmware" > /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian/ bookworm main non-free-firmware" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian-security/ bookworm-security main" >> /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian-security/ bookworm-security main" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian/ bookworm-updates main non-free-firmware" >> /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian/ bookworm-updates main non-free-firmware" >> /etc/apt/sources.list; \
         ;; \
       *) \
         echo "Unsupported architecture: ${TARGETARCH}"; \

@@ -4,19 +4,19 @@ import type { Ref } from 'vue';
 import { NButton, NCard, NForm, NFormItem, NInput, NModal, NPopconfirm, NSelect, NTag } from 'naive-ui';
 import type { DataTableColumns, FormInst, FormRules } from 'naive-ui';
 import { batchApproveBindingApplications, fetchDeviceBindingApplications } from '@/service/api';
-import { useBoolean, useLoading } from '@/hooks/common';
+import { useBoolean, useLoading } from '@sa/hooks';
 import { useAppStore } from '@/store/modules/app';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
 
-defineOptions({
-  name: 'DeviceBind',
-  meta: {
-    roles: ['R_ADMIN'],
-    icon: 'ic:round-link',
-    order: 1
-  }
-});
+// defineOptions({
+//   name: 'DeviceBind',
+//   meta: {
+//     roles: ['R_ADMIN'],
+//     icon: 'ic:round-link',
+//     order: 1
+//   }
+// });
 
 const appStore = useAppStore();
 const { loading, startLoading, endLoading } = useLoading(false);

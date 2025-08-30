@@ -139,3 +139,12 @@ fabric.properties
 
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
+
+# 上传文件目录 - 忽略实际上传的文件，但保留目录结构
+uploads/*
+!uploads/.gitkeep
+!uploads/logos/
+!uploads/logos/defaults/
+uploads/logos/*
+!uploads/logos/defaults/
+!uploads/logos/defaults/default-logo.svg

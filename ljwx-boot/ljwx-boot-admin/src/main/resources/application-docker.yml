@@ -106,3 +106,12 @@ oss:
   secret-key: ${OSS_SECRET_KEY:}
   bucket-name: ${OSS_BUCKET_NAME:ljwx}
   local-path: /app/data/uploads
+
+# LJWX 自定义配置 - Docker环境
+ljwx:
+  env: docker
+  # Logo上传配置 - Docker环境
+  logo:
+    # Docker环境使用绝对路径
+    upload-path: /app/data/uploads
+    default-logo: /app/data/uploads/logos/defaults/default-logo.svg

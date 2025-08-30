@@ -77,3 +77,12 @@ spring:
       enabled: true  # 启用定时任务
       pool:
         size: 10  # 定时任务线程池大小
+
+# LJWX 自定义配置
+ljwx:
+  # Logo上传配置
+  logo:
+    # 上传文件存储根路径 - 支持环境变量配置
+    upload-path: ${LJWX_LOGO_UPLOAD_PATH:uploads}
+    # 默认logo文件路径
+    default-logo: ${LJWX_DEFAULT_LOGO_PATH:uploads/logos/defaults/default-logo.svg}

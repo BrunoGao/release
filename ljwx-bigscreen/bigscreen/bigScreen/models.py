@@ -71,6 +71,7 @@ class DeviceMessage(db.Model):
     message = db.Column(db.Text, nullable=False)   
     department_info = db.Column(db.String(50), nullable=True)
     user_id = db.Column(db.String(50), nullable=True)
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，继承自设备所属租户')
     message_type = db.Column(db.String(50), nullable=False)
     sender_type = db.Column(db.String(50), nullable=False)
     receiver_type = db.Column(db.String(50), nullable=False)
@@ -173,6 +174,7 @@ class DeviceInfo(db.Model):
     charging_status = db.Column(db.Enum('NOT_CHARGING', 'CHARGING'), nullable=True)
     user_id = db.Column(db.BigInteger, nullable=True, comment='绑定用户ID')
     org_id = db.Column(db.BigInteger, nullable=True, comment='绑定组织ID')
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，继承自当前绑定用户，0表示全局设备')
     is_deleted = db.Column(db.Boolean, nullable=True)
     create_user = db.Column(db.String(255), nullable=True)
     create_user_id = db.Column(db.BigInteger, nullable=True)
@@ -347,6 +349,7 @@ class UserHealthData(db.Model):
     sleep = Column(Float, nullable=True, comment='睡眠时长(小时)，由sleepData计算得出')
     user_id = Column(BigInteger, nullable=True)
     org_id = Column(BigInteger, nullable=True)
+    customer_id = Column(BigInteger, nullable=False, default=0, comment='租户ID，0表示全局数据，其他值表示特定租户')
     is_deleted = Column(Boolean, default=False, nullable=False)
     create_user = Column(String(255), nullable=True)
     create_user_id = Column(BigInteger, nullable=True)
@@ -399,6 +402,7 @@ class AlertInfo(db.Model):
     assigned_user_id = db.Column(db.BigInteger, nullable=True)
     org_id = db.Column(db.BigInteger, nullable=True, comment='组织ID')
     user_id = db.Column(db.BigInteger, nullable=True, comment='用户ID')
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，0表示全局告警，其他值表示特定租户告警')
     is_deleted = db.Column(db.Boolean, default=False, nullable=True)
     create_user = db.Column(db.String(255), nullable=True)
     create_user_id = db.Column(db.BigInteger, nullable=True)
@@ -437,6 +441,7 @@ class HealthBaseline(db.Model):
     baseline_id = Column(BigInteger, primary_key=True, autoincrement=True, comment='基线记录主键')
     device_sn = Column(String(50), nullable=False, comment='设备序列号')
     user_id = Column(BigInteger, nullable=True, comment='用户ID')
+    customer_id = Column(BigInteger, nullable=False, default=0, comment='租户ID，继承自用户所属租户')
     feature_name = Column(String(50), nullable=False, comment='体征名称，如 heart_rate/blood_oxygen')
     baseline_date = Column(db.Date, nullable=False, comment='基线日期')
     mean_value = Column(Float, comment='该期平均值')
@@ -583,6 +588,7 @@ class UserOrg(db.Model):
     update_user_id = Column(db.BigInteger, nullable=True, comment='修改用户ID')
     update_time = Column(db.DateTime, nullable=True, comment='修改时间')
     is_deleted = Column(db.Boolean, default=False, nullable=True, comment='是否删除(0:否,1:是)')
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，继承自组织或用户')
 
     __table_args__ = {'comment': '用户组织/部门/子部门管理'}
 
@@ -606,6 +612,7 @@ class OrgInfo(db.Model):
     update_time = Column(db.DateTime, nullable=True, comment='修改时间')
     status = Column(db.String(2), default='1', nullable=True, comment='是否启用(0:禁用,1:启用)')
     is_deleted = Column(db.Boolean, default=False, nullable=True, comment='是否删除(0:否,1:是)')
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，0表示全局组织，顶级组织ID表示租户')
 
     __table_args__ = {'comment': '组织/部门/子部门管理'}
 
@@ -658,6 +665,7 @@ class UserHealthDataDaily(db.Model):#每日更新健康数据表
     device_sn = db.Column(db.String(50), nullable=False)
     user_id = db.Column(db.BigInteger, nullable=True)
     org_id = db.Column(db.BigInteger, nullable=True)
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，继承自用户所属租户')
     date = db.Column(db.Date, nullable=False)
     sleep_data = db.Column(db.JSON, nullable=True, comment='睡眠数据(每日更新)')
     exercise_daily_data = db.Column(db.JSON, nullable=True, comment='每日运动数据')
@@ -679,6 +687,7 @@ class UserHealthDataWeekly(db.Model):#每周更新健康数据表
     device_sn = db.Column(db.String(50), nullable=False)
     user_id = db.Column(db.BigInteger, nullable=True)
     org_id = db.Column(db.BigInteger, nullable=True)
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，继承自用户所属租户')
     week_start = db.Column(db.Date, nullable=False, comment='周开始日期(周一)')
     exercise_week_data = db.Column(db.JSON, nullable=True, comment='每周运动数据')
     create_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -814,6 +823,7 @@ class DeviceUser(db.Model):
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True, comment='主键ID')
     device_sn = db.Column(db.String(200), nullable=False, comment='设备ID')
     user_id = db.Column(db.BigInteger, nullable=False, comment='用户ID')
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，继承自用户的租户信息')
     user_name = db.Column(db.String(50), nullable=True)
     operate_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=True, comment='绑定时间')
     status = db.Column(db.Enum('BIND','UNBIND'), default='BIND', nullable=True, comment='绑定状态')

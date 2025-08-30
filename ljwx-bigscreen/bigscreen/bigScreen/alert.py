@@ -15,6 +15,9 @@ import os
 from dotenv import load_dotenv
 import sys
 
+# 导入组织架构优化查询服务
+from .org_optimized import get_org_service, find_principals_optimized, find_escalation_chain_optimized
+
 # 添加项目根目录到Python路径以导入微信配置模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from wechat_config import get_wechat_config
@@ -923,47 +926,73 @@ def _insert_device_messages_enhanced(device_sn, alert_type, severity_level, user
         )
         message_records.append(user_message)
         
-        # 2. 给部门主管的消息
-        principals = UserOrg.query.filter_by(org_id=org_id, principal='1', is_deleted=False).all()
-        for principal in principals:
-            if principal.user_id != user_id:  # 避免重复给同一人发消息
-                principal_message = DeviceMessage(
-                    device_sn=device_sn,
-                    message=message_content + f"（设备用户：{user_name}）",
-                    department_info=str(org_id),
-                    user_id=str(principal.user_id),
-                    message_type='warning',
-                    sender_type='system',
-                    receiver_type='manager',
-                    message_status='1',
-                    create_time=get_now()
-                )
-                message_records.append(principal_message)
-        
-        # 3. 如果是message方式且没有部门管理员，给租户级别管理员发消息
-        if not principals:
-            # 查找当前部门的父级组织(租户级别)
-            current_org = OrgInfo.query.filter_by(id=org_id).first()
-            if current_org and current_org.parent_id:
-                tenant_principals = UserOrg.query.filter_by(
-                    org_id=current_org.parent_id, 
-                    principal='1', 
-                    is_deleted=False
-                ).all()
-                
-                for tenant_principal in tenant_principals:
-                    tenant_message = DeviceMessage(
+        # 2. 给部门主管的消息 - 使用优化查询
+        try:
+            # 获取租户ID (customer_id)
+            customer_id = getattr(device, 'customer_id', 0)
+            org_service = get_org_service()
+            principals_data = org_service.find_org_managers(org_id, customer_id, "manager")
+            
+            for principal_data in principals_data:
+                principal_user_id = principal_data['user_id']
+                if principal_user_id != user_id:  # 避免重复给同一人发消息
+                    principal_message = DeviceMessage(
                         device_sn=device_sn,
-                        message=message_content + f"（设备用户：{user_name}，部门：{current_org.name}）",
-                        department_info=str(current_org.parent_id),
-                        user_id=str(tenant_principal.user_id),
+                        message=message_content + f"（设备用户：{user_name}）",
+                        department_info=str(org_id),
+                        user_id=str(principal_user_id),
                         message_type='warning',
                         sender_type='system',
-                        receiver_type='tenant_admin',
+                        receiver_type='manager',
                         message_status='1',
                         create_time=get_now()
                     )
-                    message_records.append(tenant_message)
+                    message_records.append(principal_message)
+        except Exception as e:
+            print(f"使用优化查询失败，回退到原始查询: {str(e)}")
+            # 回退到原始查询方式
+            principals = UserOrg.query.filter_by(org_id=org_id, principal='1', is_deleted=False).all()
+            for principal in principals:
+                if principal.user_id != user_id:  # 避免重复给同一人发消息
+                    principal_message = DeviceMessage(
+                        device_sn=device_sn,
+                        message=message_content + f"（设备用户：{user_name}）",
+                        department_info=str(org_id),
+                        user_id=str(principal.user_id),
+                        message_type='warning',
+                        sender_type='system',
+                        receiver_type='manager',
+                        message_status='1',
+                        create_time=get_now()
+                    )
+                    message_records.append(principal_message)
+        
+        # 3. 如果是message方式且没有部门管理员，给租户级别管理员发消息
+        try:
+            # 检查是否有部门管理员
+            if not principals_data:
+                # 查找当前部门的父级组织(租户级别)
+                current_org = OrgInfo.query.filter_by(id=org_id).first()
+                if current_org and current_org.parent_id:
+                    # 使用优化查询获取父级组织管理员
+                    parent_principals_data = org_service.find_org_managers(
+                        current_org.parent_id, customer_id, "manager")
+                    
+                    for parent_principal_data in parent_principals_data:
+                        tenant_message = DeviceMessage(
+                            device_sn=device_sn,
+                            message=message_content + f"（设备用户：{user_name}，部门：{current_org.name}）",
+                            department_info=str(current_org.parent_id),
+                            user_id=str(parent_principal_data['user_id']),
+                            message_type='warning',
+                            sender_type='system',
+                            receiver_type='tenant_admin',
+                            message_status='1',
+                            create_time=get_now()
+                        )
+                        message_records.append(tenant_message)
+        except Exception as e:
+            print(f"租户级别管理员查询失败: {str(e)}")
         
         # 批量插入消息记录
         for record in message_records:
@@ -991,9 +1020,18 @@ def _insert_device_messages(device_sn, alert_type, severity_level, user_name):
         org_id = device.org_id
         user_id = device.user_id
         
-        # 查询该组织的主管(principal=1)
-        principals = UserOrg.query.filter_by(org_id=org_id, principal='1', is_deleted=False).all()
-        principal_user_ids = [p.user_id for p in principals]
+        # 查询该组织的主管(principal=1) - 使用优化查询
+        try:
+            # 获取租户ID (customer_id)
+            customer_id = getattr(device, 'customer_id', 0)
+            org_service = get_org_service()
+            principals_data = org_service.find_org_managers(org_id, customer_id, "manager")
+            principal_user_ids = [p['user_id'] for p in principals_data]
+        except Exception as e:
+            print(f"使用优化查询失败，回退到原始查询: {str(e)}")
+            # 回退到原始查询方式
+            principals = UserOrg.query.filter_by(org_id=org_id, principal='1', is_deleted=False).all()
+            principal_user_ids = [p.user_id for p in principals]
         
         # 构建消息内容
         message_content = f"设备{device_sn}发生{alert_type}告警，严重级别：{severity_level}，请及时处理。"

@@ -54,6 +54,12 @@ public class InterceptorConfiguration implements WebMvcConfigurer
             "/actuator/**"
     };
 
+    // 静态资源放行接口
+    public final String[] staticResourceExcludePatterns = new String[]{
+            "/uploads/**",
+            "/logos/**"
+    };
+
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
 
@@ -69,6 +75,7 @@ public class InterceptorConfiguration implements WebMvcConfigurer
                 .excludePathPatterns(druidExcludePatterns)
                 .excludePathPatterns(businessExcludePatterns)
                 .excludePathPatterns(monitoringExcludePatterns)
+                .excludePathPatterns(staticResourceExcludePatterns)
                 .order(Ordered.HIGHEST_PRECEDENCE + 1);
     }
 }

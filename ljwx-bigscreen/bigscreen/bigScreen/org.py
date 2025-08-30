@@ -2,8 +2,12 @@ import logging
 from flask import jsonify, session, request, abort, json
 from werkzeug.exceptions import NotFound
 from .models import db, OrgInfo, UserOrg, UserInfo, Position, UserPosition, DeviceInfo
+from .tenant_context import with_tenant_context, get_current_customer_id
 from collections import defaultdict
 from sqlalchemy import text
+
+# 导入组织架构优化查询服务
+from .org_optimized import get_org_service
 
 # Configure logging
 logging.basicConfig(filename='org.log', level=logging.INFO,
@@ -11,13 +15,93 @@ logging.basicConfig(filename='org.log', level=logging.INFO,
 
 logger = logging.getLogger(__name__)
 
-def fetch_departments_by_orgId(org_id):
-    """递归获取组织下的所有部门信息，包括当前组织"""
+@with_tenant_context
+def fetch_departments_by_orgId(org_id, customer_id=None):
+    """递归获取组织下的所有部门信息，包括当前组织，支持多租户隔离 - 优化版本"""
     try:
-        def get_child_departments(parent_id):
-            departments = db.session.query(OrgInfo)\
+        # 如果没有指定customer_id，则使用当前租户上下文的ID
+        if customer_id is None:
+            customer_id = get_current_customer_id()
+        
+        # 尝试使用优化查询
+        try:
+            org_service = get_org_service()
+            
+            # 先获取当前组织信息
+            current_org = db.session.query(OrgInfo)\
+                .filter(OrgInfo.id == org_id)\
+                .filter(OrgInfo.is_deleted == 0)\
+                .filter(OrgInfo.customer_id == customer_id)\
+                .first()
+            
+            if not current_org:
+                return {
+                    'success': False,
+                    'error': f'Organization not found: {org_id}'
+                }
+            
+            # 使用闭包表查询所有子部门
+            child_orgs = org_service.find_all_descendants(org_id, customer_id)
+            
+            # 构建树形结构
+            org_dict = {str(current_org.id): {
+                'id': str(current_org.id),
+                'name': current_org.name,
+                'parent_id': str(current_org.parent_id) if current_org.parent_id else None,
+                'create_time': current_org.create_time.strftime('%Y-%m-%d %H:%M:%S') if current_org.create_time else None,
+                'children': []
+            }}
+            
+            # 添加所有子部门到字典
+            for child in child_orgs:
+                org_dict[str(child['id'])] = {
+                    'id': str(child['id']),
+                    'name': child['name'],
+                    'parent_id': str(child['parent_id']),
+                    'create_time': child.get('create_time', ''),
+                    'children': []
+                }
+            
+            # 构建父子关系
+            for child in child_orgs:
+                parent_id = str(child['parent_id'])
+                if parent_id in org_dict:
+                    org_dict[parent_id]['children'].append(org_dict[str(child['id'])])
+            
+            logger.info(f"使用优化查询成功获取组织{org_id}的部门树，子部门数量: {len(child_orgs)}")
+            return {
+                'success': True,
+                'data': [org_dict[str(org_id)]]
+            }
+            
+        except Exception as e:
+            logger.warning(f"优化查询失败，回退到原始查询: {str(e)}")
+            # 回退到原始递归查询
+            return fetch_departments_by_orgId_legacy(org_id, customer_id)
+            
+    except Exception as e:
+        logger.error(f"Error in fetch_departments_by_orgId: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
+    """原始递归查询方式 - 作为回退方案"""
+    try:
+        if customer_id is None:
+            customer_id = get_current_customer_id()
+            
+        def get_child_departments(parent_id, customer_id=None):
+            query = db.session.query(OrgInfo)\
                 .filter(OrgInfo.parent_id == parent_id)\
-                .all()
+                .filter(OrgInfo.is_deleted == 0)
+            
+            # 添加租户隔离
+            if customer_id is not None:
+                query = query.filter(OrgInfo.customer_id == customer_id)
+                
+            departments = query.all()
             
             departments_data = []
             for dept in departments:
@@ -29,7 +113,7 @@ def fetch_departments_by_orgId(org_id):
                 }
                 
                 # 递归获取子部门
-                child_departments = get_child_departments(dept.id)
+                child_departments = get_child_departments(dept.id, customer_id)
                 if child_departments:
                     dept_data['children'] = child_departments
                 
@@ -37,10 +121,15 @@ def fetch_departments_by_orgId(org_id):
             
             return departments_data
 
-        # 先获取当前组织的信息
-        current_org = db.session.query(OrgInfo)\
+        # 先获取当前组织的信息，支持租户隔离
+        query = db.session.query(OrgInfo)\
             .filter(OrgInfo.id == org_id)\
-            .first()
+            .filter(OrgInfo.is_deleted == 0)
+        
+        if customer_id is not None:
+            query = query.filter(OrgInfo.customer_id == customer_id)
+            
+        current_org = query.first()
 
         if not current_org:
             return {
@@ -54,7 +143,7 @@ def fetch_departments_by_orgId(org_id):
             'name': current_org.name,
             'parent_id': str(current_org.parent_id) if current_org.parent_id else None,
             'create_time': current_org.create_time.strftime('%Y-%m-%d %H:%M:%S') if current_org.create_time else None,
-            'children': get_child_departments(org_id)
+            'children': get_child_departments(org_id, customer_id)
         }
 
         return {
@@ -63,20 +152,20 @@ def fetch_departments_by_orgId(org_id):
         }
             
     except Exception as e:
-        logger.error(f"Error in fetch_departments_by_orgId: {str(e)}")
+        logger.error(f"Error in fetch_departments_by_orgId_legacy: {str(e)}")
         return {
             'success': False,
             'error': str(e)
         }
 
 
-def fetch_users_by_orgId(org_id):
-    """获取组织及其所有子部门下的用户信息"""
+def fetch_users_by_orgId(org_id, customer_id=None):
+    """获取组织及其所有子部门下的用户信息，支持多租户隔离"""
     try:
         from .admin_helper import admin_helper  # 导入admin判断工具
         
         # 获取组织及其所有子部门
-        org_response = fetch_departments_by_orgId(org_id)
+        org_response = fetch_departments_by_orgId(org_id, customer_id)
         #logger.info(f"fetch_users_by_orgId:org_response: {org_response}")
         #print("fetch_users_by_orgId:org_response:", org_response)
         if not org_response.get('success'):
@@ -162,6 +251,7 @@ def getCustomers():
     try:
         customers = db.session.query(OrgInfo)\
             .filter(OrgInfo.parent_id == 0)\
+            .filter(OrgInfo.is_deleted == 0)\
             .all()
 
         customer_list = []
