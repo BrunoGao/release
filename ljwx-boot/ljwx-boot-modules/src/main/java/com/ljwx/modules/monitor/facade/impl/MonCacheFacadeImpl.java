@@ -85,4 +85,19 @@ public class MonCacheFacadeImpl implements IMonCacheFacade {
         redisVO.setCommandStats(commandVOS);
         return redisVO;
     }
+
+    @Override
+    public Long clearAllCache() {
+        return RedisUtil.clearAllCache();
+    }
+
+    @Override
+    public Long clearCacheByPattern(String pattern) {
+        return RedisUtil.clearCacheByPattern(pattern);
+    }
+
+    @Override
+    public Long clearCacheByKeys(List<String> keys) {
+        return RedisUtil.clearCacheByKeys(keys);
+    }
 }

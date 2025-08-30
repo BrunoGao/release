@@ -1489,7 +1489,16 @@ const local: App.I18n.Schema = {
           memFragmentationRatio: '内存碎片率',
           totalCommandsProcessed: '命令处理总数',
           echartsTitle: '命令统计',
-          echartsSubTitle: '图示每一个命令的执行占比'
+          echartsSubTitle: '图示每一个命令的执行占比',
+          clearCache: '清理缓存',
+          clearAllCache: '清理全部缓存',
+          clearCacheByPattern: '按模式清理',
+          confirmClearAll: '确认要清理全部缓存吗？此操作不可撤销。',
+          confirmClearPattern: '确认要清理匹配模式 "{pattern}" 的缓存吗？',
+          clearSuccess: '缓存清理成功',
+          clearError: '缓存清理失败',
+          patternPlaceholder: '请输入缓存键模式，如：user:* 或 session:*',
+          patternRequired: '请输入缓存键模式'
         }
       },
       logs: {

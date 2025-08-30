@@ -716,4 +716,74 @@ public class RedisUtil {
     public static void publish(String channel, String message) {
         redisTemplate.convertAndSend(channel, message);
     }
+
+    /**
+     * 清理全部缓存
+     *
+     * @return {@code Long} 删除的键数量
+     * @author bruno.gao
+     * @CreateTime 2025-08-30 14:35
+     */
+    public static Long clearAllCache() {
+        try {
+            RedisConnectionFactory connectionFactory = redisTemplate.getConnectionFactory();
+            assert connectionFactory != null;
+            try (RedisConnection connection = connectionFactory.getConnection()) {
+                RedisServerCommands serverCommands = connection.serverCommands();
+                serverCommands.flushAll();
+                log.info("[Redis]清理全部缓存完成");
+                return 1L; // 返回1表示操作成功
+            }
+        } catch (Exception e) {
+            log.error("[Redis]清理全部缓存失败: {}", e.getMessage(), e);
+            throw new RuntimeException("清理全部缓存失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 按模式清理缓存
+     *
+     * @param pattern 缓存键模式，如：user:*
+     * @return {@code Long} 删除的键数量
+     * @author bruno.gao
+     * @CreateTime 2025-08-30 14:35
+     */
+    public static Long clearCacheByPattern(String pattern) {
+        try {
+            Set<String> keys = getKeysByPrefix(pattern);
+            if (keys.isEmpty()) {
+                log.info("[Redis]按模式清理缓存: {} - 未找到匹配的键", pattern);
+                return 0L;
+            }
+            Long deletedCount = redisTemplate.delete(keys);
+            log.info("[Redis]按模式清理缓存: {} 完成，清理数量: {}", pattern, deletedCount);
+            return deletedCount != null ? deletedCount : 0L;
+        } catch (Exception e) {
+            log.error("[Redis]按模式清理缓存失败: pattern={}, error={}", pattern, e.getMessage(), e);
+            throw new RuntimeException("按模式清理缓存失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 按键列表清理缓存
+     *
+     * @param keys 缓存键列表
+     * @return {@code Long} 删除的键数量
+     * @author bruno.gao
+     * @CreateTime 2025-08-30 14:35
+     */
+    public static Long clearCacheByKeys(Collection<String> keys) {
+        try {
+            if (keys == null || keys.isEmpty()) {
+                log.info("[Redis]按键列表清理缓存 - 键列表为空");
+                return 0L;
+            }
+            Long deletedCount = redisTemplate.delete(keys);
+            log.info("[Redis]按键列表清理缓存完成，清理数量: {}", deletedCount);
+            return deletedCount != null ? deletedCount : 0L;
+        } catch (Exception e) {
+            log.error("[Redis]按键列表清理缓存失败: keys={}, error={}", keys, e.getMessage(), e);
+            throw new RuntimeException("按键列表清理缓存失败: " + e.getMessage(), e);
+        }
+    }
 }
