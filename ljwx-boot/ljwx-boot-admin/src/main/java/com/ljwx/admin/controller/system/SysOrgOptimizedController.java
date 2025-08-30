@@ -19,7 +19,7 @@
 
 package com.ljwx.admin.controller.system;
 
-import com.ljwx.common.result.Result;
+import com.ljwx.common.api.Result;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.system.domain.entity.SysOrgManagerCache;
 import com.ljwx.modules.system.service.ISysOrgClosureService;

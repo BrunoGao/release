@@ -59,7 +59,7 @@
           AND c.customer_id = #{customerId}
           AND c.depth > 0
           AND org.is_deleted = 0
-          AND org.status = '0'
+          AND org.status = '1'
         ORDER BY c.depth ASC, org.sort ASC, org.id ASC
     </select>
 
@@ -72,7 +72,7 @@
           AND c.customer_id = #{customerId}
           AND c.depth = 1
           AND org.is_deleted = 0
-          AND org.status = '0'
+          AND org.status = '1'
         ORDER BY org.sort ASC, org.id ASC
     </select>
 
@@ -85,7 +85,7 @@
           AND c.customer_id = #{customerId}
           AND c.depth > 0
           AND org.is_deleted = 0
-          AND org.status = '0'
+          AND org.status = '1'
         ORDER BY c.depth DESC
     </select>
 
@@ -98,7 +98,7 @@
           AND c.customer_id = #{customerId}
           AND c.depth = 1
           AND org.is_deleted = 0
-          AND org.status = '0'
+          AND org.status = '1'
         LIMIT 1
     </select>
 
@@ -114,7 +114,7 @@
           AND c.customer_id = #{customerId}
           AND c.depth > 0
           AND org.is_deleted = 0
-          AND org.status = '0'
+          AND org.status = '1'
         ORDER BY org.level ASC, org.sort ASC, org.id ASC
     </select>
 
@@ -125,7 +125,7 @@
         WHERE org.customer_id = #{customerId}
           AND org.parent_id = 0
           AND org.is_deleted = 0
-          AND org.status = '0'
+          AND org.status = '1'
         ORDER BY org.sort ASC, org.id ASC
     </select>
 
