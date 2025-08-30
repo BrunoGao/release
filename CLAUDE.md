@@ -24,18 +24,34 @@
 ## 开发环境设置
 
 ### 数据库配置
-- MySQL 8.0
-- 数据库名: test
-- 连接信息: localhost:3306
-- 用户名/密码: root/123456
+- **MySQL 8.0**
+  - 数据库名: test
+  - 连接信息: localhost:3306
+  - 用户名/密码: root/123456
+
+- **Redis 8.0**
+  - 连接信息: localhost:6379
+  - 密码: 123456
+  - 数据库: 1
+  - **重要**: Redis 8.x 使用URL连接方式避免认证问题: `redis://default:123456@localhost:6379/1`
 
 ### 服务启动命令
 
 #### ljwx-boot (后端API服务)
 ```bash
 cd ljwx-boot
-MYSQL_DATABASE=test MYSQL_HOST=127.0.0.1 MYSQL_USER=root MYSQL_PASSWORD=123456 mvn -pl ljwx-boot-admin spring-boot:run -DskipTests
+./run-local.sh
 ```
+
+**API测试登录配置**
+- 登录URL: `http://192.168.1.83:3333/proxy-default/auth/user_name`
+- POST请求体: 
+  ```json
+  {
+    "userName": "admin", 
+    "password": "80a3d119ee1501354755dfc3c4638d74c67c801689efbed4f25f06cb4b1cd776"
+  }
+  ```
 
 #### ljwx-admin (前端管理界面)
 ```bash
@@ -189,9 +205,13 @@ LOCAL_BUILD=true PLATFORMS=linux/amd64 PUSH_TO_REGISTRY=false ./build-and-push.s
 
 ### 常见问题
 1. **数据库连接问题**: 检查连接池配置和数据库状态
-2. **告警处理延迟**: 检查队列积压和处理性能
-3. **组织查询缓慢**: 验证闭包表数据完整性
-4. **WebSocket连接异常**: 检查网络配置和防火墙设置
+2. **Redis 8.x 认证失败**: 
+   - **症状**: `NOAUTH HELLO must be called with the client already authenticated`
+   - **解决**: 使用 URL 连接方式 `redis://default:password@host:port/db`
+   - **配置**: 在 `application-*.yml` 中设置 `spring.data.redis.url`
+3. **告警处理延迟**: 检查队列积压和处理性能
+4. **组织查询缓慢**: 验证闭包表数据完整性
+5. **WebSocket连接异常**: 检查网络配置和防火墙设置
 
 ### 日志位置
 - ljwx-boot: `logs/spring.log`
@@ -207,6 +227,6 @@ LOCAL_BUILD=true PLATFORMS=linux/amd64 PUSH_TO_REGISTRY=false ./build-and-push.s
 
 ---
 
-*最后更新: 2025-08-30*
-*版本: v2.0*
-*更新内容: 增加消息机制与告警机制统一优化方案*
+*最后更新: 2025-08-31*
+*版本: v2.1*
+*更新内容: 修复Redis 8.x认证问题，更新启动脚本和API登录配置*

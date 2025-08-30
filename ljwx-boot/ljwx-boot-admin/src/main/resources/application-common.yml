@@ -7,11 +7,8 @@ spring:
     password: ${MYSQL_PASSWORD:123456}
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      username: ${REDIS_USERNAME:default}
-      password: ${REDIS_PASSWORD:123456}
-      database: ${REDIS_DB:1}
+      # 使用URL方式连接，解决Redis 8.x认证问题
+      url: redis://default:${REDIS_PASSWORD:123456}@${REDIS_HOST:localhost}:${REDIS_PORT:6379}/${REDIS_DB:1}
       connect-timeout: 10000ms
       timeout: 5000ms
       lettuce:
@@ -20,6 +17,10 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
+        # Redis 8.x版本兼容配置
+        client-options:
+          ping-before-activate-connection: false
+          auto-reconnect: true
   jackson:
     serialization:
       ORDER_MAP_ENTRIES_BY_KEYS: false

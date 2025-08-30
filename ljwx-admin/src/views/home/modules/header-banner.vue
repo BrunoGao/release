@@ -95,7 +95,13 @@ function getBrowserLocation(): Promise<[number, number]> {
         resolve([position.coords.longitude, position.coords.latitude]);
       },
       error => {
-        reject(error);
+        console.error('Geolocation error:', error);
+        // 如果地理位置获取失败，使用默认深圳坐标
+        resolve([114.033382, 22.537026]);
+      },
+      {
+        timeout: 10000, // 10秒超时
+        enableHighAccuracy: false // 不需要高精度
       }
     );
   });

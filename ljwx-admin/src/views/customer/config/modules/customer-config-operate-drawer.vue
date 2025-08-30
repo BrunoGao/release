@@ -316,12 +316,12 @@ function beforeUpload(data: { file: UploadFileInfo; fileList: UploadFileInfo[] }
           <NInputNumber v-model:value="model.cacheMaxCount" :placeholder="$t('page.customer.config.form.cacheMaxCount')" />
         </NFormItem>
         
-        <!-- Logo管理功能 -->
+        <!-- Logo管理功能 - 临时隐藏 -->
+        <!-- 
         <NDivider title-placement="left">Logo管理</NDivider>
         
         <NFormItem label="当前Logo">
           <div class="flex flex-col gap-12px w-full">
-            <!-- Logo预览区域 -->
             <div class="flex items-center gap-12px">
               <div class="logo-preview-container" style="width: 80px; height: 48px; border: 1px solid #e0e0e0; border-radius: 6px; background: #fafafa; display: flex; align-items: center; justify-content: center;">
                 <img 
@@ -344,9 +344,7 @@ function beforeUpload(data: { file: UploadFileInfo; fileList: UploadFileInfo[] }
               </div>
             </div>
             
-            <!-- Logo操作区域 -->
             <div class="flex items-center gap-8px">
-              <!-- 仅在编辑模式时显示上传功能 -->
               <template v-if="!isAdd">
                 <NUpload
                   ref="logoUploadRef"
@@ -369,7 +367,6 @@ function beforeUpload(data: { file: UploadFileInfo; fileList: UploadFileInfo[] }
                   </NButton>
                 </NUpload>
                 
-                <!-- 删除按钮 -->
                 <NPopconfirm 
                   v-if="model.logoUrl" 
                   @positive-click="handleLogoDelete"
@@ -386,13 +383,11 @@ function beforeUpload(data: { file: UploadFileInfo; fileList: UploadFileInfo[] }
                 </NPopconfirm>
               </template>
               
-              <!-- 新增模式提示 -->
               <div v-else class="text-xs text-orange-600">
                 💡 请先保存客户配置，然后可以上传自定义Logo
               </div>
             </div>
             
-            <!-- Logo要求说明 -->
             <div class="text-xs text-gray-500 bg-gray-50 p-8px rounded">
               <div class="font-medium mb-4px">Logo要求：</div>
               <div>• 支持格式：PNG, JPG, JPEG, SVG, WEBP</div>
@@ -401,6 +396,7 @@ function beforeUpload(data: { file: UploadFileInfo; fileList: UploadFileInfo[] }
             </div>
           </div>
         </NFormItem>
+        -->
       </NForm>
       <template #footer>
         <NSpace>

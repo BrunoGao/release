@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { $t } from '@/locales';
 import { formatDateTime } from '@/utils/date';
+import { useDict } from '@/hooks/business/dict';
 
 defineOptions({
   name: 'AlertBanner'

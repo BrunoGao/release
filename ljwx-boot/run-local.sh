@@ -18,8 +18,12 @@ echo "==================== ljwx-boot本地启动 ===================="
 
 # 设置数据库环境变量
 export MYSQL_DATABASE=test
+export MYSQL_HOST=127.0.0.1
 export MYSQL_USER=root
 export MYSQL_PASSWORD=123456
+
+# 设置Redis环境变量
+export REDIS_HOST=localhost
 export REDIS_PORT=6379
 export REDIS_PASSWORD=123456
 export REDIS_DB=1
@@ -40,7 +44,9 @@ log_success "MySQL连接正常"
 
 log_info "检查Redis连接..."  
 if ! nc -z localhost 6379 2>/dev/null; then log_error "Redis连接失败"; exit 1; fi
-log_success "Redis连接正常"
+log_info "验证Redis密码..."
+if ! redis-cli -a "$REDIS_PASSWORD" ping > /dev/null 2>&1; then log_error "Redis密码验证失败"; exit 1; fi
+log_success "Redis连接和密码验证正常"
 
 # 创建日志目录
 mkdir -p logs

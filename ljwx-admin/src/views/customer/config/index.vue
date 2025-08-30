@@ -100,53 +100,6 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center',
       minWidth: 100
     },
-    {
-      key: 'logo',
-      title: 'Logo',
-      align: 'center',
-      minWidth: 120,
-      render: row => {
-        // 通过代理访问静态文件
-        let logoSrc = '';
-        if (row.logoUrl) {
-          // 使用代理路径访问logo文件
-          logoSrc = `${row.logoUrl}?t=${Date.now()}`;
-        } else {
-          // 没有logoUrl，使用默认logo
-          logoSrc = `/uploads/logos/defaults/default-logo.svg?t=${Date.now()}`;
-        }
-          
-        return (
-          <div class="flex items-center gap-8px">
-            <div style="width: 40px; height: 24px; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #fafafa;">
-              <img 
-                src={logoSrc}
-                alt="客户Logo"
-                style="max-width: 100%; max-height: 100%; object-fit: contain;"
-                onError={(e: Event) => {
-                  const target = e.target as HTMLImageElement;
-                  // 如果加载失败，尝试加载默认logo
-                  if (!target.src.includes('default-logo.svg')) {
-                    target.src = `/uploads/logos/defaults/default-logo.svg?t=${Date.now()}`;
-                  } else {
-                    // 默认logo也加载失败，显示文本
-                    target.style.display = 'none';
-                    target.parentElement!.innerHTML = '<div class="text-xs text-gray-400">无</div>';
-                  }
-                }}
-                onLoad={(e: Event) => {
-                  const target = e.target as HTMLImageElement;
-                  console.log(`Logo loaded for customer ${row.id}: ${target.src}`);
-                }}
-              />
-            </div>
-            <div class="text-xs text-gray-500 truncate" style="max-width: 60px;">
-              {row.logoFileName || '默认'}
-            </div>
-          </div>
-        );
-      }
-    },
 
     {
       key: 'operate',
@@ -160,23 +113,6 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
             <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
               {$t('common.edit')}
             </NButton>
-          )}
-          {hasAuth('t:customer:config:logo:upload') && (
-            <NButton type="info" quaternary size="small" onClick={() => handleLogoUpload(row)}>
-              Logo
-            </NButton>
-          )}
-          {hasAuth('t:customer:config:logo:delete') && row.logoUrl && (
-            <NPopconfirm onPositiveClick={() => handleLogoDelete(row.id)}>
-              {{
-                default: () => '确认删除Logo并恢复默认？',
-                trigger: () => (
-                  <NButton type="warning" quaternary size="small">
-                    重置
-                  </NButton>
-                )
-              }}
-            </NPopconfirm>
           )}
           {hasAuth('t:customer:config:delete') && (
             <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
@@ -225,114 +161,6 @@ async function handleBatchDelete() {
   }
 }
 
-// Logo管理相关
-function handleLogoUpload(row: Api.Customer.CustomerConfig) {
-  console.log('开始上传Logo，客户ID:', row.id);
-  
-  // 创建一个隐藏的文件输入框
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/png,image/jpg,image/jpeg,image/svg+xml,image/webp';
-  input.style.display = 'none';
-  input.multiple = false;
-  
-  // 添加change事件监听器
-  const handleFileSelect = async (e: Event) => {
-    console.log('文件选择事件触发');
-    const target = e.target as HTMLInputElement;
-    const file = target.files?.[0];
-    
-    if (!file) {
-      console.log('未选择文件');
-      return;
-    }
-    
-    console.log('选择的文件:', file.name, '大小:', file.size, '类型:', file.type);
-    
-    // 验证文件类型
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      window.$message?.error('不支持的文件格式，请选择 PNG, JPG, JPEG, SVG 或 WEBP 格式');
-      cleanup();
-      return;
-    }
-    
-    // 验证文件大小（2MB）
-    if (file.size > 2 * 1024 * 1024) {
-      window.$message?.error('文件大小不能超过2MB');
-      cleanup();
-      return;
-    }
-    
-    // 显示加载提示
-    const loadingMessage = window.$message?.loading('正在上传Logo...', { duration: 0 });
-    
-    try {
-      // 上传文件
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('customerId', row.id.toString());
-      
-      console.log('开始上传文件...');
-      const response = await request({
-        url: '/t_customer_config/logo/upload',
-        method: 'POST',
-        data: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      loadingMessage?.destroy();
-      
-      if (response.data) {
-        console.log('上传成功:', response.data);
-        window.$message?.success('Logo上传成功');
-        await getData(); // 刷新表格数据
-      } else {
-        throw new Error('服务器未返回数据');
-      }
-    } catch (error: any) {
-      loadingMessage?.destroy();
-      console.error('Logo上传失败:', error);
-      const errorMsg = error?.response?.data?.message || error?.message || 'Logo上传失败';
-      window.$message?.error(errorMsg);
-    }
-    
-    cleanup();
-  };
-  
-  const cleanup = () => {
-    if (document.body.contains(input)) {
-      input.removeEventListener('change', handleFileSelect);
-      document.body.removeChild(input);
-    }
-  };
-  
-  input.addEventListener('change', handleFileSelect);
-  document.body.appendChild(input);
-  
-  // 触发文件选择对话框
-  console.log('触发文件选择对话框');
-  input.click();
-}
-
-async function handleLogoDelete(customerId: string) {
-  try {
-    const response = await request({
-      url: `/t_customer_config/logo/${customerId}`,
-      method: 'DELETE'
-    });
-    
-    if (response.data) {
-      window.$message?.success('Logo已重置为默认');
-      await getData(); // 刷新表格数据
-    }
-  } catch (error) {
-    console.error('Logo删除失败:', error);
-    window.$message?.error('Logo删除失败');
-  }
-}
 
 const orgUnitsName = ref<{ label: string; value: string }[]>([]);
 

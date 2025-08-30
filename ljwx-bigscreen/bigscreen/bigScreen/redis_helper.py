@@ -15,7 +15,6 @@ class RedisHelper:
             'host': host or os.getenv('REDIS_HOST', '127.0.0.1'),
             'port': port or int(os.getenv('REDIS_PORT', 6379)),
             'db': db or int(os.getenv('REDIS_DB', 0)),
-            'password': password or os.getenv('REDIS_PASSWORD', '123456'),
             'decode_responses': True,
             'max_connections': 20,  # 连接池最大连接数
             'socket_connect_timeout': 5,  # 连接超时
@@ -23,6 +22,11 @@ class RedisHelper:
             'retry_on_timeout': True,  # 超时重试
             'health_check_interval': 30,  # 健康检查间隔
         }
+        
+        # 只有当密码存在且不为空时才添加密码配置
+        redis_password = password or os.getenv('REDIS_PASSWORD')
+        if redis_password and redis_password.strip():
+            pool_config['password'] = redis_password
         
         # 创建连接池
         self.pool = ConnectionPool(**pool_config)

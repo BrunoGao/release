@@ -12,14 +12,16 @@ spring:
     password: ${DATASOURCE_PASSWORD:123456}
   data:
     redis:
-      host: ${SPRING_REDIS_HOST:${REDIS_HOST:redis}}
-      port: ${SPRING_REDIS_PORT:${REDIS_PORT:6379}}
-      password: ${REDIS_PASSWORD:123456}
-      database: ${REDIS_DB:1}
+      # 使用URL方式连接，解决Redis 8.x认证问题
+      url: redis://default:${REDIS_PASSWORD:123456}@${SPRING_REDIS_HOST:${REDIS_HOST:redis}}:${SPRING_REDIS_PORT:${REDIS_PORT:6379}}/${REDIS_DB:1}
       connect-timeout: 10000ms
       lettuce:
         pool:
           enabled: true
+        # Redis 8.x版本兼容配置
+        client-options:
+          ping-before-activate-connection: false
+          auto-reconnect: true
 oss:
   name: minio
   bucket-name: ${OSS_BUCKET_NAME:panis}

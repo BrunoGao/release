@@ -17,10 +17,8 @@ spring:
       connection-init-sql: SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci #字符集初始化
   data:
     redis:
-      host: ${REDIS_HOST:localhost} #支持环境变量配置
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:123456} #宿主机Redis密码
-      database: ${REDIS_DB:0}
+      # 使用URL方式连接，解决Redis 8.x认证问题
+      url: redis://default:${REDIS_PASSWORD:123456}@${REDIS_HOST:localhost}:${REDIS_PORT:6379}/${REDIS_DB:0}
       connect-timeout: 5000ms #连接超时优化
       timeout: 10000ms #命令超时优化
       lettuce:
@@ -31,6 +29,10 @@ spring:
           min-idle: 3 #最小空闲连接优化
           max-wait: 5000ms #等待时间优化
         shutdown-timeout: 100ms #关闭超时优化
+        # Redis 8.x版本兼容配置
+        client-options:
+          ping-before-activate-connection: false
+          auto-reconnect: true
         cluster:
           refresh:
             adaptive: true #自适应刷新

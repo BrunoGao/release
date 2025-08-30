@@ -15,10 +15,8 @@ spring:
       connection-test-query: SELECT 1 #连接测试查询
   data:
     redis:
-      host: localhost #本地Redis服务器
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:123456}
-      database: ${REDIS_DB:1}
+      # 使用URL方式连接，解决Redis 8.x认证问题
+      url: redis://default:${REDIS_PASSWORD:123456}@localhost:${REDIS_PORT:6379}/${REDIS_DB:1}
       connect-timeout: 10000ms
       timeout: 30000ms
       lettuce:
@@ -29,6 +27,10 @@ spring:
           min-idle: 1
           max-wait: 10000ms
         shutdown-timeout: 200ms
+        # Redis 8.x版本兼容配置
+        client-options:
+          ping-before-activate-connection: false
+          auto-reconnect: true
   jpa:
     show-sql: true #本地开发显示SQL
     hibernate:

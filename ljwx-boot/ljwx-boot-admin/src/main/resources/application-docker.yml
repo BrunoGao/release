@@ -12,10 +12,8 @@ spring:
       max-lifetime: 1800000
   data:
     redis:
-      host: ${REDIS_HOST:ljwx-redis}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:123456}
-      database: 0
+      # 使用URL方式连接，解决Redis 8.x认证问题
+      url: redis://default:${REDIS_PASSWORD:123456}@${REDIS_HOST:ljwx-redis}:${REDIS_PORT:6379}/0
       timeout: 30000ms
       lettuce:
         pool:

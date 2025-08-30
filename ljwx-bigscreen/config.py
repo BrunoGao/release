@@ -19,7 +19,7 @@ MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'lj-06')
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis' if IS_DOCKER else '127.0.0.1')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_DB = int(os.getenv('REDIS_DB', 0))
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '123456')  # 添加Redis密码配置
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)  # 开发环境无密码，生产环境可配置密码
 
 # Application configuration
 APP_HOST = os.getenv('APP_HOST', '0.0.0.0')
