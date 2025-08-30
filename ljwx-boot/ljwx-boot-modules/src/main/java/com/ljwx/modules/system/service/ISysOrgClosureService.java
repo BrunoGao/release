@@ -23,6 +23,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.ljwx.modules.system.domain.entity.SysOrgClosure;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.system.domain.entity.SysOrgManagerCache;
+import com.ljwx.modules.system.domain.dto.OrgHierarchyInfo;
 
 import java.util.List;
 
@@ -186,4 +187,35 @@ public interface ISysOrgClosureService extends IService<SysOrgClosure> {
      * @param customerId 租户ID(null表示重建所有租户)
      */
     void rebuildClosureTable(Long customerId);
+
+    // ===================== 告警分发优化相关方法 =====================
+
+    /**
+     * 获取告警通知层级信息 - 基于闭包表的高效查询
+     * 一次查询获取所有需要通知的人员和组织信息
+     *
+     * @param orgId 告警发生的组织ID
+     * @param customerId 租户ID
+     * @return 按层级排序的通知信息列表
+     */
+    List<OrgHierarchyInfo> getNotificationHierarchy(Long orgId, Long customerId);
+
+    /**
+     * 获取批量组织的通知层级信息
+     *
+     * @param orgIds 组织ID列表
+     * @param customerId 租户ID
+     * @return 通知信息列表
+     */
+    List<OrgHierarchyInfo> getBatchNotificationHierarchy(List<Long> orgIds, Long customerId);
+
+    /**
+     * 获取用户可接收的告警组织范围
+     * 用于告警权限过滤
+     *
+     * @param userId 用户ID
+     * @param customerId 租户ID
+     * @return 可接收告警的组织ID列表
+     */
+    List<Long> getUserAlertScope(Long userId, Long customerId);
 }

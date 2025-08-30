@@ -24,6 +24,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ljwx.modules.system.domain.entity.SysOrgClosure;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.system.domain.entity.SysOrgManagerCache;
+import com.ljwx.modules.system.domain.dto.OrgHierarchyInfo;
 import com.ljwx.modules.system.repository.mapper.SysOrgClosureMapper;
 import com.ljwx.modules.system.repository.mapper.SysOrgManagerCacheMapper;
 import com.ljwx.modules.system.repository.mapper.SysOrgUnitsMapper;
@@ -554,6 +555,88 @@ public class SysOrgClosureServiceImpl extends ServiceImpl<SysOrgClosureMapper, S
         } catch (Exception e) {
             // 记录性能日志失败不应影响业务逻辑
             log.debug("记录性能日志失败", e);
+        }
+    }
+
+    // ===================== 告警分发优化相关方法实现 =====================
+
+    @Override
+    @Cacheable(value = "alertNotificationHierarchy", key = "#orgId + '_' + #customerId")
+    public List<OrgHierarchyInfo> getNotificationHierarchy(Long orgId, Long customerId) {
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            List<OrgHierarchyInfo> result = baseMapper.getNotificationHierarchy(orgId, customerId);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            logPerformance("getNotificationHierarchy", orgId, customerId, executionTime, 
+                         result.size(), true, null);
+                         
+            log.debug("告警通知层级查询完成: orgId={}, customerId={}, recipients={}, time={}ms", 
+                    orgId, customerId, result.size(), executionTime);
+            
+            return result;
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            logPerformance("getNotificationHierarchy", orgId, customerId, executionTime, 
+                         0, false, e.getMessage());
+            log.error("获取告警通知层级信息失败", e);
+            throw e;
+        }
+    }
+
+    @Override
+    @Cacheable(value = "alertBatchNotificationHierarchy", 
+               key = "#orgIds.hashCode() + '_' + #customerId")
+    public List<OrgHierarchyInfo> getBatchNotificationHierarchy(List<Long> orgIds, Long customerId) {
+        if (CollectionUtils.isEmpty(orgIds)) {
+            return Collections.emptyList();
+        }
+        
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            List<OrgHierarchyInfo> result = baseMapper.getBatchNotificationHierarchy(orgIds, customerId);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            logPerformance("getBatchNotificationHierarchy", null, customerId, executionTime, 
+                         result.size(), true, null);
+                         
+            log.debug("批量告警通知层级查询完成: orgCount={}, customerId={}, recipients={}, time={}ms", 
+                    orgIds.size(), customerId, result.size(), executionTime);
+            
+            return result;
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            logPerformance("getBatchNotificationHierarchy", null, customerId, executionTime, 
+                         0, false, e.getMessage());
+            log.error("获取批量告警通知层级信息失败", e);
+            throw e;
+        }
+    }
+
+    @Override
+    @Cacheable(value = "userAlertScope", key = "#userId + '_' + #customerId")
+    public List<Long> getUserAlertScope(Long userId, Long customerId) {
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            List<Long> result = baseMapper.getUserAlertScope(userId, customerId);
+            
+            long executionTime = System.currentTimeMillis() - startTime;
+            logPerformance("getUserAlertScope", null, customerId, executionTime, 
+                         result.size(), true, null);
+                         
+            log.debug("用户告警权限范围查询完成: userId={}, customerId={}, scopeSize={}, time={}ms", 
+                    userId, customerId, result.size(), executionTime);
+            
+            return result;
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            logPerformance("getUserAlertScope", null, customerId, executionTime, 
+                         0, false, e.getMessage());
+            log.error("获取用户告警权限范围失败", e);
+            throw e;
         }
     }
 }

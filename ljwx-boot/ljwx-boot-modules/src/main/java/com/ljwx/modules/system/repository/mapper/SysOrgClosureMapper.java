@@ -22,6 +22,7 @@ package com.ljwx.modules.system.repository.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.ljwx.modules.system.domain.entity.SysOrgClosure;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
+import com.ljwx.modules.system.domain.dto.OrgHierarchyInfo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -139,4 +140,38 @@ public interface SysOrgClosureMapper extends BaseMapper<SysOrgClosure> {
     void insertOrgClosure(@Param("orgId") Long orgId, 
                          @Param("parentId") Long parentId, 
                          @Param("customerId") Long customerId);
+
+    // ===================== 告警分发优化相关方法 =====================
+
+    /**
+     * 获取告警通知层级信息 - 基于闭包表的高效查询
+     * 一次查询获取所有需要通知的人员和组织信息
+     *
+     * @param orgId 告警发生的组织ID
+     * @param customerId 租户ID
+     * @return 按层级排序的通知信息列表
+     */
+    List<OrgHierarchyInfo> getNotificationHierarchy(@Param("orgId") Long orgId, 
+                                                   @Param("customerId") Long customerId);
+
+    /**
+     * 获取批量组织的通知层级信息
+     *
+     * @param orgIds 组织ID列表
+     * @param customerId 租户ID
+     * @return 通知信息列表
+     */
+    List<OrgHierarchyInfo> getBatchNotificationHierarchy(@Param("orgIds") List<Long> orgIds, 
+                                                        @Param("customerId") Long customerId);
+
+    /**
+     * 获取用户可接收的告警组织范围
+     * 用于告警权限过滤
+     *
+     * @param userId 用户ID
+     * @param customerId 租户ID
+     * @return 可接收告警的组织ID列表
+     */
+    List<Long> getUserAlertScope(@Param("userId") Long userId, 
+                               @Param("customerId") Long customerId);
 }
