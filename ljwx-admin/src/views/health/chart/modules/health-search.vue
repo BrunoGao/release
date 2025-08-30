@@ -76,6 +76,22 @@ watch(
   }
 );
 
+// 监听departmentInfo变化，同步到orgId字段（保持向后兼容）
+watch(
+  () => model.value.departmentInfo,
+  departmentInfo_val => {
+    // 如果departmentInfo是数组（多选），取第一个值；如果是单选，直接使用
+    if (Array.isArray(departmentInfo_val) && departmentInfo_val.length > 0) {
+      model.value.orgId = departmentInfo_val[0];
+    } else if (departmentInfo_val && !Array.isArray(departmentInfo_val)) {
+      model.value.orgId = departmentInfo_val;
+    } else {
+      model.value.orgId = null;
+    }
+  },
+  { immediate: true }
+);
+
 // 组件挂载时加载特征选项
 onMounted(() => {
   loadFeatureOptions();

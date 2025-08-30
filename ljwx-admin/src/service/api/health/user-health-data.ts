@@ -52,6 +52,11 @@ export function fetchUserHealthData(params?: Api.Health.HealthChartSearchParams)
     delete filteredParams.userId;
   }
 
+  // 确保 departmentInfo 有默认值
+  if (!filteredParams.departmentInfo) {
+    filteredParams.departmentInfo = '';
+  }
+
   return request({
     url: '/t_user_health_data/getUserHealthData',
     params: filteredParams

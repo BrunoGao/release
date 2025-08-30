@@ -29,6 +29,7 @@ const searchParams = ref({
   page: 1,
   pageSize: 10,
   departmentInfo: null,
+  orgId: null,
   userId: null,
   startDate,
   endDate,
@@ -117,7 +118,7 @@ async function fetchHealthData() {
   try {
     const response = await fetchUserHealthData({
       customerId: searchParams.value.customerId,
-      orgId: searchParams.value.orgId,
+      departmentInfo: searchParams.value.orgId || '',
       userId: searchParams.value.userId,
       startDate: searchParams.value.startDate,
       endDate: searchParams.value.endDate,
