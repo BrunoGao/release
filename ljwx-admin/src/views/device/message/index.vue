@@ -81,26 +81,83 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
         let status = row.messageStatus;
         status = `已响应 [${row.respondedDetail?.respondedCount || 0}/${row.respondedDetail?.totalUsersWithDevices || 0}]`;
 
-        // 创建悬浮提示内容，使用 ul li 格式
-        const tooltipContent = h('div', null, [
-          h('div', { class: 'font-bold mb-2' }, '未响应用户列表：'),
-          h(
-            'ul',
-            { class: 'list-none m-0 p-0' },
-            row.respondedDetail?.nonRespondedUsers?.map(user => h('li', { class: 'py-1' }, `${user.departmentName}：${user.userName}`)) || [
-              h('li', null, '无未响应用户')
-            ]
-          )
+        // 创建美化的悬浮提示内容
+        const nonRespondedUsers = row.respondedDetail?.nonRespondedUsers || [];
+        const hasUsers = nonRespondedUsers.length > 0;
+        
+        const tooltipContent = h('div', { 
+          class: 'max-w-80 p-3 bg-white shadow-lg rounded-lg border border-gray-100' 
+        }, [
+          // 标题
+          h('div', { 
+            class: 'flex items-center gap-2 mb-3 pb-2 border-b border-gray-100' 
+          }, [
+            h('div', { 
+              class: `w-2 h-2 rounded-full ${hasUsers ? 'bg-orange-400' : 'bg-green-400'}` 
+            }),
+            h('span', { 
+              class: 'font-semibold text-gray-800 text-sm' 
+            }, hasUsers ? '未响应用户列表' : '响应状态')
+          ]),
+          
+          // 内容区域
+          hasUsers ? 
+            h('div', { class: 'space-y-2 max-h-60 overflow-y-auto' }, [
+              ...nonRespondedUsers.map(user => 
+                h('div', { 
+                  class: 'flex items-center justify-between p-2 bg-orange-50 rounded-md border-l-3 border-orange-400' 
+                }, [
+                  h('div', { class: 'flex flex-col' }, [
+                    h('span', { class: 'text-sm font-medium text-gray-800' }, user.userName),
+                    h('span', { class: 'text-xs text-gray-500' }, user.departmentName)
+                  ]),
+                  h('div', { 
+                    class: 'w-2 h-2 rounded-full bg-orange-400' 
+                  })
+                ])
+              ),
+              // 如果用户太多，显示查看更多提示
+              nonRespondedUsers.length > 5 && h('div', { 
+                class: 'text-xs text-gray-400 text-center pt-2 border-t border-gray-100' 
+              }, '向上滚动查看更多用户')
+            ])
+            :
+            h('div', { 
+              class: 'flex items-center gap-2 p-2 bg-green-50 rounded-md border-l-3 border-green-400' 
+            }, [
+              h('svg', { 
+                class: 'w-4 h-4 text-green-500',
+                fill: 'currentColor',
+                viewBox: '0 0 20 20'
+              }, [
+                h('path', { 
+                  'fill-rule': 'evenodd',
+                  d: 'M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z',
+                  'clip-rule': 'evenodd'
+                })
+              ]),
+              h('span', { class: 'text-sm text-green-700' }, '所有用户均已响应')
+            ])
         ]);
 
         return h(
           NTooltip,
           {
             trigger: 'hover',
-            placement: 'top'
+            placement: 'top',
+            showArrow: false,
+            style: { maxWidth: 'none' },
+            contentStyle: { 
+              padding: '0', 
+              background: 'transparent',
+              border: 'none',
+              boxShadow: 'none' 
+            }
           },
           {
-            trigger: () => h('span', { class: 'cursor-pointer' }, status),
+            trigger: () => h('span', { 
+              class: 'cursor-pointer text-blue-600 hover:text-blue-800 transition-colors duration-200 underline decoration-dotted'
+            }, status),
             default: () => tooltipContent
           }
         );
@@ -279,3 +336,47 @@ onMounted(() => {
     </NCard>
   </div>
 </template>
+
+<style scoped>
+/* 确保工具提示的边框样式正确显示，彻底去除黑色边框 */
+:deep(.n-tooltip__content) {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+:deep(.n-tooltip) {
+  border: none !important;
+  outline: none !important;
+}
+
+:deep(.n-tooltip .n-tooltip__content) {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+/* 美化的状态指示器动画效果 */
+.status-indicator {
+  @apply inline-block w-2 h-2 rounded-full;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 响应式设计：在小屏幕上调整提示框宽度 */
+@media (max-width: 640px) {
+  .max-w-80 {
+    max-width: 16rem;
+  }
+}
+</style>

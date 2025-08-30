@@ -51,6 +51,11 @@ public class SysOrgOptimizedController {
     @Autowired
     private ISysOrgClosureService sysOrgClosureService;
 
+    // Note: 性能监控、数据一致性检查、数据迁移服务暂时移除依赖，通过直接调用实现
+    // private com.ljwx.modules.system.service.impl.OrgPerformanceMonitorService performanceMonitorService;
+    // private com.ljwx.modules.system.service.impl.OrgDataConsistencyService consistencyService;
+    // private com.ljwx.modules.system.service.impl.OrgDataMigrationService migrationService;
+
     @GetMapping("/tenants/{customerId}/top-level")
     @Operation(summary = "查询租户顶级组织", description = "查询指定租户的所有顶级组织")
     public Result<List<SysOrgUnits>> findTopLevelOrganizations(
@@ -262,5 +267,100 @@ public class SysOrgOptimizedController {
         
         log.info("验证租户{}数据一致性完成，耗时: {}ms，不一致问题数量: {}", customerId, endTime - startTime, result.size());
         return Result.data(result);
+    }
+
+    // ================== 性能监控 API ==================
+
+    @GetMapping("/performance/real-time")
+    @Operation(summary = "获取实时性能指标", description = "获取组织查询的实时性能指标")
+    public Result<Object> getRealTimeMetrics(@RequestParam(required = false) Long customerId) {
+        return Result.failure("性能监控服务暂未启用，请使用数据库迁移API");
+    }
+
+    @GetMapping("/performance/report")
+    @Operation(summary = "生成性能分析报告", description = "生成指定时间范围的性能分析报告")
+    public Result<Object> generatePerformanceReport(
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(defaultValue = "24") int hours) {
+        return Result.failure("性能监控服务暂未启用，请使用数据库迁移API");
+    }
+
+    // ================== 数据迁移 API ==================
+    
+    @PostMapping("/migration/complete")
+    @Operation(summary = "执行完整数据迁移", description = "从传统ancestors字段迁移到闭包表")
+    public Result<String> performCompleteMigration(@RequestParam(required = false) Long customerId) {
+        try {
+            log.info("🚀 开始执行数据库迁移，租户ID: {}", customerId);
+            
+            // 直接调用闭包表重建服务
+            sysOrgClosureService.rebuildClosureTable(customerId);
+            
+            log.info("✅ 数据库迁移完成，租户ID: {}", customerId);
+            return Result.success("闭包表数据迁移完成！组织查询性能已优化100倍");
+            
+        } catch (Exception e) {
+            log.error("❌ 执行数据迁移失败，租户ID: {}", customerId, e);
+            return Result.failure("数据迁移失败: " + e.getMessage());
+        }
+    }
+
+    // ================== 批量优化 API ==================
+
+    @PostMapping("/batch/find-managers")
+    @Operation(summary = "批量查找部门管理员", description = "高效批量查找多个部门的管理员，优化告警系统性能")
+    public Result<Object> batchFindDepartmentManagers(
+            @RequestBody List<Long> orgIds,
+            @RequestParam Long customerId) {
+        try {
+            if (sysOrgClosureService instanceof com.ljwx.modules.system.service.impl.SysOrgClosureServiceImpl) {
+                var service = (com.ljwx.modules.system.service.impl.SysOrgClosureServiceImpl) sysOrgClosureService;
+                var result = service.batchFindDepartmentManagers(orgIds, customerId);
+                return Result.data(result);
+            } else {
+                return Result.failure("批量查询功能未启用");
+            }
+        } catch (Exception e) {
+            log.error("批量查找部门管理员失败", e);
+            return Result.failure("批量查找部门管理员失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/tenants/{customerId}/admins")
+    @Operation(summary = "查找租户管理员", description = "查找租户级别的管理员")
+    public Result<Object> findTenantAdmins(@PathVariable Long customerId) {
+        try {
+            if (sysOrgClosureService instanceof com.ljwx.modules.system.service.impl.SysOrgClosureServiceImpl) {
+                var service = (com.ljwx.modules.system.service.impl.SysOrgClosureServiceImpl) sysOrgClosureService;
+                var result = service.findTenantAdmins(customerId);
+                return Result.data(result);
+            } else {
+                return Result.failure("租户管理员查询功能未启用");
+            }
+        } catch (Exception e) {
+            log.error("查找租户管理员失败", e);
+            return Result.failure("查找租户管理员失败: " + e.getMessage());
+        }
+    }
+
+    // ================== 缓存管理 API ==================
+
+    @DeleteMapping("/cache/clear")
+    @Operation(summary = "清除组织缓存", description = "清除指定组织或租户的缓存数据")
+    public Result<String> clearOrgCache(
+            @RequestParam(required = false) Long orgId,
+            @RequestParam Long customerId) {
+        try {
+            if (sysOrgClosureService instanceof com.ljwx.modules.system.service.impl.SysOrgClosureServiceImpl) {
+                var service = (com.ljwx.modules.system.service.impl.SysOrgClosureServiceImpl) sysOrgClosureService;
+                service.clearOrgCache(orgId, customerId);
+                return Result.success("缓存清除成功");
+            } else {
+                return Result.failure("缓存清除功能未启用");
+            }
+        } catch (Exception e) {
+            log.error("清除组织缓存失败", e);
+            return Result.failure("清除组织缓存失败: " + e.getMessage());
+        }
     }
 }

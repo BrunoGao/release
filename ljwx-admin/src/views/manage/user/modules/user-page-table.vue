@@ -233,8 +233,8 @@ const getDynamicColumns = (mode: Api.SystemManage.ViewMode) => {
               class="operation-btn-edit"
               onClick={() => edit(row.id)}
             >
-              <template v-slots:icon={() => <icon-ic:round-edit class="text-sm" />}>
-                <icon-ic:round-edit class="text-sm" />
+              <template v-slots:icon={() => h('i', { class: 'i-ic:round-edit text-sm' })}>
+                <i class="i-ic:round-edit text-sm"></i>
               </template>
               {$t('common.edit')}
             </NButton>
@@ -245,8 +245,8 @@ const getDynamicColumns = (mode: Api.SystemManage.ViewMode) => {
             class="operation-btn-health"
             onClick={() => handleDeviceSubmitted(row.deviceSn)}
           >
-            <template v-slots:icon={() => <icon-material-symbols:health-and-safety class="text-sm" />}>
-              <icon-material-symbols:health-and-safety class="text-sm" />
+            <template v-slots:icon={() => h('i', { class: 'i-material-symbols:health-and-safety text-sm' })}>
+              <i class="i-material-symbols:health-and-safety text-sm"></i>
             </template>
             {$t('route.health_profile')}
           </NButton>
@@ -607,7 +607,7 @@ watch(viewMode, () => {
         <div class="rounded-lg bg-blue-50 p-4">
           <div class="mb-2 flex items-center space-x-2">
             <NIcon size="16" color="#1890ff">
-              <icon-material-symbols:info />
+              <i class="i-material-symbols:info"></i>
             </NIcon>
             <span class="text-sm text-blue-800 font-medium">导入说明</span>
           </div>
@@ -623,7 +623,7 @@ watch(viewMode, () => {
         <div class="flex justify-center">
           <NButton type="primary" ghost @click="downloadTemplate">
             <template #icon>
-              <icon-material-symbols:download />
+              <i class="i-material-symbols:download"></i>
             </template>
             下载导入模板
           </NButton>
@@ -641,7 +641,7 @@ watch(viewMode, () => {
           />
           <div class="cursor-pointer" @click="selectFile">
             <NIcon size="48" :depth="3" class="mb-2">
-              <icon-material-symbols:upload />
+              <i class="i-material-symbols:upload"></i>
             </NIcon>
             <div class="mb-1 text-base">点击选择文件</div>
             <div class="text-xs text-gray-500">支持 Excel (.xlsx, .xls) 和 CSV 格式</div>
@@ -652,7 +652,7 @@ watch(viewMode, () => {
         <div v-if="uploadedFile" class="rounded bg-green-50 p-3">
           <div class="flex items-center space-x-2">
             <NIcon size="16" color="#52c41a">
-              <icon-material-symbols:check-circle />
+              <i class="i-material-symbols:check-circle"></i>
             </NIcon>
             <span class="text-sm text-green-800">已选择文件: {{ uploadedFile.name }}</span>
           </div>
@@ -662,7 +662,7 @@ watch(viewMode, () => {
         <div class="flex justify-center space-x-3">
           <NButton v-if="uploadedFile && !importLoading" type="primary" :disabled="importLoading" @click="submitImport">
             <template #icon>
-              <icon-material-symbols:cloud-upload />
+              <i class="i-material-symbols:cloud-upload"></i>
             </template>
             开始导入
           </NButton>

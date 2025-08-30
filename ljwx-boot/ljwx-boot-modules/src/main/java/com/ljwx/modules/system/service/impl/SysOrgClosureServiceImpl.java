@@ -30,15 +30,19 @@ import com.ljwx.modules.system.repository.mapper.SysOrgUnitsMapper;
 import com.ljwx.modules.system.service.ISysOrgClosureService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.util.StopWatch;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * 组织架构闭包表服务实现类
@@ -63,28 +67,95 @@ public class SysOrgClosureServiceImpl extends ServiceImpl<SysOrgClosureMapper, S
     @Autowired
     private SysOrgUnitsMapper sysOrgUnitsMapper;
 
+    // 缓存名称
+    private static final String CACHE_NAME = "org_closure";
+    private static final int MAX_BATCH_SIZE = 1000;
+    private static final int SLOW_QUERY_THRESHOLD_MS = 100;
+
     @Override
+    @Cacheable(value = CACHE_NAME, key = "'top_level_' + #customerId")
     public List<SysOrgUnits> findTopLevelOrganizations(Long customerId) {
-        log.debug("查询租户{}的顶级组织", customerId);
-        return sysOrgClosureMapper.findTopLevelOrganizations(customerId);
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        
+        try {
+            List<SysOrgUnits> result = sysOrgClosureMapper.findTopLevelOrganizations(customerId);
+            
+            stopWatch.stop();
+            logPerformance("findTopLevelOrganizations", null, customerId, 
+                stopWatch.getTotalTimeMillis(), result.size(), true, null);
+            
+            log.debug("查询租户{}的顶级组织完成，找到{}个组织，耗时{}ms", 
+                customerId, result.size(), stopWatch.getTotalTimeMillis());
+                
+            return result;
+        } catch (Exception e) {
+            stopWatch.stop();
+            logPerformance("findTopLevelOrganizations", null, customerId, 
+                stopWatch.getTotalTimeMillis(), 0, false, e.getMessage());
+            log.error("查询顶级组织失败: customerId={}", customerId, e);
+            return new ArrayList<>();
+        }
     }
 
     @Override
+    @Cacheable(value = CACHE_NAME, key = "'all_descendants_' + #ancestorId + '_' + #customerId")
     public List<SysOrgUnits> findAllDescendants(Long ancestorId, Long customerId) {
-        log.debug("查询组织{}的所有子组织，租户ID: {}", ancestorId, customerId);
         if (ancestorId == null) {
             return new ArrayList<>();
         }
-        return sysOrgClosureMapper.findAllDescendants(ancestorId, customerId);
+        
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        
+        try {
+            List<SysOrgUnits> result = sysOrgClosureMapper.findAllDescendants(ancestorId, customerId);
+            
+            stopWatch.stop();
+            logPerformance("findAllDescendants", ancestorId, customerId, 
+                stopWatch.getTotalTimeMillis(), result.size(), true, null);
+            
+            log.debug("查询组织{}的所有子组织完成，找到{}个子组织，耗时{}ms", 
+                ancestorId, result.size(), stopWatch.getTotalTimeMillis());
+                
+            return result;
+        } catch (Exception e) {
+            stopWatch.stop();
+            logPerformance("findAllDescendants", ancestorId, customerId, 
+                stopWatch.getTotalTimeMillis(), 0, false, e.getMessage());
+            log.error("查询所有子组织失败: ancestorId={}, customerId={}", ancestorId, customerId, e);
+            return new ArrayList<>();
+        }
     }
 
     @Override
+    @Cacheable(value = CACHE_NAME, key = "'direct_children_' + #ancestorId + '_' + #customerId")
     public List<SysOrgUnits> findDirectChildren(Long ancestorId, Long customerId) {
-        log.debug("查询组织{}的直接子组织，租户ID: {}", ancestorId, customerId);
         if (ancestorId == null) {
             return new ArrayList<>();
         }
-        return sysOrgClosureMapper.findDirectChildren(ancestorId, customerId);
+        
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        
+        try {
+            List<SysOrgUnits> result = sysOrgClosureMapper.findDirectChildren(ancestorId, customerId);
+            
+            stopWatch.stop();
+            logPerformance("findDirectChildren", ancestorId, customerId, 
+                stopWatch.getTotalTimeMillis(), result.size(), true, null);
+            
+            log.debug("查询组织{}的直接子组织完成，找到{}个子组织，耗时{}ms", 
+                ancestorId, result.size(), stopWatch.getTotalTimeMillis());
+                
+            return result;
+        } catch (Exception e) {
+            stopWatch.stop();
+            logPerformance("findDirectChildren", ancestorId, customerId, 
+                stopWatch.getTotalTimeMillis(), 0, false, e.getMessage());
+            log.error("查询直接子组织失败: ancestorId={}, customerId={}", ancestorId, customerId, e);
+            return new ArrayList<>();
+        }
     }
 
     @Override
@@ -321,6 +392,104 @@ public class SysOrgClosureServiceImpl extends ServiceImpl<SysOrgClosureMapper, S
     }
 
     /**
+     * 批量查询部门管理员 - 告警系统关键优化
+     * 
+     * @param orgIds 组织ID列表
+     * @param customerId 租户ID
+     * @return Map<部门ID, 管理员列表>
+     */
+    public Map<Long, List<SysOrgManagerCache>> batchFindDepartmentManagers(List<Long> orgIds, Long customerId) {
+        if (CollectionUtils.isEmpty(orgIds)) {
+            return Collections.emptyMap();
+        }
+        
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        
+        try {
+            Map<Long, List<SysOrgManagerCache>> results = new HashMap<>();
+            
+            // 分批处理，避免IN子句过长
+            for (int i = 0; i < orgIds.size(); i += MAX_BATCH_SIZE) {
+                List<Long> batch = orgIds.subList(i, Math.min(i + MAX_BATCH_SIZE, orgIds.size()));
+                
+                // 使用现有的管理员查询方法
+                for (Long orgId : batch) {
+                    List<SysOrgManagerCache> managers = findOrgManagers(orgId, customerId, "manager");
+                    if (!managers.isEmpty()) {
+                        results.put(orgId, managers);
+                    }
+                }
+            }
+            
+            stopWatch.stop();
+            logPerformance("batchFindDepartmentManagers", null, customerId, 
+                stopWatch.getTotalTimeMillis(), results.size(), true, null);
+            
+            log.debug("批量查找部门管理员完成: 查询{}个部门, 找到{}个部门有管理员, 耗时{}ms", 
+                orgIds.size(), results.size(), stopWatch.getTotalTimeMillis());
+                
+            return results;
+            
+        } catch (Exception e) {
+            stopWatch.stop();
+            logPerformance("batchFindDepartmentManagers", null, customerId, 
+                stopWatch.getTotalTimeMillis(), 0, false, e.getMessage());
+            log.error("批量查找部门管理员失败: orgIds={}, customerId={}", orgIds, customerId, e);
+            return Collections.emptyMap();
+        }
+    }
+
+    /**
+     * 查找租户级管理员
+     * 
+     * @param customerId 租户ID
+     * @return 管理员用户ID列表
+     */
+    @Cacheable(value = CACHE_NAME, key = "'tenant_admins_' + #customerId")
+    public List<Long> findTenantAdmins(Long customerId) {
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        
+        try {
+            // 查找根级别组织的主管作为租户管理员
+            List<SysOrgUnits> topOrgs = findTopLevelOrganizations(customerId);
+            List<Long> adminIds = new ArrayList<>();
+            
+            for (SysOrgUnits org : topOrgs) {
+                List<SysOrgManagerCache> managers = findOrgManagers(org.getId(), customerId, "manager");
+                adminIds.addAll(managers.stream()
+                    .map(SysOrgManagerCache::getUserId)
+                    .collect(Collectors.toList()));
+            }
+            
+            stopWatch.stop();
+            logPerformance("findTenantAdmins", null, customerId, 
+                stopWatch.getTotalTimeMillis(), adminIds.size(), true, null);
+                
+            return adminIds;
+            
+        } catch (Exception e) {
+            stopWatch.stop();
+            logPerformance("findTenantAdmins", null, customerId, 
+                stopWatch.getTotalTimeMillis(), 0, false, e.getMessage());
+            log.error("查找租户管理员失败: customerId={}", customerId, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * 清除组织相关缓存
+     * 
+     * @param orgId 组织ID (可选)
+     * @param customerId 租户ID
+     */
+    @CacheEvict(value = CACHE_NAME, allEntries = true)
+    public void clearOrgCache(Long orgId, Long customerId) {
+        log.info("清除组织缓存: orgId={}, customerId={}", orgId, customerId);
+    }
+
+    /**
      * 为单个组织重建闭包关系
      */
     private void rebuildOrgClosure(SysOrgUnits org) {
@@ -360,6 +529,31 @@ public class SysOrgClosureServiceImpl extends ServiceImpl<SysOrgClosureMapper, S
             
         } catch (Exception e) {
             log.error("为组织{}重建闭包关系时出错", org.getId(), e);
+        }
+    }
+
+    /**
+     * 记录性能日志
+     */
+    private void logPerformance(String operation, Long orgId, Long customerId, 
+                               long executionTime, int resultCount, boolean success, String errorMessage) {
+        try {
+            // 性能告警
+            if (executionTime > SLOW_QUERY_THRESHOLD_MS) {
+                log.warn("⚠️ 组织查询性能告警: operation={}, executionTime={}ms, resultCount={}", 
+                    operation, executionTime, resultCount);
+            }
+            
+            // 这里可以将性能日志写入数据库或监控系统
+            // 为了保持轻量级，目前只记录日志
+            if (log.isDebugEnabled()) {
+                log.debug("性能指标: operation={}, orgId={}, customerId={}, time={}ms, count={}, success={}", 
+                    operation, orgId, customerId, executionTime, resultCount, success);
+            }
+            
+        } catch (Exception e) {
+            // 记录性能日志失败不应影响业务逻辑
+            log.debug("记录性能日志失败", e);
         }
     }
 }

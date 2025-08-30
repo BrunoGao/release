@@ -308,7 +308,18 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
         };
 
         return (
-          <NTooltip placement="right" keepAliveOnHover trigger="hover" showArrow={false}>
+          <NTooltip 
+            placement="right" 
+            keepAliveOnHover 
+            trigger="hover" 
+            showArrow={false}
+            contentStyle={{ 
+              padding: '0', 
+              background: 'transparent',
+              border: 'none',
+              boxShadow: 'none' 
+            }}
+          >
             {{
               trigger: () => (
                 <span style="cursor: pointer; color: #1890ff; text-decoration: underline; font-weight: 500; padding: 2px 4px; border-radius: 3px; background: #f0f8ff;">
@@ -536,21 +547,6 @@ onMounted(() => {
         @delete="handleBatchDelete"
         @refresh="getData"
       >
-        <template #suffix>
-          <NButton
-            v-if="hasAuth('t:alert:info:update')"
-            size="small"
-            ghost
-            type="success"
-            :disabled="checkedRowKeys.length < 2 || loading"
-            @click="handleBatchProcessAlert"
-          >
-            <template #icon>
-              <Icon icon="material-symbols:check-circle-outline" />
-            </template>
-            一键批量处理
-          </NButton>
-        </template>
       </TableHeaderOperation>
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
@@ -578,3 +574,25 @@ onMounted(() => {
     </NCard>
   </div>
 </template>
+
+<style scoped>
+/* 彻底去除 NTooltip 的黑色边框 */
+:deep(.n-tooltip__content) {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+:deep(.n-tooltip) {
+  border: none !important;
+  outline: none !important;
+}
+
+:deep(.n-tooltip .n-tooltip__content) {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+</style>
