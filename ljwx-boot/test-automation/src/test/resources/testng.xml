@@ -10,6 +10,14 @@
         <listener class-name="com.ljwx.test.listener.TestRetryListener"/>
     </listeners>
     
+    <!-- 认证功能测试 -->
+    <test name="Authentication-Tests" preserve-order="true">
+        <parameter name="test.category" value="auth"/>
+        <classes>
+            <class name="com.ljwx.test.auth.AuthenticationTest"/>
+        </classes>
+    </test>
+    
     <!-- 管理员功能测试 -->
     <test name="Admin-Functionality-Tests" preserve-order="true">
         <parameter name="test.category" value="admin"/>

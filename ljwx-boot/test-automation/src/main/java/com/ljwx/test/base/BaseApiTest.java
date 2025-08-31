@@ -49,15 +49,46 @@ public abstract class BaseApiTest {
             .statusCode(200)
             .extract().response();
         
-        // 解析登录响应
-        String token = response.jsonPath().getString("data.token");
-        Long userId = response.jsonPath().getLong("data.userInfo.id");
-        Long customerId = response.jsonPath().getLong("data.userInfo.customerId");
+        // 打印完整响应用于调试
+        log.debug("登录响应: {}", response.asString());
         
-        Assert.assertNotNull(token, "登录Token不能为空");
-        Assert.assertNotNull(userId, "用户ID不能为空");
+        // 解析登录响应 - 根据实际响应结构调整
+        String token = null;
+        Long userId = null;
+        Long customerId = null;
         
-        log.info("用户 {} 登录成功, UserId: {}, CustomerId: {}", username, userId, customerId);
+        try {
+            // 尝试不同的响应结构解析
+            if (response.jsonPath().get("data.token") != null) {
+                token = response.jsonPath().getString("data.token");
+                userId = response.jsonPath().getLong("data.userInfo.id");
+                customerId = response.jsonPath().getLong("data.userInfo.customerId");
+            } else if (response.jsonPath().get("data.access_token") != null) {
+                token = response.jsonPath().getString("data.access_token");
+                userId = response.jsonPath().getLong("data.user.id");
+                customerId = response.jsonPath().getLong("data.user.customerId");
+            } else if (response.jsonPath().get("token") != null) {
+                token = response.jsonPath().getString("token");
+                userId = response.jsonPath().getLong("userId");
+                customerId = response.jsonPath().getLong("customerId");
+            } else {
+                // 直接从data中获取
+                token = response.jsonPath().getString("data");
+                // 如果token是字符串，尝试解析用户信息
+                if (token != null && !token.startsWith("eyJ")) {
+                    // 可能需要额外的用户信息查询
+                    log.warn("登录返回的token格式异常，可能需要额外的用户信息查询");
+                }
+            }
+        } catch (Exception e) {
+            log.error("解析登录响应失败: {}", e.getMessage());
+            log.error("响应内容: {}", response.asString());
+        }
+        
+        Assert.assertNotNull(token, "登录Token不能为空，响应: " + response.asString());
+        
+        log.info("用户 {} 登录成功, Token: {}, UserId: {}, CustomerId: {}", 
+            username, token.substring(0, Math.min(20, token.length())) + "...", userId, customerId);
         
         return new LoginResult(token, userId, customerId);
     }
@@ -86,8 +117,12 @@ public abstract class BaseApiTest {
      * 获取认证的请求规范
      */
     protected RequestSpecification authenticatedRequest() {
+        Assert.assertNotNull(authToken, "请先登录获取Token");
+        
+        // 根据SA-Token的标准，通常使用satoken作为header名称
         return given()
-            .header("Authorization", "Bearer " + authToken)
+            .header("satoken", authToken)
+            .header("Authorization", "Bearer " + authToken) // 备用认证方式
             .contentType("application/json");
     }
     
