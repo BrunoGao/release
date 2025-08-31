@@ -1,7 +1,7 @@
-<script setup lang="tsx">
+<script setup lang="ts">
 import { NButton, NPopconfirm, NUpload, NModal, NCard, NTag, NDescriptions, NDescriptionsItem, NAlert, type UploadFileInfo } from 'naive-ui';
 import type { Ref } from 'vue';
-import { ref } from 'vue';
+import { ref, h } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAuth } from '@/hooks/business/auth';
@@ -79,13 +79,11 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       title: '支持许可证',
       align: 'center',
       minWidth: 100,
-      render: row => (
-        <div class="flex items-center justify-center gap-2">
-          <span class={row.supportLicense ? 'text-green-600' : 'text-gray-400'}>
-            {row.supportLicense ? '✓ 是' : '✗ 否'}
-          </span>
-        </div>
-      )
+      render: row => h('div', { class: 'flex items-center justify-center gap-2' }, [
+        h('span', { 
+          class: row.supportLicense ? 'text-green-600' : 'text-gray-400' 
+        }, row.supportLicense ? '✓ 是' : '✗ 否')
+      ])
     },
     {
       key: 'enableResume',
@@ -113,32 +111,48 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center',
       width: 280,
       minWidth: 280,
-      render: row => (
-        <div class="flex-center gap-4px flex-wrap">
-          {hasAuth('t:customer:config:update') && (
-            <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
-              {$t('common.edit')}
-            </NButton>
-          )}
-          {hasAuth('t:customer:config:license:status') && (
-            <NButton type="info" quaternary size="small" onClick={() => viewLicense(row)}>
-              许可证
-            </NButton>
-          )}
-          {hasAuth('t:customer:config:delete') && (
-            <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
-              {{
-                default: () => $t('common.confirmDelete'),
-                trigger: () => (
-                  <NButton type="error" quaternary size="small">
-                    {$t('common.delete')}
-                  </NButton>
-                )
-              }}
-            </NPopconfirm>
-          )}
-        </div>
-      )
+      render: row => {
+        const buttons = [];
+        
+        if (hasAuth('t:customer:config:update')) {
+          buttons.push(
+            h(NButton, {
+              type: 'primary',
+              quaternary: true,
+              size: 'small',
+              onClick: () => edit(row)
+            }, () => $t('common.edit'))
+          );
+        }
+        
+        if (hasAuth('t:customer:config:license:status')) {
+          buttons.push(
+            h(NButton, {
+              type: 'info',
+              quaternary: true,
+              size: 'small',
+              onClick: () => viewLicense(row)
+            }, () => '许可证')
+          );
+        }
+        
+        if (hasAuth('t:customer:config:delete')) {
+          buttons.push(
+            h(NPopconfirm, {
+              onPositiveClick: () => handleDelete(row.id)
+            }, {
+              default: () => $t('common.confirmDelete'),
+              trigger: () => h(NButton, {
+                type: 'error',
+                quaternary: true,
+                size: 'small'
+              }, () => $t('common.delete'))
+            })
+          );
+        }
+        
+        return h('div', { class: 'flex-center gap-4px flex-wrap' }, buttons);
+      }
     }
   ]
 });
@@ -248,6 +262,39 @@ async function uploadLicense(options: { file: UploadFileInfo }) {
   }
   
   return false; // 阻止默认上传行为
+}
+
+// 辅助函数
+function getLicenseAlertType(status: string): 'success' | 'info' | 'warning' | 'error' {
+  switch (status) {
+    case 'VALID': return 'success';
+    case 'WARNING': return 'warning';
+    case 'EXPIRED': return 'error';
+    case 'INVALID': return 'error';
+    case 'DISABLED': return 'info';
+    default: return 'error';
+  }
+}
+
+function getLicenseStatusText(status: string): string {
+  switch (status) {
+    case 'VALID': return '有效';
+    case 'WARNING': return '即将过期';
+    case 'EXPIRED': return '已过期';
+    case 'INVALID': return '无效';
+    case 'DISABLED': return '未启用';
+    case 'ERROR': return '错误';
+    default: return '未知';
+  }
+}
+
+function formatDateTime(dateTime: string | null): string {
+  if (!dateTime) return '-';
+  try {
+    return new Date(dateTime).toLocaleString('zh-CN');
+  } catch {
+    return dateTime;
+  }
 }
 </script>
 
@@ -373,37 +420,3 @@ async function uploadLicense(options: { file: UploadFileInfo }) {
   </div>
 </template>
 
-<script lang="ts">
-// 辅助函数
-function getLicenseAlertType(status: string): 'success' | 'info' | 'warning' | 'error' {
-  switch (status) {
-    case 'VALID': return 'success';
-    case 'WARNING': return 'warning';
-    case 'EXPIRED': return 'error';
-    case 'INVALID': return 'error';
-    case 'DISABLED': return 'info';
-    default: return 'error';
-  }
-}
-
-function getLicenseStatusText(status: string): string {
-  switch (status) {
-    case 'VALID': return '有效';
-    case 'WARNING': return '即将过期';
-    case 'EXPIRED': return '已过期';
-    case 'INVALID': return '无效';
-    case 'DISABLED': return '未启用';
-    case 'ERROR': return '错误';
-    default: return '未知';
-  }
-}
-
-function formatDateTime(dateTime: string | null): string {
-  if (!dateTime) return '-';
-  try {
-    return new Date(dateTime).toLocaleString('zh-CN');
-  } catch {
-    return dateTime;
-  }
-}
-</script>
