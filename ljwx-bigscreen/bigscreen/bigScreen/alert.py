@@ -17,6 +17,7 @@ import sys
 
 # 导入组织架构优化查询服务
 from .org_optimized import get_org_service, find_principals_optimized, find_escalation_chain_optimized
+from .org_service import get_unified_org_service
 
 # 添加项目根目录到Python路径以导入微信配置模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -300,22 +301,22 @@ def fetch_alerts_by_orgIdAndUserId1(orgId=None, userId=None, severityLevel=None)
                 departments = {}
         
         elif orgId:
-   
-            # 直接查询部门信息，而不是调用fetch_departments_by_orgId
-            departments = db.session.query(OrgInfo)\
-                .filter(OrgInfo.parent_id == orgId)\
-                .all()
-            
-            department_ids = [dept.id for dept in departments]
-            
-            # 获取所有部门信息
-            departments = {
-                str(dept.id): dept.name for dept in OrgInfo.query.filter(
-                    OrgInfo.id.in_(department_ids),
-                    OrgInfo.is_deleted.is_(False),
-                    OrgInfo.status == '1'
-                ).all()
-            }
+            # 使用统一组织服务获取子部门信息
+            try:
+                org_service = get_unified_org_service()
+                org_ids = org_service.get_org_descendants_ids(orgId)
+                
+                # 获取所有部门信息
+                departments = {
+                    str(dept.id): dept.name for dept in OrgInfo.query.filter(
+                        OrgInfo.id.in_(org_ids),
+                        OrgInfo.is_deleted.is_(False),
+                        OrgInfo.status == '1'
+                    ).all()
+                }
+            except Exception as e:
+                logger.error(f"获取部门信息失败: {str(e)}")
+                departments = {}
         
             # 获取组织下所有用户
             from .org import fetch_users_by_orgId

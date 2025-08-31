@@ -601,7 +601,7 @@ class OrgInfo(db.Model):
     code = db.Column(db.String(100), nullable=True, comment='组织/部门/子部门编码')
     abbr = db.Column(db.String(50), nullable=True, comment='组织/部门/子部门名称简写')
     level = db.Column(db.Integer, default=0, nullable=False, comment='组织/部门/子部门层级')
-    ancestors = db.Column(db.String(500), nullable=False, comment='祖先节点')
+    ancestors = db.Column(db.String(500), nullable=False, comment='祖先节点 - 已废弃，请使用闭包表查询')
     description = db.Column(db.String(500), nullable=True, comment='组织/部门/子部门描述')
     sort = db.Column(db.Integer, default=999, nullable=True, comment='排序值')
     create_user = db.Column(db.String(64), nullable=False, comment='创建用户')

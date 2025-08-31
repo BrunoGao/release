@@ -23,6 +23,8 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.ljwx.common.api.Result;
 import com.ljwx.infrastructure.config.LogoConfig;
 import com.ljwx.modules.customer.service.LogoUploadService;
+import com.ljwx.common.license.CustomerLicenseService;
+import com.ljwx.common.license.CustomerLicenseStatus;
 import com.ljwx.infrastructure.page.PageQuery;
 import com.ljwx.infrastructure.page.RPage;
 import com.ljwx.modules.customer.domain.dto.config.TCustomerConfigAddDTO;
@@ -80,6 +82,9 @@ public class TCustomerConfigController {
     
     @NonNull
     private LogoUploadService logoUploadService;
+    
+    @NonNull
+    private CustomerLicenseService customerLicenseService;
 
     @GetMapping("/page")
     @SaCheckPermission("t:customer:config:page")
@@ -296,6 +301,68 @@ public class TCustomerConfigController {
         } catch (Exception e) {
             log.error("获取客户logo信息失败: customerId=" + customerId, e);
             return Result.failure("获取信息失败: " + e.getMessage());
+        }
+    }
+    
+    // ==================== 许可证管理相关接口 ====================
+    
+    /**
+     * 获取客户许可证状态
+     */
+    @GetMapping("/license/status/{customerId}")
+    @SaCheckPermission("t:customer:config:license:status")
+    @Operation(operationId = "10", summary = "获取客户许可证状态")
+    public Result<CustomerLicenseStatus> getCustomerLicenseStatus(
+            @Parameter(description = "客户ID", required = true) 
+            @PathVariable Long customerId) {
+        
+        try {
+            TCustomerConfig customerConfig = tCustomerConfigService.getById(customerId);
+            if (customerConfig == null) {
+                return Result.failure("客户不存在: " + customerId);
+            }
+            
+            CustomerLicenseStatus status = customerLicenseService.getCustomerLicenseStatus(
+                customerId, customerConfig.getIsSupportLicense());
+            
+            return Result.data(status);
+            
+        } catch (Exception e) {
+            log.error("获取客户许可证状态失败: customerId=" + customerId, e);
+            return Result.failure("获取许可证状态失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 更新客户许可证支持状态
+     */
+    @PutMapping("/license/support/{customerId}")
+    @SaCheckPermission("t:customer:config:license:update")
+    @Operation(operationId = "11", summary = "更新客户许可证支持状态")
+    public Result<String> updateCustomerLicenseSupport(
+            @Parameter(description = "客户ID", required = true) 
+            @PathVariable Long customerId,
+            @Parameter(description = "是否支持许可证", required = true)
+            @RequestParam Boolean supportLicense) {
+        
+        try {
+            TCustomerConfig customerConfig = tCustomerConfigService.getById(customerId);
+            if (customerConfig == null) {
+                return Result.failure("客户不存在: " + customerId);
+            }
+            
+            Boolean oldValue = customerConfig.getIsSupportLicense();
+            customerConfig.setIsSupportLicense(supportLicense);
+            tCustomerConfigService.updateById(customerConfig);
+            
+            log.info("更新客户许可证支持状态: customerId={}, {} -> {}", 
+                    customerId, oldValue, supportLicense);
+            
+            return Result.success("许可证支持状态更新成功");
+            
+        } catch (Exception e) {
+            log.error("更新客户许可证支持状态失败: customerId=" + customerId, e);
+            return Result.failure("更新失败: " + e.getMessage());
         }
     }
 

@@ -26,19 +26,20 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ljwx.infrastructure.page.PageQuery;
 import com.ljwx.modules.health.domain.bo.TDeviceMessageBO;
 import com.ljwx.modules.health.domain.entity.TDeviceMessage;
-import com.ljwx.modules.health.domain.entity.TDeviceMessageDetail;
 import com.ljwx.modules.health.domain.vo.MessageResponseDetailVO;
 import com.ljwx.modules.health.domain.vo.TDeviceMessageVO;
 import com.ljwx.modules.health.repository.mapper.TDeviceMessageMapper;
-import com.ljwx.modules.health.service.ITDeviceMessageDetailService;
 import com.ljwx.modules.health.service.ITDeviceMessageService;
+import com.ljwx.modules.health.domain.entity.TDeviceMessageV2;
+import com.ljwx.modules.health.domain.entity.TDeviceMessageDetailV2;
+import com.ljwx.modules.health.repository.mapper.TDeviceMessageV2Mapper;
+import com.ljwx.modules.health.service.ITDeviceMessageDetailV2Service;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.system.domain.entity.SysUserOrg;
 import com.ljwx.modules.system.service.ISysOrgUnitsService;
 import com.ljwx.modules.system.service.ISysUserOrgService;
 import com.ljwx.modules.system.service.ISysUserService;
-import com.ljwx.modules.health.service.IDeviceUserMappingService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -46,8 +47,6 @@ import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import com.ljwx.modules.system.domain.entity.SysUser;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 /**
  *  Service 服务接口实现层
@@ -68,13 +67,13 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
     private ISysOrgUnitsService sysOrgUnitsService;
 
     @Autowired
-    private ITDeviceMessageDetailService deviceMessageDetailService;
-
-    @Autowired
-    private IDeviceUserMappingService deviceUserMappingService;
+    private ITDeviceMessageDetailV2Service deviceMessageDetailService;
 
     @Autowired
     private ISysUserOrgService sysUserOrgService;
+
+    @Autowired
+    private TDeviceMessageV2Mapper messageV2Mapper;
 
     // #管理员用户缓存 - 避免频繁查询
     private List<String> adminUserIdsCache = null;
@@ -83,27 +82,30 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
 
     @Override
     public IPage<TDeviceMessageVO> listTDeviceMessagePage(PageQuery pageQuery, TDeviceMessageBO tDeviceMessageBO) {
-        // 构建基础查询条件
-        LambdaQueryWrapper<TDeviceMessage> queryWrapper = new LambdaQueryWrapper<TDeviceMessage>()
-                .eq(ObjectUtils.isNotEmpty(tDeviceMessageBO.getMessageType()), TDeviceMessage::getMessageType, tDeviceMessageBO.getMessageType())
-                .eq(ObjectUtils.isNotEmpty(tDeviceMessageBO.getSenderType()), TDeviceMessage::getSenderType, tDeviceMessageBO.getSenderType())
-                .eq(ObjectUtils.isNotEmpty(tDeviceMessageBO.getReceiverType()), TDeviceMessage::getReceiverType, tDeviceMessageBO.getReceiverType())
-                .eq(ObjectUtils.isNotEmpty(tDeviceMessageBO.getMessageStatus()), TDeviceMessage::getMessageStatus, tDeviceMessageBO.getMessageStatus())
-                .orderByDesc(TDeviceMessage::getSentTime);
-        System.out.println("🔍 设备消息查询 - userId: " + tDeviceMessageBO.getUserId() + ", departmentInfo: " + tDeviceMessageBO.getDepartmentInfo());
+        System.out.println("🚀 使用V2优化查询 - userId: " + tDeviceMessageBO.getUserId() + ", departmentInfo: " + tDeviceMessageBO.getDepartmentInfo());
+        
+        // 🔥 使用V2表进行优化查询
+        LambdaQueryWrapper<TDeviceMessageV2> queryWrapper = new LambdaQueryWrapper<TDeviceMessageV2>()
+                .eq(ObjectUtils.isNotEmpty(tDeviceMessageBO.getMessageType()), TDeviceMessageV2::getMessageType, tDeviceMessageBO.getMessageType())
+                .eq(ObjectUtils.isNotEmpty(tDeviceMessageBO.getSenderType()), TDeviceMessageV2::getSenderType, tDeviceMessageBO.getSenderType())
+                .eq(ObjectUtils.isNotEmpty(tDeviceMessageBO.getReceiverType()), TDeviceMessageV2::getReceiverType, tDeviceMessageBO.getReceiverType())
+                .eq(ObjectUtils.isNotEmpty(tDeviceMessageBO.getMessageStatus()), TDeviceMessageV2::getMessageStatus, tDeviceMessageBO.getMessageStatus())
+                .eq(TDeviceMessageV2::getIsDeleted, 0)
+                .orderByDesc(TDeviceMessageV2::getPriorityLevel)
+                .orderByDesc(TDeviceMessageV2::getCreateTime);
 
         if (ObjectUtils.isEmpty(tDeviceMessageBO.getUserId()) || tDeviceMessageBO.getUserId().equals("all")) {
-            // 处理按部门查询的逻辑 - 将自动排除管理员私人消息
-            System.out.println("📋 执行部门查询逻辑 (将排除管理员私人消息)");
-            handleDepartmentQuery(queryWrapper, tDeviceMessageBO.getDepartmentInfo());
+            // 处理按部门查询的逻辑
+            System.out.println("📋 执行部门查询逻辑 (V2优化版)");
+            handleDepartmentQueryV2(queryWrapper, tDeviceMessageBO.getDepartmentInfo());
         } else {
-            // 处理按用户ID查询的逻辑
-            System.out.println("👤 执行用户查询逻辑");
-            handleUserQuery(queryWrapper, tDeviceMessageBO.getUserId());
+            // 🔥 处理按用户ID查询的逻辑 - 直接基于userId查询
+            System.out.println("👤 执行用户查询逻辑 (V2优化版)");
+            handleUserQueryV2(queryWrapper, tDeviceMessageBO.getUserId());
         }
 
         // 执行分页查询并处理结果
-        return processQueryResults(pageQuery, queryWrapper);
+        return processQueryResultsV2(pageQuery, queryWrapper);
     }
 
     private void handleDepartmentQuery(LambdaQueryWrapper<TDeviceMessage> queryWrapper, String departmentInfo) {
@@ -257,9 +259,9 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
             
             // 检查是否有响应记录
             boolean hasResponded = deviceMessageDetailService.count(
-                new LambdaQueryWrapper<TDeviceMessageDetail>()
-                    .eq(TDeviceMessageDetail::getMessageId, messageId)
-                    .eq(TDeviceMessageDetail::getDeviceSn, deviceSn)
+                new LambdaQueryWrapper<TDeviceMessageDetailV2>()
+                    .eq(TDeviceMessageDetailV2::getMessageId, messageId)
+                    .eq(TDeviceMessageDetailV2::getDeviceSn, deviceSn)
             ) > 0;
 
             List<MessageResponseDetailVO.NonRespondedUserVO> nonRespondedUsers = new ArrayList<>();
@@ -278,23 +280,44 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
             );
         } else {
             // Get all device details for this message
-            List<TDeviceMessageDetail> messageDetails = deviceMessageDetailService.list(
-                new LambdaQueryWrapper<TDeviceMessageDetail>()
-                    .eq(TDeviceMessageDetail::getMessageId, messageId)
+            List<TDeviceMessageDetailV2> messageDetails = deviceMessageDetailService.list(
+                new LambdaQueryWrapper<TDeviceMessageDetailV2>()
+                    .eq(TDeviceMessageDetailV2::getMessageId, messageId)
             );
         
-            // Get the department info from the original message
-            TDeviceMessage message = this.getById(messageId);
+            // Get the department info from the V2 message
+            TDeviceMessageV2 messageV2 = messageV2Mapper.selectById(Long.parseLong(messageId));
             
-            List<String> departmentDeviceSns;
-        
-                // Original logic for all users in department
-            String departmentId = message.getDepartmentInfo();
-            departmentDeviceSns = deviceUserMappingService.getDeviceSnListByDepartmentId(departmentId);
+            List<String> departmentDeviceSns = new ArrayList<>();
+            
+            if (messageV2 != null && messageV2.getDepartmentId() != null) {
+                // 获取部门下所有用户的设备SN
+                List<SysUserOrg> userOrgs = sysUserOrgService.list(
+                    new LambdaQueryWrapper<SysUserOrg>()
+                        .eq(SysUserOrg::getOrgId, messageV2.getDepartmentId())
+                        .eq(SysUserOrg::getDeleted, 0)
+                );
+                
+                List<Long> userIds = userOrgs.stream()
+                    .map(SysUserOrg::getUserId)
+                    .collect(Collectors.toList());
+                    
+                if (!userIds.isEmpty()) {
+                    departmentDeviceSns = sysUserService.list(
+                        new LambdaQueryWrapper<SysUser>()
+                            .in(SysUser::getId, userIds)
+                            .isNotNull(SysUser::getDeviceSn)
+                            .eq(SysUser::getDeleted, 0)
+                    ).stream()
+                    .map(SysUser::getDeviceSn)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+                }
+            }
     
             // Create sets for tracking
             Set<String> respondedDeviceSns = messageDetails.stream()
-                .map(TDeviceMessageDetail::getDeviceSn)
+                .map(TDeviceMessageDetailV2::getDeviceSn)
                 .collect(Collectors.toSet());
                 
             // Count total devices
@@ -318,6 +341,299 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
                 respondedDeviceSns.size(),
                 nonRespondedUsers
             );
+        }
+    }
+
+    // === V2优化查询方法 ===
+
+    /**
+     * 🔥 V2优化：处理用户查询 - 直接基于userId
+     */
+    private void handleUserQueryV2(LambdaQueryWrapper<TDeviceMessageV2> queryWrapper, String userId) {
+        if (StringUtils.hasText(userId)) {
+            Long userIdLong = Long.parseLong(userId);
+            // 🔥 核心优化：直接基于userId查询，避免复杂关联
+            queryWrapper.eq(TDeviceMessageV2::getUserId, userIdLong);
+            System.out.println("🚀 V2用户查询 - 直接userId匹配: " + userIdLong);
+        }
+    }
+
+    /**
+     * 🔥 V2优化：处理部门查询 - 基于departmentId
+     */
+    private void handleDepartmentQueryV2(LambdaQueryWrapper<TDeviceMessageV2> queryWrapper, String departmentInfo) {
+        if (ObjectUtils.isNotEmpty(departmentInfo)) {
+            Set<Long> allDepartmentIds = new HashSet<>();
+            Long deptId = Long.parseLong(departmentInfo);
+            
+            // 获取当前部门及其所有下属部门
+            allDepartmentIds.add(deptId);
+            List<SysOrgUnits> descendants = sysOrgUnitsService.listAllDescendants(Collections.singletonList(deptId));
+            allDepartmentIds.addAll(
+                descendants.stream()
+                    .map(SysOrgUnits::getId)
+                    .collect(Collectors.toSet())
+            );
+
+            // 🔥 V2优化：直接基于departmentId查询
+            queryWrapper.in(TDeviceMessageV2::getDepartmentId, allDepartmentIds);
+            
+            System.out.println("🚀 V2部门查询 - departmentIds: " + allDepartmentIds);
+        }
+    }
+
+    /**
+     * 🔥 V2优化：处理查询结果
+     */
+    private IPage<TDeviceMessageVO> processQueryResultsV2(PageQuery pageQuery, LambdaQueryWrapper<TDeviceMessageV2> queryWrapper) {
+        // 执行分页查询
+        IPage<TDeviceMessageV2> page = messageV2Mapper.selectPage(pageQuery.buildPage(), queryWrapper);
+
+        // 转换为VO
+        IPage<TDeviceMessageVO> voPage = page.convert(message -> {
+            TDeviceMessageVO vo = new TDeviceMessageVO();
+            // 🔥 V2到V1 VO的转换
+            vo.setId(message.getId());
+            vo.setDepartmentInfo(String.valueOf(message.getDepartmentId()));
+            vo.setUserId(String.valueOf(message.getUserId()));
+            vo.setDeviceSn(message.getDeviceSn());
+            vo.setMessage(message.getMessage());
+            vo.setMessageType(message.getMessageType());
+            vo.setSenderType(message.getSenderType());
+            vo.setReceiverType(message.getReceiverType());
+            vo.setMessageStatus(message.getMessageStatus());
+            vo.setSentTime(message.getSentTime());
+            vo.setReceivedTime(message.getReceivedTime());
+            vo.setCreateUser(message.getCreateUserId() != null ? String.valueOf(message.getCreateUserId()) : null);
+            vo.setCreateTime(message.getCreateTime());
+            
+            // 设置详情信息
+            vo.setRespondedDetail(getMessageResponseDetailsV2(
+                String.valueOf(message.getId()), 
+                String.valueOf(message.getUserId())
+            ));
+            return vo;
+        });
+
+        // 批量获取名称映射
+        Map<Long, String> deptMap = sysOrgUnitsService.list().stream()
+            .collect(Collectors.toMap(SysOrgUnits::getId, SysOrgUnits::getName, (k1, k2) -> k1));
+        Map<Long, String> userMap = sysUserService.list().stream()
+            .collect(Collectors.toMap(SysUser::getId, SysUser::getUserName, (k1, k2) -> k1));
+
+        // 转换ID为名称
+        voPage.getRecords().forEach(record -> {
+            if (StringUtils.hasText(record.getDepartmentInfo())) {
+                try {
+                    Long deptId = Long.parseLong(record.getDepartmentInfo());
+                    String formattedDeptInfo = deptMap.get(deptId);
+                    record.setDepartmentInfo(formattedDeptInfo);
+                } catch (NumberFormatException e) {
+                    System.out.println("部门ID格式错误: " + record.getDepartmentInfo());
+                }
+            }
+            if (StringUtils.hasText(record.getUserId())) {
+                try {
+                    Long userId = Long.parseLong(record.getUserId());
+                    String formattedUserId = userMap.get(userId);
+                    record.setUserId(formattedUserId);
+                } catch (NumberFormatException e) {
+                    System.out.println("用户ID格式错误: " + record.getUserId());
+                }
+            }
+        });
+
+        return voPage;
+    }
+
+    /**
+     * 🔥 V2优化：获取消息响应详情
+     */
+    private MessageResponseDetailVO getMessageResponseDetailsV2(String messageId, String userId) {
+        System.out.println("🚀 V2获取消息详情 - messageId: " + messageId + ", userId: " + userId);
+        
+        if (userId != null && !userId.equals("all") && !userId.equals("") && !userId.equals("null")) {
+            // 针对特定用户的逻辑
+            try {
+                Long userIdLong = Long.parseLong(userId);
+                SysUser user = sysUserService.getById(userIdLong);
+                System.out.println("user: " + user);
+                
+                if (user == null) {
+                    return new MessageResponseDetailVO(0L, 0, new ArrayList<>());
+                }
+                
+                // 🔥 V2优化：直接基于userId查询详情
+                Long messageIdLong = Long.parseLong(messageId);
+                TDeviceMessageDetailV2 detail = deviceMessageDetailService.getByMessageAndUser(messageIdLong, userIdLong);
+                
+                boolean hasResponded = detail != null && "delivered".equals(detail.getDeliveryStatus());
+                
+                List<MessageResponseDetailVO.NonRespondedUserVO> nonRespondedUsers = new ArrayList<>();
+                if (!hasResponded) {
+                    // 如果未响应，获取用户信息
+                    MessageResponseDetailVO.NonRespondedUserVO userInfo = sysUserService.getByDeviceSn(user.getDeviceSn());
+                    if (userInfo != null) {
+                        nonRespondedUsers.add(userInfo);
+                    }
+                }
+
+                return new MessageResponseDetailVO(
+                    1L, // 总设备数为1
+                    hasResponded ? 1 : 0, // 已响应数
+                    nonRespondedUsers // 未响应用户列表
+                );
+            } catch (NumberFormatException e) {
+                System.out.println("ID格式错误 - messageId: " + messageId + ", userId: " + userId);
+                return new MessageResponseDetailVO(0L, 0, new ArrayList<>());
+            }
+        } else {
+            // 部门所有用户的统计逻辑
+            try {
+                Long messageIdLong = Long.parseLong(messageId);
+                
+                // 🔥 V2优化：直接查询该消息的所有详情记录
+                List<TDeviceMessageDetailV2> messageDetails = deviceMessageDetailService.list(
+                    new LambdaQueryWrapper<TDeviceMessageDetailV2>()
+                        .eq(TDeviceMessageDetailV2::getMessageId, messageIdLong)
+                        .eq(TDeviceMessageDetailV2::getIsDeleted, 0)
+                );
+                
+                Set<String> respondedDeviceSns = messageDetails.stream()
+                    .filter(detail -> "delivered".equals(detail.getDeliveryStatus()))
+                    .map(TDeviceMessageDetailV2::getDeviceSn)
+                    .collect(Collectors.toSet());
+                
+                // 获取该消息对应的所有目标用户
+                Set<String> allTargetDeviceSns = messageDetails.stream()
+                    .map(TDeviceMessageDetailV2::getDeviceSn)
+                    .collect(Collectors.toSet());
+                    
+                long totalDevices = allTargetDeviceSns.size();
+                    
+                // 获取未响应用户信息
+                List<MessageResponseDetailVO.NonRespondedUserVO> nonRespondedUsers = allTargetDeviceSns.stream()
+                    .filter(deviceSn -> !respondedDeviceSns.contains(deviceSn))
+                    .map(deviceSn -> {
+                        MessageResponseDetailVO.NonRespondedUserVO userInfo = 
+                            new MessageResponseDetailVO.NonRespondedUserVO();
+                        userInfo = sysUserService.getByDeviceSn(deviceSn);
+                        return userInfo;
+                    })
+                    .filter(userInfo -> userInfo != null && userInfo.getUserName() != null)
+                    .collect(Collectors.toList());
+                    
+                return new MessageResponseDetailVO(
+                    totalDevices,
+                    respondedDeviceSns.size(),
+                    nonRespondedUsers
+                );
+            } catch (NumberFormatException e) {
+                System.out.println("消息ID格式错误: " + messageId);
+                return new MessageResponseDetailVO(0L, 0, new ArrayList<>());
+            }
+        }
+    }
+
+    /**
+     * 🔥 V2优化：保存消息 - 使用V2表
+     */
+    public boolean saveMessage(TDeviceMessageBO tDeviceMessageBO) {
+        try {
+            // 转换BO到V2实体
+            TDeviceMessageV2 messageV2 = TDeviceMessageV2.builder()
+                .customerId(tDeviceMessageBO.getCustomerId())
+                .departmentId(parseDepartmentInfo(tDeviceMessageBO.getDepartmentInfo()))
+                .userId(parseUserId(tDeviceMessageBO.getUserId()))
+                .deviceSn(tDeviceMessageBO.getDeviceSn())
+                .message(tDeviceMessageBO.getMessage())
+                .messageType(tDeviceMessageBO.getMessageType())
+                .senderType(tDeviceMessageBO.getSenderType())
+                .receiverType(tDeviceMessageBO.getReceiverType())
+                .messageStatus(tDeviceMessageBO.getMessageStatus())
+                .sentTime(tDeviceMessageBO.getSentTime())
+                .receivedTime(tDeviceMessageBO.getReceivedTime())
+                .createUserId(tDeviceMessageBO.getCreateUserId())
+                .build();
+            
+            // 保存到V2表
+            int result = messageV2Mapper.insert(messageV2);
+            
+            // 如果有用户ID，创建详情记录
+            if (messageV2.getUserId() != null) {
+                TDeviceMessageDetailV2 detail = TDeviceMessageDetailV2.builder()
+                    .messageId(messageV2.getId())
+                    .customerId(messageV2.getCustomerId())
+                    .userId(messageV2.getUserId())
+                    .deviceSn(messageV2.getDeviceSn())
+                    .deliveryStatus("pending")
+                    .build();
+                
+                deviceMessageDetailService.save(detail);
+            }
+            
+            System.out.println("🚀 V2消息保存成功 - messageId: " + messageV2.getId());
+            return result > 0;
+            
+        } catch (Exception e) {
+            System.err.println("❌ V2消息保存失败: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 🔥 V2优化：根据ID获取消息
+     */
+    public TDeviceMessage getById(Long id) {
+        // 从V2表查询
+        TDeviceMessageV2 messageV2 = messageV2Mapper.selectById(id);
+        if (messageV2 == null) {
+            return null;
+        }
+        
+        // 转换V2到V1实体
+        TDeviceMessage message = new TDeviceMessage();
+        message.setId(messageV2.getId());
+        message.setDepartmentInfo(messageV2.getDepartmentId() != null ? String.valueOf(messageV2.getDepartmentId()) : null);
+        message.setUserId(messageV2.getUserId() != null ? String.valueOf(messageV2.getUserId()) : null);
+        message.setDeviceSn(messageV2.getDeviceSn());
+        message.setMessage(messageV2.getMessage());
+        message.setMessageType(messageV2.getMessageType());
+        message.setSenderType(messageV2.getSenderType());
+        message.setReceiverType(messageV2.getReceiverType());
+        message.setMessageStatus(messageV2.getMessageStatus());
+        message.setSentTime(messageV2.getSentTime());
+        message.setReceivedTime(messageV2.getReceivedTime());
+        message.setCreateUserId(messageV2.getCreateUserId());
+        message.setCreateTime(messageV2.getCreateTime());
+        message.setUpdateTime(messageV2.getUpdateTime());
+        message.setDeleted(messageV2.getIsDeleted());
+        message.setCustomerId(messageV2.getCustomerId());
+        
+        return message;
+    }
+
+    // === 辅助方法 ===
+    
+    private Long parseDepartmentInfo(String departmentInfo) {
+        if (!StringUtils.hasText(departmentInfo)) {
+            return 1L; // 默认部门
+        }
+        try {
+            return Long.parseLong(departmentInfo);
+        } catch (NumberFormatException e) {
+            return 1L; // 默认部门
+        }
+    }
+    
+    private Long parseUserId(String userId) {
+        if (!StringUtils.hasText(userId) || "null".equals(userId)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(userId);
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

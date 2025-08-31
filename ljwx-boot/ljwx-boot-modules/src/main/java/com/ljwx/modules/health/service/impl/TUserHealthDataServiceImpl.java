@@ -41,6 +41,8 @@ import com.ljwx.modules.system.service.ISysUserService;
 import com.ljwx.modules.system.service.ISysOrgUnitsService;
 import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.health.util.HealthDataTableUtil;
+import com.ljwx.common.cache.HighPerformanceQueryService;
+import com.ljwx.common.cache.RedisRelationCacheService;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
@@ -87,7 +89,12 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
 
     @Autowired
     private ISysOrgUnitsService sysOrgUnitsService;
-
+    
+    @Autowired
+    private HighPerformanceQueryService highPerformanceQueryService;
+    
+    @Autowired 
+    private RedisRelationCacheService cacheService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -98,32 +105,91 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
      * @return 过滤后的设备序列号列表
      */
     private List<String> getFilteredDeviceSnList(String userId, String departmentInfo) {
-        // 如果指定了具体用户ID且不是"all"、"0"或空，直接查询该用户设备
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            // 如果指定了具体用户ID且不是"all"、"0"或空，优先使用Redis缓存查询该用户设备
+            if (ObjectUtils.isNotEmpty(userId) && !"all".equals(userId) && !"0".equals(userId)) {
+                Long userIdLong = Long.valueOf(userId);
+                Set<String> devices = highPerformanceQueryService.getUserDevices(userIdLong);
+                log.debug("🚀 Redis缓存查询用户设备: userId={}, devices={}, time={}ms", 
+                    userId, devices.size(), System.currentTimeMillis() - startTime);
+                return new ArrayList<>(devices);
+            }
+            
+            // 查询部门设备时，优先使用Redis缓存
+            if (ObjectUtils.isNotEmpty(departmentInfo)) {
+                try {
+                    Long orgId = Long.valueOf(departmentInfo);
+                    Set<String> orgDevices = highPerformanceQueryService.getOrgDevices(orgId);
+                    
+                    if (!orgDevices.isEmpty()) {
+                        // 获取管理员设备列表进行过滤
+                        List<String> adminDeviceSnList = getAdminDeviceSnList();
+                        
+                        // 过滤掉管理员设备
+                        List<String> filteredList = orgDevices.stream()
+                            .filter(deviceSn -> !adminDeviceSnList.contains(deviceSn))
+                            .collect(Collectors.toList());
+                        
+                        log.debug("🚀 Redis缓存查询部门设备: orgId={}, total={}, filtered={}, time={}ms",
+                            orgId, orgDevices.size(), filteredList.size(), System.currentTimeMillis() - startTime);
+                        
+                        return filteredList;
+                    } else {
+                        log.debug("⚠️ Redis缓存中部门设备列表为空，回退到原有查询方式: orgId={}", orgId);
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("部门信息格式错误，回退到原有查询方式: departmentInfo={}", departmentInfo);
+                }
+                
+                // 如果Redis缓存未命中，回退到原有查询方式
+                List<String> allDeviceSnList = deviceUserMappingService.getDeviceSnList(null, departmentInfo);
+                log.debug("📱 回退查询部门设备: departmentInfo={}, devices={}", departmentInfo, allDeviceSnList.size());
+                
+                if (allDeviceSnList.isEmpty()) {
+                    return Collections.emptyList();
+                }
+                
+                // 获取管理员设备列表并过滤
+                List<String> adminDeviceSnList = getAdminDeviceSnList();
+                List<String> filteredList = allDeviceSnList.stream()
+                    .filter(deviceSn -> !adminDeviceSnList.contains(deviceSn))
+                    .collect(Collectors.toList());
+                
+                log.debug("📊 回退查询结果: total={}, filtered={}, time={}ms",
+                    allDeviceSnList.size(), filteredList.size(), System.currentTimeMillis() - startTime);
+                
+                return filteredList;
+            }
+            
+            return Collections.emptyList();
+            
+        } catch (Exception e) {
+            log.error("获取设备列表失败，回退到原有查询方式: userId={}, departmentInfo={}", userId, departmentInfo, e);
+            // 回退到原有实现
+            return getFilteredDeviceSnListFallback(userId, departmentInfo);
+        }
+    }
+    
+    /**
+     * 回退方法 - 原有的查询逻辑
+     */
+    private List<String> getFilteredDeviceSnListFallback(String userId, String departmentInfo) {
         if (ObjectUtils.isNotEmpty(userId) && !"all".equals(userId) && !"0".equals(userId)) {
             return deviceUserMappingService.getDeviceSnList(userId, departmentInfo);
         }
         
-        // 查询部门设备时，需要过滤管理员设备
         if (ObjectUtils.isNotEmpty(departmentInfo)) {
-            System.out.println("🔍 查询部门设备: departmentInfo=" + departmentInfo);
             List<String> allDeviceSnList = deviceUserMappingService.getDeviceSnList(null, departmentInfo);
-            System.out.println("📱 部门所有设备数量: " + allDeviceSnList.size() + ", 设备列表: " + allDeviceSnList);
             if (allDeviceSnList.isEmpty()) {
-                System.out.println("⚠️ 部门设备列表为空，返回空结果");
                 return Collections.emptyList();
             }
             
-            // 获取管理员设备列表
             List<String> adminDeviceSnList = getAdminDeviceSnList();
-            System.out.println("🔒 管理员设备列表: " + adminDeviceSnList);
-            
-            // 过滤掉管理员设备
-            List<String> filteredList = allDeviceSnList.stream()
+            return allDeviceSnList.stream()
                 .filter(deviceSn -> !adminDeviceSnList.contains(deviceSn))
                 .collect(Collectors.toList());
-            
-            System.out.println("📊 过滤前设备数: " + allDeviceSnList.size() + ", 过滤后设备数: " + filteredList.size());
-            return filteredList;
         }
         
         return Collections.emptyList();
@@ -454,16 +520,55 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
 
     @Override
     public ResponseEntity<Object> getUserHealthData(String departmentInfo, String userId, LocalDateTime startDate, LocalDateTime endDate, String timeType) {
-        List<String> deviceSnList = deviceUserMappingService.getDeviceSnList(userId, departmentInfo);
-        System.out.println("getUserHealthData::" + startDate + "::" + endDate + "::" + deviceSnList);
+        long startTime = System.currentTimeMillis();
+        
+        // 使用优化后的设备列表获取方法（基于Redis缓存）
+        List<String> deviceSnList = getFilteredDeviceSnList(userId, departmentInfo);
+        log.debug("🚀 getUserHealthData优化查询: userId={}, departmentInfo={}, devices={}, time={}ms", 
+            userId, departmentInfo, deviceSnList.size(), System.currentTimeMillis() - startTime);
         
         if (deviceSnList.isEmpty()) {
             return ResponseEntity.ok(Map.of("data", Map.of(), "code", "200", "msg", "无设备数据"));
         }
         
-        // 优化：直接查询主表数据，避免分表查询性能问题
+        // 如果是查询单个用户的最新健康数据，优先使用Redis缓存
+        if (ObjectUtils.isNotEmpty(userId) && !"all".equals(userId) && !"0".equals(userId)) {
+            try {
+                Long userIdLong = Long.valueOf(userId);
+                
+                // 如果查询时间范围较小（24小时内），尝试从缓存获取最新数据
+                long timeDiff = java.time.Duration.between(startDate, endDate).toHours();
+                if (timeDiff <= 24) {
+                    Map<String, Object> cachedHealthData = highPerformanceQueryService.getUserLatestHealth(userIdLong);
+                    
+                    if (!cachedHealthData.isEmpty()) {
+                        log.debug("🚀 使用Redis缓存的用户最新健康数据: userId={}, cache_time={}ms", 
+                            userId, System.currentTimeMillis() - startTime);
+                        
+                        // 构造返回数据结构
+                        Map<String, Object> jsonData = new TreeMap<>(Comparator.naturalOrder());
+                        String timeKey = java.time.LocalDateTime.now().format(
+                            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                        jsonData.put(timeKey, cachedHealthData);
+                        
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("data", jsonData);
+                        response.put("code", "200");
+                        response.put("msg", "操作成功(缓存)");
+                        response.put("cache_hit", true);
+                        
+                        return ResponseEntity.ok(response);
+                    }
+                }
+            } catch (NumberFormatException e) {
+                log.warn("用户ID格式错误，使用原有查询方式: userId={}", userId);
+            }
+        }
+        
+        // 缓存未命中或不适合缓存的场景，使用数据库查询
         List<TUserHealthData> data = getOptimizedHealthData(deviceSnList, startDate, endDate);
-        System.out.println("getUserHealthData::" + data.size());
+        log.debug("📊 数据库查询健康数据: devices={}, records={}, total_time={}ms", 
+            deviceSnList.size(), data.size(), System.currentTimeMillis() - startTime);
 
         Map<String, Object> jsonData = new TreeMap<>(Comparator.naturalOrder());
 
@@ -541,6 +646,9 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
         response.put("data", jsonData);
         response.put("code", "200");
         response.put("msg", "操作成功");
+        response.put("cache_hit", false); // 标记为数据库查询
+        response.put("query_time_ms", System.currentTimeMillis() - startTime);
+        response.put("record_count", data.size());
 
         return ResponseEntity.ok(response);
     }

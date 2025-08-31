@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 # 导入组织架构优化查询服务
 from .org_optimized import get_org_service
+from .org_service import get_unified_org_service
 
 # Configure logging
 logging.basicConfig(filename='org.log', level=logging.INFO,
@@ -15,69 +16,26 @@ logging.basicConfig(filename='org.log', level=logging.INFO,
 
 logger = logging.getLogger(__name__)
 
-@with_tenant_context
 def fetch_departments_by_orgId(org_id, customer_id=None):
-    """递归获取组织下的所有部门信息，包括当前组织，支持多租户隔离 - 优化版本"""
+    """递归获取组织下的所有部门信息，包括当前组织，支持多租户隔离 - 统一优化版本"""
     try:
-        # 如果没有指定customer_id，则使用当前租户上下文的ID
+        # 如果没有提供customer_id，尝试获取
         if customer_id is None:
-            customer_id = get_current_customer_id()
+            try:
+                customer_id = get_current_customer_id()
+            except RuntimeError:
+                # 在没有Flask上下文时，使用默认值0
+                customer_id = 0
+                logger.warning("无Flask上下文，使用默认customer_id=0")
         
-        # 尝试使用优化查询
-        try:
-            org_service = get_org_service()
+        # 使用统一组织服务
+        org_service = get_unified_org_service()
+        result = org_service.get_org_tree(org_id, customer_id)
+        
+        if result.get('success'):
+            logger.info(f"使用统一服务成功获取组织{org_id}的部门树")
             
-            # 先获取当前组织信息
-            current_org = db.session.query(OrgInfo)\
-                .filter(OrgInfo.id == org_id)\
-                .filter(OrgInfo.is_deleted == 0)\
-                .filter(OrgInfo.customer_id == customer_id)\
-                .first()
-            
-            if not current_org:
-                return {
-                    'success': False,
-                    'error': f'Organization not found: {org_id}'
-                }
-            
-            # 使用闭包表查询所有子部门
-            child_orgs = org_service.find_all_descendants(org_id, customer_id)
-            
-            # 构建树形结构
-            org_dict = {str(current_org.id): {
-                'id': str(current_org.id),
-                'name': current_org.name,
-                'parent_id': str(current_org.parent_id) if current_org.parent_id else None,
-                'create_time': current_org.create_time.strftime('%Y-%m-%d %H:%M:%S') if current_org.create_time else None,
-                'children': []
-            }}
-            
-            # 添加所有子部门到字典
-            for child in child_orgs:
-                org_dict[str(child['id'])] = {
-                    'id': str(child['id']),
-                    'name': child['name'],
-                    'parent_id': str(child['parent_id']),
-                    'create_time': child.get('create_time', ''),
-                    'children': []
-                }
-            
-            # 构建父子关系
-            for child in child_orgs:
-                parent_id = str(child['parent_id'])
-                if parent_id in org_dict:
-                    org_dict[parent_id]['children'].append(org_dict[str(child['id'])])
-            
-            logger.info(f"使用优化查询成功获取组织{org_id}的部门树，子部门数量: {len(child_orgs)}")
-            return {
-                'success': True,
-                'data': [org_dict[str(org_id)]]
-            }
-            
-        except Exception as e:
-            logger.warning(f"优化查询失败，回退到原始查询: {str(e)}")
-            # 回退到原始递归查询
-            return fetch_departments_by_orgId_legacy(org_id, customer_id)
+        return result
             
     except Exception as e:
         logger.error(f"Error in fetch_departments_by_orgId: {str(e)}")
@@ -90,7 +48,12 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
     """原始递归查询方式 - 作为回退方案"""
     try:
         if customer_id is None:
-            customer_id = get_current_customer_id()
+            try:
+                customer_id = get_current_customer_id()
+            except RuntimeError:
+                # 在没有Flask上下文时，使用默认值0
+                customer_id = 0
+                logger.warning("无Flask上下文，使用默认customer_id=0")
             
         def get_child_departments(parent_id, customer_id=None):
             query = db.session.query(OrgInfo)\
@@ -372,48 +335,32 @@ def fetch_users_stats_by_orgId(org_id):
         }
 
 def fetch_root_departments():
-    """获取根部门"""
-    departments = OrgInfo.query.filter_by(parent_id=0, is_deleted=False).order_by(OrgInfo.sort).all()
-    
-    formatted_departments = []
-    for dept in departments:
-        formatted_departments.append({
-            'id': dept.id,
-            'name': dept.name,
-            'code': dept.code,
-            'parentId': dept.parent_id,
-            'ancestors': dept.ancestors,
-            'sort': dept.sort
-        })
-    
-    return jsonify({
-        'success': True,
-        'data': formatted_departments
-    })
-
-def get_org_descendants(org_id):
-    """获取组织及其所有子组织的ID列表"""
+    """获取根部门 - 移除ancestors字段依赖"""
     try:
-        org_ids = [int(org_id)]  # 包含当前组织ID#
+        org_service = get_unified_org_service()
+        departments = org_service.get_root_departments()
         
-        def collect_child_org_ids(parent_id):
-            """递归收集子组织ID"""
-            children = db.session.query(OrgInfo.id).filter(
-                OrgInfo.parent_id == parent_id,
-                OrgInfo.is_deleted.is_(False)
-            ).all()
-            
-            for child in children:
-                child_id = child[0]
-                org_ids.append(child_id)
-                collect_child_org_ids(child_id)  # 递归获取子组织的子组织#
-        
-        collect_child_org_ids(int(org_id))
-        return org_ids
+        return jsonify({
+            'success': True,
+            'data': departments
+        })
         
     except Exception as e:
-        print(f"Error in get_org_descendants: {e}")
-        return [int(org_id)]  # 发生错误时至少返回当前组织ID#
+        logger.error(f"Error in fetch_root_departments: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+def get_org_descendants(org_id, customer_id=None):
+    """获取组织及其所有子组织的ID列表 - 使用统一服务"""
+    try:
+        org_service = get_unified_org_service()
+        return org_service.get_org_descendants_ids(int(org_id), customer_id)
+        
+    except Exception as e:
+        logger.error(f"Error in get_org_descendants: {e}")
+        return [int(org_id)]  # 发生错误时至少返回当前组织ID
 
 def get_top_level_org_id(org_id):
     """根据org_id获取顶级组织(租户)ID - 通过ancestors字段解析"""

@@ -101,3 +101,10 @@ ljwx:
     upload-path: ${LJWX_LOGO_UPLOAD_PATH:uploads}
     # 默认logo文件路径
     default-logo: ${LJWX_DEFAULT_LOGO_PATH:uploads/logos/defaults/default-logo.svg}
+  
+  # 许可证配置
+  license:
+    enabled: ${LJWX_LICENSE_ENABLED:false}
+    file-path: ${LJWX_LICENSE_FILE:./license/ljwx.lic}
+    check-interval: ${LJWX_LICENSE_CHECK_INTERVAL:300}
+    trial-mode: ${LJWX_LICENSE_TRIAL_MODE:false}

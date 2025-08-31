@@ -48,6 +48,8 @@ spring:
       ORDER_MAP_ENTRIES_BY_KEYS: false
   quartz:
     job-store-type: memory #本地开发使用内存存储
+  aop:
+    proxy-target-class: true  # 启用CGLIB代理
   ai:
     ollama:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
@@ -138,7 +140,13 @@ ljwx:
   logo:
     # 本地开发使用相对路径，从项目根目录开始
     upload-path: ljwx-boot/uploads
-    default-logo: ljwx-boot/uploads/logos/defaults/default-logo.svg 
+    default-logo: ljwx-boot/uploads/logos/defaults/default-logo.svg
+  # 许可证配置 - 本地开发环境
+  license:
+    enabled: true
+    file-path: ./license/ljwx.lic
+    check-interval: 300  # 5分钟检查一次
+    trial-mode: true     # 本地开发启用试用模式 
 # 为DruidConfiguration兼容性添加标准Spring Boot数据源配置
 spring:
   datasource:

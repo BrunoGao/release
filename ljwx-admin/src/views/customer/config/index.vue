@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { NButton, NPopconfirm, NUpload, type UploadFileInfo } from 'naive-ui';
+import { NButton, NPopconfirm, NUpload, NModal, NCard, NTag, NDescriptions, NDescriptionsItem, NAlert, type UploadFileInfo } from 'naive-ui';
 import type { Ref } from 'vue';
 import { ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
@@ -79,7 +79,13 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       title: '支持许可证',
       align: 'center',
       minWidth: 100,
-      render: row => (row.supportLicense ? '是' : '否')
+      render: row => (
+        <div class="flex items-center justify-center gap-2">
+          <span class={row.supportLicense ? 'text-green-600' : 'text-gray-400'}>
+            {row.supportLicense ? '✓ 是' : '✗ 否'}
+          </span>
+        </div>
+      )
     },
     {
       key: 'enableResume',
@@ -112,6 +118,11 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           {hasAuth('t:customer:config:update') && (
             <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
               {$t('common.edit')}
+            </NButton>
+          )}
+          {hasAuth('t:customer:config:license:status') && (
+            <NButton type="info" quaternary size="small" onClick={() => viewLicense(row)}>
+              许可证
             </NButton>
           )}
           {hasAuth('t:customer:config:delete') && (
@@ -178,6 +189,66 @@ async function handleInitOptions() {
   });
 }
 handleInitOptions();
+
+// 许可证管理功能
+const licenseModalVisible = ref(false);
+const licenseData: Ref<any> = ref(null);
+const licenseUploading = ref(false);
+
+async function viewLicense(customer: Api.Customer.CustomerConfig) {
+  try {
+    const { error, data } = await request<any>({
+      url: `/t_customer_config/license/status/${customer.id}`,
+      method: 'GET'
+    });
+    
+    if (!error && data) {
+      licenseData.value = data;
+      licenseModalVisible.value = true;
+    } else {
+      window.$message?.error('获取许可证信息失败');
+    }
+  } catch (err) {
+    window.$message?.error('获取许可证信息异常');
+  }
+}
+
+async function uploadLicense(options: { file: UploadFileInfo }) {
+  licenseUploading.value = true;
+  
+  try {
+    const formData = new FormData();
+    formData.append('file', options.file.file as File);
+    
+    const { error, data } = await request<any>({
+      url: '/api/license/upload',
+      method: 'POST',
+      data: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    if (!error && data) {
+      window.$message?.success('许可证上传成功');
+      // 重新获取许可证信息
+      if (licenseData.value?.customerId) {
+        const customer = data.find((item: any) => item.id === licenseData.value.customerId);
+        if (customer) {
+          await viewLicense(customer);
+        }
+      }
+    } else {
+      window.$message?.error('许可证上传失败');
+    }
+  } catch (err) {
+    window.$message?.error('许可证上传异常');
+  } finally {
+    licenseUploading.value = false;
+  }
+  
+  return false; // 阻止默认上传行为
+}
 </script>
 
 <template>
@@ -211,5 +282,128 @@ handleInitOptions();
       />
       <CustomerConfigOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" :customer-id="customerId" @submitted="getDataByPage" />
     </NCard>
+    
+    <!-- 许可证管理模态框 -->
+    <NModal
+      v-model:show="licenseModalVisible"
+      preset="card"
+      title="许可证管理"
+      class="w-800px max-w-90vw"
+    >
+      <div v-if="licenseData" class="space-y-4">
+        <!-- 许可证状态概览 -->
+        <NAlert
+          :type="getLicenseAlertType(licenseData.status)"
+          :title="`许可证状态: ${getLicenseStatusText(licenseData.status)}`"
+          :show-icon="true"
+        >
+          <div class="mt-2">
+            <p v-if="licenseData.message">{{ licenseData.message }}</p>
+            <p v-if="licenseData.daysLeft !== undefined">
+              <span v-if="licenseData.daysLeft >= 0">剩余天数: {{ licenseData.daysLeft }} 天</span>
+              <span v-else class="text-red-500">已过期: {{ Math.abs(licenseData.daysLeft) }} 天</span>
+            </p>
+          </div>
+        </NAlert>
+        
+        <!-- 客户许可证配置 -->
+        <NCard title="客户许可证配置" size="small">
+          <NDescriptions :column="2" size="small">
+            <NDescriptionsItem label="客户ID">{{ licenseData.customerId }}</NDescriptionsItem>
+            <NDescriptionsItem label="客户支持许可证">
+              <NTag :type="licenseData.customerSupportLicense ? 'success' : 'default'">
+                {{ licenseData.customerSupportLicense ? '是' : '否' }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem label="系统许可证启用">
+              <NTag :type="licenseData.systemLicenseEnabled ? 'success' : 'default'">
+                {{ licenseData.systemLicenseEnabled ? '是' : '否' }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem label="系统许可证有效">
+              <NTag :type="licenseData.systemLicenseValid ? 'success' : 'error'">
+                {{ licenseData.systemLicenseValid ? '有效' : '无效' }}
+              </NTag>
+            </NDescriptionsItem>
+          </NDescriptions>
+        </NCard>
+        
+        <!-- 许可证详细信息 -->
+        <NCard v-if="licenseData.licenseInfo" title="许可证详细信息" size="small">
+          <NDescriptions :column="2" size="small">
+            <NDescriptionsItem label="许可证ID">{{ licenseData.licenseInfo.licenseId }}</NDescriptionsItem>
+            <NDescriptionsItem label="客户名称">{{ licenseData.licenseInfo.customer }}</NDescriptionsItem>
+            <NDescriptionsItem label="最大用户数">{{ licenseData.licenseInfo.maxUsers }}</NDescriptionsItem>
+            <NDescriptionsItem label="最大设备数">{{ licenseData.licenseInfo.maxDevices }}</NDescriptionsItem>
+            <NDescriptionsItem label="签发时间">{{ formatDateTime(licenseData.licenseInfo.issueDate) }}</NDescriptionsItem>
+            <NDescriptionsItem label="到期时间">{{ formatDateTime(licenseData.licenseInfo.expirationDate) }}</NDescriptionsItem>
+            <NDescriptionsItem label="授权功能" :span="2">
+              <div class="flex gap-2 flex-wrap">
+                <NTag v-for="feature in licenseData.licenseInfo.features" :key="feature" size="small">
+                  {{ feature }}
+                </NTag>
+              </div>
+            </NDescriptionsItem>
+          </NDescriptions>
+        </NCard>
+        
+        <!-- 许可证文件上传 -->
+        <NCard title="上传新许可证" size="small">
+          <div class="space-y-4">
+            <NUpload
+              :custom-request="uploadLicense"
+              :show-file-list="true"
+              accept=".lic"
+              :max="1"
+              :disabled="licenseUploading"
+            >
+              <NButton :loading="licenseUploading" type="primary" size="small">
+                {{ licenseUploading ? '上传中...' : '选择许可证文件' }}
+              </NButton>
+            </NUpload>
+            <div class="text-sm text-gray-500">
+              <p>• 支持 .lic 格式的许可证文件</p>
+              <p>• 上传新许可证后将自动重新验证</p>
+              <p>• 建议在更新前备份当前配置</p>
+            </div>
+          </div>
+        </NCard>
+      </div>
+    </NModal>
   </div>
 </template>
+
+<script lang="ts">
+// 辅助函数
+function getLicenseAlertType(status: string): 'success' | 'info' | 'warning' | 'error' {
+  switch (status) {
+    case 'VALID': return 'success';
+    case 'WARNING': return 'warning';
+    case 'EXPIRED': return 'error';
+    case 'INVALID': return 'error';
+    case 'DISABLED': return 'info';
+    default: return 'error';
+  }
+}
+
+function getLicenseStatusText(status: string): string {
+  switch (status) {
+    case 'VALID': return '有效';
+    case 'WARNING': return '即将过期';
+    case 'EXPIRED': return '已过期';
+    case 'INVALID': return '无效';
+    case 'DISABLED': return '未启用';
+    case 'ERROR': return '错误';
+    default: return '未知';
+  }
+}
+
+function formatDateTime(dateTime: string | null): string {
+  if (!dateTime) return '-';
+  try {
+    return new Date(dateTime).toLocaleString('zh-CN');
+  } catch {
+    return dateTime;
+  }
+}
+</script>
