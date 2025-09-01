@@ -25,6 +25,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.nio.charset.StandardCharsets;
 import com.ljwx.watch.utils.DataManager;
+import com.ljwx.watch.utils.DataManagerAdapter;
 import ohos.rpc.RemoteException;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -44,8 +45,8 @@ public class HttpService extends Ability {
     private static final HiLogLabel LABEL_LOG = new HiLogLabel(3, 0xD001100, "ljwx-log");
 
 
-    // 数据管理器
-    private DataManager dataManager = DataManager.getInstance();
+    // 数据管理器 - 使用优化的适配器
+    private DataManagerAdapter dataManager = DataManagerAdapter.getInstance();
 
     // 设备管理器
     private DeviceManager deviceManager = null;
@@ -103,6 +104,9 @@ public class HttpService extends Ability {
     private Timer masterHttpTimer; // 统一主定时器
     private long httpTick = 0; // HTTP计数器
     private final int baseHttpPeriod = 5; // 基础周期60秒
+    
+    // 网络状态管理器
+    private com.ljwx.watch.network.NetworkStateManager networkStateManager;
 
     private static String lastHealthInfo;
 
@@ -141,6 +145,9 @@ public class HttpService extends Ability {
         });
 
         healthDataCache = HealthDataCache.getInstance();
+        
+        // 初始化网络状态管理器
+        networkStateManager = com.ljwx.watch.network.NetworkStateManager.getInstance();
     }
 
 
@@ -151,6 +158,9 @@ public class HttpService extends Ability {
         
         // 初始化Utils
         Utils.init(getContext());
+        
+        // 初始化网络状态管理器
+        networkStateManager.initialize(getContext());
         
         // 初始化自定义日志系统
         CustomLogger.info("HttpService::onStart", "启动HTTP服务，初始化自定义日志系统");
@@ -184,7 +194,7 @@ public class HttpService extends Ability {
     }
 
 
-    // 启动定时任务
+    // 启动定时任务 - 集成统一任务调度器
     private void startTimers() {
         HiLog.info(LABEL_LOG, "HttpService::startTimers");
         HiLog.info(LABEL_LOG, "HttpService::startTimers uploadDeviceInterval: " + dataManager.getUploadDeviceInterval());
@@ -193,43 +203,75 @@ public class HttpService extends Ability {
         HiLog.info(LABEL_LOG, "HttpService::startTimers uploadCommonEventInterval: " + dataManager.getUploadCommonEventInterval());
         HiLog.info(LABEL_LOG, "HttpService::startTimers fetchConfigInterval: " + dataManager.getFetchConfigInterval());
 
-        // 统一定时器调度 - 60秒基础周期
-        if ("wifi".equals(dataManager.getUploadMethod())) {
-            masterHttpTimer = new Timer();
-            int uploadHealthInterval = dataManager.getUploadHealthInterval();
-            int uploadDeviceInterval = dataManager.getUploadDeviceInterval();
-            int fetchMessageInterval = dataManager.getFetchMessageInterval();
-            int uploadCommonEventInterval = dataManager.getUploadCommonEventInterval();
-            int fetchConfigInterval = dataManager.getFetchConfigInterval();
-            
-            masterHttpTimer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    httpTick++;
-                    // 上传健康数据 - 每10分钟执行
-                    if (uploadHealthInterval > 0 && httpTick % (uploadHealthInterval / baseHttpPeriod) == 0) {
-                        HiLog.info(LABEL_LOG, "HttpService::masterTimer 执行健康数据批量上传");
-                        uploadHealthData();
-                    }
-                    // 上传设备信息 - 根据配置周期执行
-                    if (uploadDeviceInterval> 0 && httpTick % (uploadDeviceInterval / baseHttpPeriod) == 0) {
-                        uploadDeviceInfo();
-                    }
-                    // 获取消息 - 根据配置周期执行
-                    if (fetchMessageInterval > 0 && httpTick % (fetchMessageInterval / baseHttpPeriod) == 0) {
-                        fetchMessageFromServer();
-                    }
-                    // 缓存数据重传检查 - 每2分钟执行一次
-                    if (httpTick % (120 / baseHttpPeriod) == 0) {
-                        checkAndRetryCachedData();
-                    }
-                    // 防止计数器溢出
-                    if (httpTick >= 1440) httpTick = 0; // 24小时重置
-                }
-            }, 0, baseHttpPeriod * 1000);
-        } else {
-            HiLog.warn(LABEL_LOG, "HttpService::startTimers 非WiFi模式，跳过定时器启动");
+        // 使用统一任务调度器替代独立Timer
+        initializeUnifiedNetworkScheduler();
+    }
+    
+    // 初始化统一网络任务调度器
+    private void initializeUnifiedNetworkScheduler() {
+        if (!"wifi".equals(dataManager.getUploadMethod())) {
+            HiLog.warn(LABEL_LOG, "HttpService::initializeUnifiedNetworkScheduler 非WiFi模式，跳过调度器启动");
+            return;
         }
+        
+        try {
+            com.ljwx.watch.scheduler.UnifiedTaskScheduler taskScheduler = 
+                com.ljwx.watch.scheduler.UnifiedTaskScheduler.getInstance();
+            
+            // 注册网络任务
+            taskScheduler.addTask(new com.ljwx.watch.scheduler.tasks.HealthDataUploadTask());
+            taskScheduler.addTask(new com.ljwx.watch.scheduler.tasks.DeviceStatusTask());
+            taskScheduler.addTask(new com.ljwx.watch.scheduler.tasks.MessageFetchTask());
+            
+            // 启动统一调度器（如果尚未启动）
+            taskScheduler.start(this);
+            
+            HiLog.info(LABEL_LOG, "HttpService::统一网络任务调度器初始化完成");
+            
+        } catch (Exception e) {
+            HiLog.error(LABEL_LOG, "HttpService::统一网络任务调度器初始化失败，使用传统Timer: " + e.getMessage());
+            
+            // 回退到传统Timer模式
+            startLegacyTimerMode();
+        }
+    }
+    
+    // 传统Timer模式（作为回退方案）
+    private void startLegacyTimerMode() {
+        masterHttpTimer = new Timer();
+        int uploadHealthInterval = dataManager.getUploadHealthInterval();
+        int uploadDeviceInterval = dataManager.getUploadDeviceInterval();
+        int fetchMessageInterval = dataManager.getFetchMessageInterval();
+        int uploadCommonEventInterval = dataManager.getUploadCommonEventInterval();
+        int fetchConfigInterval = dataManager.getFetchConfigInterval();
+        
+        HiLog.info(LABEL_LOG, "HttpService::startLegacyTimerMode basePeriod: " + baseHttpPeriod);
+        
+        masterHttpTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                httpTick++;
+                // 上传健康数据 - 每10分钟执行
+                if (uploadHealthInterval > 0 && httpTick % (uploadHealthInterval / baseHttpPeriod) == 0) {
+                    HiLog.info(LABEL_LOG, "HttpService::masterTimer 执行健康数据批量上传");
+                    uploadHealthData();
+                }
+                // 上传设备信息 - 根据配置周期执行
+                if (uploadDeviceInterval> 0 && httpTick % (uploadDeviceInterval / baseHttpPeriod) == 0) {
+                    uploadDeviceInfo();
+                }
+                // 获取消息 - 根据配置周期执行
+                if (fetchMessageInterval > 0 && httpTick % (fetchMessageInterval / baseHttpPeriod) == 0) {
+                    fetchMessageFromServer();
+                }
+                // 缓存数据重传检查 - 每2分钟执行一次
+                if (httpTick % (120 / baseHttpPeriod) == 0) {
+                    checkAndRetryCachedData();
+                }
+                // 防止计数器溢出
+                if (httpTick >= 1440) httpTick = 0; // 24小时重置
+            }
+        }, 0, baseHttpPeriod * 1000);
     }
 
 
@@ -353,10 +395,17 @@ public class HttpService extends Ability {
         }
     }
 
-    // 上传数据（原方法保持不变）
+    // 上传数据（集成网络状态检测）
     private boolean uploadData(String targetUrl, String data) {
         HiLog.info(LABEL_LOG, "HttpService::uploadData :: targetUrl: " + targetUrl);
         CustomLogger.logLongData("HttpService::uploadData", "完整上传数据内容", data);
+        
+        // 智能网络检测
+        if (!networkStateManager.shouldExecuteNetworkTask()) {
+            HiLog.warn(LABEL_LOG, "HttpService::uploadData 网络不可用，跳过上传请求");
+            return false;
+        }
+        
         boolean result = false;
         HttpURLConnection connection = null;
         try {
@@ -417,9 +466,16 @@ public class HttpService extends Ability {
         return result;
     }
 
-    // 从服务器获取数据
+    // 从服务器获取数据（集成网络状态检测）
     private JSONObject fetchDataFromServer(String targetUrl) {
         HiLog.info(LABEL_LOG, "HttpService::fetchDataFromServer :: targetUrl: " + targetUrl);
+        
+        // 智能网络检测
+        if (!networkStateManager.shouldExecuteNetworkTask()) {
+            HiLog.warn(LABEL_LOG, "HttpService::fetchDataFromServer 网络不可用，跳过获取请求");
+            return null;
+        }
+        
         JSONObject result = null;
         try {
             // Check if the server is accessible
