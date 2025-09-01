@@ -32,6 +32,7 @@ import 'package:ljwx_health_new/widgets/bluetooth_status_icon.dart';
 import 'package:ljwx_health_new/theme/app_theme.dart';
 import 'package:ljwx_health_new/services/bluetooth_service.dart';
 import 'package:ljwx_health_new/config/app_config.dart'; // 引入统一配置管理
+import 'package:ljwx_health_new/widgets/enterprise_main_layout.dart';
 import '../global.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -147,8 +148,12 @@ class _HomeScreenState extends State<HomeScreen> {
     print('应该显示管理员功能: ${widget.loginData.isAdmin}');
     
     if (_isLoading && _personalData == null) {
-      return const Scaffold(
-        body: Center(
+      return EnterpriseMainLayout(
+        title: '首页',
+        loginData: widget.loginData,
+        currentRoute: '/home',
+        showBottomNavigation: false,
+        child: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -162,8 +167,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (_error != null) {
-      return Scaffold(
-        body: Center(
+      return EnterpriseMainLayout(
+        title: '首页',
+        loginData: widget.loginData,
+        currentRoute: '/home',
+        showBottomNavigation: false,
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -182,62 +191,38 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (_personalData == null) {
-      return const Scaffold(
-        body: Center(
+      return EnterpriseMainLayout(
+        title: '首页',
+        loginData: widget.loginData,
+        currentRoute: '/home',
+        showBottomNavigation: false,
+        child: const Center(
           child: Text(AppText.noData),
         ),
       );
     }
 
-    final theme = Theme.of(context);
-    final customName = _getCustomerName();
+    // 计算通知数量
+    int notificationCount = 0;
+    if (_personalData?.alertInfo?.alerts.isNotEmpty == true) {
+      notificationCount += _personalData!.alertInfo!.alerts.length;
+    }
+    if (_personalData?.messageInfo?.messages.isNotEmpty == true) {
+      notificationCount += _personalData!.messageInfo!.messages.length;
+    }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              customerName,
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (customName.isNotEmpty)
-              Text(
-                customName,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
-                ),
-              ),
-          ],
-        ),
-        centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: BluetoothStatusIcon(
-              onTap: uploadMethod == 'wifi' ? null : () => context.push('/bluetooth'),
-            ),
-          ),
-          // 管理员功能按钮 #管理员入口
-          if (widget.loginData.isAdmin)
-            IconButton(
-              icon: Icon(Icons.admin_panel_settings_rounded, 
-                       color: theme.brightness == Brightness.dark ? Colors.orange : Colors.orange[700]),
-              tooltip: '管理后台',
-              onPressed: () => _openAdminPanel(),
-            ),
-          IconButton(
-            icon: Icon(Icons.settings_rounded, 
-                     color: theme.brightness == Brightness.dark ? Colors.white70 : Colors.grey[700]),
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
+    return EnterpriseMainLayout(
+      title: widget.loginData.isAdmin ? '管理总览' : '健康首页',
+      loginData: widget.loginData,
+      currentRoute: '/home',
+      notificationCount: notificationCount > 0 ? notificationCount : null,
+      showSearchBar: true,
+      searchHint: '搜索健康数据、设备、告警...',
+      onSearchChanged: (value) {
+        // TODO: 实现搜索功能
+        print('搜索: $value');
+      },
+      child: RefreshIndicator(
         onRefresh: _fetchPersonalInfo,
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -298,7 +283,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-    );
   }
 
   Widget _buildAnimatedCard(Widget child, int index, {VoidCallback? onTap}) =>
