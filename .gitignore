@@ -1,6 +1,16 @@
 # ==============================================================================
 # 根目录 .gitignore - 统一忽略规则
 # ==============================================================================
+#
+# 重要提醒：确保以下业务功能目录不被忽略：
+# ✅ ljwx-phone/lib/          - Flutter应用核心代码
+# ✅ ljwx-watch/entry/src/    - 手表应用源代码  
+# ✅ ljwx-boot/src/          - Spring Boot后端代码
+# ✅ ljwx-admin/src/         - 管理前端源代码
+# ✅ ljwx-bigscreen/bigscreen/ - 大屏应用核心逻辑（除日志外）
+# ✅ docs/                   - 项目文档
+#
+# ==============================================================================
 
 # ================================
 # 大文件和数据库相关
@@ -39,13 +49,22 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
+# Python特定的build目录，不影响其他项目的build配置
+**/venv/build/
+**/env/build/
+**/.venv/build/
 develop-eggs/
-dist/
+# Python特定的dist目录，不影响其他项目的打包输出
+**/venv/dist/
+**/env/dist/
+**/.venv/dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# Python特定的lib目录，不影响Flutter等其他技术栈的lib目录
+**/venv/lib/
+**/env/lib/
+**/.venv/lib/
 lib64/
 parts/
 sdist/
@@ -114,9 +133,10 @@ Thumbs.db
 cache/
 .cache/
 
-# 静态资源构建输出 (太大)
-static/
-uploads/
+# 只忽略用户上传内容和构建输出，不忽略源码中的静态资源
+**/uploads/
+# 仅忽略bigscreen的静态资源输出目录
+ljwx-bigscreen/bigscreen/static/
 
 # 性能测试和监控数据
 performance_*.json
