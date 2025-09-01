@@ -105,3 +105,22 @@ static/
 # OS 文件
 .DS_Store
 Thumbs.db
+
+# ================================
+# Python 虚拟环境和包
+# ================================
+# 虚拟环境目录和相关文件
+bigscreen/bigScreen/lib/
+bigscreen/bigScreen/bin/
+bigscreen/bigScreen/include/
+bigscreen/bigScreen/pyvenv.cfg
+bigscreen/lib/
+bigscreen/bin/
+bigscreen/pyvenv.cfg
+
+# Pip 包目录
+site-packages/
+
+# 其他虚拟环境标识
+pip-selfcheck.json
+share/

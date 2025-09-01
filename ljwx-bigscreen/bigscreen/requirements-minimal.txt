@@ -1,0 +1,9 @@
+redis
+flask
+flask-cors
+requests
+PyMySQL
+flask-socketio
+python-dotenv
+psutil
+schedule

@@ -1,0 +1,29 @@
+# 最小化构建版本 - 使用预编译轮子
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# 只配置pip源，不安装系统依赖
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip config set install.trusted-host mirrors.aliyun.com
+
+# 简化的Python依赖列表 - 只包含核心依赖
+COPY requirements-minimal.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制应用代码
+COPY . .
+
+# 设置环境变量
+ENV MYSQL_HOST=host.docker.internal \
+    MYSQL_PORT=3306 \
+    REDIS_HOST=host.docker.internal \
+    REDIS_PORT=6379 \
+    PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1
+
+# 暴露端口
+EXPOSE 5001
+
+# 启动命令
+CMD ["python3", "run.py"]

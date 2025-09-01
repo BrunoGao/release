@@ -1,7 +1,7 @@
 from flask import jsonify, render_template, request, Response
 from .models import UserInfo, UserOrg, OrgInfo, DeviceInfo, AlertInfo, Position, UserPosition, db
 from .redis_helper import RedisHelper
-from .tenant_context import with_tenant_context, get_current_customer_id, filter_by_tenant
+# tenant_context removed - customerId now passed as parameter
 import json  # Import json module
 
 import os
@@ -34,10 +34,9 @@ def get_user_info(deviceSn):
     else:
         return "No user found"
 
-@with_tenant_context
 def get_all_users():
     # Retrieve all users from the database with tenant filtering
-    customer_id = get_current_customer_id()
+    customer_id = request.args.get('customerId', 0, type=int)
     
     if customer_id == 0:
         # 超级管理员，查看所有用户
@@ -177,12 +176,11 @@ def get_user_info_by_orgIdAndUserId(orgId=None, userId=None, customer_id=None): 
         from .redis_helper import RedisHelper
         from .models import db  # 在函数开始就导入db，避免局部变量问题
         from .admin_helper import admin_helper  # 导入admin判断工具
-        from .tenant_context import get_current_customer_id
         import json
         
-        # 确保有租户上下文
+        # 确保有customer_id参数
         if customer_id is None:
-            customer_id = get_current_customer_id()
+            customer_id = request.args.get('customerId', 0, type=int)
         
         redis = RedisHelper()
         cache_key = f"user_info_ultra_fast:{orgId}:{userId}:{customer_id}"

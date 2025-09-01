@@ -2,7 +2,7 @@ import logging
 from flask import jsonify, session, request, abort, json
 from werkzeug.exceptions import NotFound
 from .models import db, OrgInfo, UserOrg, UserInfo, Position, UserPosition, DeviceInfo
-from .tenant_context import with_tenant_context, get_current_customer_id
+# tenant_context removed - customerId now passed as parameter
 from collections import defaultdict
 from sqlalchemy import text
 
@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 def fetch_departments_by_orgId(org_id, customer_id=None):
     """递归获取组织下的所有部门信息，包括当前组织，支持多租户隔离 - 统一优化版本"""
     try:
-        # 如果没有提供customer_id，尝试获取
+        # 如果没有提供customer_id，尝试从请求获取
         if customer_id is None:
             try:
-                customer_id = get_current_customer_id()
+                customer_id = request.args.get('customerId', 0, type=int)
             except RuntimeError:
                 # 在没有Flask上下文时，使用默认值0
                 customer_id = 0
@@ -59,7 +59,7 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
     try:
         if customer_id is None:
             try:
-                customer_id = get_current_customer_id()
+                customer_id = request.args.get('customerId', 0, type=int)
             except RuntimeError:
                 # 在没有Flask上下文时，使用默认值0
                 customer_id = 0
