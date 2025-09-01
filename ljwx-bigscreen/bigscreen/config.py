@@ -114,3 +114,36 @@ HEALTH_DATA_RANGES = {
     'longitude': (114.0, 114.3),  # 经度范围(深圳)
     'stress': (30, 80),  # 压力值范围
 }
+
+# Redis URL配置 - 支持Redis 8.x认证
+REDIS_URL = f"redis://default:{quote_plus(REDIS_PASSWORD)}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
+# SQLAlchemy连接字符串
+SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{MYSQL_USER}:{quote_plus(MYSQL_PASSWORD)}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4"
+
+class Config:
+    """应用配置类"""
+    # 数据库配置
+    SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Redis配置
+    REDIS_URL = REDIS_URL
+    REDIS_HOST = REDIS_HOST
+    REDIS_PORT = REDIS_PORT
+    REDIS_DB = REDIS_DB
+    REDIS_PASSWORD = REDIS_PASSWORD
+    
+    # 应用配置
+    APP_HOST = APP_HOST
+    APP_PORT = APP_PORT
+    DEBUG = DEBUG
+    
+    # 微信配置
+    WECHAT_APP_ID = WECHAT_APP_ID
+    WECHAT_APP_SECRET = WECHAT_APP_SECRET
+    WECHAT_ALERT_ENABLED = WECHAT_ALERT_ENABLED
+    
+    # 性能配置
+    PERFORMANCE_CONFIG = PERFORMANCE_CONFIG
+    DB_POOL_CONFIG = DB_POOL_CONFIG

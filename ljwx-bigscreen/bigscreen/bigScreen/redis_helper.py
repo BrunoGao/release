@@ -51,11 +51,22 @@ class RedisHelper:
             return None
 
     def hset_data(self, key, mapping):
-        """设置哈希数据（带异常处理）"""
+        """设置哈希数据（带异常处理和NoneType安全处理）"""
         try:
-            return self.client.hset(key, mapping=mapping)
+            # 🔧 修复：过滤和转换NoneType值
+            safe_mapping = {}
+            for k, v in mapping.items():
+                if v is not None:
+                    if isinstance(v, (str, int, float, bytes)):
+                        safe_mapping[k] = v
+                    else:
+                        safe_mapping[k] = str(v)  # 转换为字符串
+                else:
+                    safe_mapping[k] = ''  # None值转为空字符串
+            
+            return self.client.hset(key, mapping=safe_mapping)
         except Exception as e:
-            logging.warning(f"Redis hset_data 失败: {e}")
+            logging.warning(f"Redis hset_data 失败: {e}：")
             return False
 
     def hgetall_data(self, key):

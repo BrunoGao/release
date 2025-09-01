@@ -78,6 +78,16 @@ db.init_app(app)
 # 注册蓝图
 app.register_blueprint(config_bp, url_prefix='/api')
 
+# 注册健康系统API蓝图
+try:
+    from .health_api import health_api
+    app.register_blueprint(health_api)
+    system_logger.info("✅ 健康系统API模块加载成功")
+except ImportError as e:
+    system_logger.warning(f"⚠️  健康系统API模块加载失败: {e}")
+except Exception as e:
+    system_logger.error(f"❌ 健康系统API模块加载异常: {e}")
+
 # 实时统计API - 直接添加到app而不是蓝图
 @app.route('/api/realtime_stats', methods=['GET'])
 def get_realtime_stats():
@@ -4098,6 +4108,27 @@ if __name__ == "__main__":
             from .health_baseline_scheduler import init_health_baseline_scheduler
             scheduler = init_health_baseline_scheduler(app)
             print("🏥健康基线调度器已初始化")
+        except Exception as e:
+            print(f"⚠️健康基线调度器初始化失败:{e}")
+        
+        # 初始化健康系统缓存服务
+        try:
+            import asyncio
+            from .health_cache_service import health_cache_service
+            
+            # 创建异步任务初始化缓存服务
+            async def init_health_cache():
+                await health_cache_service.initialize()
+                print("💾健康数据缓存服务已初始化")
+            
+            # 在新的事件循环中运行初始化
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(init_health_cache())
+            loop.close()
+            
+        except Exception as e:
+            print(f"⚠️健康缓存服务初始化失败:{e}")
             print("📅 定时任务配置:")
             print("  - 每日02:00 生成个人健康基线")
             print("  - 每日03:00 生成组织健康基线")

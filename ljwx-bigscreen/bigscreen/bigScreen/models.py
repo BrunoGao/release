@@ -1121,3 +1121,4 @@ class HealthRecommendationTrack(db.Model):
             'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None,
             'is_deleted': self.is_deleted
         }
+

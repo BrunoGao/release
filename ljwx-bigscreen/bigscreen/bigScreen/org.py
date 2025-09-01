@@ -28,21 +28,31 @@ def fetch_departments_by_orgId(org_id, customer_id=None):
                 customer_id = 0
                 logger.warning("无Flask上下文，使用默认customer_id=0")
         
-        # 使用统一组织服务
+        # 🔧 修复：增加统一服务可用性检查
         org_service = get_unified_org_service()
-        result = org_service.get_org_tree(org_id, customer_id)
+        if org_service is None:
+            logger.warning(f"统一组织服务不可用，回退到legacy方法")
+            return fetch_departments_by_orgId_legacy(org_id, customer_id)
         
-        if result.get('success'):
-            logger.info(f"使用统一服务成功获取组织{org_id}的部门树")
+        try:
+            result = org_service.get_org_tree(org_id, customer_id)
             
-        return result
+            # 🔧 修复：验证结果有效性
+            if not result or not result.get('success'):
+                logger.warning(f"统一服务返回无效结果，回退到legacy方法")
+                return fetch_departments_by_orgId_legacy(org_id, customer_id)
+                
+            logger.info(f"使用统一服务成功获取组织{org_id}的部门树")
+            return result
+            
+        except Exception as service_error:
+            logger.error(f"统一服务调用失败: {service_error}，回退到legacy方法")
+            return fetch_departments_by_orgId_legacy(org_id, customer_id)
             
     except Exception as e:
         logger.error(f"Error in fetch_departments_by_orgId: {str(e)}")
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        # 🔧 修复：最终回退到legacy方法
+        return fetch_departments_by_orgId_legacy(org_id, customer_id)
 
 def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
     """原始递归查询方式 - 作为回退方案"""
@@ -123,17 +133,48 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
 
 
 def fetch_users_by_orgId(org_id, customer_id=None):
-    """获取组织及其所有子部门下的用户信息，支持多租户隔离"""
+    """获取组织及其所有子部门下的用户信息，支持多租户隔离 - 增强回退版本"""
     try:
         from .admin_helper import admin_helper  # 导入admin判断工具
         
-        # 获取组织及其所有子部门
+        # 🔧 修复：增加多重查询策略
+        # 方法1：使用统一服务查询部门
         org_response = fetch_departments_by_orgId(org_id, customer_id)
+        if not org_response.get('success'):
+            logger.warning(f"统一服务查询部门失败，尝试直接数据库查询用户")
+            return fetch_users_by_orgId_direct(org_id, customer_id)
+        
+        # 方法2：基于部门结果查询用户
+        users = _fetch_users_from_departments(org_response, org_id, customer_id)
+        if users and len(users) > 0:
+            logger.info(f"基于部门树查询成功: 组织{org_id}找到{len(users)}个用户")
+            return users
+            
+        # 方法3：直接数据库查询（绕过统一服务）
+        logger.warning(f"部门树查询无用户结果，尝试直接数据库查询")
+        users_direct = fetch_users_by_orgId_direct(org_id, customer_id)
+        if users_direct and len(users_direct) > 0:
+            logger.info(f"直接数据库查询成功: 组织{org_id}找到{len(users_direct)}个用户")
+            return users_direct
+            
+        # 方法4：扩大查询范围（包含子组织）
+        logger.warning(f"直接查询也无结果，尝试查询子组织")
+        users_expanded = fetch_users_with_descendants(org_id, customer_id)
+        logger.info(f"扩展查询结果: 组织{org_id}及子组织找到{len(users_expanded)}个用户")
+        return users_expanded
+        
+    except Exception as e:
+        logger.error(f"所有用户查询方法均失败: {str(e)}")
+        return []
+
+def _fetch_users_from_departments(org_response, org_id, customer_id):
+    """基于部门树结果查询用户"""
+    try:
+        from .admin_helper import admin_helper
+        
+        # 获取组织及其所有子部门
         #logger.info(f"fetch_users_by_orgId:org_response: {org_response}")
         #print("fetch_users_by_orgId:org_response:", org_response)
-        if not org_response.get('success'):
-            logger.error(f"Failed to fetch departments for org {org_id}")
-            return []
 
         # 收集所有部门ID（包括子部门）
         department_ids = set()
@@ -143,7 +184,7 @@ def fetch_users_by_orgId(org_id, customer_id=None):
                 collect_dept_ids(child)
 
         # 处理根组织
-        department_ids.add(org_id)
+        department_ids.add(str(org_id))
         # 处理所有子部门
         for dept in org_response.get('data', []):
             collect_dept_ids(dept)
@@ -204,9 +245,156 @@ def fetch_users_by_orgId(org_id, customer_id=None):
         print(f"After filtering admin users: {len(filtered_user_list)} employee users remaining")
         
         return filtered_user_list
-
+        
     except Exception as e:
-        print(f"Error in fetch_users_by_orgId: {str(e)}")
+        logger.error(f"Error in _fetch_users_from_departments: {str(e)}")
+        return []
+
+def fetch_users_by_orgId_direct(org_id, customer_id=None):
+    """直接数据库查询用户（绕过服务层）"""
+    try:
+        from .admin_helper import admin_helper
+        
+        # 直接查询，不依赖组织服务
+        users = db.session.query(
+            UserInfo, UserOrg, OrgInfo
+        ).join(
+            UserOrg, UserInfo.id == UserOrg.user_id
+        ).join(
+            OrgInfo, UserOrg.org_id == OrgInfo.id
+        ).filter(
+            UserOrg.org_id == org_id,
+            UserInfo.is_deleted.is_(False),
+            UserInfo.status == '1'
+        )
+        
+        if customer_id is not None:
+            users = users.filter(UserInfo.customer_id == customer_id)
+        
+        users_result = users.all()
+        
+        # 格式化返回结果
+        user_list = []
+        for user_info, user_org, org_info in users_result:
+            # 获取职位信息
+            position_info = db.session.query(Position.name).join(
+                UserPosition, Position.id == UserPosition.position_id
+            ).filter(UserPosition.user_id == user_info.id).first()
+            
+            position_name = position_info.name if position_info else None
+            
+            user_list.append({
+                'id': str(user_info.id),
+                'user_name': user_info.user_name,
+                'nick_name': user_info.nick_name,
+                'real_name': user_info.real_name,
+                'email': user_info.email,
+                'phone': user_info.phone,
+                'avatar': user_info.avatar,
+                'user_card_number': user_info.user_card_number,
+                'device_sn': user_info.device_sn,
+                'customer_id': user_info.customer_id,
+                'status': user_info.status,
+                'department_id': org_info.id,
+                'department_name': org_info.name,
+                'create_time': user_info.create_time.strftime('%Y-%m-%d %H:%M:%S') if user_info.create_time else None,
+                'update_time': user_info.update_time.strftime('%Y-%m-%d %H:%M:%S') if user_info.update_time else None,
+                'working_years': user_info.working_years,
+                'position': position_name
+            })
+        
+        # 过滤掉管理员用户，只返回员工
+        filtered_user_list = admin_helper.filter_non_admin_users(user_list, 'id')
+        logger.info(f"直接数据库查询: 组织{org_id}找到{len(filtered_user_list)}个员工用户")
+        
+        return filtered_user_list
+        
+    except Exception as e:
+        logger.error(f"直接数据库查询用户失败: {str(e)}")
+        return []
+
+def fetch_users_with_descendants(org_id, customer_id=None):
+    """查询组织及其所有子组织的用户（扩展查询）"""
+    try:
+        from .admin_helper import admin_helper
+        
+        # 查询所有可能的子组织
+        descendant_orgs = db.session.query(OrgInfo.id).filter(
+            OrgInfo.is_deleted == 0,
+            db.or_(
+                OrgInfo.id == org_id,
+                OrgInfo.parent_id == org_id,
+                OrgInfo.ancestors.like(f'%,{org_id},%') if hasattr(OrgInfo, 'ancestors') else True
+            )
+        ).all()
+        
+        org_ids = [org.id for org in descendant_orgs]
+        
+        if not org_ids:
+            # 如果没有找到子组织，至少查询当前组织
+            org_ids = [org_id]
+        
+        # 查询这些组织下的所有用户
+        users = db.session.query(
+            UserInfo, UserOrg, OrgInfo
+        ).join(
+            UserOrg, UserInfo.id == UserOrg.user_id
+        ).join(
+            OrgInfo, UserOrg.org_id == OrgInfo.id
+        ).filter(
+            UserOrg.org_id.in_(org_ids),
+            UserInfo.is_deleted.is_(False),
+            UserInfo.status == '1'
+        )
+        
+        if customer_id is not None:
+            users = users.filter(UserInfo.customer_id == customer_id)
+        
+        users_result = users.all()
+        
+        # 使用字典来存储唯一的用户信息
+        user_dict = {}
+        for user_info, user_org, org_info in users_result:
+            user_id = str(user_info.id)
+            if user_id not in user_dict:
+                # 获取职位信息
+                position_info = db.session.query(Position.name).join(
+                    UserPosition, Position.id == UserPosition.position_id
+                ).filter(UserPosition.user_id == user_info.id).first()
+                
+                position_name = position_info.name if position_info else None
+                
+                user_dict[user_id] = {
+                    'id': user_id,
+                    'user_name': user_info.user_name,
+                    'nick_name': user_info.nick_name,
+                    'real_name': user_info.real_name,
+                    'email': user_info.email,
+                    'phone': user_info.phone,
+                    'avatar': user_info.avatar,
+                    'user_card_number': user_info.user_card_number,
+                    'device_sn': user_info.device_sn,
+                    'customer_id': user_info.customer_id,
+                    'status': user_info.status,
+                    'department_id': org_info.id,
+                    'department_name': org_info.name,
+                    'create_time': user_info.create_time.strftime('%Y-%m-%d %H:%M:%S') if user_info.create_time else None,
+                    'update_time': user_info.update_time.strftime('%Y-%m-%d %H:%M:%S') if user_info.update_time else None,
+                    'working_years': user_info.working_years,
+                    'position': position_name
+                }
+        
+        # 将字典转换为列表
+        user_list = list(user_dict.values())
+        
+        # 过滤掉管理员用户，只返回员工
+        filtered_user_list = admin_helper.filter_non_admin_users(user_list, 'id')
+        logger.info(f"扩展查询: 组织{org_id}及子组织找到{len(filtered_user_list)}个员工用户")
+        
+        return filtered_user_list
+        
+    except Exception as e:
+        logger.error(f"扩展查询用户失败: {str(e)}")
         return []
 
 def getCustomers():

@@ -4943,7 +4943,15 @@
         function loadHealthData() {
             console.log('📊 加载实时健康数据...');
             
-            fetch(`/get_personal_info?deviceSn=${deviceSn}`)
+            fetch(`/api/health/profile/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                deviceSn: deviceSn,
+                includeHealthData: true,
+                includeUserInfo: true
+            })
+        })
                 .then(response => response.json())
                 .then(result => {
                     if (result.success && result.data) {
@@ -5753,7 +5761,15 @@
         function loadHistoryChart() {
             console.log('📈 加载历史数据图表...');
             
-            fetch(`/api/personal/health_history?deviceSn=${deviceSn}&timeRange=${currentTimeRange}`)
+            fetch(`/api/health/baseline/personal`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    deviceSn: deviceSn,
+                    timeRange: currentTimeRange,
+                    chartType: 'history'
+                })
+            })
                 .then(response => response.json())
                 .then(result => {
                     if (result.success) {

@@ -2060,7 +2060,16 @@
                 const endDate = formatDate(today);
                 
                 // 调用接口获取健康评分数据
-                fetch(`/health_data/score?orgId=${customerId}&startDate=${startDate}&endDate=${endDate}`)
+                fetch(`/api/health/score/comprehensive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orgId: customerId,
+                startDate: startDate,
+                endDate: endDate,
+                includeFactors: true
+            })
+        })
                     .then(response => response.json())
                     .then(result => {
                         if (result.success && result.data && result.data.healthScores) {
@@ -3690,7 +3699,16 @@ function getPastDateStr(daysAgo) {
       const startDate = formatDate(yesterday);
       const endDate = formatDate(today);
       
-      fetch(`/health_data/score?orgId=${customerId}&startDate=${startDate}&endDate=${endDate}`)
+      fetch(`/api/health/score/comprehensive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              orgId: customerId,
+              startDate: startDate,
+              endDate: endDate,
+              includeFactors: true
+          })
+      })
           .then(response => response.json())
           .then(result => {
               if (result.success && result.data && result.data.healthScores) {
@@ -7078,7 +7096,15 @@ div.innerHTML=`
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const customerId = urlParams.get('customerId') || '1';
-            const scoreResponse = await fetch(`/api/health/scores?customerId=${customerId}&${deviceSns.map(sn => `deviceSns=${sn}`).join('&')}`);
+            const scoreResponse = await fetch(`/api/health/score/comprehensive`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerId: customerId,
+                    deviceSns: deviceSns,
+                    includeDeviceBreakdown: true
+                })
+            });
             
             if (scoreResponse.ok) {
                 const scoreData = await scoreResponse.json();
