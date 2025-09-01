@@ -52,7 +52,7 @@ public class ComprehensiveApiTest extends BaseApiTest {
             new ApiTestCase("设备信息管理", 
                 TestConfig.DEVICE_API + "/page?page=1&pageSize=20&orgId=0&customerId=0"),
             new ApiTestCase("设备用户关联", 
-                TestConfig.DEVICE_USER_API + "/page?page=1&pageSize=20&departmentInfo=0&customerId=0"),
+                TestConfig.DEVICE_USER_API + "/page?page=1&pageSize=20&orgId=0&customerId=0"),
             new ApiTestCase("告警信息", 
                 TestConfig.ALERT_API + "/page?page=1&pageSize=20&customerId=0"),
             new ApiTestCase("告警规则", 
@@ -64,11 +64,11 @@ public class ComprehensiveApiTest extends BaseApiTest {
             new ApiTestCase("微信公众号配置", 
                 TestConfig.WECHAT_CONFIG_API + "/page?page=1&pageSize=20&customerId=0&type=official"),
             new ApiTestCase("设备消息", 
-                TestConfig.MESSAGE_API + "/page?page=1&pageSize=20&departmentInfo=0&customerId=0"),
+                TestConfig.MESSAGE_API + "/page?page=1&pageSize=20&orgId=0&customerId=0"),
             new ApiTestCase("健康数据配置页", 
-                TestConfig.HEALTH_CONFIG_API + "/page?customerId=0&departmentInfo=&page=1&pageSize=20"),
+                TestConfig.HEALTH_CONFIG_API + "/page?customerId=0&orgId=&page=1&pageSize=20"),
             new ApiTestCase("用户健康数据", 
-                TestConfig.HEALTH_DATA_API + "/getUserHealthData?customerId=0&departmentInfo=&userId=&startDate=1756569600000&endDate=1756655999999&timeType=day&dataType=heart_rate")
+                TestConfig.HEALTH_DATA_API + "/getUserHealthData?customerId=0&orgId=&userId=&startDate=1756569600000&endDate=1756655999999&timeType=day&dataType=heart_rate")
         );
         
         // 租户管理员测试用例（使用具体customerId）
@@ -92,7 +92,7 @@ public class ComprehensiveApiTest extends BaseApiTest {
             new ApiTestCase("租户设备管理", 
                 TestConfig.DEVICE_API + "/page?page=1&pageSize=20&orgId=0&customerId={customerId}"),
             new ApiTestCase("租户设备用户", 
-                TestConfig.DEVICE_USER_API + "/page?page=1&pageSize=20&departmentInfo=0&customerId={customerId}"),
+                TestConfig.DEVICE_USER_API + "/page?page=1&pageSize=20&orgId=0&customerId={customerId}"),
             new ApiTestCase("租户告警信息", 
                 TestConfig.ALERT_API + "/page?page=1&pageSize=20&customerId={customerId}"),
             new ApiTestCase("租户告警规则", 
@@ -100,9 +100,9 @@ public class ComprehensiveApiTest extends BaseApiTest {
             new ApiTestCase("租户微信配置", 
                 TestConfig.WECHAT_CONFIG_API + "/page?page=1&pageSize=20&customerId={customerId}&type=enterprise"),
             new ApiTestCase("租户消息管理", 
-                TestConfig.MESSAGE_API + "/page?page=1&pageSize=20&departmentInfo=0&customerId={customerId}"),
+                TestConfig.MESSAGE_API + "/page?page=1&pageSize=20&orgId=0&customerId={customerId}"),
             new ApiTestCase("租户健康数据", 
-                TestConfig.HEALTH_DATA_API + "/getUserHealthData?customerId={customerId}&departmentInfo=&userId=&startDate=1756569600000&endDate=1756655999999&timeType=day&dataType=heart_rate")
+                TestConfig.HEALTH_DATA_API + "/getUserHealthData?customerId={customerId}&orgId=&userId=&startDate=1756569600000&endDate=1756655999999&timeType=day&dataType=heart_rate")
         );
     }
     

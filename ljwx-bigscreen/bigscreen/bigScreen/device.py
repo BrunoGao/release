@@ -102,7 +102,13 @@ def upload_device_info_sync(device_info):
             status = data.get("status")
             timestamp = data.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
+            # 提取客户信息字段 - 优先使用直接传递的参数
+            customerId = data.get("customer_id")
+            orgId = data.get("org_id") 
+            userId = data.get("user_id")
+            
             print(f"🔍 解析的关键字段: serial_number={serial_number}, battery_level={data.get('batteryLevel')}, wearable_status={wearable_status}, charging_status={data.get('chargingStatus')}")
+            print(f"🔍 客户信息: customerId={customerId}, orgId={orgId}, userId={userId}")
             
             if str(timestamp).isdigit() and len(str(timestamp))==13:
                 # 将毫秒时间戳转换为北京时间
@@ -118,8 +124,22 @@ def upload_device_info_sync(device_info):
             else:charging_status = "UNKNOWN"
             is_deleted = 0
             
+            # 如果没有直接传递用户信息，通过deviceSn查询获取（兼容旧版本）
+            if not customerId or not orgId or not userId:
+                print(f"🔍 客户信息不完整，通过deviceSn查询获取: customerId={customerId}, orgId={orgId}, userId={userId}")
+                device_info_dict = fetch_customer_id_by_deviceSn(serial_number)
+                if isinstance(device_info_dict, dict):
+                    # 使用新版本返回的字典格式
+                    customerId = customerId or device_info_dict.get('customer_id')
+                    orgId = orgId or device_info_dict.get('org_id') 
+                    userId = userId or device_info_dict.get('user_id')
+                else:
+                    # 兼容旧版本返回的字符串格式
+                    customerId = customerId or device_info_dict
+                print(f"🔍 补充后的客户信息: customerId={customerId}, orgId={orgId}, userId={userId}")
+
             print(f"✅ 准备保存设备信息: SN={serial_number}, 电池={battery_level}%, 佩戴状态={wearable_status}, 充电状态={charging_status}")
-            save_device_info(system_software_version, wifi_address, bluetooth_address, ip_address, network_access_mode, serial_number, device_name, imei, battery_level, charging_status, wearable_status, status, update_time, is_deleted, timestamp, voltage)
+            save_device_info(system_software_version, wifi_address, bluetooth_address, ip_address, network_access_mode, serial_number, device_name, imei, battery_level, charging_status, wearable_status, status, update_time, is_deleted, timestamp, voltage, customerId, orgId, userId)
             print(f"✅ 设备信息同步处理完成: {serial_number}")
             return {"status": "success", "message": f"设备 {serial_number} 信息已同步处理"}
         except Exception as e:
@@ -162,7 +182,7 @@ def upload_device_info_sync(device_info):
         else:
             return jsonify(result), 500
 
-def save_device_info(system_software_version, wifi_address, bluetooth_address, ip_address, network_access_mode, serial_number, device_name, imei, battery_level, charging_status, wearable_status, status, update_time, is_deleted, timestamp, voltage):
+def save_device_info(system_software_version, wifi_address, bluetooth_address, ip_address, network_access_mode, serial_number, device_name, imei, battery_level, charging_status, wearable_status, status, update_time, is_deleted, timestamp, voltage, customerId=None, orgId=None, userId=None):
     print(f"💾 开始保存设备信息到数据库: SN={serial_number}")
     try:
         d=DeviceInfo.query.filter_by(serial_number=serial_number).first()# 查找设备#
@@ -171,7 +191,7 @@ def save_device_info(system_software_version, wifi_address, bluetooth_address, i
             d=DeviceInfo(serial_number=serial_number)# 新建#
         else:
             print(f"💾 更新现有设备记录: {serial_number}")
-        d.system_software_version=system_software_version;d.wifi_address=wifi_address;d.bluetooth_address=bluetooth_address;d.ip_address=ip_address;d.network_access_mode=network_access_mode;d.device_name=device_name;d.imei=imei;d.battery_level=battery_level;d.charging_status=charging_status;d.wearable_status=wearable_status;d.status=status;d.update_time=update_time;d.is_deleted=is_deleted;d.voltage=voltage;d.timestamp=timestamp# 字段赋值#
+        d.system_software_version=system_software_version;d.wifi_address=wifi_address;d.bluetooth_address=bluetooth_address;d.ip_address=ip_address;d.network_access_mode=network_access_mode;d.device_name=device_name;d.imei=imei;d.battery_level=battery_level;d.charging_status=charging_status;d.wearable_status=wearable_status;d.status=status;d.update_time=update_time;d.is_deleted=is_deleted;d.voltage=voltage;d.timestamp=timestamp;d.customer_id=customerId;d.org_id=orgId;d.user_id=userId# 字段赋值#
         db.session.add(d);db.session.commit()# 更新或插入DeviceInfo#
         print(f"✅ DeviceInfo表更新成功: {serial_number}")
         h=DeviceInfoHistory(serial_number=serial_number,system_software_version=system_software_version,ip_address=ip_address,network_access_mode=network_access_mode,battery_level=battery_level,charging_status=charging_status,wearable_status=wearable_status,status=status,update_time=update_time,is_deleted=is_deleted,voltage=voltage,timestamp=timestamp)# 新建历史#
@@ -229,6 +249,7 @@ def fetch_device_info(serial_number):
     return None
 
 def fetch_customer_id_by_deviceSn(deviceSn):
+    """根据设备序列号获取完整的客户信息(customer_id, org_id, user_id)"""
     try:
         result = (
             db.session.query(UserInfo, UserOrg, OrgInfo)
@@ -242,7 +263,8 @@ def fetch_customer_id_by_deviceSn(deviceSn):
                 (UserOrg.org_id == OrgInfo.id) & (OrgInfo.is_deleted.is_(False))
             )
             .filter(
-                UserInfo.device_sn == deviceSn
+                UserInfo.device_sn == deviceSn,
+                UserInfo.is_deleted.is_(False)
             )
             .first()
         )
@@ -250,25 +272,42 @@ def fetch_customer_id_by_deviceSn(deviceSn):
         print("fetch_customer_id_by_deviceSn:result:", result)
 
         if not result:
-            return '0'
+            return {
+                'customer_id': '0',
+                'org_id': None,
+                'user_id': None
+            }
 
         user_info, user_org, org_info = result
         
-        # 处理祖先组织
-        if not org_info.ancestors:
-            return str(org_info.id)
-
-        # 分割并查找第一个非零值
-        ancestor_ids = org_info.ancestors.split(',')
-        for ancestor_id in ancestor_ids:
-            if ancestor_id and ancestor_id != '0':
-                return str(ancestor_id)
+        # 获取用户ID和直属组织ID
+        user_id = user_info.id
+        org_id = user_org.org_id
         
-        return str(org_info.id)
+        # 处理祖先组织获取customer_id
+        customer_id = str(org_info.id)  # 默认使用当前组织ID
+        
+        if org_info.ancestors:
+            # 分割并查找第一个非零值作为customer_id
+            ancestor_ids = org_info.ancestors.split(',')
+            for ancestor_id in ancestor_ids:
+                if ancestor_id and ancestor_id != '0':
+                    customer_id = str(ancestor_id)
+                    break
+        
+        return {
+            'customer_id': customer_id,
+            'org_id': org_id,
+            'user_id': user_id
+        }
 
     except Exception as e:
         print(f"Error in fetch_customer_id_by_deviceSn: {e}")
-        return '0'
+        return {
+            'customer_id': '0',
+            'org_id': None,
+            'user_id': None
+        }
 def fetch_devices_by_orgIdAndUserId2(orgId, userId):
     print("fetch_devices_by_orgIdAndUserId:orgId:", orgId)
     print("fetch_devices_by_orgIdAndUserId:userId:", userId)

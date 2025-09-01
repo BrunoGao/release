@@ -663,6 +663,34 @@ public class MainAbilitySlice extends AbilitySlice {
         dataManager.setUploadMethod(uploadMethod);
         HiLog.info(LABEL_LOG, "MainAbilitySlice::processConfig::uploadMethod:" + uploadMethod);
 
+        // 设置客户ID
+        if (configJson.has("customer_id")) {
+            String customerId = configJson.getString("customer_id");
+            dataManager.setCustomerId(customerId);
+            storeValue("customerId", customerId);
+            HiLog.info(LABEL_LOG, "MainAbilitySlice::processConfig::customerId:" + customerId);
+        }
+
+        // 设置组织ID
+        if (configJson.has("org_id")) {
+            String orgId = configJson.optString("org_id", null);
+            if (orgId != null && !orgId.equals("null")) {
+                dataManager.setOrgId(orgId);
+                storeValue("orgId", orgId);
+                HiLog.info(LABEL_LOG, "MainAbilitySlice::processConfig::orgId:" + orgId);
+            }
+        }
+
+        // 设置用户ID
+        if (configJson.has("user_id")) {
+            String userId = configJson.optString("user_id", null);
+            if (userId != null && !userId.equals("null")) {
+                dataManager.setUserId(userId);
+                storeValue("userId", userId);
+                HiLog.info(LABEL_LOG, "MainAbilitySlice::processConfig::userId:" + userId);
+            }
+        }
+
         // 设置客户名称
         String customerName = configJson.getString("customer_name");
         dataManager.setCustomerName(customerName);

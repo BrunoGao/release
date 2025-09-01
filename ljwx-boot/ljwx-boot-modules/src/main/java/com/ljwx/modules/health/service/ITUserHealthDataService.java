@@ -62,5 +62,5 @@ public interface ITUserHealthDataService extends IService<TUserHealthData> {
      * @param timeType 时间类型
      * @return {@link List} 健康数据列表
      */
-    ResponseEntity<Object> getUserHealthData(String departmentInfo, String userId, LocalDateTime startDate, LocalDateTime endDate, String timeType);
+    ResponseEntity<Object> getUserHealthData(String orgId, String userId, LocalDateTime startDate, LocalDateTime endDate, String timeType);
 }

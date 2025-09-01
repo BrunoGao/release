@@ -1349,9 +1349,27 @@ def upload_common_event():
         time_cfg = TimeConfig()
         alert_timestamp=data.get('timestamp', time_cfg.now().strftime('%Y-%m-%d %H:%M:%S'))
         
-        device_user_org=get_device_user_org_info(device_sn)
-        if not device_user_org.get('success'):
-            return jsonify({"status":"error","message":f"未找到{device_sn}的组织或用户"}),400
+        # 优先使用直接传递的客户信息参数
+        customerId = data.get("customer_id")
+        orgId = data.get("org_id") 
+        userId = data.get("user_id")
+        
+        print(f"📡 [upload_common_event] 客户信息: customerId={customerId}, orgId={orgId}, userId={userId}")
+        
+        # 如果没有直接传递用户信息，通过deviceSn查询获取（兼容旧版本）
+        if not customerId or not orgId or not userId:
+            print(f"📡 [upload_common_event] 客户信息不完整，通过deviceSn查询获取")
+            device_user_org=get_device_user_org_info(device_sn)
+            if not device_user_org.get('success'):
+                return jsonify({"status":"error","message":f"未找到{device_sn}的组织或用户"}),400
+            
+            customerId = customerId or device_user_org.get('customer_id')
+            orgId = orgId or device_user_org.get('org_id')
+            userId = userId or device_user_org.get('user_id')
+            
+            print(f"📡 [upload_common_event] 补充后的客户信息: customerId={customerId}, orgId={orgId}, userId={userId}")
+        else:
+            print(f"📡 [upload_common_event] 使用直接传递的客户信息")
         
         
         #查询告警规则
@@ -1364,8 +1382,9 @@ def upload_common_event():
             alert_desc=f"{rule.alert_message}(事件值:{data.get('eventValue','')})",
             severity_level=rule.severity_level,latitude=data.get('latitude',22.54036796),
             longitude=data.get('longitude',114.01508952),altitude=data.get('altitude',0),
-            org_id=device_user_org.get('org_id') if device_user_org.get('success') else None,
-            user_id=device_user_org.get('user_id') if device_user_org.get('success') else None,
+            customer_id=customerId,
+            org_id=orgId,
+            user_id=userId,
             alert_timestamp=alert_timestamp
         )
         db.session.add(alert)

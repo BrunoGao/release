@@ -45,9 +45,9 @@ watch(
       <NGrid responsive="screen" item-responsive :x-gap="8" :y-gap="8" cols="1 s:1 m:5 l:5 xl:5 2xl:5">
         <NGridItem span="4">
           <NGrid responsive="screen" item-responsive :x-gap="8">
-            <NFormItemGi span="24 s:8 m:12" :label="$t('page.health.device.message.departmentName')" path="departmentName">
+            <NFormItemGi span="24 s:8 m:12" :label="$t('page.health.device.message.departmentName')" path="orgId">
               <NTreeSelect
-                v-model:value="model.departmentInfo"
+                v-model:value="model.orgId"
                 size="small"
                 checkable
                 filterable

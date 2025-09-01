@@ -44,9 +44,9 @@ public class TUserHealthDataSearchDTO implements Serializable {
     private String userId;
 
     /**
-     * 部门信息
+     * 组织ID
      */
-    private String departmentInfo;
+    private String orgId;
 
     private Long startDate;
 

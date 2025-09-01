@@ -104,7 +104,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
      * @param departmentInfo 部门信息
      * @return 过滤后的设备序列号列表
      */
-    private List<String> getFilteredDeviceSnList(String userId, String departmentInfo) {
+    private List<String> getFilteredDeviceSnList(String userId, String orgId) {
         long startTime = System.currentTimeMillis();
         
         try {
@@ -118,10 +118,10 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             }
             
             // 查询部门设备时，优先使用Redis缓存
-            if (ObjectUtils.isNotEmpty(departmentInfo)) {
+            if (ObjectUtils.isNotEmpty(orgId)) {
                 try {
-                    Long orgId = Long.valueOf(departmentInfo);
-                    Set<String> orgDevices = highPerformanceQueryService.getOrgDevices(orgId);
+                    Long orgIdLong = Long.valueOf(orgId);
+                    Set<String> orgDevices = highPerformanceQueryService.getOrgDevices(orgIdLong);
                     
                     if (!orgDevices.isEmpty()) {
                         // 获取管理员设备列表进行过滤
@@ -140,12 +140,12 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
                         log.debug("⚠️ Redis缓存中部门设备列表为空，回退到原有查询方式: orgId={}", orgId);
                     }
                 } catch (NumberFormatException e) {
-                    log.warn("部门信息格式错误，回退到原有查询方式: departmentInfo={}", departmentInfo);
+                    log.warn("部门信息格式错误，回退到原有查询方式: orgId={}", orgId);
                 }
                 
                 // 如果Redis缓存未命中，回退到原有查询方式
-                List<String> allDeviceSnList = deviceUserMappingService.getDeviceSnList(null, departmentInfo);
-                log.debug("📱 回退查询部门设备: departmentInfo={}, devices={}", departmentInfo, allDeviceSnList.size());
+                List<String> allDeviceSnList = deviceUserMappingService.getDeviceSnList(null, orgId);
+                log.debug("📱 回退查询部门设备: orgId={}, devices={}", orgId, allDeviceSnList.size());
                 
                 if (allDeviceSnList.isEmpty()) {
                     return Collections.emptyList();
@@ -166,22 +166,22 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             return Collections.emptyList();
             
         } catch (Exception e) {
-            log.error("获取设备列表失败，回退到原有查询方式: userId={}, departmentInfo={}", userId, departmentInfo, e);
+            log.error("获取设备列表失败，回退到原有查询方式: userId={}, orgId={}", userId, orgId, e);
             // 回退到原有实现
-            return getFilteredDeviceSnListFallback(userId, departmentInfo);
+            return getFilteredDeviceSnListFallback(userId, orgId);
         }
     }
     
     /**
      * 回退方法 - 原有的查询逻辑
      */
-    private List<String> getFilteredDeviceSnListFallback(String userId, String departmentInfo) {
+    private List<String> getFilteredDeviceSnListFallback(String userId, String orgId) {
         if (ObjectUtils.isNotEmpty(userId) && !"all".equals(userId) && !"0".equals(userId)) {
-            return deviceUserMappingService.getDeviceSnList(userId, departmentInfo);
+            return deviceUserMappingService.getDeviceSnList(userId, orgId);
         }
         
-        if (ObjectUtils.isNotEmpty(departmentInfo)) {
-            List<String> allDeviceSnList = deviceUserMappingService.getDeviceSnList(null, departmentInfo);
+        if (ObjectUtils.isNotEmpty(orgId)) {
+            List<String> allDeviceSnList = deviceUserMappingService.getDeviceSnList(null, orgId);
             if (allDeviceSnList.isEmpty()) {
                 return Collections.emptyList();
             }
@@ -222,7 +222,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
         (tUserHealthDataBO.getEndDate() + 86399000) / 1000, 0, ZoneOffset.ofHours(8));
 
     // 2. 拿到所有要查询的设备 SN - 自动过滤管理员设备
-    System.out.println("🏥 健康数据查询 - userId: " + tUserHealthDataBO.getUserId() + ", departmentInfo: " + tUserHealthDataBO.getDepartmentInfo());
+    System.out.println("🏥 健康数据查询 - userId: " + tUserHealthDataBO.getUserId() + ", orgId: " + tUserHealthDataBO.getOrgId());
     
     // 3. 基础 Wrapper
     LambdaQueryWrapper<TUserHealthData> query = new LambdaQueryWrapper<>();
@@ -248,7 +248,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
         
         List<String> deviceSnList = getFilteredDeviceSnList(
             tUserHealthDataBO.getUserId(),
-            tUserHealthDataBO.getDepartmentInfo()
+            tUserHealthDataBO.getOrgId()
         );
         if (deviceSnList.isEmpty()) {
             System.out.println("⚠️ 未找到符合条件的设备，返回空结果");
@@ -270,7 +270,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
         System.out.println("🔍 查询部门所有设备最新数据");
         
         // 获取部门下所有设备（已经过滤了管理员设备）
-        List<String> deviceSnList = getFilteredDeviceSnList(null, tUserHealthDataBO.getDepartmentInfo());
+        List<String> deviceSnList = getFilteredDeviceSnList(null, tUserHealthDataBO.getOrgId());
         if (deviceSnList.isEmpty()) {
             System.out.println("⚠️ 部门下未找到任何设备，返回空结果");
             return new HealthDataPageVO<>(
@@ -361,21 +361,21 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
         });
                        
 
-        // 根据departmentInfo查询顶级部门ID，用于过滤health data config
+        // 根据orgId查询顶级部门ID，用于过滤health data config
         Long topLevelDeptId = null;
-        if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getDepartmentInfo())) {
+        if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getOrgId())) {
             try {
-                Long deptId = Long.parseLong(tUserHealthDataBO.getDepartmentInfo());
+                Long deptId = Long.parseLong(tUserHealthDataBO.getOrgId());
                 topLevelDeptId = sysOrgUnitsService.getTopLevelDeptIdByOrgId(deptId);
-                System.out.println("🏢 部门查询 - departmentInfo: " + deptId + " -> 顶级部门ID: " + topLevelDeptId);
+                System.out.println("🏢 部门查询 - orgId: " + deptId + " -> 顶级部门ID: " + topLevelDeptId);
             } catch (NumberFormatException e) {
-                System.err.println("❌ departmentInfo格式错误: " + tUserHealthDataBO.getDepartmentInfo());
+                System.err.println("❌ orgId格式错误: " + tUserHealthDataBO.getOrgId());
                 topLevelDeptId = null;
             }
         }
         
         // 使用新的服务方法获取启用的健康数据配置
-        Long orgIdForQuery = topLevelDeptId != null ? topLevelDeptId : Long.parseLong(tUserHealthDataBO.getDepartmentInfo());
+        Long orgIdForQuery = topLevelDeptId != null ? topLevelDeptId : Long.parseLong(tUserHealthDataBO.getOrgId());
         List<THealthDataConfig> enabledColumns = healthDataConfigService.getEnabledConfigsByOrgId(orgIdForQuery);
 
         // 批量获取分表数据（避免n+1问题）
@@ -519,13 +519,13 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
     }
 
     @Override
-    public ResponseEntity<Object> getUserHealthData(String departmentInfo, String userId, LocalDateTime startDate, LocalDateTime endDate, String timeType) {
+    public ResponseEntity<Object> getUserHealthData(String orgId, String userId, LocalDateTime startDate, LocalDateTime endDate, String timeType) {
         long startTime = System.currentTimeMillis();
         
         // 使用优化后的设备列表获取方法（基于Redis缓存）
-        List<String> deviceSnList = getFilteredDeviceSnList(userId, departmentInfo);
-        log.debug("🚀 getUserHealthData优化查询: userId={}, departmentInfo={}, devices={}, time={}ms", 
-            userId, departmentInfo, deviceSnList.size(), System.currentTimeMillis() - startTime);
+        List<String> deviceSnList = getFilteredDeviceSnList(userId, orgId);
+        log.debug("🚀 getUserHealthData优化查询: userId={}, orgId={}, devices={}, time={}ms", 
+            userId, orgId, deviceSnList.size(), System.currentTimeMillis() - startTime);
         
         if (deviceSnList.isEmpty()) {
             return ResponseEntity.ok(Map.of("data", Map.of(), "code", "200", "msg", "无设备数据"));

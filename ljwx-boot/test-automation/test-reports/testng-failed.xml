@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="Failed suite [ljwx-boot-automation-test-suite]" verbose="0">
+  <parameter name="base.url" value="http://192.168.1.83:3333"/>
+  <parameter name="environment" value="test"/>
+  <listeners>
+    <listener class-name="com.ljwx.test.listener.TestResultListener"/>
+  </listeners>
+  <test thread-count="5" name="Admin-Functionality-Tests(failed)" verbose="0">
+    <parameter name="test.category" value="admin"/>
+    <classes>
+      <class name="com.ljwx.test.admin.AdminFunctionalityTest">
+        <methods>
+          <include name="setupRestAssured"/>
+          <include name="setup"/>
+          <include name="testAdminCrossTenantAccess"/>
+        </methods>
+      </class> <!-- com.ljwx.test.admin.AdminFunctionalityTest -->
+    </classes>
+  </test> <!-- Admin-Functionality-Tests(failed) -->
+  <test thread-count="5" name="Tenant-Admin-Functionality-Tests(failed)" verbose="0">
+    <parameter name="test.category" value="tenant"/>
+    <classes>
+      <class name="com.ljwx.test.tenant.TenantAdminFunctionalityTest">
+        <methods>
+          <include name="testTenantAdminInterfaceAndHealthConfig"/>
+          <include name="testTenantAdminHealthDataManagement"/>
+          <include name="setup"/>
+          <include name="testTenantAdminDataIsolation"/>
+          <include name="testTenantAdminOrgAndPositionManagement"/>
+          <include name="testTenantAdminTenantLimitations"/>
+          <include name="testTenantAdminMessageManagement"/>
+          <include name="setupRestAssured"/>
+          <include name="testTenantAdminDeviceManagement"/>
+          <include name="testTenantAdminAlertManagement"/>
+          <include name="testTenantAdminUserManagement"/>
+        </methods>
+      </class> <!-- com.ljwx.test.tenant.TenantAdminFunctionalityTest -->
+    </classes>
+  </test> <!-- Tenant-Admin-Functionality-Tests(failed) -->
+  <test thread-count="5" name="Permission-Isolation-Tests(failed)" verbose="0">
+    <parameter name="test.category" value="permission"/>
+    <classes>
+      <class name="com.ljwx.test.permission.PermissionIsolationTest">
+        <methods>
+          <include name="testParameterBoundarySecurity"/>
+          <include name="testCrossTenantAccessDenial"/>
+          <include name="testOrganizationPermissionIsolation"/>
+          <include name="testTenantAdminDataIsolation"/>
+          <include name="testWechatConfigPermissionManagement"/>
+          <include name="setupRestAssured"/>
+          <include name="testHealthDataAccessPermission"/>
+          <include name="testAdminGlobalDataAccess"/>
+        </methods>
+      </class> <!-- com.ljwx.test.permission.PermissionIsolationTest -->
+    </classes>
+  </test> <!-- Permission-Isolation-Tests(failed) -->
+  <test thread-count="5" name="Full-Integration-Tests(failed)" verbose="0">
+    <parameter name="test.category" value="integration"/>
+    <classes>
+      <class name="com.ljwx.test.integration.FullSystemIntegrationTest">
+        <methods>
+          <include name="cleanup"/>
+          <include name="testEndToEndBusinessFlow"/>
+          <include name="setup"/>
+          <include name="testPerformanceOptimization"/>
+          <include name="setupRestAssured"/>
+          <include name="testSystemBasicAvailability"/>
+          <include name="testConcurrentPermissionIsolation"/>
+          <include name="testDataConsistencyAndIntegrity"/>
+        </methods>
+      </class> <!-- com.ljwx.test.integration.FullSystemIntegrationTest -->
+    </classes>
+  </test> <!-- Full-Integration-Tests(failed) -->
+</suite> <!-- Failed suite [ljwx-boot-automation-test-suite] -->

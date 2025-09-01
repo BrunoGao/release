@@ -135,10 +135,22 @@ build_app_image() {
     case $image in
         "mysql")
             echo "🗄️ 构建MySQL镜像..."
-            # 检查是否存在data.sql文件，如果需要导出数据请使用单独的数据管理脚本
+            # 检查是否存在data.sql文件，如果没有则自动导出数据
             if [ ! -f "data.sql" ]; then
-                echo "⚠️ 未找到data.sql文件，将构建不包含数据的MySQL镜像"
-                echo "💡 如需包含数据，请先运行: ./export-data.sh 或手动导出数据到data.sql"
+                echo "⚠️ 未找到data.sql文件，正在自动导出数据..."
+                if [ -f "./export-data.sh" ]; then
+                    echo "🚀 执行自动数据导出: ./export-data.sh"
+                    ./export-data.sh
+                    if [ $? -eq 0 ] && [ -f "data.sql" ]; then
+                        echo "✅ 数据导出成功，将构建包含数据的MySQL镜像"
+                    else
+                        echo "❌ 数据导出失败，将构建不包含数据的MySQL镜像"
+                        echo "💡 请检查数据库连接配置 (默认: 127.0.0.1:3306, test数据库, root/123456)"
+                    fi
+                else
+                    echo "❌ 未找到export-data.sh脚本，将构建不包含数据的MySQL镜像"
+                    echo "💡 请手动创建export-data.sh脚本或导出数据到data.sql"
+                fi
             else
                 echo "✅ 找到data.sql文件，将构建包含数据的MySQL镜像"
             fi
@@ -156,15 +168,8 @@ build_app_image() {
             fi
             ;;
         "boot")
-            # 预构建 JAR 包
-            echo "🔨 预构建 Spring Boot JAR 包..."
-            if [ ! -f "ljwx-boot/ljwx-boot-admin/target/*.jar" ]; then
-                echo "⚠️ 未找到预构建的JAR文件，需要先构建Java项目"
-                echo "💡 请运行: cd ljwx-boot && mvn clean package -DskipTests"
-                exit 1
-            else
-                echo "✅ 找到预构建的JAR文件"
-            fi
+            echo "🔨 使用多阶段容器构建 Spring Boot JAR 包..."
+            echo "💡 在容器内构建确保跨平台兼容性"
             if [ "$LOCAL_BUILD" = "true" ] && [ "$PLATFORMS" = "linux/amd64" ]; then
                 docker build -t $tag -t $latest_tag . -f ljwx-boot/ljwx-boot-admin/Dockerfile.prod
             else

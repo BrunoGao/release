@@ -76,18 +76,12 @@ watch(
   }
 );
 
-// 监听departmentInfo变化，同步到orgId字段（保持向后兼容）
+// 监听orgId变化处理数组选择
 watch(
-  () => model.value.departmentInfo,
-  departmentInfo_val => {
-    // 如果departmentInfo是数组（多选），取第一个值；如果是单选，直接使用
-    if (Array.isArray(departmentInfo_val) && departmentInfo_val.length > 0) {
-      model.value.orgId = departmentInfo_val[0];
-    } else if (departmentInfo_val && !Array.isArray(departmentInfo_val)) {
-      model.value.orgId = departmentInfo_val;
-    } else {
-      model.value.orgId = null;
-    }
+  () => model.value.orgId,
+  orgId_val => {
+    // 如果orgId是数组（多选），保持数组形式；如果是单选，保持单值形式
+    // 这里不需要额外处理，直接保持原值即可
   },
   { immediate: true }
 );
@@ -104,7 +98,7 @@ onMounted(() => {
       <NGrid responsive="screen" item-responsive>
         <NFormItemGi span="24 s:8 m:12" :label="$t('page.health.device.message.departmentName')" path="orgId">
           <NTreeSelect
-            v-model:value="model.departmentInfo"
+            v-model:value="model.orgId"
             size="small"
             checkable
             filterable

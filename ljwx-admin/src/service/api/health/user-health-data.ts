@@ -52,9 +52,9 @@ export function fetchUserHealthData(params?: Api.Health.HealthChartSearchParams)
     delete filteredParams.userId;
   }
 
-  // 确保 departmentInfo 有默认值
-  if (!filteredParams.departmentInfo) {
-    filteredParams.departmentInfo = '';
+  // 确保 orgId 有默认值
+  if (!filteredParams.orgId) {
+    filteredParams.orgId = '';
   }
 
   return request({

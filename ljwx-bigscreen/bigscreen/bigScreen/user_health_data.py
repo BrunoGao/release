@@ -96,7 +96,7 @@ redis = RedisHelper()
 #from .tasks import process_health_data
 
 
-def save_health_data(heartRate, pressureHigh, pressureLow, bloodOxygen, temperature, stress, step, timestamp, deviceSn, distance, calorie, latitude, longitude, altitude, uploadMethod, sleep=None):
+def save_health_data(heartRate, pressureHigh, pressureLow, bloodOxygen, temperature, stress, step, timestamp, deviceSn, distance, calorie, latitude, longitude, altitude, uploadMethod, sleep=None, customerId=None, orgId=None, userId=None):
     try:
         #检查是否已存在相同记录
         from sqlalchemy import and_
@@ -128,7 +128,10 @@ def save_health_data(heartRate, pressureHigh, pressureLow, bloodOxygen, temperat
             altitude=convert_empty_to_none(altitude),
             distance=convert_empty_to_none(distance),
             calorie=convert_empty_to_none(calorie),
-            sleep=sleep  # 只保留计算后的sleep数值
+            sleep=sleep,  # 只保留计算后的sleep数值
+            customer_id=convert_empty_to_none(customerId),
+            org_id=convert_empty_to_none(orgId),
+            user_id=convert_empty_to_none(userId)
         )
 
         # Add the instance to the session and commit
@@ -1522,6 +1525,11 @@ def process_single_health_data(data):
     scientificSleepData = data.get("scientificSleepData") or data.get("kxsmData")
     workoutData = data.get("workoutData") or data.get("ydData")
     
+    # 提取客户信息字段 - 优先使用直接传递的参数
+    customerId = data.get("customer_id")
+    orgId = data.get("org_id") 
+    userId = data.get("user_id")
+    
     print(f"🏥 解析后的关键字段:")
     print(f"  - deviceSn: {deviceSn}")
     print(f"  - heartRate: {heartRate}")
@@ -1529,6 +1537,9 @@ def process_single_health_data(data):
     print(f"  - temperature: {temperature}")
     print(f"  - uploadMethod: {uploadMethod}")
     print(f"  - timestamp: {timestamp}")
+    print(f"  - customerId: {customerId}")
+    print(f"  - orgId: {orgId}")
+    print(f"  - userId: {userId}")
 
     # 处理时间戳
     if isinstance(timestamp, str):
@@ -1564,11 +1575,25 @@ def process_single_health_data(data):
     sleep_hours = parse_sleep_data(sleepData)
     print(f"解析睡眠数据: sleepData={sleepData}, 计算得出睡眠时长={sleep_hours}小时")
     
+    # 如果没有直接传递用户信息，通过deviceSn查询获取（兼容旧版本）
+    if not customerId or not orgId or not userId:
+        print(f"🔍 客户信息不完整，通过deviceSn查询获取: customerId={customerId}, orgId={orgId}, userId={userId}")
+        device_info = fetch_customer_id_by_deviceSn(deviceSn)
+        if isinstance(device_info, dict):
+            # 使用新版本返回的字典格式
+            customerId = customerId or device_info.get('customer_id')
+            orgId = orgId or device_info.get('org_id') 
+            userId = userId or device_info.get('user_id')
+        else:
+            # 兼容旧版本返回的字符串格式
+            customerId = customerId or device_info
+        print(f"🔍 补充后的客户信息: customerId={customerId}, orgId={orgId}, userId={userId}")
+
     # 保存到数据库
     health_data_id = save_health_data(
         heartRate, pressureHigh, pressureLow, bloodOxygen, temperature, stress, step, 
         timestamp, deviceSn, distance, calorie, latitude, longitude, altitude, 
-        uploadMethod, sleep_hours
+        uploadMethod, sleep_hours, customerId, orgId, userId
     )
     
     if not health_data_id:

@@ -96,9 +96,15 @@ def fetch_health_data_config(customer_id=None,deviceSn=None):
         customer_id = request.args.get('customerId')  # Get customerId from request parameters
     if deviceSn is None:
         deviceSn = request.args.get('deviceSn')  # Get deviceSn from request parameters
-    customerId = fetch_customer_id_by_deviceSn(deviceSn)
-    print("fetchHealthDataConfig.customer_id:", customerId)
-    if not customerId:
+    
+    # 获取设备的完整客户信息
+    device_info = fetch_customer_id_by_deviceSn(deviceSn)
+    customerId = device_info.get('customer_id', '0')
+    orgId = device_info.get('org_id')
+    userId = device_info.get('user_id')
+    
+    print("fetchHealthDataConfig - customerId:", customerId, "orgId:", orgId, "userId:", userId)
+    if not customerId or customerId == '0':
         return jsonify({"success": False, "error": "customerId parameter is required"}), 400
 
     connection = mysql.connector.connect(**config)
@@ -139,6 +145,8 @@ def fetch_health_data_config(customer_id=None,deviceSn=None):
         config_data = {
             "customer_name": result[0]['customer_name'] if result else None,
             "customer_id": customerId,
+            "org_id": orgId,
+            "user_id": userId,
             "upload_method": result[0]['upload_method'] if result else 'wifi',  # Default to 'wifi' if None
             "enable_resume": result[0]['enable_resume'] if result else False,
             "upload_retry_count": result[0]['upload_retry_count'] if result else 3,
@@ -172,9 +180,15 @@ def fetch_health_data_config_bak(customer_id=None,deviceSn=None):
         customer_id = request.args.get('customerId')  # Get customerId from request parameters
     if deviceSn is None:
         deviceSn = request.args.get('deviceSn')  # Get deviceSn from request parameters
-    customerId = fetch_customer_id_by_deviceSn(deviceSn)
-    print("fetchHealthDataConfig.customer_id:", customerId)
-    if not customerId:
+    
+    # 获取设备的完整客户信息
+    device_info = fetch_customer_id_by_deviceSn(deviceSn)
+    customerId = device_info.get('customer_id', '0')
+    orgId = device_info.get('org_id')
+    userId = device_info.get('user_id')
+    
+    print("fetchHealthDataConfig_bak - customerId:", customerId, "orgId:", orgId, "userId:", userId)
+    if not customerId or customerId == '0':
         return jsonify({"success": False, "error": "customerId parameter is required"}), 400
 
     connection = mysql.connector.connect(**config)
@@ -197,6 +211,8 @@ def fetch_health_data_config_bak(customer_id=None,deviceSn=None):
         config_data = {
             "customer_name": result[0]['customer_name'] if result else None,
             "customer_id": customerId,
+            "org_id": orgId,
+            "user_id": userId,
             "upload_method": result[0]['upload_method'] if result else 'wifi',  # Default to 'wifi' if None
             "health_data": {
                 row['data_type']: f"{row['frequency_interval']}:{row['is_enabled']}:{row['is_realtime']}:" +
