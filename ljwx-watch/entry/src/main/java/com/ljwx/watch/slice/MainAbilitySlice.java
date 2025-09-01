@@ -47,6 +47,8 @@ import java.io.InputStreamReader;
 import java.util.function.Consumer;
 
 import com.ljwx.watch.utils.DataManager;
+import com.ljwx.watch.utils.DataManagerAdapter;
+import com.ljwx.watch.ui.FrameRateController;
 import com.ljwx.watch.HealthDataCache;
 
 public class MainAbilitySlice extends AbilitySlice {
@@ -63,6 +65,8 @@ public class MainAbilitySlice extends AbilitySlice {
     private boolean isVibrating = false; // 跟踪振动状态
 
     private DataManager dataManager = DataManager.getInstance();
+    private DataManagerAdapter dataManagerAdapter = DataManagerAdapter.getInstance();
+    private FrameRateController frameRateController;
     //private HttpService httpService = HttpService.getInstance();
     private Intent HealthDataIntent;
     private Intent bluetoothIntent;
@@ -152,35 +156,46 @@ public class MainAbilitySlice extends AbilitySlice {
 
     public MainAbilitySlice() {
         
+        // 初始化帧率控制器
+        frameRateController = new FrameRateController(30); // 30 FPS
+        
         dataManager.addPropertyChangeListener(evt -> {
             //HiLog.info(LABEL_LOG, "PropertyChangeListener:" + evt.getPropertyName());
             if ("heartRate".equals(evt.getPropertyName()) || "bloodOxygen".equals(evt.getPropertyName()) || "temperature".equals(evt.getPropertyName()) || "stress".equals(evt.getPropertyName()) ) {
+                // 使用优化的数据管理器更新界面
                 updateDashboard();
                 
+                // 根据数据类型调整帧率策略
+                if ("heartRate".equals(evt.getPropertyName()) || "bloodOxygen".equals(evt.getPropertyName())) {
+                    frameRateController.setFrameRateStrategy(FrameRateController.FrameRateStrategy.HIGH_PERFORMANCE);
+                } else {
+                    frameRateController.setFrameRateStrategy(FrameRateController.FrameRateStrategy.BALANCED);
+                }
+                
             }else if("licenseExceeded".equals(evt.getPropertyName())){
-                if(dataManager.isLicenseExceeded()){
+                if(dataManagerAdapter.isLicenseExceeded()){
                     storeValue("licenseExceeded", "true");
                 }
             }else if("supportLocation".equals(evt.getPropertyName())){
-                if(dataManager.isSupportLocation()){
+                if(dataManagerAdapter.isSupportLocation()){
                     //System.out.println("jjgao::MainAbilitySlice::dataManager.isSupportLocation():" + dataManager.isSupportLocation());
                     HiLog.info(LABEL_LOG, "jjgao::MainAbilitySlice::dataManager.isSupportLocation():" + dataManager.isSupportLocation());
                     getLocation();
                 }else{
-                    dataManager.setLatitude(BigDecimal.valueOf(0));
-                    dataManager.setLongitude(BigDecimal.valueOf(0));
-                    dataManager.setAltitude(BigDecimal.valueOf(0));
+                    dataManagerAdapter.setLatitude(BigDecimal.valueOf(0));
+                    dataManagerAdapter.setLongitude(BigDecimal.valueOf(0));
+                    dataManagerAdapter.setAltitude(BigDecimal.valueOf(0));
                 }
             }else if("config".equals(evt.getPropertyName())){
-                JSONObject config = dataManager.getConfig();
+                JSONObject config = dataManagerAdapter.getConfig();
                 HiLog.info(LABEL_LOG, "MainAbilitySlice::config:" + config);
                 if(config != null){
                     processConfig(config);
                 }
             }else if("isHealthServiceReady".equals(evt.getPropertyName())){
-                boolean isReady = dataManager.getIsHealthServiceReady();
+                boolean isReady = dataManagerAdapter.getIsHealthServiceReady();
                 HiLog.info(LABEL_LOG, "MainAbilitySlice::健康服务状态变化: " + isReady);
-                if(isReady && "bluetooth".equals(dataManager.getUploadMethod())){
+                if(isReady && "bluetooth".equals(dataManagerAdapter.getUploadMethod())){
                     HiLog.info(LABEL_LOG, "健康服务已就绪，现在启动蓝牙服务");
                     startBluetoothWhenHealthReady();
                 }
@@ -312,8 +327,8 @@ public class MainAbilitySlice extends AbilitySlice {
 
 
     private void setCustomerName(){
-        if(dataManager.getCustomerName() != null && dataManager.getCustomerName() != "" && !dataManager.getCustomerName().isEmpty()){
-            customerName = dataManager.getCustomerName();
+        if(dataManagerAdapter.getCustomerName() != null && dataManagerAdapter.getCustomerName() != "" && !dataManagerAdapter.getCustomerName().isEmpty()){
+            customerName = dataManagerAdapter.getCustomerName();
             HiLog.info(LABEL_LOG, "MainAbilitySlice::setCustomerName::getCustomerName:" + customerName);
         }else{
             customerName = fetchValue("customerName", "");
@@ -332,7 +347,7 @@ public class MainAbilitySlice extends AbilitySlice {
             deviceSn = fetchValueFromJson(deviceManager.getDeviceInfo(), "SerialNumber");
             storeValue("deviceSn", deviceSn);
         }
-        dataManager.setDeviceSn(deviceSn);
+        dataManagerAdapter.setDeviceSn(deviceSn);
     }
 
     /**  
@@ -366,7 +381,7 @@ public class MainAbilitySlice extends AbilitySlice {
                     HiLog.info(LABEL_LOG, "MainAbilitySlice::fetchConfig::server config:" + jsonText);
                     System.out.println("MainAbilitySlice::fetchConfig::server config:" + jsonText);
                     processConfig(cfg);
-                    dataManager.setConfig(cfg);
+                    dataManagerAdapter.setConfig(cfg);
                     storeValue("config", cfg.toString());
                     success = true;
                 }
@@ -382,7 +397,7 @@ public class MainAbilitySlice extends AbilitySlice {
                         HiLog.info(LABEL_LOG, "MainAbilitySlice::fetchConfig::using stored config:" + storedConfig);
                         JSONObject storedCfg = new JSONObject(storedConfig);
                         processConfig(storedCfg);
-                        dataManager.setConfig(storedCfg);
+                        dataManagerAdapter.setConfig(storedCfg);
                         success = true;
                     } catch (JSONException je) {
                         HiLog.error(LABEL_LOG, "本地存储的配置解析失败，使用默认配置");
@@ -429,7 +444,7 @@ public class MainAbilitySlice extends AbilitySlice {
                     JSONObject cfg = new JSONObject(jsonText);
                     HiLog.info(LABEL_LOG, "MainAbilitySlice::fetchHttpConfig::server config:" + jsonText);
                     processConfig(cfg);
-                    dataManager.setConfig(cfg);
+                    dataManagerAdapter.setConfig(cfg);
                     storeValue("config", cfg.toString());
                     success = true;
                 }
@@ -448,7 +463,7 @@ public class MainAbilitySlice extends AbilitySlice {
         try {
             JSONObject def = new JSONObject(DEFAULT_CONFIG);
             processConfig(def);
-            dataManager.setConfig(def);
+            dataManagerAdapter.setConfig(def);
         } catch (JSONException e) {
             HiLog.error(LABEL_LOG, "默认配置解析失败: " + e.getMessage());
         }

@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from sqlalchemy import func, and_, text, or_
 from datetime import datetime, date
-from models import (
+from .models import (
     db, UserInfo, UserOrg, OrgInfo, UserHealthData, 
     AlertInfo, DeviceInfo, DeviceMessage
 )

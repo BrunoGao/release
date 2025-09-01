@@ -1,6 +1,8 @@
 package com.ljwx.watch.custom;
 
 import com.ljwx.watch.utils.DataManager;
+import com.ljwx.watch.ui.OptimizedUIRenderer;
+import com.ljwx.watch.utils.DataManagerAdapter;
 import ohos.agp.animation.Animator;
 import ohos.agp.animation.AnimatorValue;
 import ohos.agp.components.*;
@@ -36,6 +38,8 @@ public class CircularDashboard extends Component {
     private boolean isAnimationStarted = false;
 
     private DataManager dataManager = DataManager.getInstance();
+    private DataManagerAdapter dataManagerAdapter = DataManagerAdapter.getInstance();
+    private OptimizedUIRenderer optimizedRenderer;
 
     private final RectFloat centerRectFloat = new RectFloat();
 
@@ -112,12 +116,14 @@ public class CircularDashboard extends Component {
 
     public CircularDashboard(Context context) {
         super(context);
+        optimizedRenderer = new OptimizedUIRenderer();
         init();
 
     }
 
     public CircularDashboard(Context context, AttrSet attrSet) {
         super(context, attrSet);
+        optimizedRenderer = new OptimizedUIRenderer();
         init();
     }
 
@@ -185,12 +191,23 @@ public class CircularDashboard extends Component {
         infoPaint.setTextAlign(TextAlignment.CENTER);
         infoPaint.setTextSize(50);
 
-        customerName = dataManager.getCustomerName() != null ? dataManager.getCustomerName() : "灵境万象";
+        customerName = dataManagerAdapter.getCustomerName() != null ? dataManagerAdapter.getCustomerName() : "灵境万象";
         //HiLog.info(LABEL_LOG,  "UI::customerName:" + customerName);
 
         //HiLog.info(LABEL_LOG,  "UI::addDrawTask:");
 
-        addDrawTask((canvas, component) -> drawArcComponent(component, canvas));
+        addDrawTask((canvas, component) -> {
+            // 使用优化渲染器
+            OptimizedUIRenderer.RenderContext context = new OptimizedUIRenderer.RenderContext("main_dashboard");
+            context.setPriority(OptimizedUIRenderer.RenderPriority.HIGH);
+            context.addElement("health_data", true);
+            context.addElement("background", true);
+            
+            optimizedRenderer.optimizedRender(component, canvas, context);
+            
+            // 如果优化渲染器未处理，回退到原始渲染
+            drawArcComponent(component, canvas);
+        });
 
         //HiLog.info(LABEL_LOG,  "UI::startArcAnimation:");
         startArcAnimation();

@@ -19,19 +19,22 @@ os.chdir(current_dir)
 
 if __name__ == '__main__':
     try:
+        # 导入配置文件获取启动参数
+        from config import APP_HOST, APP_PORT, DEBUG
+        
         # 直接导入bigScreen模块
         import bigScreen
         
         print(f"🚀 大屏系统启动中...")
-        print(f"📍 服务地址: http://{bigScreen.APP_HOST}:{bigScreen.APP_PORT}")
-        print(f"🔧 调试模式: {'开启' if bigScreen.DEBUG else '关闭'}")
+        print(f"📍 服务地址: http://{APP_HOST}:{APP_PORT}")
+        print(f"🔧 调试模式: {'开启' if DEBUG else '关闭'}")
         print(f"📁 工作目录: {current_dir}")
         
         # 启动Flask应用
         bigScreen.app.run(
-            host=bigScreen.APP_HOST,
-            port=bigScreen.APP_PORT,
-            debug=bigScreen.DEBUG,
+            host=APP_HOST,
+            port=APP_PORT,
+            debug=DEBUG,
             threaded=True
         )
         

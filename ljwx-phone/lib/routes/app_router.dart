@@ -8,6 +8,8 @@ import 'package:ljwx_health_new/models/health_model.dart' as health;
 import 'package:ljwx_health_new/models/user_model.dart' as user;
 import 'package:ljwx_health_new/screens/login_screen.dart';
 import 'package:ljwx_health_new/screens/home_screen.dart';
+import 'package:ljwx_health_new/screens/health_main_screen.dart';
+import 'package:ljwx_health_new/screens/device_main_screen.dart';
 import 'package:ljwx_health_new/screens/alert_details_screen.dart';
 import 'package:ljwx_health_new/screens/message_details_screen.dart';
 import 'package:ljwx_health_new/screens/device_details_screen.dart';
@@ -292,9 +294,9 @@ class AppRouter {
             return const LoginScreen();
           }
           // TODO: 创建通知页面
-          return const Scaffold(
-            appBar: AppBar(title: Text('通知中心')),
-            body: Center(
+          return Scaffold(
+            appBar: AppBar(title: const Text('通知中心')),
+            body: const Center(
               child: Text('通知页面开发中...'),
             ),
           );
