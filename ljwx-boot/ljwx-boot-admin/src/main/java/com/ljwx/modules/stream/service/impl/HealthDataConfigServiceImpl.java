@@ -21,7 +21,7 @@ package com.ljwx.modules.stream.service.impl;
 
 import com.ljwx.common.api.Result;
 import com.ljwx.modules.stream.service.IHealthDataConfigService;
-import com.ljwx.modules.config.service.IHealthConfigService;
+// import com.ljwx.modules.config.service.IHealthConfigService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +45,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class HealthDataConfigServiceImpl implements IHealthDataConfigService {
 
-    private final IHealthConfigService healthConfigService;
+    // private final IHealthConfigService healthConfigService;
 
     @Override
     public Result<Map<String, Object>> fetchHealthDataConfig(String customerId, String deviceSn) {

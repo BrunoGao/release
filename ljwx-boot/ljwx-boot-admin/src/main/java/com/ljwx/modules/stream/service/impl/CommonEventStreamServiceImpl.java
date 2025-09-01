@@ -22,7 +22,7 @@ package com.ljwx.modules.stream.service.impl;
 import com.ljwx.common.api.Result;
 import com.ljwx.modules.stream.domain.dto.CommonEventUploadRequest;
 import com.ljwx.modules.stream.service.ICommonEventStreamService;
-import com.ljwx.modules.alert.service.IAlertService;
+// import com.ljwx.modules.alert.service.IAlertService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +50,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class CommonEventStreamServiceImpl implements ICommonEventStreamService {
 
-    private final IAlertService alertService;
+    // private final IAlertService alertService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -166,7 +166,7 @@ public class CommonEventStreamServiceImpl implements ICommonEventStreamService {
                     Map<String, Object> resultData = eventResult.getData();
                     results.add(resultData);
                     
-                    if (eventResult.isSuccess()) {
+                    if (eventResult.getCode() == 200) {
                         successCount++;
                         if ("emergency".equals(resultData.get("priority"))) {
                             emergencyCount++;

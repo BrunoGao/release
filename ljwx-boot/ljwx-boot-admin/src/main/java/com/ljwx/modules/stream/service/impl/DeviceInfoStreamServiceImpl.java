@@ -22,7 +22,7 @@ package com.ljwx.modules.stream.service.impl;
 import com.ljwx.common.api.Result;
 import com.ljwx.modules.stream.domain.dto.DeviceInfoUploadRequest;
 import com.ljwx.modules.stream.service.IDeviceInfoStreamService;
-import com.ljwx.modules.device.service.IDeviceInfoService;
+// import com.ljwx.modules.device.service.IDeviceInfoService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +50,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class DeviceInfoStreamServiceImpl implements IDeviceInfoStreamService {
 
-    private final IDeviceInfoService deviceInfoService;
+    // private final IDeviceInfoService deviceInfoService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -87,7 +87,7 @@ public class DeviceInfoStreamServiceImpl implements IDeviceInfoStreamService {
             }
             
             // 检查设备是否存在
-            boolean deviceExists = deviceInfoService.existsByDeviceSn(request.getDeviceSn());
+            boolean deviceExists = checkDeviceExists(request.getDeviceSn());
             
             Map<String, Object> result = new HashMap<>();
             
@@ -148,7 +148,7 @@ public class DeviceInfoStreamServiceImpl implements IDeviceInfoStreamService {
                     Result<Map<String, Object>> deviceResult = processSingleDeviceInfo(device);
                     results.add(deviceResult.getData());
                     
-                    if (deviceResult.isSuccess()) {
+                    if (deviceResult.getCode() == 200) {
                         successCount++;
                     } else {
                         errorCount++;
@@ -229,7 +229,9 @@ public class DeviceInfoStreamServiceImpl implements IDeviceInfoStreamService {
                 // TODO: 序列化为JSON存储
             }
             
-            return deviceInfoService.registerDevice(deviceData);
+            // TODO: 实现设备注册逻辑
+            log.info("📱 模拟设备注册: {}", request.getDeviceSn());
+            return true;
             
         } catch (Exception e) {
             log.error("❌ 设备注册异常: {}", e.getMessage());
@@ -272,10 +274,26 @@ public class DeviceInfoStreamServiceImpl implements IDeviceInfoStreamService {
             
             updateData.put("updateTime", LocalDateTime.now());
             
-            return deviceInfoService.updateDeviceByDeviceSn(request.getDeviceSn(), updateData);
+            // TODO: 实现设备更新逻辑
+            log.info("📱 模拟设备更新: {}", request.getDeviceSn());
+            return true;
             
         } catch (Exception e) {
             log.error("❌ 设备更新异常: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 检查设备是否存在
+     */
+    private boolean checkDeviceExists(String deviceSn) {
+        try {
+            // TODO: 查询数据库检查设备是否存在
+            log.info("🔍 检查设备是否存在: {}", deviceSn);
+            return false; // 默认假设设备不存在，需要注册
+        } catch (Exception e) {
+            log.error("❌ 检查设备存在性异常: {}", e.getMessage());
             return false;
         }
     }

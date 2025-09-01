@@ -23,7 +23,7 @@ import com.ljwx.common.api.Result;
 import com.ljwx.modules.stream.domain.dto.DeviceMessageSaveRequest;
 import com.ljwx.modules.stream.domain.dto.DeviceMessageSendRequest;
 import com.ljwx.modules.stream.service.IDeviceMessageService;
-import com.ljwx.modules.message.service.IDeviceMessageV2Service;
+// import com.ljwx.modules.message.service.IDeviceMessageV2Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +51,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class DeviceMessageServiceImpl implements IDeviceMessageService {
 
-    private final IDeviceMessageV2Service deviceMessageV2Service;
+    // private final IDeviceMessageV2Service deviceMessageV2Service;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -76,7 +76,7 @@ public class DeviceMessageServiceImpl implements IDeviceMessageService {
             Map<String, Object> messageData = buildMessageData(request);
             
             // 保存消息到数据库
-            Long messageId = deviceMessageV2Service.saveMessage(messageData);
+            Long messageId = mockSaveMessage(messageData);
             
             if (messageId != null && messageId > 0) {
                 log.info("✅ 设备消息保存成功: messageId={}", messageId);
@@ -160,7 +160,7 @@ public class DeviceMessageServiceImpl implements IDeviceMessageService {
             }
             
             // 获取设备消息列表
-            List<Map<String, Object>> messages = deviceMessageV2Service.getMessagesByDeviceSn(deviceSn);
+            List<Map<String, Object>> messages = mockGetMessagesByDeviceSn(deviceSn);
             
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
@@ -251,7 +251,7 @@ public class DeviceMessageServiceImpl implements IDeviceMessageService {
             Map<String, Object> sendData = buildSendData(request);
             
             // 调用消息发送服务
-            boolean sent = deviceMessageV2Service.sendMessage(sendData);
+            boolean sent = mockSendMessage(sendData);
             
             Map<String, Object> result = new HashMap<>();
             result.put("success", sent);
@@ -410,6 +410,47 @@ public class DeviceMessageServiceImpl implements IDeviceMessageService {
         singleRequest.setTargetUserId(userId);
         
         return singleRequest;
+    }
+
+    /**
+     * 模拟保存消息
+     */
+    private Long mockSaveMessage(Map<String, Object> messageData) {
+        // TODO: 实现真实的消息保存逻辑
+        log.info("💬 模拟保存消息: {}", messageData.get("deviceSn"));
+        return System.currentTimeMillis(); // 返回时间戳作为消息ID
+    }
+
+    /**
+     * 模拟发送消息
+     */
+    private boolean mockSendMessage(Map<String, Object> sendData) {
+        // TODO: 实现真实的消息发送逻辑
+        log.info("📤 模拟发送消息: target={}", sendData.get("targetDeviceSn"));
+        return true; // 模拟发送成功
+    }
+
+    /**
+     * 模拟获取设备消息列表
+     */
+    private List<Map<String, Object>> mockGetMessagesByDeviceSn(String deviceSn) {
+        // TODO: 实现真实的消息查询逻辑
+        log.info("📥 模拟获取设备消息: {}", deviceSn);
+        
+        List<Map<String, Object>> messages = new ArrayList<>();
+        
+        // 返回模拟数据
+        Map<String, Object> mockMessage = new HashMap<>();
+        mockMessage.put("messageId", "mock_" + System.currentTimeMillis());
+        mockMessage.put("deviceSn", deviceSn);
+        mockMessage.put("messageType", "TEXT");
+        mockMessage.put("messageContent", "模拟消息内容");
+        mockMessage.put("messageStatus", "DELIVERED");
+        mockMessage.put("createTime", LocalDateTime.now());
+        
+        messages.add(mockMessage);
+        
+        return messages;
     }
 
 }
