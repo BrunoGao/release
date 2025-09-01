@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { NButton, NCard, NDataTable, NIcon, NModal, NP, NSpin, NTag, NText, NUpload, NUploadDragger, useModal } from 'naive-ui';
+import SvgIcon from '@/components/custom/svg-icon.vue';
 import { computed, h, reactive, ref, watch } from 'vue';
 import {
   fetchBatchImportUsers,
@@ -227,27 +228,18 @@ const getDynamicColumns = (mode: Api.SystemManage.ViewMode) => {
       render: (row: Api.SystemManage.User) => (
         <div class="flex-center gap-8px">
           {hasAuth('sys:user:update') && (!row.isAdmin || hasAuth('sys:user:manage:admin')) && (
-            <NButton 
-              type="primary" 
-              size="small" 
-              class="operation-btn-edit"
-              onClick={() => edit(row.id)}
-            >
-              <template v-slots:icon={() => h('i', { class: 'i-ic:round-edit text-sm' })}>
-                <i class="i-ic:round-edit text-sm"></i>
-              </template>
+            <NButton type="primary" quaternary size="small" onClick={() => edit(row.id)}>
               {$t('common.edit')}
             </NButton>
           )}
           <NButton 
             type="success" 
+            secondary
             size="small" 
-            class="operation-btn-health"
+            class="permission-btn health-permission-btn"
             onClick={() => handleDeviceSubmitted(row.deviceSn)}
+            renderIcon={() => <SvgIcon icon="material-symbols:health-and-safety" class="text-14px" />}
           >
-            <template v-slots:icon={() => h('i', { class: 'i-material-symbols:health-and-safety text-sm' })}>
-              <i class="i-material-symbols:health-and-safety text-sm"></i>
-            </template>
             {$t('route.health_profile')}
           </NButton>
           <div class="operation-more-btn">
@@ -729,35 +721,30 @@ watch(viewMode, () => {
   gap: 8px;
 }
 
-/* 操作按钮美化样式 */
-:deep(.operation-btn-edit) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  color: white;
+/* 企业级权限按钮样式 */
+:deep(.permission-btn) {
+  border-radius: 6px;
   font-weight: 500;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+  min-width: 100px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-:deep(.operation-btn-edit:hover) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-}
 
-:deep(.operation-btn-health) {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-  border: none;
+:deep(.health-permission-btn) {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 1px solid #10b981;
   color: white;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(72, 187, 120, 0.3);
 }
 
-:deep(.operation-btn-health:hover) {
+:deep(.health-permission-btn:hover) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(72, 187, 120, 0.4);
-  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+:deep(.permission-btn .n-button__icon) {
+  margin-right: 6px;
 }
 
 .operation-more-btn {

@@ -1,7 +1,8 @@
 <script setup lang="tsx">
-import { onMounted, ref, shallowRef, watch, watchEffect } from 'vue';
+import { h, onMounted, ref, shallowRef, watch, watchEffect } from 'vue';
 import { NButton, NPopconfirm, NTooltip } from 'naive-ui';
 import { Icon } from '@iconify/vue';
+import SvgIcon from '@/components/custom/svg-icon.vue';
 import type { Ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
@@ -359,7 +360,14 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
               {$t('common.edit')}
             </NButton>
           )}
-          <NButton type="primary" quaternary size="small" onClick={() => handleAlertInfo(row.id)}>
+          <NButton 
+            type="warning" 
+            secondary 
+            size="small" 
+            class="permission-btn process-permission-btn"
+            onClick={() => handleAlertInfo(row.id)}
+            renderIcon={() => <SvgIcon icon="material-symbols:auto-fix-high" class="text-14px" />}
+          >
             {$t('page.health.alert.info.dealAlert')}
           </NButton>
           {hasAuth('t:alert:info:delete') && (
@@ -472,6 +480,7 @@ function edit(item: Api.Health.AlertInfo) {
   openDrawer();
 }
 
+
 async function handleDelete(id: string) {
   // request
   const { error, data: result } = await fetchDeleteAlertInfo(transDeleteParams([id]));
@@ -547,6 +556,19 @@ onMounted(() => {
         @delete="handleBatchDelete"
         @refresh="getData"
       >
+        <template #suffix>
+          <NButton
+            v-if="checkedRowKeys.length > 0"
+            type="warning"
+            secondary
+            size="small"
+            class="permission-btn batch-process-btn"
+            :render-icon="() => h(SvgIcon, { icon: 'material-symbols:auto-fix-high', class: 'text-14px' })"
+            @click="handleBatchProcessAlert"
+          >
+            批量处理 ({{ checkedRowKeys.length }})
+          </NButton>
+        </template>
       </TableHeaderOperation>
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
@@ -594,5 +616,54 @@ onMounted(() => {
   border: none !important;
   outline: none !important;
   background: transparent !important;
+}
+
+/* 企业级权限按钮样式 */
+:deep(.permission-btn) {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-width: 100px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+
+:deep(.process-permission-btn) {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: 1px solid #f59e0b;
+  color: white;
+}
+
+:deep(.process-permission-btn:hover) {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+:deep(.batch-process-btn) {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: 1px solid #f59e0b;
+  color: white;
+  font-weight: 600;
+}
+
+:deep(.batch-process-btn:hover) {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.4);
+}
+
+:deep(.permission-btn .n-button__icon) {
+  margin-right: 6px;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gap-8px {
+  gap: 8px;
 }
 </style>

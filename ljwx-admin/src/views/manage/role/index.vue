@@ -10,6 +10,7 @@ import { transDeleteParams } from '@/utils/common';
 import { useAuth } from '@/hooks/business/auth';
 import { useDict } from '@/hooks/business/dict';
 import { useAuthStore } from '@/store/modules/auth';
+import SvgIcon from '@/components/custom/svg-icon.vue';
 import RoleOperateDrawer from './modules/role-operate-drawer.vue';
 import RoleSearch from './modules/role-search.vue';
 import MenuAuthModal from './modules/menu-auth-modal.vue';
@@ -115,14 +116,28 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center',
       width: 300,
       render: row => (
-        <div class="flex-center gap-8px">
+        <div class="flex-center gap-12px">
           {hasAuth('sys:role:menu:add') && (
-            <NButton type="primary" quaternary size="small" onClick={() => handleMenuAuth(row.id)}>
+            <NButton 
+              type="info" 
+              secondary 
+              size="small" 
+              class="permission-btn menu-permission-btn"
+              onClick={() => handleMenuAuth(row.id)}
+              renderIcon={() => <SvgIcon icon="material-symbols:menu-book" class="text-14px" />}
+            >
               {$t('page.manage.role.menuAuth')}
             </NButton>
           )}
           {hasAuth('sys:role:permission:add') && (
-            <NButton type="primary" quaternary size="small" onClick={() => handleButtonAuth(row.id)}>
+            <NButton 
+              type="warning" 
+              secondary 
+              size="small" 
+              class="permission-btn button-permission-btn"
+              onClick={() => handleButtonAuth(row.id)}
+              renderIcon={() => <SvgIcon icon="material-symbols:smart-button" class="text-14px" />}
+            >
               {$t('page.manage.role.buttonAuth')}
             </NButton>
           )}
@@ -226,4 +241,40 @@ function handleButtonAuth(id: string) {
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.permission-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-width: 100px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.menu-permission-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border: 1px solid #3b82f6;
+  color: white;
+}
+
+.menu-permission-btn:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.button-permission-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: 1px solid #f59e0b;
+  color: white;
+}
+
+.button-permission-btn:hover {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+.permission-btn :deep(.n-button__icon) {
+  margin-right: 6px;
+}
+</style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NButton, NPopconfirm, NUpload, NModal, NCard, NTag, NDescriptions, NDescriptionsItem, NAlert, type UploadFileInfo } from 'naive-ui';
+import { NButton, NPopconfirm, NUpload, NModal, NCard, NTag, NDescriptions, NDescriptionsItem, NAlert, NCollapse, NCollapseItem, NList, NListItem, NIcon, NSpace, type UploadFileInfo } from 'naive-ui';
 import type { Ref } from 'vue';
 import { ref, h } from 'vue';
 import { useAppStore } from '@/store/modules/app';
@@ -209,6 +209,8 @@ const licenseModalVisible = ref(false);
 const licenseData: Ref<any> = ref(null);
 const licenseUploading = ref(false);
 
+const manualExpanded = ref<string[]>([]);
+
 async function viewLicense(customer: Api.Customer.CustomerConfig) {
   try {
     const { error, data } = await request<any>({
@@ -300,6 +302,143 @@ function formatDateTime(dateTime: string | null): string {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
+    <!-- 租户配置操作手册 -->
+    <NCard :bordered="false" size="small" class="operation-manual">
+      <NCollapse v-model:expanded-names="manualExpanded">
+        <NCollapseItem name="manual" title="📋 租户配置操作手册">
+          <div class="space-y-4 text-sm max-h-400px overflow-y-auto">
+            <!-- 配置项说明 -->
+            <NCard title="🏢 租户配置说明" size="small">
+              <NList>
+                <NListItem>
+                  <NSpace>
+                    <NIcon size="16" color="#2080f0">
+                      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    </NIcon>
+                    <div>
+                      <div class="font-medium">租户ID</div>
+                      <div class="text-gray-600">系统自动生成的唯一标识，用于多租户隔离</div>
+                    </div>
+                  </NSpace>
+                </NListItem>
+                <NListItem>
+                  <NSpace>
+                    <NIcon size="16" color="#18a058">
+                      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    </NIcon>
+                    <div>
+                      <div class="font-medium">租户名称</div>
+                      <div class="text-gray-600">租户的显示名称，用于界面展示和识别</div>
+                    </div>
+                  </NSpace>
+                </NListItem>
+                <NListItem>
+                  <NSpace>
+                    <NIcon size="16" color="#f0a020">
+                      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7v2H5V4h3.5l1-1h5l1 1H19z"/></svg>
+                    </NIcon>
+                    <div>
+                      <div class="font-medium">上传方法</div>
+                      <div class="text-gray-600">数据上传方式配置：FTP、HTTP、WebSocket等</div>
+                    </div>
+                  </NSpace>
+                </NListItem>
+                <NListItem>
+                  <NSpace>
+                    <NIcon size="16" color="#d03050">
+                      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                    </NIcon>
+                    <div>
+                      <div class="font-medium">许可证管理</div>
+                      <div class="text-gray-600">控制系统功能授权和使用期限</div>
+                    </div>
+                  </NSpace>
+                </NListItem>
+              </NList>
+            </NCard>
+
+            <!-- 配置影响说明 -->
+            <NCard title="⚙️ 配置项影响" size="small">
+              <NList>
+                <NListItem>
+                  <div>
+                    <div class="font-medium text-orange-600">🔄 上传重试次数</div>
+                    <div class="text-gray-600 mt-1">• 影响：数据上传失败时的重试频率</div>
+                    <div class="text-gray-600">• 建议：网络稳定环境设置3-5次，不稳定环境可增加到10次</div>
+                    <div class="text-gray-600">• 风险：过高会增加服务器负载，过低可能导致数据丢失</div>
+                  </div>
+                </NListItem>
+                <NListItem>
+                  <div>
+                    <div class="font-medium text-blue-600">💾 缓存最大数量</div>
+                    <div class="text-gray-600 mt-1">• 影响：本地缓存的最大数据条数</div>
+                    <div class="text-gray-600">• 建议：根据服务器内存设置，一般1000-10000条</div>
+                    <div class="text-gray-600">• 风险：过高占用内存，过低影响查询性能</div>
+                  </div>
+                </NListItem>
+                <NListItem>
+                  <div>
+                    <div class="font-medium text-green-600">📤 启用续传功能</div>
+                    <div class="text-gray-600 mt-1">• 影响：大文件上传中断后可继续传输</div>
+                    <div class="text-gray-600">• 建议：大文件传输场景建议启用</div>
+                    <div class="text-gray-600">• 风险：增加服务器存储开销</div>
+                  </div>
+                </NListItem>
+                <NListItem>
+                  <div>
+                    <div class="font-medium text-purple-600">🔐 许可证支持</div>
+                    <div class="text-gray-600 mt-1">• 影响：控制租户可使用的系统功能模块</div>
+                    <div class="text-gray-600">• 建议：根据客户付费等级设置对应权限</div>
+                    <div class="text-gray-600">• 风险：关闭后相关功能将不可用</div>
+                  </div>
+                </NListItem>
+              </NList>
+            </NCard>
+
+            <!-- 操作指南 -->
+            <NCard title="📖 操作指南" size="small">
+              <NList>
+                <NListItem>
+                  <div>
+                    <div class="font-medium">1. 新增租户配置</div>
+                    <div class="text-gray-600 mt-1">点击"新增"按钮 → 填写租户基本信息 → 设置上传参数 → 配置许可证支持 → 保存</div>
+                  </div>
+                </NListItem>
+                <NListItem>
+                  <div>
+                    <div class="font-medium">2. 编辑租户配置</div>
+                    <div class="text-gray-600 mt-1">点击"编辑"按钮 → 修改相关配置项 → 注意许可证变更影响 → 保存更改</div>
+                  </div>
+                </NListItem>
+                <NListItem>
+                  <div>
+                    <div class="font-medium">3. 许可证管理</div>
+                    <div class="text-gray-600 mt-1">点击"许可证"按钮 → 查看当前状态 → 上传新许可证文件 → 验证生效</div>
+                  </div>
+                </NListItem>
+                <NListItem>
+                  <div>
+                    <div class="font-medium">4. 配置删除</div>
+                    <div class="text-gray-600 mt-1">谨慎操作：删除租户配置将影响该租户所有用户的系统访问</div>
+                  </div>
+                </NListItem>
+              </NList>
+            </NCard>
+
+            <!-- 注意事项 -->
+            <NAlert type="warning" title="⚠️ 重要提醒" show-icon class="mt-4">
+              <div class="space-y-2">
+                <div>• 修改上传方法后需要重启相关数据采集服务</div>
+                <div>• 许可证过期会导致系统功能受限，请及时续期</div>
+                <div>• 缓存配置变更建议在业务低峰期进行</div>
+                <div>• 删除租户配置前请确保数据已备份</div>
+              </div>
+            </NAlert>
+          </div>
+        </NCollapseItem>
+      </NCollapse>
+    </NCard>
+
     <CustomerConfigSearch v-model:model="searchParams" :org-units-name="orgUnitsName" @reset="resetSearchParams" @search="getDataByPage" />
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <TableHeaderOperation

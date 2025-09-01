@@ -4635,6 +4635,387 @@ def get_alert_system_status():
             'success': False,
             'error': str(e)
         }), 500
+# ========== 健康系统API接口 ==========
+
+@app.route('/api/health/profile/generate', methods=['POST'])
+def api_health_profile_generate_v2():
+    """健康画像生成接口"""
+    try:
+        data = request.get_json()
+        device_sn = data.get('deviceSn')
+        include_health_data = data.get('includeHealthData', True)
+        include_user_info = data.get('includeUserInfo', True)
+        
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'message': '设备序列号不能为空'
+            }), 400
+        
+        # 获取用户信息
+        from .user import get_user_info_by_deviceSn
+        user_info = get_user_info_by_deviceSn(device_sn)
+        
+        if not user_info:
+            return jsonify({
+                'success': False,
+                'message': '未找到设备对应的用户'
+            }), 404
+        
+        # 生成健康画像
+        from .health_profile_engine import HealthProfileEngine
+        profile_engine = HealthProfileEngine()
+        
+        profile_data = profile_engine.generate_personal_profile(
+            user_id=user_info.get('id'),
+            device_sn=device_sn,
+            include_health_data=include_health_data,
+            include_user_info=include_user_info
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': profile_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"健康画像生成失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/health/baseline/personal', methods=['POST'])
+def api_health_baseline_personal():
+    """个人健康基线查询接口"""
+    try:
+        data = request.get_json()
+        device_sn = data.get('deviceSn')
+        date_range = data.get('dateRange', 7)  # 默认7天
+        metrics = data.get('metrics', ['heart_rate', 'blood_oxygen', 'temperature'])
+        
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'message': '设备序列号不能为空'
+            }), 400
+        
+        # 获取用户信息
+        from .user import get_user_info_by_deviceSn
+        user_info = get_user_info_by_deviceSn(device_sn)
+        
+        if not user_info:
+            return jsonify({
+                'success': False,
+                'message': '未找到设备对应的用户'
+            }), 404
+        
+        # 获取个人基线数据
+        from .health_baseline_engine import HealthBaselineEngine
+        baseline_engine = HealthBaselineEngine()
+        
+        baseline_data = baseline_engine.get_personal_baseline(
+            user_id=user_info.get('id'),
+            device_sn=device_sn,
+            metrics=metrics,
+            date_range=date_range
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': baseline_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"个人基线查询失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/health/realtime/vitals', methods=['GET'])
+def api_health_realtime_vitals():
+    """实时生命体征数据接口"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'message': '设备序列号不能为空'
+            }), 400
+        
+        # 获取最新的健康数据
+        from .user_health_data import get_latest_health_data
+        latest_data = get_latest_health_data(device_sn)
+        
+        if not latest_data:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'heart_rate': {'current': 0, 'min': 0, 'max': 0, 'avg': 0, 'status': 'unknown'},
+                    'blood_oxygen': {'current': 0, 'min': 0, 'max': 0, 'avg': 0, 'status': 'unknown'},
+                    'temperature': {'current': 0, 'min': 0, 'max': 0, 'avg': 0, 'status': 'unknown'},
+                    'timestamp': datetime.now().isoformat()
+                }
+            })
+        
+        # 计算24小时内的统计数据
+        from datetime import datetime, timedelta
+        end_time = datetime.now()
+        start_time = end_time - timedelta(hours=24)
+        
+        from .user_health_data import get_health_data_stats
+        stats = get_health_data_stats(device_sn, start_time, end_time)
+        
+        vitals_data = {
+            'heart_rate': {
+                'current': latest_data.get('heart_rate', 0),
+                'min': stats.get('heart_rate', {}).get('min', 0),
+                'max': stats.get('heart_rate', {}).get('max', 0),
+                'avg': stats.get('heart_rate', {}).get('avg', 0),
+                'status': get_vital_status('heart_rate', latest_data.get('heart_rate', 0))
+            },
+            'blood_oxygen': {
+                'current': latest_data.get('blood_oxygen', 0),
+                'min': stats.get('blood_oxygen', {}).get('min', 0),
+                'max': stats.get('blood_oxygen', {}).get('max', 0),
+                'avg': stats.get('blood_oxygen', {}).get('avg', 0),
+                'status': get_vital_status('blood_oxygen', latest_data.get('blood_oxygen', 0))
+            },
+            'temperature': {
+                'current': latest_data.get('temperature', 0),
+                'min': stats.get('temperature', {}).get('min', 0),
+                'max': stats.get('temperature', {}).get('max', 0),
+                'avg': stats.get('temperature', {}).get('avg', 0),
+                'status': get_vital_status('temperature', latest_data.get('temperature', 0))
+            },
+            'timestamp': latest_data.get('timestamp', datetime.now().isoformat())
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': vitals_data
+        })
+        
+    except Exception as e:
+        logger.error(f"获取实时生命体征失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/health/comprehensive/score', methods=['POST'])
+def api_health_comprehensive_score():
+    """健康综合评分接口"""
+    try:
+        data = request.get_json()
+        device_sn = data.get('deviceSn')
+        include_prediction = data.get('includePrediction', True)
+        include_factors = data.get('includeFactors', True)
+        
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'message': '设备序列号不能为空'
+            }), 400
+        
+        # 获取用户信息
+        from .user import get_user_info_by_deviceSn
+        user_info = get_user_info_by_deviceSn(device_sn)
+        
+        if not user_info:
+            return jsonify({
+                'success': False,
+                'message': '未找到设备对应的用户'
+            }), 404
+        
+        # 计算综合健康评分
+        from .health_score_engine import HealthScoreEngine
+        score_engine = HealthScoreEngine()
+        
+        comprehensive_score = score_engine.calculate_comprehensive_score(
+            user_id=user_info.get('id'),
+            device_sn=device_sn,
+            include_prediction=include_prediction,
+            include_factors=include_factors
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': comprehensive_score,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"综合健康评分计算失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/health/recommendations', methods=['POST'])
+def api_health_recommendations():
+    """健康建议生成接口"""
+    try:
+        data = request.get_json()
+        device_sn = data.get('deviceSn')
+        recommendation_type = data.get('type', 'comprehensive')  # comprehensive, emergency, preventive
+        
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'message': '设备序列号不能为空'
+            }), 400
+        
+        # 获取用户信息
+        from .user import get_user_info_by_deviceSn
+        user_info = get_user_info_by_deviceSn(device_sn)
+        
+        if not user_info:
+            return jsonify({
+                'success': False,
+                'message': '未找到设备对应的用户'
+            }), 404
+        
+        # 生成健康建议
+        from .health_recommendation_engine import HealthRecommendationEngine
+        recommendation_engine = HealthRecommendationEngine()
+        
+        recommendations = recommendation_engine.generate_recommendations(
+            user_id=user_info.get('id'),
+            device_sn=device_sn,
+            recommendation_type=recommendation_type
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': recommendations,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"健康建议生成失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/health/waveform', methods=['GET'])
+def api_health_waveform():
+    """实时波形数据接口"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        metric = request.args.get('metric', 'heart_rate')  # heart_rate, blood_oxygen, temperature
+        time_range = int(request.args.get('timeRange', 300))  # 默认5分钟
+        
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'message': '设备序列号不能为空'
+            }), 400
+        
+        # 获取波形数据
+        from datetime import datetime, timedelta
+        end_time = datetime.now()
+        start_time = end_time - timedelta(seconds=time_range)
+        
+        from .user_health_data import get_waveform_data
+        waveform_data = get_waveform_data(device_sn, metric, start_time, end_time)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'metric': metric,
+                'timeRange': time_range,
+                'points': waveform_data,
+                'startTime': start_time.isoformat(),
+                'endTime': end_time.isoformat()
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"获取波形数据失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/health/trends/comprehensive', methods=['POST'])
+def api_health_trends_comprehensive():
+    """健康数据趋势分析接口"""
+    try:
+        data = request.get_json()
+        device_sn = data.get('deviceSn')
+        time_range = data.get('timeRange', '7d')  # 7d, 30d, 90d
+        metrics = data.get('metrics', ['heart_rate', 'blood_oxygen', 'temperature', 'step'])
+        
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'message': '设备序列号不能为空'
+            }), 400
+        
+        # 解析时间范围
+        time_map = {'1d': 1, '7d': 7, '30d': 30, '90d': 90}
+        days = time_map.get(time_range, 7)
+        
+        from datetime import datetime, timedelta
+        end_time = datetime.now()
+        start_time = end_time - timedelta(days=days)
+        
+        # 获取趋势数据
+        from .user_health_data import get_health_trends_comprehensive
+        trends_data = get_health_trends_comprehensive(device_sn, metrics, start_time, end_time)
+        
+        return jsonify({
+            'success': True,
+            'data': trends_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"健康趋势分析失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ========== 辅助函数 ==========
+
+def get_vital_status(metric, value):
+    """根据生命体征数值判断状态"""
+    try:
+        if not value or value == 0:
+            return 'unknown'
+        
+        if metric == 'heart_rate':
+            if 60 <= value <= 100:
+                return 'normal'
+            elif value < 60:
+                return 'low'
+            else:
+                return 'high'
+        elif metric == 'blood_oxygen':
+            if value >= 95:
+                return 'normal'
+            elif value >= 90:
+                return 'warning'
+            else:
+                return 'critical'
+        elif metric == 'temperature':
+            if 36.0 <= value <= 37.5:
+                return 'normal'
+            elif value < 36.0:
+                return 'low'
+            else:
+                return 'high'
+        else:
+            return 'normal'
+            
+    except Exception:
+        return 'unknown'
         
 if __name__ == '__main__':
     main()

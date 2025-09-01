@@ -2968,4 +2968,159 @@ def get_health_data_by_date_range(device_sn, start_time, end_time):
     except Exception as e:
         print(f"获取健康数据历史记录失败: {e}")
         return []
-        return {"success": False, "error": str(e)}
+
+def get_latest_health_data(device_sn):
+    """获取设备最新的健康数据"""
+    try:
+        latest_record = db.session.query(UserHealthData).filter(
+            UserHealthData.device_sn == device_sn,
+            UserHealthData.is_deleted.is_(False)
+        ).order_by(UserHealthData.timestamp.desc()).first()
+        
+        if not latest_record:
+            return None
+        
+        return {
+            'heart_rate': latest_record.heart_rate,
+            'blood_oxygen': latest_record.blood_oxygen,
+            'temperature': latest_record.temperature,
+            'pressure_high': latest_record.pressure_high,
+            'pressure_low': latest_record.pressure_low,
+            'step': latest_record.step,
+            'distance': latest_record.distance,
+            'calorie': latest_record.calorie,
+            'stress': latest_record.stress,
+            'timestamp': latest_record.timestamp.isoformat() if latest_record.timestamp else None,
+            'device_sn': latest_record.device_sn
+        }
+        
+    except Exception as e:
+        print(f"获取最新健康数据失败: {e}")
+        return None
+
+def get_health_data_stats(device_sn, start_time, end_time):
+    """获取指定时间范围内的健康数据统计"""
+    try:
+        from sqlalchemy import func
+        
+        stats_query = db.session.query(
+            func.min(UserHealthData.heart_rate).label('hr_min'),
+            func.max(UserHealthData.heart_rate).label('hr_max'),
+            func.avg(UserHealthData.heart_rate).label('hr_avg'),
+            func.min(UserHealthData.blood_oxygen).label('bo_min'),
+            func.max(UserHealthData.blood_oxygen).label('bo_max'),
+            func.avg(UserHealthData.blood_oxygen).label('bo_avg'),
+            func.min(UserHealthData.temperature).label('temp_min'),
+            func.max(UserHealthData.temperature).label('temp_max'),
+            func.avg(UserHealthData.temperature).label('temp_avg')
+        ).filter(
+            UserHealthData.device_sn == device_sn,
+            UserHealthData.timestamp.between(start_time, end_time),
+            UserHealthData.is_deleted.is_(False)
+        ).first()
+        
+        if not stats_query:
+            return {}
+        
+        return {
+            'heart_rate': {
+                'min': int(stats_query.hr_min or 0),
+                'max': int(stats_query.hr_max or 0),
+                'avg': int(stats_query.hr_avg or 0)
+            },
+            'blood_oxygen': {
+                'min': int(stats_query.bo_min or 0),
+                'max': int(stats_query.bo_max or 0),
+                'avg': int(stats_query.bo_avg or 0)
+            },
+            'temperature': {
+                'min': float(stats_query.temp_min or 0),
+                'max': float(stats_query.temp_max or 0),
+                'avg': float(stats_query.temp_avg or 0)
+            }
+        }
+        
+    except Exception as e:
+        print(f"获取健康数据统计失败: {e}")
+        return {}
+
+def get_waveform_data(device_sn, metric, start_time, end_time):
+    """获取波形数据"""
+    try:
+        # 获取指定时间范围内的数据，按时间排序
+        query = db.session.query(UserHealthData).filter(
+            UserHealthData.device_sn == device_sn,
+            UserHealthData.timestamp.between(start_time, end_time),
+            UserHealthData.is_deleted.is_(False)
+        ).order_by(UserHealthData.timestamp.asc())
+        
+        records = query.all()
+        
+        waveform_points = []
+        for record in records:
+            if metric == 'heart_rate':
+                value = record.heart_rate
+            elif metric == 'blood_oxygen':
+                value = record.blood_oxygen
+            elif metric == 'temperature':
+                value = record.temperature
+            else:
+                value = 0
+            
+            if value is not None and value > 0:
+                waveform_points.append({
+                    'timestamp': record.timestamp.isoformat(),
+                    'value': float(value)
+                })
+        
+        return waveform_points
+        
+    except Exception as e:
+        print(f"获取波形数据失败: {e}")
+        return []
+
+def get_health_trends_comprehensive(device_sn, metrics, start_time, end_time):
+    """获取综合健康趋势数据"""
+    try:
+        # 按天分组统计数据
+        from sqlalchemy import func, text
+        
+        daily_stats = db.session.query(
+            func.date(UserHealthData.timestamp).label('date'),
+            func.avg(UserHealthData.heart_rate).label('avg_hr'),
+            func.avg(UserHealthData.blood_oxygen).label('avg_bo'),
+            func.avg(UserHealthData.temperature).label('avg_temp'),
+            func.sum(UserHealthData.step).label('total_steps'),
+            func.sum(UserHealthData.distance).label('total_distance'),
+            func.sum(UserHealthData.calorie).label('total_calories')
+        ).filter(
+            UserHealthData.device_sn == device_sn,
+            UserHealthData.timestamp.between(start_time, end_time),
+            UserHealthData.is_deleted.is_(False)
+        ).group_by(func.date(UserHealthData.timestamp)).order_by(func.date(UserHealthData.timestamp)).all()
+        
+        trends = {}
+        for metric in metrics:
+            trends[metric] = []
+        
+        for stat in daily_stats:
+            date_str = stat.date.isoformat()
+            
+            if 'heart_rate' in metrics and stat.avg_hr:
+                trends['heart_rate'].append({'date': date_str, 'value': float(stat.avg_hr)})
+            if 'blood_oxygen' in metrics and stat.avg_bo:
+                trends['blood_oxygen'].append({'date': date_str, 'value': float(stat.avg_bo)})
+            if 'temperature' in metrics and stat.avg_temp:
+                trends['temperature'].append({'date': date_str, 'value': float(stat.avg_temp)})
+            if 'step' in metrics and stat.total_steps:
+                trends['step'].append({'date': date_str, 'value': int(stat.total_steps)})
+            if 'distance' in metrics and stat.total_distance:
+                trends['distance'].append({'date': date_str, 'value': float(stat.total_distance)})
+            if 'calorie' in metrics and stat.total_calories:
+                trends['calorie'].append({'date': date_str, 'value': float(stat.total_calories)})
+        
+        return trends
+        
+    except Exception as e:
+        print(f"获取健康趋势数据失败: {e}")
+        return {}

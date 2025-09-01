@@ -184,12 +184,9 @@ async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
       <template #header>
         <div class="flex items-center justify-between">
           <span class="text-16px font-bold">{{ isAdmin ? '租户与部门管理' : '部门管理' }}</span>
-          <div class="flex items-center gap-4">
-            <span class="text-10px text-green-500">✨ 已启用闭包表优化(性能提升100倍)</span>
-            <span class="text-12px text-gray-500">
-              {{ isAdmin ? '超级管理员可以创建租户和管理所有部门' : '租户管理员只能管理本租户下的部门' }}
-            </span>
-          </div>
+          <span class="text-12px text-gray-500">
+            {{ isAdmin ? '超级管理员可以创建租户和管理所有部门' : '租户管理员只能管理本租户下的部门' }}
+          </span>
         </div>
       </template>
     </NCard>

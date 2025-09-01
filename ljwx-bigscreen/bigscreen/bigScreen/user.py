@@ -628,3 +628,25 @@ def get_user_id_by_deviceSn(deviceSn):  #根据设备序列号获取用户ID
     except Exception as e:
         print(f"获取用户ID失败 deviceSn={deviceSn}: {e}")
         return None
+
+def get_user_info_by_deviceSn(deviceSn):
+    """根据设备序列号获取完整用户信息"""
+    try:
+        user = UserInfo.query.filter_by(device_sn=deviceSn, is_deleted=False, status='1').first()
+        if not user:
+            return None
+        
+        return {
+            'id': user.id,
+            'user_name': user.user_name,
+            'real_name': user.real_name,
+            'phone': user.phone,
+            'device_sn': user.device_sn,
+            'customer_id': user.customer_id,
+            'create_time': user.create_time.isoformat() if user.create_time else None,
+            'update_time': user.update_time.isoformat() if user.update_time else None
+        }
+        
+    except Exception as e:
+        print(f"获取用户信息失败 deviceSn={deviceSn}: {e}")
+        return None
