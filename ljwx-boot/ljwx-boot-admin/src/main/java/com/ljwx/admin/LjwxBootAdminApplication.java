@@ -15,7 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 
 @EnableScheduling
-@MapperScan("com.ljwx.modules.**.repository.mapper")
+@MapperScan({"com.ljwx.modules.**.repository.mapper", "com.ljwx.modules.health.mapper"})
 @SpringBootApplication(scanBasePackages = "com.ljwx.**")
 public class LjwxBootAdminApplication {
 

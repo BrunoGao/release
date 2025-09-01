@@ -71,6 +71,10 @@ public class TAlertInfo extends BaseEntity {
     private String alertDesc;
 
     private String severityLevel;
+    
+    private String level;  // 告警级别，用于健康评分计算
+    
+    private LocalDateTime occurAt;  // 告警发生时间
 
     private String alertStatus;
 

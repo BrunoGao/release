@@ -6,9 +6,6 @@ import com.ljwx.modules.health.domain.entity.TDeviceInfo;
 import com.ljwx.modules.health.domain.entity.TDeviceMessage;
 import com.ljwx.modules.health.domain.entity.TUserHealthData;
 import com.ljwx.modules.health.domain.vo.OrgStatisticsVO;
-import com.ljwx.modules.health.domain.vo.TAlertInfoVO;
-import com.ljwx.modules.health.domain.vo.TDeviceInfoVO;
-import com.ljwx.modules.health.domain.vo.TDeviceMessageVO;
 import com.ljwx.modules.health.service.*;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.system.domain.entity.SysUser;
@@ -64,7 +61,7 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         List<String> deviceSnList = deviceUserMappingService.getDeviceSnListByDepartmentId(orgId);
         
         // 2. 获取并设置告警信息
-        statistics.setAlertInfo(getAlertInfo(deviceSnList));
+        statistics.setAlertInfo(getTAlertInfo(deviceSnList));
         
         // 3. 获取并设置设备信息
         statistics.setDeviceInfo(getDeviceInfo(deviceSnList));
@@ -81,13 +78,13 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         return statistics;
     }
     
-    private OrgStatisticsVO.AlertInfoVO getAlertInfo(List<String> deviceSnList ) {
+    private OrgStatisticsVO.AlertInfoVO getTAlertInfo(List<String> deviceSnList ) {
         OrgStatisticsVO.AlertInfoVO alertInfo = new OrgStatisticsVO.AlertInfoVO();
         
         // 🔧 修复: 检查设备列表是否为空,避免SQL语法错误
         if (deviceSnList == null || deviceSnList.isEmpty()) {
             log.warn("告警查询设备序列号列表为空,返回默认告警信息");
-            return createEmptyAlertInfo();
+            return createEmptyTAlertInfo();
         }
         
         // 🔧 修复: 过滤无效的设备序列号
@@ -99,7 +96,7 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         
         if (validDeviceSnList.isEmpty()) {
             log.warn("告警查询过滤后设备序列号列表为空,返回默认告警信息");
-            return createEmptyAlertInfo();
+            return createEmptyTAlertInfo();
         }
         
         // 3. 查询告警信息 - 使用过滤后的安全设备列表
@@ -122,9 +119,9 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
             deviceUserMappingService.getDeviceUserInfo(deviceSns);
         
         // 6. 转换并统计告警信息
-        List<TAlertInfoVO> alertVOs = alerts.stream()
+        List<OrgStatisticsVO.AlertDetailVO> alertVOs = alerts.stream()
             .map(alert -> {
-                TAlertInfoVO vo = new TAlertInfoVO();
+                OrgStatisticsVO.AlertDetailVO vo = new OrgStatisticsVO.AlertDetailVO();
                 BeanUtils.copyProperties(alert, vo);
                 
                 // 添加用户信息
@@ -157,7 +154,7 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         return alertInfo;
     }
     
-    private OrgStatisticsVO.AlertInfoVO createEmptyAlertInfo() {
+    private OrgStatisticsVO.AlertInfoVO createEmptyTAlertInfo() {
         OrgStatisticsVO.AlertInfoVO emptyInfo = new OrgStatisticsVO.AlertInfoVO();
         emptyInfo.setAlerts(new ArrayList<>());
         emptyInfo.setAlertStatusCounts(new HashMap<>());
@@ -204,9 +201,9 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         Map<String, Integer> wearableCounts = new HashMap<>();
         
         // 转换并统计设备信息
-        List<TDeviceInfoVO> deviceVOs = devices.stream()
+        List<OrgStatisticsVO.DeviceDetailVO> deviceVOs = devices.stream()
             .map(device -> {
-                TDeviceInfoVO vo = new TDeviceInfoVO();
+                OrgStatisticsVO.DeviceDetailVO vo = new OrgStatisticsVO.DeviceDetailVO();
                 vo.setChargingStatus(device.getChargingStatus());
                 vo.setSerialNumber(device.getSerialNumber());
                 vo.setStatus(device.getStatus());
@@ -318,9 +315,9 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         Map<String, Integer> typeCounts = new HashMap<>();
         
         // 转换并统计消息信息
-        List<TDeviceMessageVO> messageVOs = messages.stream()
+        List<OrgStatisticsVO.MessageDetailVO> messageVOs = messages.stream()
             .map(message -> {
-                TDeviceMessageVO vo = new TDeviceMessageVO();
+                OrgStatisticsVO.MessageDetailVO vo = new OrgStatisticsVO.MessageDetailVO();
                 vo.setDeviceSn(message.getDeviceSn());
                 vo.setId(message.getId());
                 vo.setMessage(message.getMessage());

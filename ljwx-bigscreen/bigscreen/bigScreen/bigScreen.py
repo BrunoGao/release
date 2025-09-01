@@ -3482,6 +3482,73 @@ def get_personal_health_history():
             'error': f'获取历史数据失败: {str(e)}'
         }), 500
 
+@app.route('/api/personal/health_trends', methods=['GET'])
+def get_personal_health_trends():
+    """获取个人健康数据趋势API - 支持deviceSn参数"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        days = int(request.args.get('days', 30))  # 默认30天趋势
+        
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'error': 'deviceSn参数是必需的'
+            }), 400
+        
+        # 获取用户ID
+        from .user import get_user_id_by_deviceSn
+        user_id = get_user_id_by_deviceSn(device_sn)
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': f'设备{device_sn}未找到对应用户'
+            }), 404
+        
+        # 获取用户组织信息
+        from .device import get_device_user_org_info
+        org_info = get_device_user_org_info(device_sn)
+        org_id = org_info.get('orgId') if org_info else None
+        
+        # 计算日期范围
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        
+        api_logger.info(f"📈 获取个人健康趋势: deviceSn={device_sn}, userId={user_id}, days={days}")
+        
+        # 调用现有的健康趋势函数
+        trends_result = get_health_trends(orgId=org_id, userId=user_id, startDate=start_date_str, endDate=end_date_str)
+        
+        # 如果get_health_trends返回的是Response对象，需要转换
+        if hasattr(trends_result, 'get_json'):
+            trends_data = trends_result.get_json()
+        elif hasattr(trends_result, 'json'):
+            trends_data = trends_result.json
+        else:
+            trends_data = trends_result
+        
+        # 添加设备信息到返回数据
+        if trends_data and trends_data.get('success'):
+            if 'data' not in trends_data:
+                trends_data['data'] = {}
+            trends_data['data']['deviceSn'] = device_sn
+            trends_data['data']['userId'] = user_id
+            trends_data['data']['orgId'] = org_id
+            trends_data['data']['timeRange'] = f'{days}天'
+            
+        api_logger.info(f"✅ 个人健康趋势获取完成: deviceSn={device_sn}")
+        return jsonify(trends_data)
+        
+    except Exception as e:
+        api_logger.error(f"❌ 获取个人健康趋势失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取个人健康趋势失败: {str(e)}'
+        }), 500
+
     except Exception as e:
         print(f"Error in phone_get_personal_info: {e}")
         return jsonify({

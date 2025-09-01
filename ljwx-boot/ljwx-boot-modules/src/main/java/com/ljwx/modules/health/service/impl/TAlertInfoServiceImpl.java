@@ -55,27 +55,27 @@ public class TAlertInfoServiceImpl extends ServiceImpl<TAlertInfoMapper, TAlertI
 
 
     @Override
-    public IPage<TAlertInfo> listTAlertInfoPage(PageQuery pageQuery, TAlertInfoBO tAlertInfoBO) {
+    public IPage<TAlertInfo> listTAlertInfoPage(PageQuery pageQuery, TAlertInfoBO tTAlertInfoBO) {
         
         LambdaQueryWrapper<TAlertInfo> queryWrapper = new LambdaQueryWrapper<TAlertInfo>()
-            .eq(ObjectUtils.isNotEmpty(tAlertInfoBO.getAlertType()), TAlertInfo::getAlertType, tAlertInfoBO.getAlertType())
-            .eq(ObjectUtils.isNotEmpty(tAlertInfoBO.getAlertStatus()), TAlertInfo::getAlertStatus, tAlertInfoBO.getAlertStatus())
+            .eq(ObjectUtils.isNotEmpty(tTAlertInfoBO.getAlertType()), TAlertInfo::getAlertType, tTAlertInfoBO.getAlertType())
+            .eq(ObjectUtils.isNotEmpty(tTAlertInfoBO.getAlertStatus()), TAlertInfo::getAlertStatus, tTAlertInfoBO.getAlertStatus())
             .orderByDesc(TAlertInfo::getAlertTimestamp);
 
         // 添加租户过滤 - 直接使用传入的customerId
-        if (tAlertInfoBO.getCustomerId() != null && tAlertInfoBO.getCustomerId() != 0L) {
+        if (tTAlertInfoBO.getCustomerId() != null && tTAlertInfoBO.getCustomerId() != 0L) {
             // 租户用户，查看全局告警(customer_id=0)和自己租户的告警
             queryWrapper.and(wrapper -> 
                 wrapper.eq(TAlertInfo::getCustomerId, 0L)
                        .or()
-                       .eq(TAlertInfo::getCustomerId, tAlertInfoBO.getCustomerId())
+                       .eq(TAlertInfo::getCustomerId, tTAlertInfoBO.getCustomerId())
             );
         }
-        if (ObjectUtils.isNotEmpty(tAlertInfoBO.getUserId()) || ObjectUtils.isNotEmpty(tAlertInfoBO.getDepartmentInfo())) {
+        if (ObjectUtils.isNotEmpty(tTAlertInfoBO.getUserId()) || ObjectUtils.isNotEmpty(tTAlertInfoBO.getDepartmentInfo())) {
             // 获取设备序列号列表
             List<String> deviceSnList = deviceUserMappingService.getDeviceSnList(
-                tAlertInfoBO.getUserId() != null ? tAlertInfoBO.getUserId().toString() : null,
-                tAlertInfoBO.getDepartmentInfo()
+                tTAlertInfoBO.getUserId() != null ? tTAlertInfoBO.getUserId().toString() : null,
+                tTAlertInfoBO.getDepartmentInfo()
             );
             
             // 如果设备列表为空，直接返回空结果

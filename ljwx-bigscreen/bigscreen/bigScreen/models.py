@@ -290,7 +290,7 @@ class UserInfo(db.Model):
 
 class Position(db.Model):
     __tablename__ = 'sys_position'
-    __table_args__ = {'schema': 'lj-06', 'comment': '岗位管理'}
+    __table_args__ = {'comment': '岗位管理'}
 
     id = Column(BigInteger, primary_key=True, comment='主键')
     name = Column(String(200), nullable=False, comment='岗位名称')
@@ -301,6 +301,8 @@ class Position(db.Model):
     status = Column(String(2), default='1', comment='是否启用(0:禁用,1:启用)')
     org_id = Column(BigInteger, comment='组织ID')
     risk_level = Column(String(20), default='normal', comment='岗位风险等级')
+    weight = Column(db.Numeric(5, 2), default=0.15, comment='岗位健康权重')
+    customer_id = Column(BigInteger, nullable=False, default=0, comment='租户ID')
     is_deleted = Column(SmallInteger, default=0, comment='是否删除(0:否,1:是)')
     create_user = Column(String(64), nullable=False, comment='创建用户')
     create_user_id = Column(BigInteger, nullable=False, comment='创建用户ID')
@@ -308,6 +310,28 @@ class Position(db.Model):
     update_user = Column(String(64), comment='修改用户')
     update_user_id = Column(BigInteger, comment='修改用户ID')
     update_time = Column(DateTime, comment='修改时间')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'abbr': self.abbr,
+            'description': self.description,
+            'sort': self.sort,
+            'status': self.status,
+            'org_id': self.org_id,
+            'risk_level': self.risk_level,
+            'weight': float(self.weight) if self.weight else 0.15,
+            'customer_id': self.customer_id,
+            'is_deleted': self.is_deleted,
+            'create_user': self.create_user,
+            'create_user_id': self.create_user_id,
+            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
+            'update_user': self.update_user,
+            'update_user_id': self.update_user_id,
+            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None
+        }
 
 class UserPosition(db.Model):
     __tablename__ = 'sys_user_position'
@@ -450,6 +474,15 @@ class HealthBaseline(db.Model):
     max_value = Column(Float, comment='该期最大值')
     sample_count = Column(Integer, default=0, comment='样本数量')
     is_current = Column(Boolean, nullable=False, comment='是否当前有效基线(1=是,0=否)')
+    
+    # 扩展字段 - 支持多层次基线
+    baseline_type = Column(String(20), default='personal', comment='基线类型：personal|population|position')
+    age_group = Column(String(20), comment='年龄组')
+    gender = Column(String(10), comment='性别')
+    position_risk_level = Column(String(20), comment='职位风险等级')
+    seasonal_factor = Column(db.Numeric(5, 4), default=1.0000, comment='季节调整因子')
+    confidence_level = Column(db.Numeric(5, 4), default=0.9500, comment='置信水平')
+    
     create_user = Column(String(255), comment='创建人')
     create_user_id = Column(BigInteger, comment='创建人ID')
     create_time = Column(DateTime, nullable=False, server_default=func.now(), comment='记录创建时间')
@@ -461,6 +494,8 @@ class HealthBaseline(db.Model):
     __table_args__ = (
         db.Index('idx_baseline_device_date', 'device_sn', 'baseline_date'),
         db.Index('idx_baseline_user_date', 'user_id', 'baseline_date'),
+        db.Index('idx_baseline_type_date', 'baseline_type', 'baseline_date', 'is_current'),
+        db.Index('idx_baseline_user_feature', 'user_id', 'feature_name', 'baseline_date'),
     )
 
     
@@ -468,12 +503,22 @@ class HealthBaseline(db.Model):
         return {
             'baseline_id': self.baseline_id,
             'device_sn': self.device_sn,
+            'user_id': self.user_id,
+            'customer_id': self.customer_id,
             'feature_name': self.feature_name,
+            'baseline_date': self.baseline_date.strftime('%Y-%m-%d') if self.baseline_date else None,
             'mean_value': float(self.mean_value) if self.mean_value is not None else None,
             'std_value': float(self.std_value) if self.std_value is not None else None,
             'min_value': float(self.min_value) if self.min_value is not None else None,
             'max_value': float(self.max_value) if self.max_value is not None else None,
+            'sample_count': self.sample_count,
             'is_current': bool(self.is_current),
+            'baseline_type': self.baseline_type,
+            'age_group': self.age_group,
+            'gender': self.gender,
+            'position_risk_level': self.position_risk_level,
+            'seasonal_factor': float(self.seasonal_factor) if self.seasonal_factor else 1.0,
+            'confidence_level': float(self.confidence_level) if self.confidence_level else 0.95,
             'create_user': self.create_user,
             'create_user_id': self.create_user_id,
             'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
@@ -481,7 +526,6 @@ class HealthBaseline(db.Model):
             'update_user_id': self.update_user_id,
             'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None,
             'baseline_time': self.baseline_time.strftime('%Y-%m-%d %H:%M:%S') if self.baseline_time else None
-        
         }
 
 class OrgHealthBaseline(db.Model):
@@ -935,4 +979,145 @@ class HealthScore(db.Model):
             'score_date': self.score_date.isoformat() if self.score_date else None,
             'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
             'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None
+        }
+
+class UserHealthProfile(db.Model):
+    """用户健康画像主表"""
+    __tablename__ = 't_user_health_profile'
+    
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, nullable=False, comment='用户ID')
+    customer_id = db.Column(db.BigInteger, nullable=False, comment='租户ID')
+    profile_date = db.Column(db.Date, nullable=False, comment='画像日期')
+    
+    # 综合评分
+    overall_health_score = db.Column(db.Numeric(5, 2), default=0.00, comment='综合健康评分')
+    health_level = db.Column(db.String(20), default='fair', comment='健康等级')
+    
+    # 各维度评分
+    physiological_score = db.Column(db.Numeric(5, 2), default=0.00, comment='生理指标评分')
+    behavioral_score = db.Column(db.Numeric(5, 2), default=0.00, comment='行为指标评分')
+    risk_factor_score = db.Column(db.Numeric(5, 2), default=0.00, comment='风险因子评分')
+    
+    # 健康指标分析
+    cardiovascular_score = db.Column(db.Numeric(5, 2), default=0.00, comment='心血管健康评分')
+    respiratory_score = db.Column(db.Numeric(5, 2), default=0.00, comment='呼吸系统评分')
+    metabolic_score = db.Column(db.Numeric(5, 2), default=0.00, comment='代谢功能评分')
+    psychological_score = db.Column(db.Numeric(5, 2), default=0.00, comment='心理健康评分')
+    
+    # 行为模式分析
+    activity_consistency_score = db.Column(db.Numeric(5, 2), default=0.00, comment='活动一致性评分')
+    sleep_quality_score = db.Column(db.Numeric(5, 2), default=0.00, comment='睡眠质量评分')
+    health_engagement_score = db.Column(db.Numeric(5, 2), default=0.00, comment='健康参与度评分')
+    
+    # 风险评估
+    current_risk_level = db.Column(db.String(20), default='medium', comment='当前风险等级')
+    predicted_risk_score = db.Column(db.Numeric(5, 2), default=0.00, comment='预测风险评分')
+    
+    # JSON扩展字段
+    detailed_analysis = db.Column(db.JSON, comment='详细分析数据')
+    trend_analysis = db.Column(db.JSON, comment='趋势分析数据')
+    recommendations = db.Column(db.JSON, comment='个性化建议')
+    
+    # 审计字段
+    create_time = db.Column(db.DateTime, default=datetime.utcnow)
+    update_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False)
+    version = db.Column(db.Integer, default=1)
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'profile_date', 'is_deleted', name='idx_user_profile_date'),
+        db.Index('idx_customer_date', 'customer_id', 'profile_date'),
+        db.Index('idx_health_level', 'health_level', 'profile_date'),
+        db.Index('idx_risk_level', 'current_risk_level', 'profile_date'),
+        {'comment': '用户健康画像主表'}
+    )
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'customer_id': self.customer_id,
+            'profile_date': self.profile_date.strftime('%Y-%m-%d') if self.profile_date else None,
+            'overall_health_score': float(self.overall_health_score) if self.overall_health_score else 0.0,
+            'health_level': self.health_level,
+            'physiological_score': float(self.physiological_score) if self.physiological_score else 0.0,
+            'behavioral_score': float(self.behavioral_score) if self.behavioral_score else 0.0,
+            'risk_factor_score': float(self.risk_factor_score) if self.risk_factor_score else 0.0,
+            'cardiovascular_score': float(self.cardiovascular_score) if self.cardiovascular_score else 0.0,
+            'respiratory_score': float(self.respiratory_score) if self.respiratory_score else 0.0,
+            'metabolic_score': float(self.metabolic_score) if self.metabolic_score else 0.0,
+            'psychological_score': float(self.psychological_score) if self.psychological_score else 0.0,
+            'activity_consistency_score': float(self.activity_consistency_score) if self.activity_consistency_score else 0.0,
+            'sleep_quality_score': float(self.sleep_quality_score) if self.sleep_quality_score else 0.0,
+            'health_engagement_score': float(self.health_engagement_score) if self.health_engagement_score else 0.0,
+            'current_risk_level': self.current_risk_level,
+            'predicted_risk_score': float(self.predicted_risk_score) if self.predicted_risk_score else 0.0,
+            'detailed_analysis': self.detailed_analysis,
+            'trend_analysis': self.trend_analysis,
+            'recommendations': self.recommendations,
+            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
+            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None,
+            'is_deleted': self.is_deleted,
+            'version': self.version
+        }
+
+class HealthRecommendationTrack(db.Model):
+    """健康建议执行跟踪表"""
+    __tablename__ = 't_health_recommendation_track'
+    
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, nullable=False, comment='用户ID')
+    customer_id = db.Column(db.BigInteger, nullable=False, comment='租户ID')
+    recommendation_id = db.Column(db.String(64), nullable=False, comment='建议ID')
+    recommendation_type = db.Column(db.String(50), nullable=False, comment='建议类型')
+    
+    # 建议内容
+    title = db.Column(db.String(200), nullable=False, comment='建议标题')
+    description = db.Column(db.Text, comment='建议描述')
+    recommended_actions = db.Column(db.JSON, comment='推荐行动')
+    
+    # 执行状态
+    status = db.Column(db.String(20), default='pending', comment='执行状态')
+    start_date = db.Column(db.Date, comment='开始日期')
+    target_completion_date = db.Column(db.Date, comment='目标完成日期')
+    actual_completion_date = db.Column(db.Date, comment='实际完成日期')
+    
+    # 效果评估
+    effectiveness_score = db.Column(db.Numeric(5, 2), comment='效果评分')
+    user_feedback = db.Column(db.Text, comment='用户反馈')
+    health_improvement_metrics = db.Column(db.JSON, comment='健康改善指标')
+    
+    # 审计字段
+    create_time = db.Column(db.DateTime, default=datetime.utcnow)
+    update_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    __table_args__ = (
+        db.Index('idx_user_status', 'user_id', 'status', 'is_deleted'),
+        db.Index('idx_customer_type', 'customer_id', 'recommendation_type'),
+        db.Index('idx_completion_date', 'target_completion_date', 'status'),
+        {'comment': '健康建议执行跟踪表'}
+    )
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'customer_id': self.customer_id,
+            'recommendation_id': self.recommendation_id,
+            'recommendation_type': self.recommendation_type,
+            'title': self.title,
+            'description': self.description,
+            'recommended_actions': self.recommended_actions,
+            'status': self.status,
+            'start_date': self.start_date.strftime('%Y-%m-%d') if self.start_date else None,
+            'target_completion_date': self.target_completion_date.strftime('%Y-%m-%d') if self.target_completion_date else None,
+            'actual_completion_date': self.actual_completion_date.strftime('%Y-%m-%d') if self.actual_completion_date else None,
+            'effectiveness_score': float(self.effectiveness_score) if self.effectiveness_score else None,
+            'user_feedback': self.user_feedback,
+            'health_improvement_metrics': self.health_improvement_metrics,
+            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
+            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None,
+            'is_deleted': self.is_deleted
         }

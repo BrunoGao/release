@@ -68,8 +68,4 @@ public class TAlertInfoVO extends BaseVO {
 
     private String alertDesc;
 
-    private String createUser;
-
-    private LocalDateTime createTime;
-
 }

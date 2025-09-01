@@ -1388,6 +1388,21 @@
             justify-content: space-between;
         }
 
+        /* 减少心率和血氧卡片高度30% */
+        #heartRateCard,
+        #bloodOxygenCard {
+            flex: 0.7; /* 减少30%高度 */
+        }
+
+        /* 体温卡片保持正常高度，确保显示正常 */
+        #temperatureCard {
+            flex: 1;
+            min-height: 200px; /* 确保体温卡片有足够空间显示 */
+            visibility: visible !important; /* 强制确保体温卡片可见 */
+            display: flex !important; /* 强制确保体温卡片显示 */
+            z-index: 2; /* 确保体温卡片在最上层 */
+        }
+
 
         .health-card:hover {
             transform: translateY(-5px) scale(1.02);
@@ -1465,7 +1480,18 @@
             position: relative;
             width: 80px;
             height: 80px;
-            margin: 0 auto 8px;
+            margin: 0 auto 4px; /* 减少底部边距，优化3D图像周围空间 */
+        }
+
+        /* 针对心率和血氧卡片优化3D图像空间 */
+        #heartRateCard .advanced-gauge,
+        #bloodOxygenCard .advanced-gauge {
+            margin: 0 auto 2px; /* 进一步减少3D图像周围空间 */
+        }
+
+        /* 体温卡片保持更多空间以确保正常显示 */
+        #temperatureCard .advanced-gauge {
+            margin: 0 auto 6px;
         }
 
         .gauge-container {
@@ -3900,9 +3926,20 @@
             // 初始化体温仪表盘
             const temperatureElement = document.getElementById('temperatureGauge');
             if (temperatureElement) {
+                console.log('🌡️ 初始化体温仪表盘...');
                 chartInstances.temperatureGauge = echarts.init(temperatureElement);
                 chartInstances.temperatureGauge._chartName = '体温'; // 标记图表类型
                 initGaugeChart(chartInstances.temperatureGauge, '体温', '°C', 50, '#ffaa00');
+                
+                // 确保体温卡片可见性
+                const tempCard = document.getElementById('temperatureCard');
+                if (tempCard) {
+                    tempCard.style.visibility = 'visible';
+                    tempCard.style.display = 'flex';
+                    console.log('✅ 体温卡片可见性已确保');
+                }
+            } else {
+                console.error('❌ 体温仪表盘元素未找到');
             }
             
             // 初始化主趋势图

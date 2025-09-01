@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import com.ljwx.modules.health.util.HealthDataTableUtil;
+import com.ljwx.modules.health.job.DepartmentHealthAggregationJob;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,6 +34,9 @@ public class HealthBaselineScoreTasks {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    
+    @Autowired
+    private DepartmentHealthAggregationJob departmentHealthAggregationJob;
     
     private final DateTimeFormatter TABLE_SUFFIX_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
     private final ExecutorService executorService = Executors.newFixedThreadPool(8); // #优化线程池大小
@@ -391,7 +395,25 @@ public class HealthBaselineScoreTasks {
     }
 
     /**
-     * 3. 生成组织健康基线 - 每日02:10执行
+     * 3. 生成部门健康基线聚合 - 每日02:05执行 (利用组织闭包表)
+     */
+    @Scheduled(cron = "0 5 2 * * ?")
+    @Transactional(rollbackFor = Exception.class)
+    public void generateDepartmentHealthBaseline() {
+        log.info("🔄 开始生成部门健康基线聚合 (基于组织闭包表)");
+        
+        try {
+            departmentHealthAggregationJob.execute();
+            log.info("🎉 部门健康基线聚合任务完成");
+            
+        } catch (Exception e) {
+            log.error("❌ 部门健康基线聚合失败: {}", e.getMessage(), e);
+            throw new RuntimeException("部门健康基线聚合失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 4. 生成组织健康基线 - 每日02:10执行
      */
     @Scheduled(cron = "0 10 2 * * ?")
     @Transactional(rollbackFor = Exception.class)
@@ -443,7 +465,25 @@ public class HealthBaselineScoreTasks {
     }
 
     /**
-     * 4. 生成用户健康评分 - 每日04:00执行
+     * 5. 生成部门健康评分 - 每日02:15执行 (基于部门基线)
+     */
+    @Scheduled(cron = "0 15 2 * * ?")
+    @Transactional(rollbackFor = Exception.class)
+    public void generateDepartmentHealthScore() {
+        log.info("🔄 开始生成部门健康评分 (基于组织闭包表)");
+        
+        try {
+            departmentHealthAggregationJob.generateDepartmentHealthScores();
+            log.info("🎉 部门健康评分生成任务完成");
+            
+        } catch (Exception e) {
+            log.error("❌ 部门健康评分生成失败: {}", e.getMessage(), e);
+            throw new RuntimeException("部门健康评分生成失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 6. 生成用户健康评分 - 每日04:00执行
      */
     @Scheduled(cron = "0 0 4 * * ?")
     @Transactional(rollbackFor = Exception.class)
@@ -596,7 +636,7 @@ public class HealthBaselineScoreTasks {
     }
 
     /**
-     * 5. 生成组织健康评分 - 每日04:10执行
+     * 7. 生成组织健康评分 - 每日04:10执行
      */
     @Scheduled(cron = "0 10 4 * * ?")
     @Transactional(rollbackFor = Exception.class)
@@ -646,7 +686,7 @@ public class HealthBaselineScoreTasks {
     }
     
     /**
-     * 6. 数据清理任务 - 每日05:00执行
+     * 8. 数据清理任务 - 每日05:00执行
      */
     @Scheduled(cron = "0 0 5 * * ?")
     public void cleanupOldData() {

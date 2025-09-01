@@ -34,6 +34,10 @@ public class TestConfig {
     public static final String MESSAGE_API = API_PREFIX + "/t_device_message";
     public static final String HEALTH_DATA_API = API_PREFIX + "/t_user_health_data";
     
+    // 兼容性API别名（用于旧测试类）
+    public static final String ROLE_API = POSITION_API;
+    public static final String HEALTH_API = HEALTH_DATA_API;
+    
     // 测试用户配置
     public static class TestUsers {
         // 超级管理员

@@ -7,7 +7,6 @@
     <!-- 测试监听器 -->
     <listeners>
         <listener class-name="com.ljwx.test.listener.TestResultListener"/>
-        <listener class-name="com.ljwx.test.listener.TestRetryListener"/>
     </listeners>
     
     <!-- 认证功能测试 -->

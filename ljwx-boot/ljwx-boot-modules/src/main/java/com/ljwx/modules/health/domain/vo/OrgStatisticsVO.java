@@ -17,10 +17,26 @@ public class OrgStatisticsVO {
     public static class AlertInfoVO {
         private Map<String, Integer> alertStatusCounts;
         private Map<String, Integer> alertTypeCounts;
-        private List<TAlertInfoVO> alerts;
+        private List<AlertDetailVO> alerts;
         private Map<String, Integer> severityLevelCounts;
         private Integer totalAlerts;
         private Integer uniqueAlertTypes;
+    }
+    
+    @Data
+    public static class AlertDetailVO {
+        private Long id;
+        private String userName;
+        private String departmentInfo;
+        private String alertType;
+        private String deviceSn;
+        private String alertStatus;
+        private String severityLevel;
+        private Long healthId;
+        private java.time.LocalDateTime alertTimestamp;
+        private String alertDesc;
+        private String createUser;
+        private java.time.LocalDateTime createTime;
     }
 
     @Data
@@ -29,9 +45,18 @@ public class OrgStatisticsVO {
         private Map<String, Integer> deviceOsCounts;
         private Map<String, Integer> deviceStatusCounts;
         private Map<String, Integer> deviceWearableCounts;
-        private List<TDeviceInfoVO> devices;
+        private List<DeviceDetailVO> devices;
         private Boolean success;
         private Integer totalDevices;
+    }
+    
+    @Data
+    public static class DeviceDetailVO {
+        private String chargingStatus;
+        private String serialNumber;
+        private String status;
+        private String systemSoftwareVersion;
+        private String wearableStatus;
     }
 
     @Data
@@ -56,10 +81,21 @@ public class OrgStatisticsVO {
     public static class MessageInfoVO {
         private Map<String, Integer> messageStatusCounts;
         private Map<String, Integer> messageTypeCounts;
-        private List<TDeviceMessageVO> messages;
+        private List<MessageDetailVO> messages;
         private Boolean success;
         private Integer totalMessages;
         private Integer uniqueMessageTypes;
+    }
+    
+    @Data
+    public static class MessageDetailVO {
+        private String deviceSn;
+        private Long id;
+        private String message;
+        private String messageStatus;
+        private String messageType;
+        private java.time.LocalDateTime receivedTime;
+        private java.time.LocalDateTime sentTime;
     }
 
     @Data

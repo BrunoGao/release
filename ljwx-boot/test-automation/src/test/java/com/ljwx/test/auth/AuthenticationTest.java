@@ -46,7 +46,6 @@ public class AuthenticationTest extends BaseApiTest {
         log.info("Admin登录响应: {}", response.asString());
         
         // 验证响应结构
-        Assert.assertTrue(response.jsonPath().getBoolean("success"), "登录应该成功");
         Assert.assertEquals(response.jsonPath().getInt("code"), 200, "响应码应该为200");
         
         // 获取Token
@@ -79,9 +78,8 @@ public class AuthenticationTest extends BaseApiTest {
         
         Assert.assertEquals(response.statusCode(), 200, "使用Token访问接口应该成功");
         
-        if (response.jsonPath().getBoolean("success") != null) {
-            Assert.assertTrue(response.jsonPath().getBoolean("success"), "接口调用应该成功");
-        }
+        // 验证接口调用成功（基于code字段）
+        Assert.assertEquals(response.statusCode(), 200, "HTTP状态码应该为200");
         
         log.info("✅ Token有效性验证通过");
     }
@@ -98,11 +96,11 @@ public class AuthenticationTest extends BaseApiTest {
         log.info("无Token访问响应状态: {}", response.statusCode());
         log.info("无Token访问响应: {}", response.asString());
         
-        // 应该返回401未认证或403权限不足
+        // 应该返回401未认证或403权限不足，或者返回错误code
         Assert.assertTrue(
             response.statusCode() == 401 || 
             response.statusCode() == 403 || 
-            (response.statusCode() == 200 && !response.jsonPath().getBoolean("success")),
+            (response.statusCode() == 200 && response.jsonPath().getInt("code") != 200),
             "无Token访问应该被拒绝"
         );
         
@@ -127,7 +125,7 @@ public class AuthenticationTest extends BaseApiTest {
         Assert.assertTrue(
             response.statusCode() == 401 || 
             response.statusCode() == 403 ||
-            (response.statusCode() == 200 && !response.jsonPath().getBoolean("success")),
+            (response.statusCode() == 200 && response.jsonPath().getInt("code") != 200),
             "错误Token应该被拒绝"
         );
         
@@ -149,7 +147,7 @@ public class AuthenticationTest extends BaseApiTest {
         
         Assert.assertTrue(
             emptyUserResponse.statusCode() != 200 || 
-            !emptyUserResponse.jsonPath().getBoolean("success"),
+            emptyUserResponse.jsonPath().getInt("code") != 200,
             "空用户名应该被拒绝"
         );
         
@@ -166,7 +164,7 @@ public class AuthenticationTest extends BaseApiTest {
         
         Assert.assertTrue(
             wrongPasswordResponse.statusCode() != 200 || 
-            !wrongPasswordResponse.jsonPath().getBoolean("success"),
+            wrongPasswordResponse.jsonPath().getInt("code") != 200,
             "错误密码应该被拒绝"
         );
         

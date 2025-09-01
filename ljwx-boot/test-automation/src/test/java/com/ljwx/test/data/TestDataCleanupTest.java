@@ -11,10 +11,11 @@ import org.testng.annotations.Test;
 public class TestDataCleanupTest {
     
     @Test(description = "清理所有测试数据")
-    public void cleanupAllTestData() {
+    public void cleanupAllTestData() throws Exception {
         log.info("开始执行测试数据清理...");
         
-        try (TestDataManager dataManager = new TestDataManager()) {
+        TestDataManager dataManager = new TestDataManager();
+        try {
             dataManager.cleanupTestData();
             log.info("✅ 测试数据清理完成");
             

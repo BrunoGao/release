@@ -40,10 +40,10 @@ public interface ITAlertInfoService extends IService<TAlertInfo> {
      *  - 分页查询
      *
      * @param pageQuery 分页对象
-     * @param tAlertInfoBO BO 查询对象
+     * @param tTAlertInfoBO BO 查询对象
      * @return {@link IPage} 分页结果
      * @author payne.zhuang
      * @CreateTime 2024-10-27 - 20:37:23
      */
-    IPage<TAlertInfo> listTAlertInfoPage(PageQuery pageQuery, TAlertInfoBO tAlertInfoBO);
+    IPage<TAlertInfo> listTAlertInfoPage(PageQuery pageQuery, TAlertInfoBO tTAlertInfoBO);
 }
