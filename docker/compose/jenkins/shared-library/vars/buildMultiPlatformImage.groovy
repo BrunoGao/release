@@ -1,61 +1,56 @@
 #!/usr/bin/env groovy
-// 多平台Docker镜像构建共享库
 
 def call(Map config) {
-    def registry = config.registry ?: env.DOCKER_REGISTRY ?: 'localhost:5001'
-    def imageName = config.imageName ?: env.JOB_NAME.toLowerCase()
-    def platforms = config.platforms ?: 'linux/amd64,linux/arm64'
-    def dockerfile = config.dockerfile ?: 'Dockerfile'
-    def context = config.context ?: '.'
-    def tags = config.tags ?: ["latest", env.BUILD_NUMBER]
-    def push = config.push != false
-    def builderName = config.builderName ?: 'multiplatform-builder'
+    def imageName = config.imageName ?: error("imageName is required")
+    def platforms = config.platforms ?: "linux/amd64,linux/arm64"
+    def dockerfile = config.dockerfile ?: "Dockerfile"
+    def buildContext = config.buildContext ?: "."
+    def pushImage = config.pushImage ?: true
+    def registryCredentialsId = config.registryCredentialsId ?: ""
+    def buildArgs = config.buildArgs ?: [:]
     
-    echo "🚀 开始多平台镜像构建"
-    echo "Registry: ${registry}"
-    echo "Image: ${imageName}"
-    echo "Platforms: ${platforms}"
-    echo "Tags: ${tags.join(', ')}"
+    echo "🔨 构建多平台镜像: ${imageName}"
+    echo "📋 平台: ${platforms}"
     
-    try {
-        // 创建和配置builder
-        sh """
-            docker buildx create --use --name ${builderName} --driver docker-container 2>/dev/null || \
-            docker buildx use ${builderName} 2>/dev/null || \
-            docker buildx create --use --name ${builderName} --driver docker-container
-            docker buildx inspect --bootstrap ${builderName}
-        """
+    script {
+        // 构建参数
+        def buildArgsStr = ""
+        buildArgs.each { key, value ->
+            buildArgsStr += "--build-arg ${key}=${value} "
+        }
         
-        // 构建标签参数
-        def tagArgs = tags.collect { tag -> 
-            "-t ${registry}/${imageName}:${tag}"
-        }.join(' ')
-        
-        // 执行多平台构建
-        def buildCmd = """
-            docker buildx build \\
-                --platform ${platforms} \\
-                --file ${dockerfile} \\
-                ${tagArgs} \\
-                ${push ? '--push' : '--load'} \\
-                ${context}
-        """
-        
-        sh buildCmd
-        
-        echo "✅ 多平台镜像构建成功"
-        
-        // 返回构建信息
-        return [
-            registry: registry,
-            imageName: imageName,
-            tags: tags,
-            platforms: platforms,
-            pushed: push
-        ]
-        
-    } catch (Exception e) {
-        echo "❌ 多平台构建失败: ${e.message}"
-        throw e
+        if (pushImage && registryCredentialsId) {
+            withCredentials([usernamePassword(credentialsId: registryCredentialsId, 
+                                              usernameVariable: 'REGISTRY_USER', 
+                                              passwordVariable: 'REGISTRY_PASS')]) {
+                // 登录到镜像仓库
+                sh """
+                    echo "\${REGISTRY_PASS}" | docker login -u "\${REGISTRY_USER}" --password-stdin \$(echo "${imageName}" | cut -d'/' -f1)
+                """
+                
+                // 构建并推送
+                sh """
+                    docker buildx build \\
+                        --platform ${platforms} \\
+                        --file ${dockerfile} \\
+                        ${buildArgsStr} \\
+                        --tag ${imageName} \\
+                        --push \\
+                        ${buildContext}
+                """
+            }
+        } else {
+            // 仅构建，不推送
+            sh """
+                docker buildx build \\
+                    --platform ${platforms} \\
+                    --file ${dockerfile} \\
+                    ${buildArgsStr} \\
+                    --tag ${imageName} \\
+                    ${buildContext}
+            """
+        }
     }
-} 
+    
+    echo "✅ 多平台镜像构建完成: ${imageName}"
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.ljwx</groupId>
+        <artifactId>ljwx-boot-starter</artifactId>
+        <version>1.0.6-SNAPSHOT</version>
+    </parent>
+
+    <version>1.0.6-SNAPSHOT</version>
+    <name>ljwx-boot-starter-database-mysql</name>
+    <artifactId>ljwx-boot-starter-database-mysql</artifactId>
+    <description>PanisBoot Starter - 数据库 MySQL</description>
+
+    <dependencies>
+        <!-- PanisBoot Starter Common -->
+        <dependency>
+            <groupId>com.ljwx</groupId>
+            <artifactId>ljwx-boot-starter-common</artifactId>
+        </dependency>
+
+        <!-- Mysql Connector -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+    </dependencies>
+
+</project>

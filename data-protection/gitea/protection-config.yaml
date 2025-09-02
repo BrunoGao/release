@@ -1,0 +1,18 @@
+gitea_data_protection:
+  version: "1.0"
+  created: "2025-09-01T21:30:30+08:00"
+  settings:
+    backup_retention_days: 30
+    backup_interval_hours: 6
+    real_time_sync: true
+    auto_recovery: true
+    notification_enabled: true
+  paths:
+    compose_file: "/Users/brunogao/work/infra/docker/compose/gitea-compose.yml"
+    backup_dir: "/Users/brunogao/work/infra/backup/gitea"
+    data_protection_dir: "/Users/brunogao/work/infra/data-protection/gitea"
+    log_file: "/Users/brunogao/work/infra/logs/gitea-protection.log"
+  docker:
+    volume_name: "gitea-data"
+    container_name: "gitea"
+    service_name: "gitea"

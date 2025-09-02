@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_1a820c6922cfa776e868bf17c8b37a08 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_1a820c6922cfa776e868bf17c8b37a08" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_1a820c6922cfa776e868bf17c8b37a08 = L.map(
+                "map_1a820c6922cfa776e868bf17c8b37a08",
+                {
+                    center: [22.5431, 114.0579],
+                    crs: L.CRS.EPSG3857,
+                    zoom: 12,
+                    zoomControl: true,
+                    preferCanvas: false,
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_fce06c1849715fad13b0e845ba69399b = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {"attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors", "detectRetina": false, "maxNativeZoom": 19, "maxZoom": 19, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
+            );
+        
+    
+            tile_layer_fce06c1849715fad13b0e845ba69399b.addTo(map_1a820c6922cfa776e868bf17c8b37a08);
+        
+    
+            var tile_layer_52e179a97c5b79a7be9683e1ed66cde1 = L.tileLayer(
+                "http://webrd02.is.autonavi.com/appmaptile?lang=zh_cn\u0026size=1\u0026scale=1\u0026style=7\u0026x={x}\u0026y={y}\u0026z={z}",
+                {"attribution": "\u9ad8\u5fb7\u5730\u56fe", "detectRetina": false, "maxNativeZoom": 18, "maxZoom": 18, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
+            );
+        
+    
+            tile_layer_52e179a97c5b79a7be9683e1ed66cde1.addTo(map_1a820c6922cfa776e868bf17c8b37a08);
+        
+    
+            var marker_44ce84d3387f262c33a32d6d5ee0ed80 = L.marker(
+                [39.9123, 116.4244],
+                {}
+            ).addTo(map_1a820c6922cfa776e868bf17c8b37a08);
+        
+    
+            var icon_582cdc5ea36c4bb6c9637a5c9fecc2ba = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "info-sign", "iconColor": "white", "markerColor": "red", "prefix": "glyphicon"}
+            );
+            marker_44ce84d3387f262c33a32d6d5ee0ed80.setIcon(icon_582cdc5ea36c4bb6c9637a5c9fecc2ba);
+        
+    
+        var popup_fe47e3b02e42308d5b796d7273a1602f = L.popup({"maxWidth": 250});
+
+        
+            
+                var html_bf6a7262e0d411cddfd68992ba8b2bcf = $(`<div id="html_bf6a7262e0d411cddfd68992ba8b2bcf" style="width: 100.0%; height: 100.0%;"> <div style='font-family: "Arial", sans-serif; color: blue;'>     <h4>用户信息</h4>     <img src='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS3fSZjjLKZ5VvF6ZgSlgOktbuFr7ia82obdaiSePQSSw&s' alt='photo' style='width:100px;'><br>     <p><strong>姓名:</strong> 张三</p><br>     <p><strong>部门:</strong> 研发</p><br>     <p><strong>性别:</strong> 男</p><br>     <p><strong>心率:</strong> 120</p><br>     <p><strong>血氧:</strong> 99</p><br>     <p><strong>体温:</strong> 36.5</p><br>     <p><strong>血压:</strong> 120</p><br> </div> </div>`)[0];
+                popup_fe47e3b02e42308d5b796d7273a1602f.setContent(html_bf6a7262e0d411cddfd68992ba8b2bcf);
+            
+        
+
+        marker_44ce84d3387f262c33a32d6d5ee0ed80.bindPopup(popup_fe47e3b02e42308d5b796d7273a1602f)
+        ;
+
+        
+    
+    
+            var marker_c2cd5bbf277c7cad86196ddac2add9e2 = L.marker(
+                [39.9133, 116.4344],
+                {}
+            ).addTo(map_1a820c6922cfa776e868bf17c8b37a08);
+        
+    
+            var icon_48f382b2673fd184a743e2786f03c8ba = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "info-sign", "iconColor": "white", "markerColor": "red", "prefix": "glyphicon"}
+            );
+            marker_c2cd5bbf277c7cad86196ddac2add9e2.setIcon(icon_48f382b2673fd184a743e2786f03c8ba);
+        
+    
+        var popup_17744a9de7e125acc84c1e3e1bc26a28 = L.popup({"maxWidth": 250});
+
+        
+            
+                var html_b1018d555b037419f75e9b638fffb244 = $(`<div id="html_b1018d555b037419f75e9b638fffb244" style="width: 100.0%; height: 100.0%;"> <div style='font-family: "Arial", sans-serif; color: blue;'>     <h4>用户信息</h4>     <img src='https://c-ssl.dtstatic.com/uploads/blog/202208/06/20220806191151_1955f.thumb.300_0.jpg_webp' alt='photo' style='width:100px;'><br>     <p><strong>姓名:</strong> 李四</p><br>     <p><strong>部门:</strong> 市场</p><br>     <p><strong>性别:</strong> 女</p><br>     <p><strong>心率:</strong> 130</p><br>     <p><strong>血氧:</strong> 98</p><br>     <p><strong>体温:</strong> 36.6</p><br>     <p><strong>血压:</strong> 121</p><br> </div> </div>`)[0];
+                popup_17744a9de7e125acc84c1e3e1bc26a28.setContent(html_b1018d555b037419f75e9b638fffb244);
+            
+        
+
+        marker_c2cd5bbf277c7cad86196ddac2add9e2.bindPopup(popup_17744a9de7e125acc84c1e3e1bc26a28)
+        ;
+
+        
+    
+    
+            var marker_0f5d13234890eb465df5b853a728b641 = L.marker(
+                [39.9143, 116.4444],
+                {}
+            ).addTo(map_1a820c6922cfa776e868bf17c8b37a08);
+        
+    
+            var icon_eee79f72219a5a6a0c1259a8ae1ad81c = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "info-sign", "iconColor": "white", "markerColor": "red", "prefix": "glyphicon"}
+            );
+            marker_0f5d13234890eb465df5b853a728b641.setIcon(icon_eee79f72219a5a6a0c1259a8ae1ad81c);
+        
+    
+        var popup_abf498cf9556b16afcd59b2860bb3c2e = L.popup({"maxWidth": 250});
+
+        
+            
+                var html_39e12c65d36c854c5668b52e5c7009ab = $(`<div id="html_39e12c65d36c854c5668b52e5c7009ab" style="width: 100.0%; height: 100.0%;"> <div style='font-family: "Arial", sans-serif; color: blue;'>     <h4>用户信息</h4>     <img src='https://c-ssl.dtstatic.com/uploads/blog/202208/06/20220806191151_1955f.thumb.300_0.jpg_webp' alt='photo' style='width:100px;'><br>     <p><strong>姓名:</strong> 王五</p><br>     <p><strong>部门:</strong> 系统</p><br>     <p><strong>性别:</strong> 男</p><br>     <p><strong>心率:</strong> 140</p><br>     <p><strong>血氧:</strong> 97</p><br>     <p><strong>体温:</strong> 36.7</p><br>     <p><strong>血压:</strong> 122</p><br> </div> </div>`)[0];
+                popup_abf498cf9556b16afcd59b2860bb3c2e.setContent(html_39e12c65d36c854c5668b52e5c7009ab);
+            
+        
+
+        marker_0f5d13234890eb465df5b853a728b641.bindPopup(popup_abf498cf9556b16afcd59b2860bb3c2e)
+        ;
+
+        
+    
+</script>
+</html>

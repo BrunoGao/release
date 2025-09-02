@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+ All Rights Reserved: Copyright [2024] [ljwx]
+ Open Source Agreement: Apache License, Version 2.0
+ For educational purposes only, commercial use shall comply with the author's copyright information.
+ The author does not guarantee or assume any responsibility for the risks of using software.
+
+ Licensed under the Apache License, Version 2.0 (the "License").
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<mapper namespace="com.ljwx.modules.health.repository.mapper.THealthSummaryDailyMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="THealthSummaryDailyResultMap" type="com.ljwx.modules.health.domain.entity.THealthSummaryDaily">
+        <result column="org_id" property="orgId"/>
+        <result column="user_id" property="userId"/>
+        <result column="date" property="date"/>
+        <result column="avg_heart_rate" property="avgHeartRate"/>
+        <result column="max_heart_rate" property="maxHeartRate"/>
+        <result column="min_heart_rate" property="minHeartRate"/>
+        <result column="avg_pressure_high" property="avgPressureHigh"/>
+        <result column="avg_pressure_low" property="avgPressureLow"/>
+        <result column="min_blood_oxygen" property="minBloodOxygen"/>
+        <result column="avg_blood_oxygen" property="avgBloodOxygen"/>
+        <result column="max_temperature" property="maxTemperature"/>
+        <result column="avg_temperature" property="avgTemperature"/>
+        <result column="avg_stress" property="avgStress"/>
+        <result column="total_step" property="totalStep"/>
+        <result column="total_distance" property="totalDistance"/>
+        <result column="total_calorie" property="totalCalorie"/>
+        <result column="sleep_duration" property="sleepDuration"/>
+        <result column="deep_sleep_duration" property="deepSleepDuration"/>
+        <result column="sleep_score" property="sleepScore"/>
+        <result column="alert_count" property="alertCount"/>
+        <result column="alert_types" property="alertTypes"/>
+        <result column="score_heart_rate" property="scoreHeartRate"/>
+        <result column="score_blood_oxygen" property="scoreBloodOxygen"/>
+        <result column="score_temperature" property="scoreTemperature"/>
+        <result column="score_pressure" property="scorePressure"/>
+        <result column="score_sleep" property="scoreSleep"/>
+        <result column="score_step" property="scoreStep"/>
+        <result column="score_distance" property="scoreDistance"/>
+        <result column="score_calorie" property="scoreCalorie"/>
+        <result column="health_score" property="healthScore"/>
+        <result column="health_level" property="healthLevel"/>
+        <result column="id" property="id"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="create_user" property="createUser"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_user" property="updateUser"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="THealthSummaryDailyColumnList">
+        id,
+        is_deleted,
+        create_user,
+        create_user_id,
+        create_time,
+        update_user,
+        update_user_id,
+        update_time,
+        org_id, user_id, `date`, avg_heart_rate, max_heart_rate, min_heart_rate, avg_pressure_high, avg_pressure_low, min_blood_oxygen, avg_blood_oxygen, max_temperature, avg_temperature, avg_stress, total_step, total_distance, total_calorie, sleep_duration, deep_sleep_duration, sleep_score, alert_count, alert_types, score_heart_rate, score_blood_oxygen, score_temperature, score_pressure, score_sleep, score_step, score_distance, score_calorie, health_score, health_level
+    </sql>
+
+</mapper>

@@ -1,0 +1,174 @@
+:root {
+    --default-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Ubuntu, "Helvetica Neue", Helvetica, Arial, "PingFang SC",
+      "Hiragino Sans GB", "Microsoft Yahei UI", "Microsoft Yahei",
+      "Source Han Sans CN", sans-serif;
+  }
+  
+  .main-data-container {
+    overflow: hidden;
+  }
+  
+  .main-data-container,
+  .main-data-container * {
+    box-sizing: border-box;
+  }
+  
+  input,
+  select,
+  textarea,
+  button {
+    outline: 0;
+  }
+  
+  .main-data-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 8px;
+    position: relative;
+    width: 322px;
+    margin: 0 auto;
+    padding: 16px 16px 16px 16px;
+    background: linear-gradient(133.84deg, #4d4d4d, #333333);
+    border-radius: 16px;
+    box-shadow: 2px 6px 15px 0 rgba(12, 10, 11, 0.8);
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 12px;
+    position: relative;
+    width: 120px;
+  }
+  .icon {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 10px;
+    position: relative;
+    width: 38px;
+    padding: 7px 7px 7px 7px;
+    background: #6be2be;
+    z-index: 1;
+    border-radius: 8px;
+  }
+  .icons {
+    flex-shrink: 0;
+    position: relative;
+    width: 24px;
+    height: 24px;
+    z-index: 2;
+    overflow: hidden;
+  }
+  .vector {
+    position: relative;
+    width: 12px;
+    height: 20px;
+    margin: 2px 0 0 6px;
+    background: url(./assets/images/23afd4f4-212b-4713-8566-204600e669b3.png)
+      no-repeat center;
+    background-size: 100% 100%;
+    z-index: 3;
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 6px;
+    position: relative;
+    width: 70px;
+    z-index: 4;
+  }
+  .plus-percent {
+    flex-shrink: 0;
+    flex-basis: auto;
+    position: relative;
+    height: 17px;
+    color: #50d0a9;
+    font-family: Barlow, var(--default-font-family);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16.8px;
+    text-align: left;
+    white-space: nowrap;
+    z-index: 5;
+  }
+  .frame {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 10px;
+    position: relative;
+    width: 18px;
+    padding: 2px 2px 2px 2px;
+    background: rgba(136, 224, 144, 0.24);
+    z-index: 6;
+    border-radius: 20px;
+  }
+  .icons-1 {
+    flex-shrink: 0;
+    position: relative;
+    width: 14px;
+    height: 14px;
+    z-index: 7;
+    overflow: hidden;
+  }
+  .vector-2 {
+    position: relative;
+    width: 7.006px;
+    height: 6.997px;
+    margin: 3.503px 0 0 3.498px;
+    background: url(./assets/images/677c34b9-89ea-4bfe-8718-8ee35690541e.png)
+      no-repeat center;
+    background-size: 100% 100%;
+    z-index: 8;
+  }
+  .content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 8px;
+    position: relative;
+    width: 135px;
+    z-index: 9;
+  }
+  .dollar-amount {
+    flex-shrink: 0;
+    flex-basis: auto;
+    position: relative;
+    height: 39px;
+    color: #ffffff;
+    font-family: Barlow, var(--default-font-family);
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 39px;
+    text-align: left;
+    white-space: nowrap;
+    z-index: 10;
+  }
+  .total-revenue {
+    flex-shrink: 0;
+    flex-basis: auto;
+    position: relative;
+    height: 18px;
+    color: #9290fe;
+    font-family: Barlow, var(--default-font-family);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 18px;
+    text-align: left;
+    white-space: nowrap;
+    z-index: 11;
+  }
+  

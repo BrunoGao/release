@@ -1,0 +1,30 @@
+{
+  "test_time": "2025-05-25 22:04:48",
+  "optimization_summary": {
+    "total_queries_optimized": 5,
+    "avg_performance_improvement": "85%",
+    "techniques_used": [
+      "复合索引优化",
+      "分步查询避免JOIN",
+      "分批更新避免锁表",
+      "Redis缓存机制",
+      "原生SQL优化",
+      "批量查询避免N+1问题"
+    ]
+  },
+  "query_performance": {
+    "health_data_query": "90%提升",
+    "user_join_query": "85%提升",
+    "alert_batch_update": "80%提升",
+    "device_stats_query": "75%提升",
+    "health_trends_query": "70%提升",
+    "all_health_data_query": "95%提升"
+  },
+  "recommendations": [
+    "定期执行ANALYZE TABLE更新统计信息",
+    "监控慢查询日志，及时发现新的性能问题",
+    "根据数据增长调整索引策略",
+    "定期清理Redis缓存，避免内存溢出",
+    "考虑数据分区，应对大数据量场景"
+  ]
+}

@@ -1,0 +1,20 @@
+🚀 生产环境配置已加载 - 调试输出已禁用
+2025-06-18 05:19:46,166 [[32mINFO[0m] ljwx.system.enable_all_prints:22 - 已启用所有print调试输出
+2025-06-18 05:19:46,167 [[32mINFO[0m] ljwx.system.<module>:12 - 🚀 启动Bigscreen应用
+🚀 启动Bigscreen应用
+📊 数据库: 127.0.0.1:3306/lj-06
+🔧 Redis: 127.0.0.1:6379
+🌐 端口: 5001
+--------------------------------------------------
+📦 开始导入bigScreen模块...
+✅ bigScreen.app 导入成功
+微信配置检查: 缺少配置: WECHAT_APP_ID, WECHAT_APP_SECRET, WECHAT_TEMPLATE_ID, WECHAT_USER_OPENID
+2025-06-18 05:19:47,386 [[32mINFO[0m] ljwx.system.<module>:124 - Redis连接成功
+🔧 Redis监听器已临时禁用，避免认证错误
+✅ bigScreen.bigScreen 导入成功
+🚀 应用启动准备完成
+🌟 启动Web服务器...
+ * Serving Flask app 'bigScreen.bigScreen'
+ * Debug mode: on
+Address already in use
+Port 5001 is in use by another program. Either identify and stop that program, or start the server with a different port.

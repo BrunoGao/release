@@ -1,0 +1,1510 @@
+// 检查所有容器是否存在
+const containersExist = chartContainers.every(id => 
+    document.getElementById(id) !== null
+);
+
+if (!containersExist) {
+    console.warn('Some chart containers are not ready yet');
+    // 可以选择稍后重试
+    setTimeout(initializeCharts, 100);
+    return;
+}
+
+// 所有容器都存在时再初始化图表
+chartContainers.forEach(id => {
+    const container = document.getElementById(id);
+<!doctype html>
+    if (container) {
+        const chart = echarts.init(container);
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+</head>
+
+<body>
+<link href="{{ url_for('static', filename='index/css/Datacages_Homeindex.css') }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for('static', filename='index/css/ProgressBarWars.css') }}" rel="stylesheet">
+<style type="text/css">
+* {
+padding: 0;
+margin: 0;
+}
+
+.loadEffect {
+width: 100px;
+height: 100px;
+position: relative;
+margin: 0 auto;
+top: 26%;
+}
+
+.loadEffect span {
+animation: load 1.04s ease infinite;
+display: inline-block;
+width: 30px;
+height: 10px;
+border-top-left-radius: 5px;
+border-bottom-left-radius: 5px;
+background: lightgreen;
+position: absolute;
+}
+
+.loadEffect span:nth-child(1) {
+left: 0;
+top: 50%;
+margin-top: -5px;
+animation-delay: 0.13s;
+}
+
+.loadEffect span:nth-child(2) {
+left: 10px;
+top: 20px;
+transform: rotate(45deg);
+animation-delay: 0.26s;
+}
+
+.loadEffect span:nth-child(3) {
+left: 50%;
+top: 10px;
+margin-left: -15px;
+transform: rotate(90deg);
+animation-delay: 0.39s;
+}
+
+.loadEffect span:nth-child(4) {
+top: 20px;
+right: 10px;
+transform: rotate(135deg);
+animation-delay: 0.52s;
+}
+
+.loadEffect span:nth-child(5) {
+right: 0;
+top: 50%;
+margin-top: -5px;
+transform: rotate(180deg);
+animation-delay: 0.65s;
+}
+
+.loadEffect span:nth-child(6) {
+right: 10px;
+bottom: 20px;
+transform: rotate(225deg);
+animation-delay: 0.78s;
+}
+
+.loadEffect span:nth-child(7) {
+bottom: 10px;
+left: 50%;
+margin-left: -15px;
+transform: rotate(270deg);
+animation-delay: 0.91s;
+}
+
+.loadEffect span:nth-child(8) {
+bottom: 20px;
+left: 10px;
+transform: rotate(315deg);
+animation-delay: 1.04s;
+}
+
+@keyframes load {
+0% {
+    opacity: 1;
+}
+
+100% {
+    opacity: 0.2;
+}
+}
+
+html,
+body {
+width: 100%;
+height: 100%;
+}
+
+#loading {
+background-color: #181e20;
+opacity: 0.5;
+width: 100%;
+height: 100%;
+position: fixed;
+z-index: 999;
+}
+
+/* 添加新的样式 */
+.tab-container {
+display: flex;
+border-bottom: 1px solid rgba(32, 156, 255, 0.3);
+margin-bottom: 20px;
+}
+
+.tab-button {
+background: none;
+border: none;
+color: #dfdede;
+padding: 10px 20px;
+cursor: pointer;
+font-size: 14px;
+transition: all 0.3s ease;
+position: relative;
+}
+
+.tab-button.active {
+color: #00e4ff;
+}
+
+.tab-button.active::after {
+content: '';
+position: absolute;
+bottom: -1px;
+left: 0;
+width: 100%;
+height: 2px;
+background-color: #00e4ff;
+}
+
+.tab-content {
+display: none;
+height: calc(100% - 50px);
+overflow: auto;
+}
+
+.tab-content.active {
+display: block;
+}
+
+.data-table {
+width: 100%;
+border-collapse: collapse;
+margin-top: 10px;
+}
+
+.data-table th,
+.data-table td {
+padding: 12px;
+text-align: left;
+border-bottom: 1px solid rgba(32, 156, 255, 0.2);
+color: #dfdede;
+font-size: 14px;
+}
+
+.data-table th {
+background-color: rgba(0, 228, 255, 0.1);
+color: #00e4ff;
+font-weight: normal;
+}
+
+.chart-container {
+width: 100%;
+height: 400px;
+margin-top: 20px;
+}
+
+.status-badge {
+padding: 4px 8px;
+border-radius: 4px;
+font-size: 12px;
+}
+
+.status-critical {
+background-color: #ff3366;
+color: #fff;
+}
+
+.status-medium {
+background-color: #ffb300;
+color: #000;
+}
+
+.status-active {
+background-color: #00ff88;
+color: #000;
+}
+
+.status-inactive {
+background-color: #ff3366;
+color: #fff;
+}
+
+/* 修改弹出面板样式 */
+.popup-content {
+padding: 20px;
+max-height: 80vh;
+overflow: auto;
+}
+
+.loading-container {
+display: flex;
+flex-direction: column;
+align-items: center;
+print usersustify-content: center;
+height: 200px;
+}
+
+.loading-spinner {
+border: 3px solid rgba(0, 228, 255, 0.3);
+border-radius: 50%;
+border-top: 3px solid #00e4ff;
+width: 40px;
+height: 40px;
+animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+0% { transform: rotate(0deg); }
+100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+margin-top: 10px;
+color: #00e4ff;
+}
+
+.bottom-panels {
+position: fixed;
+bottom: 0;
+left: 0;
+right: 0;
+height: 280px; /* 降低高度 */
+display: flex;
+justify-content: space-between;
+padding: 0 20px 20px;
+gap: 20px;
+}
+
+.panel {
+flex: 1;
+background: rgba(1, 19, 38, 0.8);
+border: 1px solid rgba(0, 228, 255, 0.2);
+border-radius: 4px;
+overflow: hidden;
+}
+
+.panel-title {
+padding: 10px 15px;
+color: #00e4ff;
+font-size: 16px;
+background: rgba(0, 228, 255, 0.1);
+border-bottom: 1px solid rgba(0, 228, 255, 0.2);
+}
+
+/* AI 分析面板样式 */
+.panel-ai {
+flex: 1;
+}
+
+.ai-charts-container {
+height: calc(100% - 40px);
+position: relative;
+overflow: hidden;
+}
+
+.ai-charts-wrapper {
+display: flex;
+transition: transform 0.3s ease;
+height: 100%;
+}
+
+.ai-chart {
+min-width: 100%;
+height: 100%;
+}
+
+.chart-nav {
+position: absolute;
+bottom: 10px;
+left: 50%;
+transform: translateX(-50%);
+display: flex;
+gap: 8px;
+}
+
+.chart-nav-dot {
+width: 8px;
+height: 8px;
+border-radius: 50%;
+background: rgba(0, 228, 255, 0.3);
+cursor: pointer;
+}
+
+.chart-nav-dot.active {
+background: #00e4ff;
+}
+
+/* 中间信息栏样式 */
+.panel-info {
+flex: 1;
+}
+
+.info-content {
+height: calc(100% - 40px);
+display: flex;
+flex-direction: column;
+gap: 10px;
+padding: 10px;
+overflow-y: auto;
+}
+
+.info-item {
+display: flex;
+align-items: center;
+padding: 8px;
+background: rgba(0, 228, 255, 0.05);
+border-left: 3px solid #00e4ff;
+}
+
+.info-item.alert {
+border-left-color: #ff3366;
+}
+
+/* 趋势分析面板样式 */
+.panel-trends {
+flex: 1;
+}
+
+.trends-content {
+height: calc(100% - 40px);
+display: grid;
+grid-template-columns: repeat(2, 1fr);
+gap: 10px;
+padding: 10px;
+}
+
+.trend-chart {
+background: rgba(0, 228, 255, 0.05);
+border-radius: 4px;
+}
+
+.copyrigntoutbox {
+position: fixed;
+bottom: 10px;
+left: 0;
+right: 0;
+text-align: center;
+z-index: 1000;
+}
+
+.copyrigntmsg {
+color: rgba(0, 228, 255, 0.7);
+font-size: 12px;
+}
+
+.popup-overlay {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: rgba(0, 0, 0, 0.85); /* 更深的背景色 */
+display: none;
+z-index: 1000;
+}
+
+.popup-panel {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+width: 90%;
+height: 85%;
+background: #001529; /* 墨黑色背景 */
+border: 1px solid rgba(0, 228, 255, 0.2);
+border-radius: 8px;
+box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+overflow: hidden;
+display: none;
+}
+
+.popup-header {
+position: relative;
+background: rgba(0, 13, 33, 0.95); /* 更深的头部背景 */
+border-bottom: 1px solid rgba(0, 228, 255, 0.2);
+}
+
+/* 关闭按钮样式优化 */
+.popup-close {
+position: absolute;
+top: 10px;
+right: 10px;
+width: 32px;
+height: 32px;
+border: none;
+background: transparent;
+color: #00e4ff;
+font-size: 24px;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+z-index: 10;
+transition: all 0.3s ease;
+}
+
+.popup-close:hover {
+color: #fff;
+transform: rotate(90deg);
+}
+
+/* 标签页样式优化 */
+.tab-container {
+display: flex;
+padding-right: 40px; /* 为关闭按钮留出空间 */
+background: transparent;
+border-bottom: 1px solid rgba(0, 228, 255, 0.2);
+}
+
+.tab-button {
+padding: 12px 30px;
+color: #00e4ff;
+background: none;
+border: none;
+cursor: pointer;
+font-size: 16px;
+transition: all 0.3s;
+}
+
+.tab-button:hover {
+background: rgba(0, 228, 255, 0.1);
+color: #fff;
+}
+
+.tab-button.active {
+background: rgba(0, 228, 255, 0.15);
+color: #fff;
+}
+
+.popup-content {
+height: calc(100% - 51px);
+overflow: hidden;
+background: #001529; /* 确保内容区域也是墨黑色 */
+}
+
+.popup-content iframe {
+width: 100%;
+height: 100%;
+border: none;
+background: transparent;
+}
+
+/* 基础布局 */
+body {
+margin: 0;
+padding: 0;
+width: 100vw;
+height: 100vh;
+overflow: hidden;
+}
+
+/* 主容器 */
+.container {
+width: 100%;
+height: 100%;
+display: flex;
+flex-direction: column;
+}
+
+/* 顶部标题 */
+.header {
+padding: 10px 20px;
+height: 50px;
+}
+
+/* 主要内容区域 */
+.main-content {
+flex: 1;
+display: flex;
+padding: 0 20px;
+gap: 20px;
+margin-bottom: 200px; /* 为底部面板留出空间 */
+}
+
+/* 左侧面板 */
+.left-panel {
+width: 25%;
+min-width: 300px;
+display: flex;
+flex-direction: column;
+gap: 20px;
+}
+
+/* 中间面板 */
+.center-panel {
+flex: 1;
+display: flex;
+flex-direction: column;
+gap: 20px;
+}
+
+/* 右侧面板 */
+.right-panel {
+width: 25%;
+min-width: 300px;
+display: flex;
+flex-direction: column;
+gap: 20px;
+}
+
+/* 通用面板样式 */
+.panel {
+background: rgba(1, 19, 38, 0.8);
+border: 1px solid rgba(0, 228, 255, 0.2);
+border-radius: 4px;
+padding: 15px;
+height: calc(33.33% - 14px); /* 减去间距 */
+min-height: 200px;
+}
+
+/* 底部面板容器 */
+.bottom-panels {
+position: fixed;
+bottom: 0;
+left: 0;
+right: 0;
+height: 180px;
+display: flex;
+justify-content: space-between;
+padding: 0 20px 20px;
+gap: 20px;
+z-index: 10;
+}
+
+/* 图表容器 */
+.chart-container {
+width: 100%;
+height: 100%;
+}
+
+/* 数据列表 */
+.data-list {
+height: 100%;
+overflow-y: auto;
+scrollbar-width: thin;
+scrollbar-color: rgba(0, 228, 255, 0.5) rgba(1, 19, 38, 0.3);
+}
+
+.data-list::-webkit-scrollbar {
+width: 6px;
+}
+
+.data-list::-webkit-scrollbar-track {
+background: rgba(1, 19, 38, 0.3);
+}
+
+.data-list::-webkit-scrollbar-thumb {
+background: rgba(0, 228, 255, 0.5);
+border-radius: 3px;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 1600px) {
+.left-panel,
+.right-panel {
+    width: 30%;
+}
+}
+
+@media screen and (max-width: 1200px) {
+.main-content {
+    flex-direction: column;
+}
+
+.left-panel,
+.right-panel {
+    width: 100%;
+}
+
+.panel {
+    height: 250px;
+}
+}
+
+/* 确保图表自适应容器大小 */
+.echarts-container {
+width: 100%;
+height: 100%;
+}
+
+* 告警滚动条样式 */
+.marquee-container {
+width: 100%;
+height: 40px;
+overflow: hidden;
+background: rgba(0, 15, 29, 0.8);
+border-radius: 4px;
+margin: 10px 0;
+border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.marquee-content {
+display: flex;
+animation: marquee 20s linear infinite;
+}
+
+.alert-item {
+display: flex;
+align-items: center;
+padding: 0 20px;
+color: #fff;
+white-space: nowrap;
+gap: 10px;
+}
+
+.alert-item.critical {
+color: #ff4757;
+}
+
+.alert-item.medium {
+color: #ffa502;
+}
+
+.alert-item .time {
+color: #00f0ff;
+font-family: 'Digital-7', monospace;
+}
+
+@keyframes marquee {
+0% { transform: translateX(100%); }
+100% { transform: translateX(-100%); }
+}
+
+/* 统计面板轮播样式 */
+.slide-container {
+position: relative;
+height: 300px;
+overflow: hidden;
+background: rgba(0, 15, 29, 0.8);
+border-radius: 8px;
+border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.slide {
+position: absolute;
+width: 100%;
+height: 100%;
+opacity: 0;
+transition: opacity 0.5s ease-in-out;
+}
+
+.slide.active {
+opacity: 1;
+}
+
+/* 更新现有的面板样式 */
+.left-panel, .center-panel, .right-panel {
+background: rgba(0, 15, 29, 0.8);
+border-radius: 8px;
+padding: 15px;
+border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.chart-title {
+color: #fff;
+font-size: 16px;
+margin-bottom: 10px;
+padding-left: 10px;
+border-left: 4px solid #00f0ff;
+}
+</style>
+<script src="{{ url_for('static', filename='index/js/jquery.js') }}"></script>
+<script src="{{ url_for('static', filename='index/js/echarts-all.js') }}"></script>
+<script src="{{ url_for('static', filename='index/js/ProgressBarWars.js') }}"></script>
+<style>
+* {
+padding: 0;
+margin: 0;
+}
+
+.progress {
+margin-top: 30px;
+}
+
+.down_span {
+color: #dfdede;
+font-size: 12px;
+font-weight: lighter;
+}
+
+h3,
+ul,
+li {
+margin: 0;
+padding: 0;
+list-style: none;
+}
+
+.scrollbox {
+width: 268px;
+margin: 0 auto;
+}
+
+#scrollDiv {
+width: 268px;
+height: 280px;
+overflow: hidden;
+}
+
+/*这里的高度和超出隐藏是必须的*/
+#scrollDiv ul li {
+height: 66px;
+width: 259px;
+;
+background-color: #07325e;
+overflow: hidden;
+margin-bottom: 4px;
+color: #dfdede;
+font-size: 14px;
+padding: 0 9px 0 9px;
+line-height: 30px;
+position: relative;
+}
+
+#scrollDiv ul li span {
+position: absolute;
+bottom: 5px;
+right: 16px;
+display: block;
+width: 68px;
+height: 18px;
+text-align: center;
+color: #081e49;
+background-color: #69c200;
+line-height: 18px;
+}
+
+.sent-div {
+width: 98%;
+height: 98%;
+margin: 0 auto;
+}
+</style>
+<title>灵境万象 AI 智能健康数据分析平台</title>
+<div id="loading">
+<div class="loadEffect"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+</div>
+<!--标题栏-->
+<div class="Hometitlebox"><a style=" color: #00e4ff;" href="http://localhost:5001/index">智能健康数据分析平台</a></div>
+<!--动效显示-->
+<div class="flasheffectoutbox">
+<div style="width: 1000px; height: 500px; position: relative">
+<div class="line2 line"></div>
+<div class="line3 line"></div>
+<div class="line4 line"></div>
+<div class="line5 line"></div>
+<div class="line6 line"></div>
+<!--主动效-->
+<div class="maineffectoutbox circleeffectclass"><a href="http://localhost:5001/index"><img class="effectposition maindataeffect" src="../static/index/img/maindataeffect.png">
+        <div class="effectposition acrossremindeffectout" style=" width: 76px; height: 76px; margin: 9px;">
+            <div class="acrossremindeffectin" style="width: 68px; height: 68px; margin: 4px;"></div>
+        </div><img class="effectposition maindataspecialeffect" src="../static/index/img/maindataspecialeffect.png"><img class="effectposition acrossremindeffecindex" src="../static/index/img/maindataicon.png"><span class="stagetitle">AI 智能</span>
+    </a></div>
+<!--卫星动效-->
+<div class="circleeffectclass aroundfunctioneffect" style="left: 254px;top: 135px;" onclick="showPanel('user')">
+    <img class="effectposition arounddataeffect02" src="../static/index/img/aroundeffect.png">
+    <div class="effectposition acrossremindeffectout acrossremindeffectoutard">
+        <div class="acrossremindeffectin acrossremindeffectinard"></div>
+    </div>
+    <img class="effectposition acrossremindeffecindex" src="../static/index/img/xingzhengshenpi.png">
+    <span class="stagetitle stagearoundtitle">人员管理</span>
+</div>
+<div class="circleeffectclass aroundfunctioneffect" style="left: 190px;bottom: 89px;" onclick="showPanel('device')">
+    <img class="effectposition arounddataeffect01" src="../static/index/img/aroundeffect.png">
+    <div class="effectposition acrossremindeffectout acrossremindeffectoutard">
+        <div class="acrossremindeffectin acrossremindeffectinard"></div>
+    </div>
+    <img class="effectposition acrossremindeffecindex" src="../static/index/img/baixingpaiAPP.png">
+    <span class="stagetitle stagearoundtitle">设备监控</span>
+</div>
+<div class="circleeffectclass aroundfunctioneffect" style="right: 405px;bottom: 53px;" onclick="showPanel('alert')">
+    <img class="effectposition arounddataeffect02" src="../static/index/img/aroundeffect.png">
+    <div class="effectposition acrossremindeffectout acrossremindeffectoutard">
+        <div class="acrossremindeffectin acrossremindeffectinard"></div>
+    </div>
+    <img class="effectposition acrossremindeffecindex" src="../static/index/img/zhatuyunshu.png">
+    <span class="stagetitle stagearoundtitle">告警中心</span>
+</div>
+<div class="circleeffectclass aroundfunctioneffect" style="right: 243px;bottom: 165px;" onclick="showPanel('message')">
+    <img class="effectposition arounddataeffect01" src="../static/index/img/aroundeffect.png">
+    <div class="effectposition acrossremindeffectout acrossremindeffectoutard">
+        <div class="acrossremindeffectin acrossremindeffectinard"></div>
+    </div>
+    <img class="effectposition acrossremindeffecindex" src="../static/index/img/12319rexian.png">
+    <span class="stagetitle stagearoundtitle">消息中心</span>
+</div>
+<div class="circleeffectclass aroundfunctioneffect" style="right: 294px;top: 79px;" onclick="showPanel('health')">
+    <img class="effectposition arounddataeffect03" src="../static/index/img/aroundeffect.png">
+    <div class="effectposition acrossremindeffectout acrossremindeffectoutard">
+        <div class="acrossremindeffectin acrossremindeffectinard"></div>
+    </div>
+    <img class="effectposition acrossremindeffecindex" src="../static/index/img/zonghezhifa.png">
+    <span class="stagetitle stagearoundtitle">健康数据</span>
+</div>
+<div class="circleeffectclass decarround01" style="top: 218px;left: 92px;">
+    <div class="acrossremindeffectin decarroundin01" style=" "></div>
+</div>
+<div class="circleeffectclass decarround01" style="top: 197px;right: 163px;">
+    <div class="acrossremindeffectin decarroundin01" style=" "></div>
+</div>
+<div class="circleeffectclass decarround02" style="top: 99px;right: 93px;">
+    <div class="acrossremindeffectin decarroundin02" style=" "></div>
+</div>
+</div>
+</div>
+<!--遮罩层-->
+<div class="popup-overlay" id="popupOverlay">
+<div class="popup-panel" id="popupPanel">
+<div class="popup-header">
+    <div class="tab-container">
+        <button class="tab-button active" data-tab="table">数据</button>
+        <button class="tab-button" data-tab="trend">图表</button>
+        <button class="tab-button" data-tab="stat">分析</button>
+    </div>
+    <button class="popup-close" onclick="closePanel()">×</button>
+</div>
+<div class="popup-content">
+    <iframe id="contentFrame" src=""></iframe>
+</div>
+</div>
+</div>
+<!--侧边浮窗-->
+<div class="fltoutbox leftbox">
+    <div style="height: 65px; padding-top: 25px;"><span class="analyzedatashowtitle">【数据统计】</span></div>
+    <!--左上分析内容放置框-->
+    <div class="analyzemsgbgbox" style=" margin-left: 2px;">
+         <div class="sent-div" id="container1"></div>
+    </div>
+    <!--左下分析内容放置框-->
+    <div class="analyzemsgbgbox" style="margin-top: 20px; height: 350px;overflow: hidden;">
+        <span class="analyzedatashowtitle" style="line-height: 66px;margin-left: 38px">【趋势分析】</span>
+        <div class="scrollbox">
+            <div id="scrollDiv">
+            
+            </div>
+            <script type="text/javascript">
+                $("#scrollDiv").Scroll({
+                    line: 1,
+                    speed: 500,
+                    timer: 5000,
+                    up: "but_up",
+                    down: "but_down"
+                });
+            </script>
+        </div>
+    </div>
+
+</div>
+<div class="fltoutbox rightbox">
+<div style="height: 36px; padding-top: 25px;"><span class="analyzedatashowtitle">【实时数据】</span></div>
+<!--右上分析内容放置框-->
+<div class="analyzemsgbgbox " style=" margin-right: 2px;padding-bottom: 29px">
+<div style="background-color: #022542;opacity: 0.9;height: 130px">
+    <div style="padding: 10px 0 0 16px">
+        <div class="l_left"><span style="color: #dfdede;font-size: 10px;margin-right: 10px">告警数量：</span></div>
+        <div class="progress l_left" id="alertStatusCount" style="width: 150px;padding: 0;margin-top: 6px;"></div>
+        <script>
+            var number = 30;
+            $(function() {
+                $("#alertStatusCount").ProgressBarWars({
+                    porcentaje: 30,
+                    estilo: "vader",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+
+            });
+        </script>
+        <div class="l_left"><span style="color: #dd9809;margin-left: 4px;font-size: 10px">743</span></div>
+        <div class="clear"></div>
+    </div>
+    <div style="padding: 8px 0 0 16px">
+        <div class="l_left"><span style="color: #dfdede;font-size: 10px;margin-right: 10px">消息数量：</span></div>
+        <div class="progress l_left" id="vaderSize1" style="width: 150px;margin-top: 6px;"></div>
+        <script>
+            var number = 90;
+            $(function() {
+                $("#vaderSize1").ProgressBarWars1({
+                    porcentaje: 30,
+                    estilo: "vader1",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+                setInterval(function() {
+                    number = Math.floor(Math.random() * 99 + 1);
+                    $("#vaderSize1").ProgressBarWars1({
+                        porcentaje: number,
+                        estilo: "vader1",
+                        tiempo: 5980,
+                        alto: "30px",
+                        flag: false
+                    });
+                }, 5000);
+            });
+        </script>
+        <div class="l_left"><span style="color: #00d8ff;margin-left: 4px;font-size: 10px">216</span></div>
+        <div class="clear"></div>
+    </div>
+    <div style="padding: 8px 0 0 16px">
+        <div class="l_left"><span style="color: #dfdede;font-size: 10px;margin-right: 10px">人员数量：</span></div>
+        <div class="progress l_left" id="vaderSize2" style="width: 150px;margin-top: 6px;"></div>
+        <script>
+            var number = 60;
+            $(function() {
+                $("#vaderSize2").ProgressBarWars2({
+                    porcentaje: 30,
+                    estilo: "vader2",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+                setInterval(function() {
+                    number = Math.floor(Math.random() * 99 + 1);
+                    $("#vaderSize2").ProgressBarWars2({
+                        porcentaje: number,
+                        estilo: "vader2",
+                        tiempo: 5980,
+                        alto: "30px",
+                        flag: false
+                    });
+                }, 5000);
+            });
+        </script>
+        <div class="l_left"><span style="color: #56a4ff;margin-left: 4px;font-size: 10px">27人</span></div>
+        <div class="clear"></div>
+    </div>
+    <div style="padding: 8px 0 0 16px">
+        <div class="l_left"><span style="color: #dfdede;font-size: 10px;margin-right: 10px">手表数量：</span></div>
+        <div class="progress l_left" id="vaderSize3" style="width: 150px;margin-top: 6px;"></div>
+        <script>
+            var number = 90;
+            $(function() {
+                $("#vaderSize3").ProgressBarWars3({
+                    porcentaje: 30,
+                    estilo: "vader3",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+                setInterval(function() {
+                    number = Math.floor(Math.random() * 99 + 1);
+                    $("#vaderSize3").ProgressBarWars3({
+                        porcentaje: number,
+                        estilo: "vader3",
+                        tiempo: 5980,
+                        alto: "8px",
+                        flag: false
+                    });
+                }, 5000);
+            });
+        </script>
+        <div class="l_left"><span style="color: #56ff6a;margin-left: 4px;font-size: 10px">23</span></div>
+        <div class="clear"></div>
+    </div>
+</div>
+<div>
+    <p style="color: #dfdede;font-size: 14px;margin: 22px 0 0 17px ">【新增健康数据】</p>
+    <div class="progress l_left" id="vaderSize4" style="width: 200px;padding: 0;margin: 40px 0 0 18px;"></div>
+    <script>
+        var number = 60;
+        $(function() {
+            $("#vaderSize4").ProgressBarWars4({
+                porcentaje: number,
+                estilo: "vader4",
+                tiempo: 5980,
+                alto: "22px",
+                flag: true
+            });
+            setInterval(function() {
+                number = Math.floor(Math.random() * 99 + 1);
+                $("#vaderSize4").ProgressBarWars4({
+                    porcentaje: number,
+                    estilo: "vader4",
+                    tiempo: 5980,
+                    alto: "22px",
+                    flag: false
+                });
+            }, 5000);
+        });
+    </script>
+    <div class="l_left" style="color: #ffea00;margin: 44px 0 0 4px;font-size: 14px"><span>15300</span></div>
+</div>
+<div class="fltdecarround fltdecarroundleft fltdecarroundbottom"></div>
+<div class="fltdecarround fltdecarroundbottom fltdecarroundright "></div>
+</div>
+<!--右下分析内容放置框-->
+<div class="analyzemsgbgbox" style="margin-top: 20px; height: 350px;"><span class="analyzedatashowtitle">【指标】</span>
+<div style="margin: 0 6px;background-color: #011c2f;opacity: 0.8;padding:8px 0 6px 0">
+    <div>
+        <div><span class="down_span">【心率】</span><span style="color:#dfdede;font-size: 10px;margin-left: 118px; font-weight: lighter;"></span></div>
+        <div style="margin: 5px 0 4px 12px;">
+            <div class="progress l_left" id="vaderSize5" style="width: 190px;padding: 0;margin-top: 4px"></div>
+            <script>
+                $("#vaderSize5").ProgressBarWars5({
+                    porcentaje: 16,
+                    estilo: "vader5",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+            </script>
+            <div><span class=" l_left" style="margin-left: 12px;color:#40e315;font-size: 12px ">8.02%</span></div>
+            <div class="clear"></div>
+        </div>
+        <div><span class="down_span">【血氧】</span><span style="color:#dfdede;font-size: 10px;margin-left: 118px; font-weight: lighter;"></span></div>
+        <div style="margin: 5px 0 4px 12px;">
+            <div class="progress l_left" id="vaderSize6" style="width: 190px;padding: 0;margin-top: 4px"></div>
+            <script>
+                $("#vaderSize6").ProgressBarWars6({
+                    porcentaje: 16,
+                    estilo: "vader6",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+            </script>
+            <div><span class="l_left" style="margin-left: 12px;color:#15e3ac;font-size: 12px ">8.09%</span></div>
+            <div class="clear"></div>
+        </div>
+        <div><span class="down_span">【体温】</span><span style="color:#dfdede;font-size: 10px;margin-left: 131px; font-weight: lighter;"></span></div>
+        <div style="margin: 5px 0 4px 12px;">
+            <div class="progress l_left" id="vaderSize7" style="width: 190px;padding: 0;margin-top: 4px"></div>
+            <script>
+                $("#vaderSize7").ProgressBarWars7({
+                    porcentaje: 6,
+                    estilo: "vader7",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+            </script>
+            <div><span class="down_span l_left" style="margin-left: 12px;color:#1f9cff ;font-size: 12px">2.87%</span></div>
+            <div class="clear"></div>
+        </div>
+        <div><span class="down_span">【步数】</span><span style="color:#dfdede;font-size: 10px;margin-left: 143px; font-weight: lighter;"></span></div>
+        <div style="margin: 5px 0 4px 12px;">
+            <div class="progress l_left" id="vaderSize8" style="width: 190px;padding: 0;margin-top: 4px"></div>
+            <script>
+                $("#vaderSize8").ProgressBarWars8({
+                    porcentaje: 2,
+                    estilo: "vader8",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+            </script>
+            <div><span class="down_span l_left" style="margin-left: 12px;color:#c97802;font-size: 12px ">0.85%</span></div>
+            <div class="clear"></div>
+        </div>
+        <div><span class="down_span">【卡路里】</span><span style="color:#dfdede;font-size: 10px;margin-left: 108px; font-weight: lighter;"></span></div>
+        <div style="margin: 5px 0 4px 12px;">
+            <div class="progress l_left" id="vaderSize9" style="width: 190px;padding: 0;margin-top: 4px"></div>
+            <script>
+                $("#vaderSize9").ProgressBarWars9({
+                    porcentaje: 83,
+                    estilo: "vader9",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+            </script>
+            <div><span class=" l_left" style="margin-left: 12px;color:#72ff00;font-size: 12px ">80.44%</span></div>
+            <div class="clear"></div>
+        </div>
+        <div><span class="down_span">【距离】</span><span style="color:#dfdede;font-size: 10px;margin-left: 119px; font-weight: lighter;"></span></div>
+        <div style="margin: 5px 0 4px 12px;">
+            <div class="progress l_left" id="vaderSize10" style="width: 190px;padding: 0;margin-top: 4px"></div>
+            <script>
+                $("#vaderSize10").ProgressBarWars10({
+                    porcentaje: 6,
+                    estilo: "vader10",
+                    tiempo: 5980,
+                    alto: "8px",
+                    flag: true
+                });
+            </script>
+            <div><span class=" l_left" style="margin-left: 12px;color:#ef4503;font-size: 12px ">2.56%</span></div>
+            <div class="clear"></div>
+        </div>
+    </div>
+</div>
+<div class="fltdecarround fltdecarroundleft fltdecarroundtop"></div>
+<div class="fltdecarround fltdecarroundtop fltdecarroundright "></div>
+<div class="fltdecarround fltdecarroundleft fltdecarroundbottom"></div>
+<div class="fltdecarround fltdecarroundbottom fltdecarroundright "></div>
+</div>
+</div>
+<!--底部三个面板-->
+<div class="bottom-panels">
+<!-- AI 智能分析面板 -->
+<div class="panel panel-ai">
+<div class="panel-title">AI 智能分析</div>
+<div class="ai-charts-container">
+    <div class="ai-charts-wrapper">
+        <div class="ai-chart" id="aiChart1"></div>
+        <div class="ai-chart" id="aiChart2"></div>
+        <div class="ai-chart" id="aiChart3"></div>
+    </div>
+    <div class="chart-nav">
+        <div class="chart-nav-dot active"></div>
+        <div class="chart-nav-dot"></div>
+        <div class="chart-nav-dot"></div>
+    </div>
+</div>
+</div>
+
+<!-- 中间信息栏 -->
+<div class="panel panel-info">
+<div class="panel-title">实时信息</div>
+<div class="info-content" id="infoContent">
+    <!-- 动态插入信息 -->
+</div>
+</div>
+
+<!-- 趋势分析面板 -->
+<div class="panel panel-trends">
+<div class="panel-title">趋势分析</div>
+<div class="trends-content">
+    <div class="trend-chart" id="trendChart1"></div>
+    <div class="trend-chart" id="trendChart2"></div>
+    <div class="trend-chart" id="trendChart3"></div>
+    <div class="trend-chart" id="trendChart4"></div>
+</div>
+</div>
+</div>
+<!--版权-->
+<div class="copyrigntoutbox"><span class="copyrigntmsg">版权所有 © 2025 灵境万象 </span></div>
+<script>
+window.onload = function() {
+var loading = document.getElementById("loading");
+loading.style.display = "none";
+}
+</script>
+
+<script>
+// 显示面板函数
+function showPanel(type, deviceSn) {
+console.log('Showing panel:', type); // 调试日志
+
+// 类型映射（如果需要兼容旧的类型名称）
+const typeMapping = {
+    'personnel': 'user',
+    'equipment': 'device',
+    'alarm': 'alert'
+};
+
+// 如果存在映射则使用映射后的类型
+const mappedType = typeMapping[type] || type;
+
+const pageConfigs = {
+    alert: { title: '告警中心详情', template: 'alert_view.html' },
+    device: { title: '设备监控详情', template: 'device_view.html' },
+    message: { title: '消息中心详情', template: 'message_view.html' },
+    user: { title: '人员管理详情', template: 'user_view.html' },
+    health: { title: '健康数据详情', template: 'health_view.html' },
+    user_profile: { title: '健康档案', template: 'user_profile.html' },
+    user_health_data: { title: '健康数据详情', template: 'user_health_data.html' }
+};
+
+const config = pageConfigs[mappedType];
+if (!config) {
+    console.error('Unknown panel type:', type);
+    return;
+}
+
+try {
+    // 设置iframe src
+    const iframe = document.getElementById('contentFrame');
+    iframe.src = `/${config.template}`;
+    
+    // 显示弹出框
+    document.getElementById('popupOverlay').style.display = 'block';
+    document.getElementById('popupPanel').style.display = 'block';
+    
+    // 添加活动类
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector('.tab-button[data-tab="table"]').classList.add('active');
+} catch (error) {
+    console.error('Error showing panel:', error);
+}
+}
+
+// 关闭面板函数
+function closePanel() {
+try {
+    const overlay = document.getElementById('popupOverlay');
+    const panel = document.getElementById('popupPanel');
+    const iframe = document.getElementById('contentFrame');
+    
+    overlay.style.display = 'none';
+    panel.style.display = 'none';
+    iframe.src = ''; // 清空iframe内容
+} catch (error) {
+    console.error('Error closing panel:', error);
+}
+}
+
+// 确保DOM加载完成后绑定事件
+document.addEventListener('DOMContentLoaded', function() {
+// 点击遮罩层关闭
+document.getElementById('popupOverlay').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closePanel();
+    }
+});
+
+// ESC键关闭
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closePanel();
+    }
+});
+
+// 标签切换事件
+document.querySelectorAll('.tab-button').forEach(button => {
+    button.addEventListener('click', function() {
+        const tabId = this.dataset.tab;
+        
+        // 更新标签活动状态
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        this.classList.add('active');
+
+        // 通知iframe内容切换标签
+        const iframe = document.getElementById('contentFrame');
+        if (iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'switchTab', tab: tabId }, '*');
+        }
+    });
+});
+});
+
+// 处理iframe通信
+window.addEventListener('message', function(event) {
+if (event.data.type === 'closePanel') {
+    closePanel();
+}
+});
+</script>
+<script>
+// AI 图表轮播
+let currentChart = 0;
+const chartCount = 3;
+
+function initAICharts() {
+// 初始化三个AI分析图表
+const chart1 = echarts.init(document.getElementById('aiChart1'));
+const chart2 = echarts.init(document.getElementById('aiChart2'));
+const chart3 = echarts.init(document.getElementById('aiChart3'));
+
+// 配置图表选项...
+// 这里根据需要设置不同的图表类型和数据
+}
+
+function slideCharts() {
+const wrapper = document.querySelector('.ai-charts-wrapper');
+wrapper.style.transform = `translateX(-${currentChart * 100}%)`;
+
+// 更新导航点
+document.querySelectorAll('.chart-nav-dot').forEach((dot, index) => {
+    dot.classList.toggle('active', index === currentChart);
+});
+}
+
+function autoSlide() {
+setInterval(() => {
+    currentChart = (currentChart + 1) % chartCount;
+    slideCharts();
+}, 5000);
+}
+
+// 实时信息更新
+function updateInfo(data) {
+const infoContent = document.getElementById('infoContent');
+const newItem = document.createElement('div');
+newItem.className = `info-item ${data.type}`;
+newItem.innerHTML = `
+    <span class="info-time">${data.time}</span>
+    <span class="info-text">${data.message}</span>
+`;
+infoContent.insertBefore(newItem, infoContent.firstChild);
+
+// 保持最新的10条记录
+if (infoContent.children.length > 10) {
+    infoContent.removeChild(infoContent.lastChild);
+}
+}
+
+// 趋势图表初始化
+function initTrendCharts() {
+const charts = ['trendChart1', 'trendChart2', 'trendChart3', 'trendChart4'].map(id => {
+    const chart = echarts.init(document.getElementById(id));
+    // 配置不同维度的趋势图表...
+    return chart;
+});
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+initAICharts();
+initTrendCharts();
+autoSlide();
+
+// 监听窗口大小变化，重置图表大小
+window.addEventListener('resize', () => {
+    // 重置所有图表大小
+});
+});
+</script>
+<script>
+// 监听窗口大小变化，重新渲染图表
+function resizeAllCharts() {
+const charts = document.querySelectorAll('.chart-container');
+charts.forEach(container => {
+    const chart = echarts.getInstanceByDom(container);
+    if (chart) {
+        chart.resize();
+    }
+});
+}
+
+// 监听窗口大小变化
+window.addEventListener('resize', resizeAllCharts);
+
+// 初始化图表时确保自适应
+document.addEventListener('DOMContentLoaded', () => {
+// 初始化所有图表
+initializeCharts();
+
+// 确保图表正确渲染
+resizeAllCharts();
+});
+
+// 初始化图表的函数
+function initializeCharts() {
+const chartContainers = {
+    userDistribution: 'userDistributionChart',
+    deviceStatus: 'deviceStatusChart',
+    // ... 其他图表
+};
+
+try {
+    Object.entries(chartContainers).forEach(([key, id]) => {
+        const container = document.getElementById(id);
+        if (container) {
+            const chart = echarts.init(container);
+            charts.set(key, chart);
+        } else {
+            console.warn(`Container ${id} not found`);
+        }
+    });
+} catch (error) {
+    console.error('Error initializing charts:', error);
+}
+}
+</script>
+<script>
+// 添加消息监听器
+window.addEventListener('message', function(event) {
+if (event.data.type === 'showProfile') {
+    showPanel('profile', event.data.deviceSn);
+} else if (event.data.type === 'closeProfile') {
+    closePanel();
+}
+});
+</script>
+<script>
+// 更新进度条和数据的函数
+function updateProgressBar(elementId, value, maxValue, unit = '') {
+const percentage = (value / maxValue) * 100;
+$(`#${elementId}`).ProgressBarWars({
+    porcentaje: percentage,
+    estilo: "vader",
+    tiempo: 1000,
+    alto: "8px",
+    flag: false
+});
+$(`#${elementId}Value`).text(`${value}${unit}`);
+}
+
+// 定期获取数据并更新显示
+function updateData() {
+$.ajax({
+    url: 'http://localhost:5001/get_total_info?customer_id=1',
+    data: { customer_id: 1 },
+    success: function(response) {
+        if (response.success) {
+            const healthStats = response.data.health_data.statistics.averageStats;
+            const alertInfo = response.data.alert_info;
+
+            // 更新健康数据统计
+            updateProgressBar('avgHeartRate', healthStats.avgHeartRate, 200, 'bpm');
+            updateProgressBar('avgBloodOxygen', healthStats.avgBloodOxygen, 100, '%');
+            updateProgressBar('avgTemperature', healthStats.avgTemperature, 45, '°C');
+            updateProgressBar('avgStep', healthStats.avgStep, 10000, '步');
+            updateProgressBar('avgCalorie', healthStats.avgCalorie, 1000, 'kcal');
+            updateProgressBar('avgDistance', healthStats.avgDistance, 10, 'km');
+
+            // 更新告警统计
+            const totalAlertLevel = Object.values(alertInfo.alertLevelCount).reduce((a, b) => a + b, 0);
+            const totalAlertStatus = Object.values(alertInfo.alertStatusCount).reduce((a, b) => a + b, 0);
+            const totalAlertType = Object.values(alertInfo.alertTypeCount).reduce((a, b) => a + b, 0);
+
+            updateProgressBar('alertLevelCount', totalAlertLevel, 100);
+            updateProgressBar('alertStatusCount', totalAlertStatus, 100);
+            updateProgressBar('alertTypeCount', totalAlertType, 100);
+            updateProgressBar('totalAlerts', alertInfo.totalAlerts, 100);
+        }
+    },
+    error: function(xhr, status, error) {
+        console.error('Error fetching data:', error);
+    }
+});
+}
+
+// 页面加载完成后开始定时更新
+$(document).ready(function() {
+updateData(); // 立即执行一次
+setInterval(updateData, 5000); // 每5秒更新一次
+});
+</script>
+<style>
+.panel-right {
+padding: 15px;
+}
+
+.health-stats, .alert-stats {
+margin-bottom: 20px;
+}
+
+.stat-item {
+margin-bottom: 15px;
+}
+
+.label {
+color: #dfdede;
+font-size: 12px;
+margin-right: 10px;
+}
+
+.value {
+color: #dd9809;
+margin-left: 4px;
+font-size: 12px;
+}
+
+.progress {
+display: inline-block;
+width: 150px;
+padding: 0;
+margin-top: 6px;
+}
+</style>
+</body>
+
+</html>

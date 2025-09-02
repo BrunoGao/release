@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+ All Rights Reserved: Copyright [2024] [ljwx]
+ Open Source Agreement: Apache License, Version 2.0
+ For educational purposes only, commercial use shall comply with the author's copyright information.
+ The author does not guarantee or assume any responsibility for the risks of using software.
+
+ Licensed under the Apache License, Version 2.0 (the "License").
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<mapper namespace="com.ljwx.modules.system.repository.mapper.SysOrgManagerCacheMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="SysOrgManagerCacheResultMap" type="com.ljwx.modules.system.domain.entity.SysOrgManagerCache">
+        <result column="id" property="id"/>
+        <result column="org_id" property="orgId"/>
+        <result column="user_id" property="userId"/>
+        <result column="user_name" property="userName"/>
+        <result column="role_type" property="roleType"/>
+        <result column="org_level" property="orgLevel"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="is_active" property="isActive"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 查询指定组织的管理员列表 -->
+    <select id="findOrgManagers" resultMap="SysOrgManagerCacheResultMap">
+        SELECT mc.*
+        FROM sys_org_manager_cache mc
+        WHERE mc.org_id = #{orgId}
+          AND mc.customer_id = #{customerId}
+          AND mc.is_active = 1
+        <if test="roleType != null and roleType != ''">
+            AND mc.role_type = #{roleType}
+        </if>
+        ORDER BY mc.org_level ASC, mc.user_id ASC
+    </select>
+
+    <!-- 批量查询多个组织的管理员列表 -->
+    <select id="findBatchOrgManagers" resultMap="SysOrgManagerCacheResultMap">
+        SELECT mc.*
+        FROM sys_org_manager_cache mc
+        WHERE mc.org_id IN
+        <foreach collection="orgIds" item="orgId" open="(" close=")" separator=",">
+            #{orgId}
+        </foreach>
+          AND mc.customer_id = #{customerId}
+          AND mc.is_active = 1
+        <if test="roleType != null and roleType != ''">
+            AND mc.role_type = #{roleType}
+        </if>
+        ORDER BY mc.org_level ASC, mc.org_id ASC, mc.user_id ASC
+    </select>
+
+    <!-- 查询指定组织及其所有上级组织的管理员 - 用于告警升级链查找 -->
+    <select id="findEscalationManagers" resultMap="SysOrgManagerCacheResultMap">
+        SELECT DISTINCT mc.*
+        FROM sys_org_closure c
+        INNER JOIN sys_org_manager_cache mc ON c.ancestor_id = mc.org_id
+        WHERE c.descendant_id = #{orgId}
+          AND c.customer_id = #{customerId}
+          AND mc.customer_id = #{customerId}
+          AND mc.is_active = 1
+        <if test="roleType != null and roleType != ''">
+            AND mc.role_type = #{roleType}
+        </if>
+        ORDER BY c.depth ASC, mc.org_level ASC, mc.user_id ASC
+    </select>
+
+    <!-- 查询用户管理的所有组织 -->
+    <select id="findUserManagedOrgs" resultMap="SysOrgManagerCacheResultMap">
+        SELECT mc.*
+        FROM sys_org_manager_cache mc
+        WHERE mc.user_id = #{userId}
+          AND mc.customer_id = #{customerId}
+          AND mc.is_active = 1
+        ORDER BY mc.org_level ASC, mc.org_id ASC
+    </select>
+
+    <!-- 刷新指定组织的管理员缓存 -->
+    <delete id="refreshOrgManagerCache">
+        DELETE FROM sys_org_manager_cache 
+        WHERE org_id = #{orgId} AND customer_id = #{customerId};
+        
+        INSERT INTO sys_org_manager_cache (org_id, user_id, user_name, role_type, org_level, customer_id, is_active)
+        SELECT 
+            uo.org_id,
+            uo.user_id,
+            u.user_name,
+            CASE 
+                WHEN uo.principal = '1' THEN 'manager'
+                WHEN uo.supervisor = '1' THEN 'supervisor'
+                ELSE 'manager'
+            END as role_type,
+            COALESCE(org.level, 0) as org_level,
+            COALESCE(org.customer_id, #{customerId}) as customer_id,
+            CASE 
+                WHEN u.status = '0' AND uo.is_deleted = 0 AND org.status = '0' THEN 1
+                ELSE 0
+            END as is_active
+        FROM sys_user_org uo
+        INNER JOIN sys_user u ON uo.user_id = u.id
+        INNER JOIN sys_org_units org ON uo.org_id = org.id
+        WHERE uo.org_id = #{orgId}
+          AND org.customer_id = #{customerId}
+          AND uo.is_deleted = 0 
+          AND u.is_deleted = 0 
+          AND org.is_deleted = 0
+          AND (uo.principal = '1' OR uo.supervisor = '1');
+    </delete>
+
+    <!-- 删除指定组织的管理员缓存 -->
+    <delete id="deleteOrgManagerCache">
+        DELETE FROM sys_org_manager_cache
+        WHERE org_id = #{orgId} AND customer_id = #{customerId}
+    </delete>
+
+</mapper>

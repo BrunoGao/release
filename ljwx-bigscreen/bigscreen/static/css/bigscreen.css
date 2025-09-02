@@ -1,0 +1,1340 @@
+* {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #001529;
+        color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        overflow: hidden;
+      }
+
+      .container {
+        display: grid;
+        grid-template-columns: 22% 1fr 22%; /* 调整为比例分配：左22% 中间自适应 右22% */
+        grid-gap: 16px; /* 减少间距：从20px减少到16px */
+        padding: 0 16px 16px 16px; /* 减少内边距：从20px减少到16px */
+        height: calc(100vh - 76px); /* 优化高度计算：60px标题+16px底边距 */
+        max-height: calc(100vh - 76px); /* 限制最大高度 */
+        overflow: hidden;
+      }
+
+      .panel {
+        background: rgba(0, 21, 41, 0.7);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        border-radius: 4px;
+        padding: 10px; /* 减少内边距：从12px减少到10px */
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .side-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px; /* 减少间距：从15px减少到12px */
+        height: 100%;
+        overflow: hidden; /* 防止内容溢出 */
+      }
+
+      .panel:nth-child(1) {
+        height: 30%; /* 统计信息面板：从20%增加到30% */
+        min-height: 150px; /* 增加最小高度 */
+        max-height: 250px; /* 增加最大高度 */
+      }
+
+      .panel:nth-child(2) {
+        height: 30%; /* 人员管理面板：从35%减少到30% */
+        min-height: 220px; /* 调整最小高度 */
+        max-height: none; /* 调整最大高度 */
+      }
+
+      .panel:nth-child(3) {
+        flex: 1; /* 使用flex: 1填充剩余空间而不是固定高度 */
+        min-height: 220px; /* 调整最小高度 */
+        max-height: none; /* 允许自适应但不超过容器 */
+        overflow: hidden; /* 防止内容溢出 */
+      }
+
+      /* 右侧面板高度分配 */
+      .side-container:last-child .panel:nth-child(1) {
+        height: 30%; /* 手表管理面板：保持30% */
+        min-height: 220px; /* 保持最小高度 */
+        max-height: 280px; /* 保持最大高度 */
+      }
+
+      .side-container:last-child .panel:nth-child(2) {
+        height: 34%; /* 健康数据分析面板：从32%增加到34% */
+        min-height: 200px; /* 保持最小高度 */
+        max-height: 320px; /* 保持最大高度 */
+      }
+
+      .side-container:last-child .panel:nth-child(3) {
+        flex: 1; /* 使用flex: 1填充剩余空间确保底部对齐 */
+        min-height: 200px; /* 调整最小高度 */
+        max-height: none; /* 保持无最大高度限制 */
+        overflow: hidden; /* 防止内容溢出 */
+      }
+
+      .panel-header {
+        color: #00e4ff;
+        font-size: 16px;
+        margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+      }
+
+      .panel-content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .map-container {
+        flex: 1; /* 使用flex: 1自动填充剩余空间 */
+        background: rgba(0, 21, 41, 0.7);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 10px;
+        min-height: 300px; /* 设置最小高度确保地图有足够显示空间 */
+      }
+
+      /* 数据卡片样式 */
+      .data-card {
+        background: rgba(0, 228, 255, 0.1);
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+
+      .data-card-value {
+        font-size: 24px;
+        color: #00e4ff;
+        margin: 5px 0;
+      }
+
+      /* 滚动条美化 */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgba(0, 228, 255, 0.1);
+        border-radius: 3px;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgba(0, 228, 255, 0.3);
+        border-radius: 3px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 228, 255, 0.5);
+      }
+
+      /* 图表容器样式 */
+      .chart-container {
+        position: relative;
+        flex: 1;
+        width: 100%;
+        height: calc(100% - 40px); /* 减少高度偏移，给图表更多空间 */
+        min-height: 120px; /* 增加最小高度确保内容显示 */
+      }
+
+      /* 统计信息面板的图表容器特殊样式 */
+      .panel:nth-child(1) .chart-container {
+        min-height: 100px; /* 统计信息面板的图表最小高度：从80px增加到100px */
+        height: calc(100% - 60px); /* 为统计数据留出更多空间 */
+      }
+
+      /* 告警面板的图表容器特殊样式 */
+      .panel:nth-child(3) .chart-container {
+        min-height: 160px; /* 增加告警面板的图表最小高度：为告警类型卡片提供更多空间 */
+        height: calc(100% - 20px);
+      }
+
+      /* 右侧面板图表容器优化 */
+      .side-container:last-child .panel:nth-child(1) .chart-container {
+        min-height: 120px; /* 手表管理面板图表最小高度 */
+        height: calc(100% - 40px);
+      }
+
+      .side-container:last-child .panel:nth-child(2) .chart-container {
+        min-height: 140px; /* 健康数据分析面板图表最小高度 */
+        height: calc(100% - 40px);
+      }
+
+      .side-container:last-child .panel:nth-child(3) .chart-container {
+        min-height: 150px; /* 健康评分面板最小高度：从120px增加到150px */
+        height: calc(100% - 40px);
+        max-height: none; /* 移除最大高度限制 */
+      }
+
+      /* 告警图表专用样式 */
+      #alertTypeChart, #alertLevelChart, #alertStatusChart, #alertTrendChart {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 90px !important; /* 增加最小高度：从80px到90px */
+        max-height: 180px !important; /* 增加单个图表最大高度：从150px增加到180px，给告警类型更多显示空间 */
+        overflow: hidden !important;
+      }
+
+      /* 特别限制告警类型图表高度 */
+      #alertTypeChart {
+        max-height: 160px !important; /* 增加告警类型图表高度：从120px增加到160px，当类型增多时有更好的显示效果 */
+      }
+
+      /* 告警面板网格布局优化 */
+      .alert-charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 8px; /* 减少间距适应更窄的宽度 */
+        height: calc(100% - 55px); /* 为顶部统计留出空间，给图表区域更多空间 */
+        min-height: 250px; /* 增加最小高度：保证告警类型卡片有足够显示空间 */
+        max-height: none; /* 限制最大高度防止变形 */
+        overflow: hidden; /* 防止内容溢出 */
+      }
+
+      /* 响应式调整 */
+      @media screen and (min-width: 1920px) {
+        .container {
+          grid-template-columns: 20% 1fr 20%; /* 超宽屏：减少侧边栏宽度，给中间更多空间 */
+        }
+      }
+
+      @media screen and (max-width: 1600px) {
+        .container {
+          grid-template-columns: 24% 1fr 24%; /* 中等屏幕：稍微增加侧边栏宽度 */
+        }
+      }
+
+      @media screen and (max-width: 1200px) {
+        .container {
+          grid-template-columns: 26% 1fr 26%; /* 小屏幕：进一步增加侧边栏宽度确保内容显示 */
+        }
+      }
+
+      @media screen and (max-width: 1024px) {
+        .container {
+          grid-template-columns: 28% 1fr 28%; /* 更小屏幕：最大化侧边栏宽度 */
+          grid-gap: 12px; /* 减少间距 */
+        }
+        
+        /* 优化小屏幕下的面板内容 */
+        .panel-header {
+          font-size: 14px;
+          margin-bottom: 8px;
+        }
+        
+        .alert-charts-grid {
+          gap: 4px; /* 进一步减少间距 */
+          min-height: 250px; /* 保持与主屏幕一致的最小高度 */
+        }
+        
+        .chart-container {
+          min-height: 100px;
+        }
+        
+        .side-container:last-child .panel:nth-child(3) .chart-container {
+          min-height: 100px;
+        }
+      }
+
+      /* 在已有的 style 标签中添加 */
+      .header-title {
+    position: relative;
+    width: 100%;
+        height: 60px;
+        background: linear-gradient(90deg, rgba(0,21,41,0.8) 0%, rgba(0,91,171,0.8) 50%, rgba(0,21,41,0.8) 100%);
+    display: flex;
+        justify-content: center;
+    align-items: center;
+        border-bottom: 1px solid rgba(0,228,255,0.3);
+    margin-bottom: 20px;
+}
+
+      .header-title h1 {
+        color: #00e4ff;
+        font-size: 28px;
+        font-weight: normal;
+        text-shadow: 0 0 10px rgba(0,228,255,0.5);
+        letter-spacing: 2px;
+      }
+
+      .header-title::before,
+      .header-title::after {
+        content: '';
+        position: absolute;
+        width: 200px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #00e4ff, transparent);
+        bottom: -1px;
+      }
+
+      .header-title::before {
+        left: 0;
+      }
+
+      .header-title::after {
+        right: 0;
+      }
+
+      /* 添加装饰元素 */
+      .header-decoration {
+    position: absolute;
+        width: 120px;
+        height: 30px;
+    top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .header-decoration.left {
+        left: 50px;
+        background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMzAiPjxwYXRoIGQ9Ik0wIDE1aDEyME0zMCAwdjMwTTYwIDB2MzBNOTAgMHYzMCIgc3Ryb2tlPSIjMDBlNGZmIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuMyIvPjwvc3ZnPg==');
+      }
+
+      .header-decoration.right {
+        right: 50px;
+        background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMzAiPjxwYXRoIGQ9Ik0wIDE1aDEyME0zMCAwdjMwTTYwIDB2MzBNOTAgMHYzMCIgc3Ryb2tlPSIjMDBlNGZmIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuMyIvPjwvc3ZnPg==');
+        transform: translateY(-50%) scaleX(-1);
+      }
+
+      /* 添加人员管理面板特殊调整 */
+      .personnel-management {
+        background: rgba(1, 19, 38, 0.8);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+      }
+
+      .personnel-management:hover {
+        border-color: rgba(0, 228, 255, 0.4);
+        box-shadow: 0 0 15px rgba(0, 228, 255, 0.2);
+      }
+
+      .personnel-management .panel-content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .personnel-management .data-overview {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 20px;
+        margin-bottom: 5px;
+        border-bottom: 1px solid rgba(0, 228, 255, 0.1);
+      }
+
+      .personnel-management .overview-item {
+        text-align: center;
+    display: flex;
+    align-items: center;
+        gap: 8px;
+      }
+
+      .personnel-management .overview-item .label {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 0;
+      }
+
+      .personnel-management .overview-item .number {
+        font-size: 18px;
+        color: #00e4ff;
+        font-weight: 600;
+      }
+
+      .personnel-management .department-chart {
+    flex: 1;
+        height: calc(100% - 50px); /* 给图表更多空间 */
+        min-height: 0;
+      }
+
+      /* 响应式调整 */
+      @media screen and (max-height: 800px) {
+        .personnel-management .overview-item .number {
+          font-size: 18px;
+        }
+        
+        .personnel-management .overview-item .label {
+          font-size: 11px;
+        }
+}
+
+/* 在已有的style标签中添加 */
+.message-count {
+    font-size: 14px;
+    color: #00e4ff;
+    background: rgba(0, 228, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 10px;
+}
+
+.message-list {
+    height: calc(100% - 30px);
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.message-item {
+    background: rgba(0,228,255,0.1);
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 6px;
+    border-left: 3px solid #00e4ff;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.message-time {
+    color: rgba(255,255,255,0.6);
+    font-size: 10px;
+    float: right;
+}
+
+.message-content {
+    color: #fff;
+    margin-top: 2px;
+}
+
+.device-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px; /* 减少间距 */
+    margin-bottom: 8px; /* 减少底部边距 */
+    height: 50px; /* 减少固定高度 */
+}
+
+.device-stat-item {
+    background: rgba(0, 228, 255, 0.1);
+    border-radius: 4px;
+    padding: 4px; /* 减少内边距 */
+    text-align: center;
+    border-left: 3px solid #00e4ff;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.device-stat-item:hover {
+    background: rgba(0, 228, 255, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 228, 255, 0.2);
+}
+
+.stat-label {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 9px; /* 减少字体大小 */
+    display: block;
+    margin-bottom: 1px; /* 减少边距 */
+}
+
+.stat-value {
+    color: #00e4ff;
+    font-size: 14px; /* 减少字体大小 */
+    font-weight: bold;
+    display: inline-block;
+}
+
+.stat-unit {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 8px;
+    margin-left: 2px;
+}
+
+.stats-date {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    font-weight: normal;
+}
+
+.total-score {
+    font-size: 16px;
+    color: #00e4ff;
+    background: rgba(0, 228, 255, 0.1);
+    padding: 4px 12px;
+    border-radius: 12px;
+}
+
+/* 在 <style> 标签中添加以下样式 */
+.modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-content {
+    position: relative;
+    width: 90%;
+    height: 90%;
+    background: rgba(0, 21, 41, 0.95);
+    border: 1px solid rgba(0, 228, 255, 0.3);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 228, 255, 0.2);
+}
+
+.modal-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: #00e4ff;
+    font-size: 18px;
+    cursor: pointer;
+    z-index: 9999;
+    padding: 5px 10px;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    transform: scale(1.1);
+    color: #ff4444;
+}
+
+.user-view-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 4px;
+    background: rgba(1, 19, 38, 0.8);
+}
+
+/* 添加动画效果 */
+.modal-container {
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+    opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.filter-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: rgba(0, 21, 41, 0.9);
+    backdrop-filter: blur(8px);
+    padding: 15px;
+    border-radius: 8px;
+    width: 280px;
+    border: 1px solid rgba(0, 228, 255, 0.2);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.filter-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 228, 255, 0.2);
+}
+
+.filter-header span {
+    color: #00e4ff;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.filter-select {
+    font-family: monospace;
+    white-space: pre;
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.filter-select:hover {
+    border-color: rgba(0, 228, 255, 0.4);
+}
+
+.filter-select:focus {
+    border-color: rgba(0, 228, 255, 0.6);
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 228, 255, 0.2);
+}
+
+.filter-select option {
+    font-family: monospace;
+    white-space: pre;
+    background: #1a1a1a;
+    color: #fff;
+    padding: 8px;
+}
+
+/* 添加美化的弹出框样式 */
+.custom-alert {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 21, 41, 0.95);
+    border: 1px solid rgba(0, 228, 255, 0.3);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    min-width: 300px;
+    text-align: center;
+    animation: alertFadeIn 0.3s ease;
+}
+
+.custom-alert-content {
+    color: #fff;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+.custom-alert-button {
+    background: rgba(0, 228, 255, 0.2);
+    border: 1px solid rgba(0, 228, 255, 0.4);
+    color: #00e4ff;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.custom-alert-button:hover {
+    background: rgba(0, 228, 255, 0.3);
+    border-color: rgba(0, 228, 255, 0.6);
+}
+
+@keyframes alertFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+/* 添加遮罩层样式 */
+.custom-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 9999;
+    animation: overlayFadeIn 0.3s ease;
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* 现代科技风格信息面板 */
+.info-panel {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 360px;
+  background: rgba(13, 17, 38, 0.95);
+  border: 1px solid rgba(0, 234, 255, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0, 234, 255, 0.2);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.info-panel-header {
+  padding: 15px 20px;
+  background: linear-gradient(90deg, rgba(0, 234, 255, 0.1), rgba(0, 234, 255, 0.05));
+  border-bottom: 1px solid rgba(0, 234, 255, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-panel-title {
+  color: #00eaff;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-panel-close {
+  background: none;
+  border: none;
+  color: #00eaff;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px;
+  transition: all 0.2s ease;
+}
+
+.info-panel-close:hover {
+  color: #fff;
+  transform: rotate(90deg);
+}
+
+.info-panel-content {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.info-item {
+  background: rgba(0, 234, 255, 0.05);
+  border: 1px solid rgba(0, 234, 255, 0.1);
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.info-item:hover {
+  background: rgba(0, 234, 255, 0.1);
+  transform: translateX(-5px);
+}
+
+.info-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.info-item-title {
+  color: #00eaff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.info-item-time {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+.info-item-content {
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.info-item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 234, 255, 0.1);
+}
+
+.info-item-location {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.info-item-action {
+  background: #00eaff;
+  color: #0d1126;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.info-item-action:hover {
+  background: #38f9d7;
+}
+
+/* 健康信息样式 */
+.health-info {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.health-item {
+  background: rgba(0, 234, 255, 0.05);
+  padding: 8px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.health-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.health-value {
+  color: #00eaff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* 滚动条样式 */
+.info-panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.info-panel-content::-webkit-scrollbar-track {
+  background: rgba(0, 234, 255, 0.05);
+}
+
+.info-panel-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 234, 255, 0.3);
+  border-radius: 3px;
+}
+
+.info-panel-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 234, 255, 0.5);
+}
+
+.info-item-highlight { border:2px solid #ffbb00; box-shadow:0 0 12px #ffbb0088; }
+
+      /* 人员管理面板专用样式 */
+      .personnel-management .panel-header h3 {
+        color: #00e4ff;
+        font-size: 16px;
+        margin: 0;
+        font-weight: 600;
+      }
+
+      /* 统计概览卡片样式 */
+      .personnel-management .panel-content > div:first-child {
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      .personnel-management .panel-content > div:first-child:hover {
+        background: rgba(0, 228, 255, 0.15) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 228, 255, 0.2);
+      }
+
+      /* 图表容器优化 */
+      #departmentDistribution, #userStatusChart {
+        transition: all 0.3s ease;
+      }
+
+      #departmentDistribution:hover, #userStatusChart:hover {
+        border-color: rgba(0, 228, 255, 0.6) !important;
+        box-shadow: 0 4px 15px rgba(0, 228, 255, 0.2) !important;
+      }
+
+
+      /* 统计信息面板样式优化 */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 10px;
+        height: auto;
+      }
+
+      .stat-card {
+        background: linear-gradient(135deg, rgba(0, 228, 255, 0.1), rgba(0, 228, 255, 0.05));
+        border-radius: 6px;
+        padding: 8px;
+        border-left: 3px solid #00e4ff;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+      }
+
+      .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transform: translateX(-100%);
+        transition: transform 0.6s;
+      }
+
+      .stat-card:hover::before {
+        transform: translateX(100%);
+      }
+
+      .stat-card:hover {
+        background: linear-gradient(135deg, rgba(0, 228, 255, 0.15), rgba(0, 228, 255, 0.08));
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 228, 255, 0.3);
+        border-left-color: #38f9d7;
+      }
+
+      .stat-card.health-data { border-left-color: #00e4ff; }
+      .stat-card.alert-data { border-left-color: #ff6b6b; }
+      .stat-card.device-data { border-left-color: #00ff9d; }
+      .stat-card.message-data { border-left-color: #ffbb00; }
+
+      .stat-icon {
+        font-size: 16px;
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        opacity: 0.7;
+      }
+
+      .stat-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .stat-label {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 9px;
+        font-weight: 500;
+      }
+
+      .stat-value-container {
+        display: flex;
+        align-items: baseline;
+        gap: 2px;
+      }
+
+      .stat-value {
+        color: #00e4ff;
+        font-size: 16px;
+        font-weight: bold;
+        font-family: 'Courier New', monospace;
+      }
+
+      .stat-unit {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 8px;
+        margin-left: 2px;
+      }
+
+      .stat-trend {
+        color: #00ff9d;
+        font-size: 8px;
+        font-weight: 500;
+      }
+
+      .stat-trend.negative {
+        color: #ff6b6b;
+      }
+
+      .system-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        background: rgba(0, 21, 41, 0.6);
+        border-radius: 4px;
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        margin-top: 8px;
+      }
+
+      .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      .status-indicator.normal { background: #00ff9d; }
+      .status-indicator.warning { background: #ffbb00; }
+      .status-indicator.critical { background: #ff6b6b; }
+
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+
+      .status-text {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 10px;
+        flex: 1;
+      }
+
+      .health-score {
+        color: #00e4ff;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .stats-date {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 10px;
+        font-weight: normal;
+      }
+
+      /* 告警类型图表特殊优化 - 防止类型过多时变形 */
+      .alert-type-container {
+        max-height: 120px;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      /* 当告警类型超过5个时的特殊处理 */
+      .alert-type-scroll {
+        max-height: 100px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0, 228, 255, 0.3) transparent;
+      }
+
+      .alert-type-scroll::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .alert-type-scroll::-webkit-scrollbar-track {
+        background: rgba(0, 228, 255, 0.1);
+      }
+
+      .alert-type-scroll::-webkit-scrollbar-thumb {
+        background: rgba(0, 228, 255, 0.3);
+        border-radius: 2px;
+      }
+
+      /* 消息面板优化样式 - 统一定义 */
+      .message-panel {
+          height: 240px; /* 使用固定高度240px确保底部对齐 */
+          background: rgba(0, 21, 41, 0.7);
+          border: 1px solid rgba(0, 228, 255, 0.2);
+          border-radius: 4px;
+          padding: 8px; /* 减少内边距：从10px减少到8px */
+          margin-bottom: 0; /* 移除底部间距确保对齐 */
+          min-height: 220px; /* 保持最小高度 */
+          max-height: 280px; /* 限制最大高度 */
+          overflow: hidden; /* 防止内容溢出 */
+          display: flex;
+          flex-direction: column;
+          flex-shrink: 0; /* 防止缩放 */
+      }
+
+      /* 消息面板标题 */
+      .message-panel .panel-header {
+          flex-shrink: 0; /* 标题不缩放 */
+          margin-bottom: 8px;
+          height: 24px; /* 固定标题高度 */
+      }
+
+      /* 消息面板内容区域 */
+      .message-panel-content {
+          flex: 1; /* 占用剩余空间 */
+          display: flex;
+          gap: 10px;
+          min-height: 0; /* 允许内容缩放 */
+          width: 100%;
+          box-sizing: border-box;
+      }
+
+      /* 消息列表区域 */
+      .message-list-container {
+          flex: 0 0 60%; /* 固定60%宽度 */
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+      }
+
+      /* 消息统计区域 */
+      .message-stats-container {
+          flex: 0 0 38%; /* 固定38%宽度，留2%间距 */
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+      }
+
+      /* 消息列表样式 */
+      .message-list {
+          flex: 1;
+          overflow-y: auto;
+          padding: 5px;
+          background: rgba(0,21,41,0.3);
+          border-radius: 4px;
+          border: 1px solid rgba(0,228,255,0.1);
+          min-height: 60px; /* 确保最小显示高度 */
+      }
+
+      /* 消息项样式 */
+      .message-item {
+          padding: 4px 6px;
+          margin-bottom: 3px;
+          background: rgba(0,228,255,0.05);
+          border-radius: 3px;
+          border-left: 2px solid #00e4ff;
+          font-size: 10px;
+          line-height: 1.3;
+          color: rgba(255,255,255,0.9);
+          cursor: pointer;
+          transition: all 0.2s ease;
+      }
+
+      .message-item:hover {
+          background: rgba(0,228,255,0.1);
+          border-left-color: #38f9d7;
+      }
+
+      /* 消息统计图表容器 */
+      .message-stats-chart {
+          flex: 1;
+          background: rgba(0,21,41,0.3);
+          border-radius: 4px;
+          border: 1px solid rgba(0,228,255,0.1);
+          position: relative;
+          min-height: 60px;
+      }
+
+
+      /* 消息面板额外优化 - 防止变形 */
+      .message-panel-content {
+          width: 100%;
+          box-sizing: border-box;
+      }
+
+      .message-list-container,
+      .message-stats-container {
+          box-sizing: border-box;
+          overflow: hidden;
+      }
+
+      /* 消息统计概览样式优化 */
+      .message-stats-overview {
+          display: flex;
+          justify-content: space-around;
+          padding: 6px 3px;
+          border-bottom: 1px solid rgba(0,228,255,0.1);
+          flex-shrink: 0;
+          height: 36px;
+          box-sizing: border-box;
+      }
+
+      .message-stats-overview > div {
+          text-align: center;
+          flex: 1;
+      }
+
+      /* 消息统计图表区域 */
+      #messageStatsChart {
+          height: calc(100% - 36px) !important;
+          width: 100% !important;
+          min-height: 40px !important;
+      }
+
+      /* 手表管理面板样式 */
+      .watch-management {
+          background: linear-gradient(135deg, rgba(0, 21, 41, 0.9), rgba(0, 91, 171, 0.1));
+      }
+
+      .watch-stats {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          margin-bottom: 12px;
+      }
+
+      .watch-stat-card {
+          background: rgba(0, 228, 255, 0.1);
+          border-radius: 4px;
+          padding: 8px;
+          text-align: center;
+          border-left: 3px solid #00e4ff;
+          transition: all 0.3s ease;
+          cursor: pointer;
+      }
+
+      .watch-stat-card:hover {
+          background: rgba(0, 228, 255, 0.2);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 228, 255, 0.3);
+      }
+
+      .watch-stat-value {
+          color: #00e4ff;
+          font-size: 18px;
+          font-weight: bold;
+          margin-bottom: 2px;
+      }
+
+      .watch-stat-label {
+          color: rgba(255, 255, 255, 0.8);
+          font-size: 10px;
+      }
+
+      /* 健康数据分析面板样式 */
+      .health-analysis {
+          background: linear-gradient(135deg, rgba(0, 21, 41, 0.9), rgba(0, 255, 157, 0.05));
+      }
+
+      .health-overview-card {
+          background: linear-gradient(135deg, rgba(0, 228, 255, 0.15), rgba(0, 255, 157, 0.1));
+          border-radius: 8px;
+          padding: 12px;
+          margin-bottom: 12px;
+          border: 1px solid rgba(0, 228, 255, 0.3);
+          position: relative;
+          overflow: hidden;
+      }
+
+      .health-overview-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+          transform: translateX(-100%);
+          transition: transform 0.6s;
+      }
+
+      .health-overview-card:hover::before {
+          transform: translateX(100%);
+      }
+
+      .health-metrics {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+      }
+
+      .health-metric {
+          text-align: center;
+          flex: 1;
+      }
+
+      .health-metric-value {
+          color: #00e4ff;
+          font-size: 18px;
+          font-weight: bold;
+          margin-bottom: 4px;
+      }
+
+      .health-metric-label {
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 11px;
+      }
+
+      /* 健康评分面板样式 */
+      .health-score-panel {
+          background: linear-gradient(135deg, rgba(0, 21, 41, 0.9), rgba(255, 187, 0, 0.05));
+      }
+
+      .score-display {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: rgba(0, 228, 255, 0.1);
+          border-radius: 6px;
+          padding: 10px;
+          margin-bottom: 10px;
+          border-left: 4px solid #ffbb00;
+      }
+
+      .score-main {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+      }
+
+      .score-circle {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          background: conic-gradient(#00e4ff 0deg, #00e4ff 320deg, rgba(255,255,255,0.2) 320deg);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+      }
+
+      .score-circle::before {
+          content: '';
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: rgba(0, 21, 41, 0.9);
+          position: absolute;
+      }
+
+      .score-number {
+          color: #00e4ff;
+          font-size: 16px;
+          font-weight: bold;
+          z-index: 1;
+      }
+
+      .score-info {
+          flex: 1;
+      }
+
+      .score-title {
+          color: #fff;
+          font-size: 14px;
+          margin-bottom: 4px;
+      }
+
+      .score-status {
+          color: #00ff9d;
+          font-size: 12px;
+      }
+
+      /* 消息面板额外优化 - 防止变形 */

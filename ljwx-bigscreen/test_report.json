@@ -1,0 +1,20 @@
+{
+  "report_title": "ljwx自动化测试报告",
+  "generated_at": "2025-06-18T08:30:22.746882",
+  "summary": {
+    "total_tests": 0,
+    "passed_tests": 0,
+    "failed_tests": 0,
+    "success_rate": 0
+  },
+  "test_results": [],
+  "available_tests": {
+    "upload_common_event": "通用事件上传测试",
+    "upload_health_data": "健康数据上传测试",
+    "upload_device_info": "设备信息上传测试"
+  },
+  "recommendations": [
+    "测试成功率偏低，建议检查失败用例",
+    "测试覆盖率不足，建议增加更多测试用例"
+  ]
+}

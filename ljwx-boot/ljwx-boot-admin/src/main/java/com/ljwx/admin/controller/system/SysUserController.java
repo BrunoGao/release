@@ -1,0 +1,196 @@
+package com.ljwx.admin.controller.system;
+
+import cn.dev33.satoken.annotation.SaCheckPermission;
+import com.ljwx.common.api.Result;
+import com.ljwx.infrastructure.page.PageQuery;
+import com.ljwx.infrastructure.page.RPage;
+import com.ljwx.modules.system.domain.dto.user.*;
+import com.ljwx.modules.system.domain.entity.SysUser;
+import com.ljwx.modules.system.domain.vo.SysUserMapVO;
+import com.ljwx.modules.system.domain.vo.SysUserResponsibilitiesVO;
+import com.ljwx.modules.system.domain.vo.SysUserVO;
+import com.ljwx.modules.system.facade.ISysUserFacade;
+import com.ljwx.modules.system.service.ISysUserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * 系统管理 - 用户管理 Controller 控制层
+ *
+ * @Author bruno.gao <gaojunivas@gmail.com>
+ * @ProjectName ljwx-boot
+ * @ClassName system.controller.com.ljwx.admin.SysUserController
+ * @CreateTime 2023/7/6 - 14:25
+ */
+
+@RestController
+@Tag(name = "用户管理")
+@RequiredArgsConstructor
+@RequestMapping("/sys_user")
+public class SysUserController {
+
+    @NonNull
+    private ISysUserFacade sysUserFacade;
+
+    @NonNull
+    private ISysUserService sysUserService;
+
+    @GetMapping("/page")
+    @SaCheckPermission("sys:user:page")
+    @Operation(operationId = "1", summary = "获取用户管理列表")
+    public Result<RPage<SysUserVO>> page(@Parameter(description = "分页对象", required = true) @Valid PageQuery pageQuery,
+                                         @Parameter(description = "查询对象") SysUserSearchDTO sysUserSearchDTO,
+                                         @Parameter(description = "视图模式: all-全部, employee-员工, admin-管理员") 
+                                         @RequestParam(value = "viewMode", defaultValue = "all") String viewMode) {
+        System.out.println("🔍 收到视图模式请求: " + viewMode);
+        System.out.println("📊 查询参数: " + sysUserSearchDTO);
+        
+        RPage<SysUserVO> result;
+        switch (viewMode.toLowerCase()) {
+            case "employee":
+                System.out.println("👥 执行员工查询...");
+                result = sysUserFacade.listNonAdminUsersPage(pageQuery, sysUserSearchDTO);
+                break;
+            case "admin":
+                System.out.println("👑 执行管理员查询...");
+                result = sysUserFacade.listAdminUsersPage(pageQuery, sysUserSearchDTO);
+                break;
+            default:
+                System.out.println("🌐 执行全部用户查询...");
+                result = sysUserFacade.listSysUserPage(pageQuery, sysUserSearchDTO);
+                break;
+        }
+        
+        System.out.println("📋 查询结果数量: " + result.getRecords().size() + " / " + result.getTotal());
+        System.out.println("👤 用户详情:");
+        for (SysUserVO user : result.getRecords()) {
+            System.out.println("  - " + user.getUserName() + " (isAdmin: " + user.getIsAdmin() + ")");
+        }
+        
+        return Result.data(result);
+    }
+
+    @GetMapping("/{id}")
+    @SaCheckPermission("sys:user:get")
+    @Operation(operationId = "2", summary = "根据ID获取用户详细信息")
+    public Result<SysUserVO> get(@Parameter(description = "ID") @PathVariable("id") Long id) {
+        return Result.data(sysUserFacade.get(id));
+    }
+
+    @PostMapping("/")
+    @SaCheckPermission("sys:user:add")
+    @Operation(operationId = "3", summary = "新增用户")
+    public Result<Boolean> addUser(@Parameter(description = "新增用户对象") @RequestBody SysUserAddDTO sysUserAddDTO) {
+        return Result.status(sysUserFacade.addUser(sysUserAddDTO));
+    }
+
+
+
+    @PutMapping("/")
+    @SaCheckPermission("sys:user:update")
+    @Operation(operationId = "4", summary = "更新用户信息")
+    public Result<Boolean> updateUser(@Parameter(description = "更新用户对象") @RequestBody SysUserUpdateDTO sysUserUpdateDTO) {
+        return Result.status(sysUserFacade.updateUser(sysUserUpdateDTO));
+    }
+
+    @DeleteMapping("/")
+    @SaCheckPermission("sys:user:delete")
+    @Operation(operationId = "5", summary = "批量删除用户信息")
+    public Result<Boolean> batchDeleteUser(@Parameter(description = "删除用户对象") @RequestBody SysUserDeleteDTO sysUserDeleteDTO) {
+        return Result.status(sysUserFacade.batchDeleteUser(sysUserDeleteDTO));
+    }
+
+    @PostMapping("/check_device_binding")
+    @SaCheckPermission("sys:user:delete")
+    @Operation(operationId = "5.1", summary = "检查用户设备绑定状态")
+    public Result<List<Map<String, Object>>> checkUserDeviceBinding(@Parameter(description = "删除用户对象") @RequestBody SysUserDeleteDTO sysUserDeleteDTO) {
+        return Result.data(sysUserFacade.checkUserDeviceBinding(sysUserDeleteDTO));
+    }
+
+
+
+    @PutMapping("/reset_password/{userId}")
+    @SaCheckPermission("sys:user:resetPassword")
+    @Operation(operationId = "6", summary = "重置密码")
+    public Result<String> resetPassword(@Parameter(description = "用户ID") @PathVariable("userId") Long userId) {
+        return Result.data(sysUserFacade.resetPassword(userId));
+    }
+
+    @GetMapping("/responsibilities/{userId}")
+    @SaCheckPermission("sys:user:responsibilities")
+    @Operation(operationId = "7", summary = "根据用户ID获取用户职责信息")
+    public Result<SysUserResponsibilitiesVO> queryUserResponsibilities(@Parameter(description = "ID") @PathVariable("userId") Long userId) {
+        return Result.data(sysUserFacade.queryUserResponsibilitiesWithUserId(userId));
+    }
+
+    @PutMapping("/responsibilities")
+    @SaCheckPermission("sys:user:responsibilities")
+    @Operation(operationId = "7", summary = "更新用户职责信息")
+    public Result<Boolean> updateUserResponsibilities(@Parameter(description = "用户职责对象") @RequestBody SysUserResponsibilitiesUpdateDTO updateDTO) {
+        return Result.data(sysUserFacade.updateUserResponsibilities(updateDTO));
+    }
+
+    @PostMapping("/add_user_by_excel")
+    @SaCheckPermission("sys:user:add")
+    @Operation(operationId = "8", summary = "新增用户")
+    public Result<Boolean> addUserByExcel(@Parameter(description = "新增用户对象") @RequestBody SysUserAddDTO sysUserAddDTO) {
+        return Result.status(sysUserFacade.addUser(sysUserAddDTO));
+    }
+
+    @GetMapping("/get_unbind_device")
+    @SaCheckPermission("sys:user:get")
+    @Operation(operationId = "9", summary = "获取未绑定设备的用户")
+    public Result<List> getUnbindDevice(@RequestParam("customerId") String customerId) {
+        return Result.data(sysUserFacade.getUnbindDevice(Long.valueOf(customerId)));
+    }
+
+
+    @GetMapping("/get_bind_device")
+    @SaCheckPermission("sys:user:get")
+    @Operation(operationId = "9", summary = "获取未绑定设备的用户")
+    public Result<List> getBindDevice(@RequestParam("customerId") Long customerId) {
+        return Result.data(sysUserFacade.getBindDevice(customerId));
+    }
+
+    @Operation(summary = "根据组织ID获取用户列表")
+    @GetMapping("/get_users_by_org_id")
+    public Result<SysUserMapVO> getUsersByOrgId(@Parameter(description = "组织ID") @RequestParam String orgId) {
+        try {
+            Long orgIdLong = Long.parseLong(orgId);
+
+            System.out.println("orgIdLong: " + orgIdLong);
+            List<SysUser> users = sysUserService.getUsersByOrgId(orgIdLong);
+            Map<String, String> userMap = users.stream()
+                    .collect(Collectors.toMap(
+                            user -> String.valueOf(user.getId()),
+                            SysUser::getUserName
+                    ));
+            SysUserMapVO vo = new SysUserMapVO();
+            vo.setUserMap(userMap);
+            return Result.data(vo);
+        } catch (NumberFormatException e) {
+            return Result.failure("组织ID格式不正确");
+        }
+    }
+
+    @PostMapping("/batch-import")
+    @SaCheckPermission("sys:user:add")
+    @Operation(operationId = "10", summary = "批量导入用户")
+    public Result<Map<String, Object>> batchImportUsers(
+            @Parameter(description = "Excel文件") @RequestParam("file") MultipartFile file,
+            @Parameter(description = "组织ID列表") @RequestParam("orgIds") String orgIds) {
+        return Result.data(sysUserFacade.batchImportUsers(file, orgIds));
+    }
+
+
+}

@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ljwx.modules.system.repository.mapper.SysUserMapper">
+
+    <resultMap id="SysUserResultMap" type="com.ljwx.modules.system.domain.entity.SysUser">
+        <id column="id" property="id"/>
+        <result column="user_name" property="userName"/>
+        <result column="password" property="password"/>
+        <result column="user_card_number" property="userCardNumber"/>
+        <result column="nick_name" property="nickName"/>
+        <result column="real_name" property="realName"/>
+        <result column="avatar" property="avatar"/>
+        <result column="email" property="email"/>
+        <result column="device_sn" property="deviceSn"/>
+        <result column="working_years" property="workingYears"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="phone" property="phone"/>
+        <result column="gender" property="gender"/>
+        <result column="create_user" property="createUser"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_user" property="updateUser"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="updateTime" property="updateTime"/>
+        <result column="salt" property="salt"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="update_password_time" property="updatePasswordTime"/>
+        <result column="status" property="status"/>
+        <result column="is_deleted" property="deleted"/>
+        <result property="position" column="position"/>
+    </resultMap>
+
+    <resultMap id="UserResult" type="com.ljwx.modules.system.domain.bo.SysUserBO">
+        <id column="id" property="id"/>
+        <result column="user_name" property="userName"/>
+        <result column="password" property="password"/>
+        <result column="user_card_number" property="userCardNumber"/>
+        <result column="nick_name" property="nickName"/>
+        <result column="real_name" property="realName"/>
+        <result column="avatar" property="avatar"/>
+        <result column="email" property="email"/>
+        <result column="device_sn" property="deviceSn"/>
+        <result column="working_years" property="workingYears"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="phone" property="phone"/>
+        <result column="gender" property="gender"/>
+        <result column="create_user" property="createUser"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_user" property="updateUser"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="updateTime" property="updateTime"/>
+        <result column="salt" property="salt"/>
+        <result column="last_login_time" property="lastLoginTime"/>
+        <result column="update_password_time" property="updatePasswordTime"/>
+        <result column="status" property="status"/>
+        <result column="is_deleted" property="deleted"/>
+        <result property="position" column="position"/>
+    </resultMap>
+
+    <sql id="UserColumnList">
+        su.id,
+        su.user_name,
+        su.password,
+        su.user_card_number,
+        su.nick_name,
+        su.real_name,
+        su.avatar,
+        su.email,
+        su.device_sn,
+        su.working_years,
+        su.customer_id,
+        su.phone,
+        su.gender,
+        su.status,
+        su.salt,
+        su.last_login_time,
+        su.update_password_time,
+        su.create_user,
+        su.create_user_id,
+        su.create_time,
+        su.update_user,
+        su.update_user_id,
+        su.update_time
+    </sql>
+
+    <select id="getUserByUserName" resultMap="SysUserResultMap">
+        SELECT <include refid="UserColumnList" />
+        FROM sys_user su
+        WHERE su.user_name = #{userName}
+          AND su.is_deleted = 0
+    </select>
+
+    <select id="queryIsContainAdmin" resultType="java.lang.Boolean">
+        SELECT COUNT(1)
+        FROM sys_user su
+        WHERE su.is_deleted = 0
+        AND su.status = 1
+        AND su.user_name = 'admin'
+        AND su.id IN
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+    </select>
+
+    <select id="listSysUserPage" resultMap="SysUserResultMap">
+        SELECT 
+            <include refid="UserColumnList" />,
+            GROUP_CONCAT(p.name) as position
+        FROM sys_user su
+        LEFT JOIN sys_user_position sup ON su.id = sup.user_id AND sup.is_deleted = 0
+        LEFT JOIN sys_position p ON sup.position_id = p.id AND p.is_deleted = 0
+        WHERE
+        <if test="bo.orgIds.toString().contains('-1')">
+            NOT EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 )
+        </if>
+        <if test="!bo.orgIds.toString().contains('-1')">
+            EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 AND suo.org_id IN
+            <foreach collection="bo.orgIds" item="orgId" open="(" separator="," close=")">
+                #{orgId}
+            </foreach>
+            )
+        </if>
+        <if test="bo.userName != null and bo.userName != ''">
+            AND su.user_name LIKE CONCAT(#{bo.userName}, '%')
+        </if>
+        <if test="bo.deviceSn != null and bo.deviceSn != ''">
+            AND su.device_sn LIKE CONCAT(#{bo.deviceSn}, '%')
+        </if>
+        <if test="bo.userCardNumber != null and bo.userCardNumber != ''">
+            AND su.user_card_number LIKE CONCAT(#{bo.userCardNumber}, '%')
+        </if>
+        <if test="bo.phone != null and bo.phone != ''">
+            AND su.phone LIKE CONCAT(#{bo.phone}, '%')
+        </if>
+        AND su.is_deleted = 0
+        GROUP BY su.id
+    </select>
+
+    <select id="getUnbindDeviceSerialNumbers" resultType="String">
+        SELECT DISTINCT serial_number 
+        FROM t_device_info 
+        WHERE serial_number NOT IN (
+            SELECT device_sn 
+            FROM sys_user 
+            WHERE device_sn IS NOT NULL AND is_deleted = 0
+            <if test="customerId != 0">
+                AND customer_id = #{customerId}
+               
+            </if>
+        )
+    </select>
+
+    <select id="getBindDeviceSerialNumbers" resultType="java.lang.String">
+        SELECT device_sn FROM sys_user WHERE customer_id = #{customerId} AND is_deleted = 0
+    </select>
+
+    <select id="getUsersByOrgIds" resultType="com.ljwx.modules.system.domain.entity.SysUser">
+        SELECT DISTINCT u.*
+        FROM sys_user u
+        INNER JOIN sys_user_org uo ON u.id = uo.user_id
+        WHERE u.is_deleted = '0'
+        AND uo.is_deleted = '0'
+        AND uo.org_id IN
+        <foreach collection="list" item="orgId" open="(" separator="," close=")">
+            #{orgId}
+        </foreach>
+    </select>
+
+    <select id="selectUserList" parameterType="com.ljwx.modules.system.domain.bo.SysUserBO" resultMap="UserResult">
+        SELECT u.*, up.position_id, p.name as position
+        FROM sys_user u
+        LEFT JOIN sys_user_position up ON u.id = up.user_id
+        LEFT JOIN sys_position p ON up.position_id = p.id
+        WHERE
+        <if test="bo.orgIds.toString().contains('-1')">
+            NOT EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = u.id AND suo.is_deleted = 0 )
+        </if>
+        <if test="!bo.orgIds.toString().contains('-1')">
+            EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = u.id AND suo.is_deleted = 0 AND suo.org_id IN
+            <foreach collection="bo.orgIds" item="orgId" open="(" separator="," close=")">
+                #{orgId}
+            </foreach>
+            )
+        </if>
+        <if test="bo.userName != null and bo.userName != ''">
+            AND u.user_name LIKE CONCAT(#{bo.userName}, '%')
+        </if>
+        <if test="bo.deviceSn != null and bo.deviceSn != ''">
+            AND u.device_sn LIKE CONCAT(#{bo.deviceSn}, '%')
+        </if>
+        <if test="bo.userCardNumber != null and bo.userCardNumber != ''">
+            AND u.user_card_number LIKE CONCAT(#{bo.userCardNumber}, '%')
+        </if>
+        <if test="bo.phone != null and bo.phone != ''">
+            AND u.phone LIKE CONCAT(#{bo.phone}, '%')
+        </if>
+          AND u.is_deleted = 0
+    </select>
+
+    <!-- 查询非管理员用户列表 - 排除管理员角色的用户 -->
+    <select id="listNonAdminUsersPage" resultMap="SysUserResultMap">
+        SELECT 
+            <include refid="UserColumnList" />,
+            GROUP_CONCAT(p.name) as position
+        FROM sys_user su
+        LEFT JOIN sys_user_position sup ON su.id = sup.user_id AND sup.is_deleted = 0
+        LEFT JOIN sys_position p ON sup.position_id = p.id AND p.is_deleted = 0
+        WHERE su.id NOT IN (
+            SELECT DISTINCT ur.user_id 
+            FROM sys_user_role ur 
+            JOIN sys_role r ON ur.role_id = r.id 
+            WHERE r.is_admin = 1 
+            AND ur.is_deleted = 0 
+            AND r.is_deleted = 0
+        )
+        <if test="bo.orgIds.toString().contains('-1')">
+            AND NOT EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 )
+        </if>
+        <if test="!bo.orgIds.toString().contains('-1')">
+            AND EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 AND suo.org_id IN
+            <foreach collection="bo.orgIds" item="orgId" open="(" separator="," close=")">
+                #{orgId}
+            </foreach>
+            )
+        </if>
+        <if test="bo.userName != null and bo.userName != ''">
+            AND su.user_name LIKE CONCAT(#{bo.userName}, '%')
+        </if>
+        <if test="bo.deviceSn != null and bo.deviceSn != ''">
+            AND su.device_sn LIKE CONCAT(#{bo.deviceSn}, '%')
+        </if>
+        <if test="bo.userCardNumber != null and bo.userCardNumber != ''">
+            AND su.user_card_number LIKE CONCAT(#{bo.userCardNumber}, '%')
+        </if>
+        <if test="bo.phone != null and bo.phone != ''">
+            AND su.phone LIKE CONCAT(#{bo.phone}, '%')
+        </if>
+        AND su.is_deleted = 0
+        GROUP BY su.id
+    </select>
+
+    <!-- 获取非管理员用户数量 -->
+    <select id="countNonAdminUsers" resultType="long">
+        SELECT COUNT(DISTINCT su.id)
+        FROM sys_user su
+        WHERE su.id NOT IN (
+            SELECT DISTINCT ur.user_id 
+            FROM sys_user_role ur 
+            JOIN sys_role r ON ur.role_id = r.id 
+            WHERE r.is_admin = 1 
+            AND ur.is_deleted = 0 
+            AND r.is_deleted = 0
+        )
+        <if test="bo.orgIds.toString().contains('-1')">
+            AND NOT EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 )
+        </if>
+        <if test="!bo.orgIds.toString().contains('-1')">
+            AND EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 AND suo.org_id IN
+            <foreach collection="bo.orgIds" item="orgId" open="(" separator="," close=")">
+                #{orgId}
+            </foreach>
+            )
+        </if>
+        <if test="bo.userName != null and bo.userName != ''">
+            AND su.user_name LIKE CONCAT(#{bo.userName}, '%')
+        </if>
+        <if test="bo.deviceSn != null and bo.deviceSn != ''">
+            AND su.device_sn LIKE CONCAT(#{bo.deviceSn}, '%')
+        </if>
+        <if test="bo.userCardNumber != null and bo.userCardNumber != ''">
+            AND su.user_card_number LIKE CONCAT(#{bo.userCardNumber}, '%')
+        </if>
+        <if test="bo.phone != null and bo.phone != ''">
+            AND su.phone LIKE CONCAT(#{bo.phone}, '%')
+        </if>
+        AND su.is_deleted = 0
+    </select>
+
+    <!-- 查询管理员用户列表 - 仅管理员角色的用户 -->
+    <select id="listAdminUsersPage" resultMap="SysUserResultMap">
+        SELECT 
+            <include refid="UserColumnList" />,
+            GROUP_CONCAT(p.name) as position
+        FROM sys_user su
+        LEFT JOIN sys_user_position sup ON su.id = sup.user_id AND sup.is_deleted = 0
+        LEFT JOIN sys_position p ON sup.position_id = p.id AND p.is_deleted = 0
+        WHERE EXISTS (
+            SELECT 1 
+            FROM sys_user_role ur 
+            JOIN sys_role r ON ur.role_id = r.id 
+            WHERE ur.user_id = su.id 
+            AND r.is_admin = 1 
+            AND ur.is_deleted = 0 
+            AND r.is_deleted = 0
+        )
+        <if test="bo.orgIds.toString().contains('-1')">
+            AND NOT EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 )
+        </if>
+        <if test="!bo.orgIds.toString().contains('-1')">
+            AND EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 AND suo.org_id IN
+            <foreach collection="bo.orgIds" item="orgId" open="(" separator="," close=")">
+                #{orgId}
+            </foreach>
+            )
+        </if>
+        <if test="bo.userName != null and bo.userName != ''">
+            AND su.user_name LIKE CONCAT(#{bo.userName}, '%')
+        </if>
+        <if test="bo.deviceSn != null and bo.deviceSn != ''">
+            AND su.device_sn LIKE CONCAT(#{bo.deviceSn}, '%')
+        </if>
+        <if test="bo.userCardNumber != null and bo.userCardNumber != ''">
+            AND su.user_card_number LIKE CONCAT(#{bo.userCardNumber}, '%')
+        </if>
+        <if test="bo.phone != null and bo.phone != ''">
+            AND su.phone LIKE CONCAT(#{bo.phone}, '%')
+        </if>
+        AND su.is_deleted = 0
+        GROUP BY su.id
+    </select>
+
+    <!-- 获取管理员用户数量 -->
+    <select id="countAdminUsers" resultType="long">
+        SELECT COUNT(DISTINCT su.id)
+        FROM sys_user su
+        WHERE EXISTS (
+            SELECT 1 
+            FROM sys_user_role ur 
+            JOIN sys_role r ON ur.role_id = r.id 
+            WHERE ur.user_id = su.id 
+            AND r.is_admin = 1 
+            AND ur.is_deleted = 0 
+            AND r.is_deleted = 0
+        )
+        <if test="bo.orgIds.toString().contains('-1')">
+            AND NOT EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 )
+        </if>
+        <if test="!bo.orgIds.toString().contains('-1')">
+            AND EXISTS ( SELECT 1 FROM sys_user_org suo WHERE suo.user_id = su.id AND suo.is_deleted = 0 AND suo.org_id IN
+            <foreach collection="bo.orgIds" item="orgId" open="(" separator="," close=")">
+                #{orgId}
+            </foreach>
+            )
+        </if>
+        <if test="bo.userName != null and bo.userName != ''">
+            AND su.user_name LIKE CONCAT(#{bo.userName}, '%')
+        </if>
+        <if test="bo.deviceSn != null and bo.deviceSn != ''">
+            AND su.device_sn LIKE CONCAT(#{bo.deviceSn}, '%')
+        </if>
+        <if test="bo.userCardNumber != null and bo.userCardNumber != ''">
+            AND su.user_card_number LIKE CONCAT(#{bo.userCardNumber}, '%')
+        </if>
+        <if test="bo.phone != null and bo.phone != ''">
+            AND su.phone LIKE CONCAT(#{bo.phone}, '%')
+        </if>
+        AND su.is_deleted = 0
+    </select>
+
+</mapper>

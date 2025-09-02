@@ -1,0 +1,77 @@
+{
+  "test_cases": {
+    "upload_common_event": {
+      "name": "upload_common_event接口测试",
+      "description": "验证上传通用事件接口的完整流程",
+      "test_file": "final_upload_event_test.py",
+      "event_types": [
+        "SOS_EVENT",
+        "FALLDOWN_EVENT",
+        "ONE_KEY_ALARM",
+        "WEAR_STATUS_CHANGED"
+      ],
+      "expected_results": {
+        "api_response": true,
+        "health_data": true,
+        "alert_generation": true,
+        "message_delivery": true,
+        "wechat_notification": true
+      },
+      "timeout": 300
+    },
+    "health_data_sync": {
+      "name": "健康数据同步测试",
+      "description": "验证健康数据同步接口",
+      "test_file": "test_health_sync.py",
+      "event_types": [
+        "HEALTH_SYNC"
+      ],
+      "expected_results": {
+        "api_response": true,
+        "data_storage": true,
+        "data_validation": true
+      },
+      "timeout": 180
+    },
+    "upload_health_data": {
+      "name": "健康数据上传接口测试",
+      "description": "验证健康数据上传接口的完整流程",
+      "test_file": "test_upload_health_data.py",
+      "event_types": [
+        "HEALTH_DATA_UPLOAD"
+      ],
+      "expected_results": {
+        "api_response": true,
+        "data_storage": true,
+        "data_validation": true
+      },
+      "timeout": 180
+    },
+    "upload_device_info": {
+      "name": "设备信息上传接口测试",
+      "description": "验证设备信息上传和状态更新接口",
+      "test_file": "test_upload_device_info.py",
+      "event_types": [
+        "DEVICE_INFO_UPLOAD"
+      ],
+      "expected_results": {
+        "api_response": true,
+        "device_registration": true,
+        "status_update": true,
+        "network_info": true
+      },
+      "timeout": 120
+    }
+  },
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "root",
+    "password": "123456",
+    "database": "lj-06"
+  },
+  "notifications": {
+    "wechat_enabled": true,
+    "email_enabled": false
+  }
+}

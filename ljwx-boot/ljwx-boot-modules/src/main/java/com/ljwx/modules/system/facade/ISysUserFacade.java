@@ -1,0 +1,159 @@
+package com.ljwx.modules.system.facade;
+
+import com.ljwx.infrastructure.page.PageQuery;
+import com.ljwx.infrastructure.page.RPage;
+import com.ljwx.modules.system.domain.dto.user.*;
+import com.ljwx.modules.system.domain.vo.SysUserResponsibilitiesVO;
+import com.ljwx.modules.system.domain.vo.SysUserVO;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 用户管理 门面接口层
+ *
+ * @Author bruno.gao <gaojunivas@gmail.com>
+ * @ProjectName ljwx-boot
+ * @ClassName com.ljwx.modules.system.facade.ISysUserFacade
+ * @CreateTime 2023/7/6 - 16:06
+ */
+public interface ISysUserFacade {
+
+    /**
+     * 用户管理 - 分页查询
+     *
+     * @param pageQuery        分页对象
+     * @param sysUserSearchDTO 查询对象
+     * @return {@link RPage} 查询结果
+     * @author payne.zhuang
+     * @CreateTime 2023-07-13 15:10
+     */
+    RPage<SysUserVO> listSysUserPage(PageQuery pageQuery, SysUserSearchDTO sysUserSearchDTO);
+
+    /**
+     * 用户管理 - 分页查询非管理员用户（排除管理员）
+     *
+     * @param pageQuery        分页对象
+     * @param sysUserSearchDTO 查询对象
+     * @return {@link RPage} 查询结果
+     * @author bruno.gao
+     * @CreateTime 2024-12-20
+     */
+    RPage<SysUserVO> listNonAdminUsersPage(PageQuery pageQuery, SysUserSearchDTO sysUserSearchDTO);
+
+    /**
+     * 用户管理 - 分页查询管理员用户（仅管理员）
+     *
+     * @param pageQuery        分页对象
+     * @param sysUserSearchDTO 查询对象
+     * @return {@link RPage} 查询结果
+     * @author bruno.gao
+     * @CreateTime 2024-12-20
+     */
+    RPage<SysUserVO> listAdminUsersPage(PageQuery pageQuery, SysUserSearchDTO sysUserSearchDTO);
+
+    /**
+     * 根据 ID 获取详情信息
+     *
+     * @param id 用户ID
+     * @return {@link SysUserVO} 用户个人信息 VO 对象
+     * @author payne.zhuang
+     * @CreateTime 2023-07-15 16:33
+     */
+    SysUserVO get(Long id);
+
+    /**
+     * 新增用户
+     *
+     * @param sysUserAddDTO 新增用户 DTO 对象
+     * @return {@link Boolean} 结果
+     * @author payne.zhuang
+     * @CreateTime 2023-07-17 17:26
+     */
+    boolean addUser(SysUserAddDTO sysUserAddDTO);
+
+    /**
+     * 编辑更新用户信息
+     *
+     * @param sysUserUpdateDTO 编辑更新 DTO 对象
+     * @return {@link Boolean} 结果
+     * @author payne.zhuang
+     * @CreateTime 2023-07-17 17:27
+     */
+    boolean updateUser(SysUserUpdateDTO sysUserUpdateDTO);
+
+    /**
+     * 批量删除用户信息
+     *
+     * @param sysUserDeleteDTO 删除用户 DTO 对象
+     * @return @return {@link Boolean} 结果
+     * @author payne.zhuang
+     * @CreateTime 2023-07-15 16:33
+     */
+    boolean batchDeleteUser(SysUserDeleteDTO sysUserDeleteDTO);
+
+    /**
+     * 检查用户设备绑定状态 #用户删除前设备绑定检查
+     * @param sysUserDeleteDTO 删除用户 DTO 对象
+     * @return 绑定设备用户的详细信息
+     * @author bruno.gao
+     * @CreateTime 2025-01-19
+     */
+    List<Map<String, Object>> checkUserDeviceBinding(SysUserDeleteDTO sysUserDeleteDTO);
+
+
+
+    /**
+     * 根据用户ID进行重置密码，并返回加密密码
+     *
+     * @param userId 用户 Id
+     * @return {@link String} 加密后的密码
+     * @author payne.zhuang
+     * @CreateTime 2023-12-18 22:04
+     */
+    String resetPassword(Long userId);
+
+    /**
+     * 根据用户ID查询用户的职责信息
+     *
+     * @param userId 用户id
+     * @return {@link SysUserResponsibilitiesVO } 用户职责信息 VO 对象
+     * @author payne.zhuang
+     * @CreateTime 2024-07-20 - 15:28:23
+     */
+    SysUserResponsibilitiesVO queryUserResponsibilitiesWithUserId(Long userId);
+
+    /**
+     * 更新用户职责信息
+     *
+     * @param updateDTO 更新dto
+     * @return {@link Boolean} 结果
+     * @author payne.zhuang
+     * @CreateTime 2024-07-20 - 17:08:03
+     */
+    boolean updateUserResponsibilities(SysUserResponsibilitiesUpdateDTO updateDTO);
+
+    /**
+     * 获取未绑定设备的用户
+     *
+     * @return {@link Boolean} 结果
+     * @author payne.zhuang
+     * @CreateTime 2024-07-20 - 17:08:03
+     */
+
+    List getUnbindDevice(Long customerId);
+
+    List getBindDevice(Long customerId);
+
+    /**
+     * 批量导入用户
+     *
+     * @param file   Excel文件
+     * @param orgIds 组织ID列表（JSON字符串）
+     * @return {@link Map} 导入结果，包含成功和失败的记录
+     * @author bruno.gao
+     * @CreateTime 2025-01-20
+     */
+    Map<String, Object> batchImportUsers(MultipartFile file, String orgIds);
+}

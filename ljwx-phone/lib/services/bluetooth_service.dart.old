@@ -1,0 +1,4203 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math'; // 添加math库导入，提供min和max函数
+import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart'; // 添加intl包导入，用于格式化日期时间
+import 'api_service.dart';
+import '../global.dart' as global; //引入全局变量
+import '../global.dart'; //引入全局变量
+import 'dart:io'; //加在顶部
+import 'package:permission_handler/permission_handler.dart'; //顶部引入
+import '../utils/global_events.dart' as events; //导入全局事件管理类
+import '../utils/health_data_merger.dart'; //导入健康数据合并器
+import 'dart:typed_data'; // 添加typed_data支持
+import 'ble_data_processor.dart'; // 导入新的二进制协议处理器
+import 'mac_address_util.dart'; // 导入MAC地址工具类
+import 'package:flutter/foundation.dart';
+
+// 字符串构建器类简化实现 #字符串构建器
+class StringBuilder {
+  final StringBuffer _buffer = StringBuffer();
+  
+  void write(String str) {
+    _buffer.write(str);
+  }
+  
+  @override
+  String toString() {
+    return _buffer.toString();
+  }
+}
+
+class BleSvc { //极简BLE服务
+  static final BleSvc i = BleSvc._();
+  BleSvc._() {
+    // 加载上次保存的MAC地址
+    String savedMac = MacAddressUtil.i.loadLastConnectedMAC();
+    if (savedMac.isNotEmpty) {
+      _lastConnectedDeviceId = savedMac;
+      log('从文件加载上次连接的MAC地址: $_lastConnectedDeviceId');
+    }
+    
+    // 添加健康数据合并器处理结果的监听
+    _healthMergerSubscription = HealthDataMerger.i.healthDataStream.listen((mergedData) {
+      log('接收到健康数据合并器合并后的完整数据');
+      try {
+        // 判断数据类型并处理
+        var type = mergedData['type'];
+        if (type == 'health') {
+          // 生成数据摘要用于判断重复
+          String digest = _generateHealthDataDigest(mergedData);
+          
+          // 提取传输ID用于确认
+          String transferId = '';
+          try {
+            transferId = mergedData['packet_id'] ?? 
+                         mergedData['transfer_id'] ?? 
+                         mergedData['data']?['packet_id'] ?? 
+                         DateTime.now().millisecondsSinceEpoch.toString();
+          } catch (e) {
+            transferId = DateTime.now().millisecondsSinceEpoch.toString();
+          }
+          
+          // 如果数据已经处理过，直接发送确认但不再处理
+          if (_healthDataCache.contains(digest)) {
+            log('跳过重复的健康数据，但仍发送确认');
+            sendHealthDataAck(transferId, true);
+            return;
+          }
+          
+          // 添加到缓存并限制缓存大小
+          _healthDataCache.add(digest);
+          if (_healthDataCache.length > _maxCacheSize) {
+            _healthDataCache.remove(_healthDataCache.first);
+          }
+          
+          // 预处理健康数据：确保结构正确，添加必要字段
+          Map<String, dynamic> processedData = _prepareHealthDataForUpload(mergedData);
+          
+          h.add(processedData); // 发送到健康数据流
+          log('健康数据上传前最终结构: ${json.encode(processedData).substring(0, min(100, json.encode(processedData).length))}...');
+          ApiService().uploadHealthData(processedData).then((ok) {
+            log('health上传${ok ? "成功" : "失败"}');
+            // 发送健康数据确认
+            sendHealthDataAck(transferId, ok, error: ok ? null : "上传失败");
+          });
+        }
+      } catch (e) {
+        log('处理合并后的健康数据时出错: $e');
+      }
+    });
+  }
+
+  BluetoothDevice? d;
+  BluetoothCharacteristic? dc, cc; //设备/数据/命令特征
+  final l = StreamController<String>.broadcast();
+  Stream<String> get logStream => l.stream;
+  final s = StreamController<bool>.broadcast();
+  Stream<bool> get connectionStateStream => s.stream;
+  final h = StreamController<Map>.broadcast();
+  Stream<Map> get healthDataStream => h.stream;
+  final v = StreamController<Map>.broadcast();
+  Stream<Map> get deviceInfoStream => v.stream;
+  final _b = Map<String, List<String?>>(); //分包缓存
+  List<int> _db = [];
+  List<int> _hb = [];
+  bool _c = false;
+  int _r = 0;
+  Timer? _t, _rt, _monitorTimer, _serviceCheckTimer; //扫描/重连/自动重连/服务检查定时器
+  bool _isConnecting = false; //是否正在连接
+  DateTime? _lastDataTime; //最后数据时间
+  final Duration RECONNECT_INTERVAL = Duration(seconds: 30); //自动重连间隔
+  final Duration DATA_TIMEOUT = Duration(minutes: 5); //数据超时时间
+  final Duration MONITOR_INTERVAL = Duration(seconds: 6);
+  final Duration SERVICE_CHECK_INTERVAL = Duration(seconds: 5); //服务检查间隔
+  final _uploadedIds = <String>{}; //已上传分包id
+  final _dataCache = <String, DateTime>{}; //数据缓存，key为数据内容，value为接收时间
+  final Duration CACHE_TIMEOUT = Duration(seconds: 5); //缓存超时时间
+  bool _isReconnecting = false;
+  int _reconnectAttempts = 0;
+  final int MAX_RECONNECT_ATTEMPTS = 6;
+  final Duration RECONNECT_DELAY = Duration(seconds: 10);
+  bool _healthServiceAvailable = false; //健康服务是否可用
+  bool _wasHealthServiceAvailable = false; //健康服务之前是否可用
+
+  // UUID常量
+  final String S_UUID = "1887"; // 服务UUID
+  final String D_UUID = "fd10"; // 数据特征
+  final String C_UUID = "fd11"; // 命令特征
+  final String CCCD = "2902"; // notify描述符
+
+  // 类型常量
+  final String T_HEALTH = "health";
+  final String T_DEVICE = "device";
+  final String T_EVENT = "commonEvent";
+  final String T_MSG = "message_response";
+  final String T_MTU = "mtu_notification";
+  final String T_PROBE = "probe_response"; // 添加探针响应类型
+  final String CMD_MSG = "message";
+  final String CMD_CFG = "config";
+  final String CMD_DISC = "disconnect";
+  final String CMD_MTU = "mtu";
+  final String CMD_PROBE = "protocol_probe"; // 探针命令
+  final String CMD_HEALTH_ACK = "health_data_ack"; // 健康数据确认
+
+  // 添加数据包类型常量
+  final String TYPE_RAW_CHUNK = "raw_chunk"; // 原始分片数据包类型
+  final String TYPE_DEVICE_CHUNK = "device_chunk"; // 设备信息分片数据包类型
+
+  // 添加系统配置相关属性
+  Map<String, dynamic> _systemConfig = {}; // 系统配置
+  DateTime? _lastConfigFetchTime; // 上次获取配置时间
+  final int CONFIG_FETCH_INTERVAL = 36000; // 配置获取间隔(秒)
+  final int DEFAULT_MESSAGE_FETCH_INTERVAL = 60; // 默认消息获取间隔(秒)
+  
+  // 蓝牙图标状态
+  final _bluetoothIconState = StreamController<String>.broadcast();
+  Stream<String> get bluetoothIconStateStream => _bluetoothIconState.stream;
+  String _currentBluetoothState = "disconnected"; // disconnected, connected, transmitting, inactive
+  
+  // 系统配置和接口信息
+  Map<String, String> _interfaceUrls = {};
+  Map<String, int> _interfaceIntervals = {};
+  String _customerName = "未知";
+  String _uploadMethod = "bluetooth";
+  bool _isFetchingConfig = false;
+  Timer? _messageFetchTimer;
+  Timer? _configFetchTimer;
+  
+  // Getter for customer name
+  String get customerName => global.customerName;
+
+  // 添加健康合并器处理结果的订阅对象
+  StreamSubscription? _healthMergerSubscription;
+
+  // 添加是否使用新版二进制协议的标志 
+  bool _useBinaryProtocol = false;
+
+  // 追加成员变量到BleSvc类
+  String _lastConnectedDeviceId = ''; // 最后一次成功连接的设备ID
+  int _reconnectDelay = 2; // 初始重连延迟(秒)
+  final int MAX_RECONNECT_DELAY = 30; // 最大重连延迟(秒)
+  final String LAST_MAC_KEY = 'last_connected_mac'; // 存储MAC地址的键名
+
+  // 添加监听订阅对象
+  StreamSubscription? _dataCharacteristicSubscription;
+
+  // 添加缺失的成员变量到类定义部分
+  bool _dataTransmitting = false; // 是否正在传输数据
+  int _currentMtu = 512; // 当前MTU大小
+  String _protocolVersion = '1.0'; // 协议版本
+
+  void log(x) {
+    var t = DateTime.now().toString().split('.')[0];
+    var m = '[$t] $x';
+    debugPrint(m);
+    l.add(m);
+    try { File(bleLogFile).writeAsStringSync(m+'\n', mode: FileMode.append); } catch (_) {}
+  }
+
+  // 检查蓝牙状态并自动开启
+  Future<bool> ensureBluetoothEnabled() async {
+      try {
+        if (await FlutterBluePlus.isSupported == false) {
+          return false;
+        }
+        if (await FlutterBluePlus.isOn == false) {
+          await FlutterBluePlus.turnOn();
+        }
+        return true;
+      } catch (e) {
+        debugPrint('Error enabling Bluetooth: $e');
+        return false;
+      }
+    }
+
+  void _startDataMonitor() {
+    _monitorTimer?.cancel();
+    _monitorTimer = Timer.periodic(MONITOR_INTERVAL, (timer) {
+      if (d != null && !_isReconnecting) {
+        if (_lastDataTime == null || DateTime.now().difference(_lastDataTime!) > DATA_TIMEOUT) {
+          log('数据传输超时，准备重连');
+          _handleTimeout();
+        }
+      }
+    });
+    
+    // 开始服务可用性检查
+    _startServiceCheck();
+  }
+  
+  // 开始服务可用性检查
+  void _startServiceCheck() {
+    _serviceCheckTimer?.cancel();
+    _serviceCheckTimer = Timer.periodic(SERVICE_CHECK_INTERVAL, (timer) async {
+      if (d != null && !_isReconnecting && !_isConnecting) {
+        // 检查健康服务是否可用
+        await _checkHealthServiceAvailability();
+      }
+    });
+  }
+  
+  // 检查健康服务是否可用
+  Future<void> _checkHealthServiceAvailability() async {
+    if (d == null) return;
+    
+    try {
+      // 先检查设备是否连接
+      bool isConnected = false;
+      try {
+        isConnected = d!.isConnected;
+        if (!isConnected) {
+          log('设备连接已丢失，状态未同步，准备重置连接');
+          // 如果设备已断开但应用未感知，触发重连流程
+          d = null;
+          dc = cc = null;
+          s.add(false);
+          _updateBluetoothIconState();
+          
+          // 如果不在重连过程中，启动重连
+          if (!_isReconnecting) {
+            _isReconnecting = true;
+            _reconnectAttempts = 0;
+            _startReconnect();
+          }
+          return;
+        }
+      } catch (e) {
+        log('检查设备连接状态出错: $e，准备重置连接');
+        // 错误处理类似于未连接
+        d = null;
+        dc = cc = null;
+        s.add(false);
+        _updateBluetoothIconState();
+        
+        if (!_isReconnecting) {
+          _isReconnecting = true;
+          _reconnectAttempts = 0;
+          _startReconnect();
+        }
+        return;
+      }
+      
+      log('检查健康服务可用性...');
+      try {
+        var services = await d!.discoverServices();
+        bool foundHealthService = false;
+        
+        for (var service in services) {
+          var uuid = service.uuid.toString().toLowerCase();
+          if (uuid.contains(S_UUID)) {
+            foundHealthService = true;
+            log('发现健康服务(1887)可用');
+            break;
+          }
+        }
+        
+        // 服务状态发生变化
+        if (foundHealthService != _healthServiceAvailable) {
+          _healthServiceAvailable = foundHealthService;
+          log('健康服务状态变化: ${_healthServiceAvailable ? "可用" : "不可用"}');
+          
+          // 如果服务从不可用变为可用，重新配置特征
+          if (_healthServiceAvailable && !_wasHealthServiceAvailable) {
+            log('健康服务恢复可用，重新配置特征');
+            await _reconfigureCharacteristics();
+          }
+          // 如果服务从可用变为不可用，显示提示
+          else if (!_healthServiceAvailable && _wasHealthServiceAvailable) {
+            log('健康服务不可用，请确保手表端健康应用已打开');
+            events.GlobalEvents.i.showHealthServiceNotFound();
+          }
+          
+          _wasHealthServiceAvailable = _healthServiceAvailable;
+        }
+      } catch (e) {
+        // 如果这里出错可能是因为设备已断开，检查连接
+        log('检查健康服务时出错: $e，检查连接状态');
+        try {
+          isConnected = d!.isConnected;
+          if (!isConnected) {
+            log('设备连接已丢失，准备重连');
+            // 清理状态
+            d = null;
+            dc = cc = null;
+            s.add(false);
+            _updateBluetoothIconState();
+            
+            // 启动重连
+            if (!_isReconnecting) {
+              _isReconnecting = true;
+              _reconnectAttempts = 0;
+              _startReconnect();
+            }
+          }
+        } catch (_) {
+          // 清理状态并触发重连
+          d = null;
+          dc = cc = null;
+          s.add(false);
+          _updateBluetoothIconState();
+          
+          if (!_isReconnecting) {
+            _isReconnecting = true;
+            _reconnectAttempts = 0;
+            _startReconnect();
+          }
+        }
+      }
+    } catch (e) {
+      log('检查健康服务可用性过程异常: $e');
+    }
+  }
+  
+  // 重新配置特征
+  Future<void> _reconfigureCharacteristics() async {
+    if (d == null) return;
+    
+    try {
+      log('开始重新配置特征...');
+      var services = await d!.discoverServices();
+      bool success = await _set(services);
+      
+      if (success) {
+        log('特征重新配置成功');
+        events.GlobalEvents.i.showSuccess('重新连接到健康服务成功');
+      } else {
+        log('特征重新配置失败');
+      }
+    } catch (e) {
+      log('重新配置特征出错: $e');
+    }
+  }
+
+  void _handleTimeout() {
+    if (!_isReconnecting) {
+      _isReconnecting = true;
+      _reconnectAttempts = 0;
+      _startReconnect();
+    }
+  }
+
+  void _startReconnect() {
+    if (_reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      log('重连次数超过上限，停止重连');
+      _isReconnecting = false;
+      return;
+    }
+
+    _reconnectAttempts++;
+    log('开始第$_reconnectAttempts次重连');
+    
+    // 如果有上次连接的设备ID
+    if (_lastConnectedDeviceId.isNotEmpty) {
+      log('尝试直接连接上次设备: $_lastConnectedDeviceId');
+      _directReconnect();
+    } else if (deviceSn.isNotEmpty) {
+      // 尝试使用设备序列号
+      log('使用设备序列号尝试连接: $deviceSn');
+      _lastConnectedDeviceId = deviceSn;
+      _directReconnect();
+    } else {
+      // 没有已知设备信息，只能扫描
+      log('无已知设备信息，进行设备扫描');
+      _scanAndReconnect();
+    }
+  }
+  
+  // 直接连接已知设备
+  Future<void> _directReconnect() async {
+    try {
+      // 确保蓝牙已开启
+      if (!await ensureBluetoothEnabled()) {
+        log('蓝牙未开启，延迟重连');
+        _scheduleNextReconnect();
+        return;
+      }
+      
+      // 先检查设备是否已在系统的连接列表中
+      bool deviceFound = false;
+      try {
+        List<BluetoothDevice> systemDevices = await FlutterBluePlus.systemDevices([]);
+        for (var device in systemDevices) {
+          if (device.remoteId.toString() == _lastConnectedDeviceId) {
+            log('在系统设备中找到目标设备');
+            deviceFound = true;
+            bool success = await conn(device);
+            if (success) {
+              _isReconnecting = false;
+              log('通过系统设备列表重连成功');
+              return;
+            } else {
+              log('通过系统设备连接失败');
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        log('获取系统设备列表出错: $e');
+      }
+      
+      // 如果系统设备中找不到，尝试创建设备并直接连接
+      if (!deviceFound) {
+        try {
+          String deviceId = _lastConnectedDeviceId;
+          
+          // 检查是否是不完整的MAC地址（格式：XX:XX:XX:XX:AB:F0）
+          if (MacAddressUtil.i.isMacAddressIncomplete(deviceId)) {
+            log('检测到不完整的MAC地址: $deviceId，尝试修复');
+            // 尝试从系统设备列表找到匹配的完整MAC地址
+            String fullMac = MacAddressUtil.i.findFullMacAddress(deviceId);
+            if (fullMac.isNotEmpty) {
+              deviceId = fullMac;
+              log('已修复MAC地址: $deviceId');
+              // 更新全局保存的设备ID以便下次直接使用
+              _lastConnectedDeviceId = deviceId;
+            } else {
+              log('无法修复不完整的MAC地址，尝试使用原始地址');
+            }
+          }
+          
+          log('尝试直接创建设备并连接: $deviceId');
+          BluetoothDevice device = BluetoothDevice.fromId(deviceId);
+          bool success = await conn(device);
+          if (success) {
+            _isReconnecting = false;
+            log('直接连接设备成功');
+            return;
+          } else {
+            log('直接连接设备失败');
+          }
+        } catch (e) {
+          log('创建设备出错: $e');
+        }
+      }
+      
+      // 如果直接连接失败，尝试扫描看是否能找到设备
+      log('直接连接方式均失败，尝试通过扫描查找设备');
+      _scanForSpecificDevice();
+    } catch (e) {
+      log('直接重连过程中出错: $e');
+      _scheduleNextReconnect();
+    }
+  }
+  
+
+  
+  // 扫描特定设备
+  Future<void> _scanForSpecificDevice() async {
+    try {
+      String targetDeviceId = _lastConnectedDeviceId;
+      
+      // 检查是否是不完整的MAC地址
+      bool isIncomplete = MacAddressUtil.i.isMacAddressIncomplete(targetDeviceId);
+      if (isIncomplete) {
+        log('开始扫描查找设备，目标设备MAC地址不完整: $targetDeviceId');
+      } else {
+        log('开始扫描查找指定设备: $targetDeviceId');
+      }
+      
+      // 确保蓝牙已停止扫描
+      if (await FlutterBluePlus.isScanning.first) {
+        await FlutterBluePlus.stopScan();
+      }
+      
+      bool deviceFound = false;
+      StreamSubscription? subscription;
+      
+      // 创建定时器，扫描超时处理
+      Timer scanTimer = Timer(Duration(seconds: 8), () {
+        FlutterBluePlus.stopScan();
+        if (subscription != null) {
+          subscription.cancel();
+        }
+        if (!deviceFound) {
+          log('扫描超时，未找到指定设备');
+          _scheduleNextReconnect();
+        }
+      });
+      
+      // 如果MAC地址不完整，获取MAC地址后缀用于匹配
+      String macSuffix = "";
+      if (isIncomplete) {
+        List<String> macParts = targetDeviceId.split(':');
+        if (macParts.length == 6) {
+          macSuffix = '${macParts[4]}:${macParts[5]}';
+          log('将使用MAC地址后缀进行匹配: $macSuffix');
+        }
+      }
+      
+      // 监听扫描结果
+      subscription = FlutterBluePlus.scanResults.listen((results) async {
+        for (var result in results) {
+          bool isMatch = false;
+          
+          // 检查完整匹配或后缀匹配
+          if (result.device.remoteId.toString() == targetDeviceId) {
+            isMatch = true;
+            log('扫描找到指定设备(完全匹配): ${result.device.platformName}');
+          } else if (isIncomplete && macSuffix.isNotEmpty && 
+                     result.device.remoteId.toString().endsWith(macSuffix)) {
+            isMatch = true;
+            log('扫描找到指定设备(后缀匹配): ${result.device.platformName} ${result.device.remoteId}');
+            // 更新为完整MAC地址以便后续使用
+            _lastConnectedDeviceId = result.device.remoteId.toString();
+            log('更新设备MAC地址为: ${_lastConnectedDeviceId}');
+          }
+          
+          if (isMatch) {
+            deviceFound = true;
+            
+            // 停止扫描
+            await FlutterBluePlus.stopScan();
+            scanTimer.cancel();
+            await subscription?.cancel();
+            
+            // 尝试连接
+            bool success = await conn(result.device);
+            if (success) {
+              _isReconnecting = false;
+              log('通过扫描重连成功');
+              return;
+            } else {
+              log('通过扫描找到设备但连接失败');
+              _scheduleNextReconnect();
+              return;
+            }
+          }
+        }
+      }, onError: (e) {
+        log('扫描出错: $e');
+        scanTimer.cancel();
+        _scheduleNextReconnect();
+      });
+      
+      // 开始扫描
+      await FlutterBluePlus.startScan(
+        timeout: Duration(seconds: 8),
+        androidUsesFineLocation: true
+      );
+    } catch (e) {
+      log('扫描特定设备过程中出错: $e');
+      _scheduleNextReconnect();
+    }
+  }
+  
+  // 当所有直接连接方式失败时，扫描并尝试连接任意可用设备
+  Future<void> _scanAndReconnect() async {
+    try {
+      bool success = await scan();
+      if (!success) {
+        log('扫描失败，计划下次重连');
+        _scheduleNextReconnect();
+        return;
+      }
+      
+      // 检查是否有不完整的MAC地址用于匹配
+      bool hasIncompleteMAC = false;
+      String macSuffix = "";
+      if (_lastConnectedDeviceId.isNotEmpty && MacAddressUtil.i.isMacAddressIncomplete(_lastConnectedDeviceId)) {
+        hasIncompleteMAC = true;
+        List<String> macParts = _lastConnectedDeviceId.split(':');
+        if (macParts.length == 6) {
+          macSuffix = '${macParts[4]}:${macParts[5]}';
+          log('有不完整MAC地址，将使用后缀匹配: $macSuffix');
+        }
+      }
+      
+      // 优先尝试系统已连接设备
+      List<BluetoothDevice> systemDevices = [];
+      try {
+        systemDevices = await FlutterBluePlus.systemDevices([]);
+        log('找到${systemDevices.length}个系统设备');
+        
+        if (systemDevices.isNotEmpty) {
+          // 根据匹配策略排序设备列表
+          if (hasIncompleteMAC && macSuffix.isNotEmpty) {
+            systemDevices.sort((a, b) {
+              bool aMatches = a.remoteId.toString().endsWith(macSuffix);
+              bool bMatches = b.remoteId.toString().endsWith(macSuffix);
+              
+              // 将匹配的设备排在前面
+              if (aMatches && !bMatches) return -1;
+              if (!aMatches && bMatches) return 1;
+              return 0;
+            });
+          }
+          
+          // 尝试连接
+          for (var device in systemDevices) {
+            // 检查是否匹配后缀
+            if (hasIncompleteMAC && macSuffix.isNotEmpty && 
+                device.remoteId.toString().endsWith(macSuffix)) {
+              log('找到与后缀匹配的系统设备: ${device.platformName} ${device.remoteId}');
+              // 更新完整MAC地址
+              _lastConnectedDeviceId = device.remoteId.toString();
+              log('更新设备MAC地址为: ${_lastConnectedDeviceId}');
+            }
+            
+            log('尝试连接系统设备: ${device.platformName}');
+            bool connectSuccess = await conn(device);
+            if (connectSuccess) {
+              _isReconnecting = false;
+              log('成功连接到系统设备');
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        log('获取系统设备出错: $e');
+      }
+      
+      // 使用指数退避重新计划重连
+      _scheduleNextReconnect();
+    } catch (e) {
+      log('扫描重连过程出错: $e');
+      _scheduleNextReconnect();
+    }
+  }
+  
+  // 使用指数退避算法计划下次重连
+  void _scheduleNextReconnect() {
+    // 计算下次延迟时间（指数增长，最大不超过MAX_RECONNECT_DELAY秒）
+    _reconnectDelay = min(_reconnectDelay * 2, MAX_RECONNECT_DELAY);
+    log('计划${_reconnectDelay}秒后进行下次重连尝试');
+    
+    Future.delayed(Duration(seconds: _reconnectDelay), () {
+      if (_isReconnecting) {
+        _startReconnect();
+      }
+    });
+  }
+
+  Future<bool> scan() async {
+    log('准备扫描，检查蓝牙状态');
+    if (!await ensureBluetoothEnabled()) {
+      log('蓝牙未开启，尝试自动打开');
+      if (!await ensureBluetoothEnabled()) {
+        log('蓝牙开启失败，无法扫描');
+        return false;
+      }
+    }
+    
+    // 检查位置权限
+    var status = await Permission.location.status;
+    if (!status.isGranted) {
+      log('请求位置权限');
+      status = await Permission.location.request();
+      if (!status.isGranted) {
+        log('位置权限被拒绝，无法扫描设备');
+        return false;
+      }
+    }
+    
+    if (_c) {
+      log('已有扫描正在进行，请等待当前扫描完成');
+      return false;
+    }
+    
+    _c = true;
+    log('开始扫描蓝牙设备');
+    var f = [];
+    
+    // 确保蓝牙已停止扫描
+    try {
+      if (await FlutterBluePlus.isScanning.first) {
+        log('停止之前的扫描');
+        await FlutterBluePlus.stopScan();
+        await Future.delayed(Duration(milliseconds: 300));
+      }
+    } catch (e) {
+      log('停止之前的扫描出错: $e');
+    }
+    
+    try {
+      // 增加扫描时间并使用androidUsesFineLocation以支持更多设备
+      await FlutterBluePlus.startScan(
+        timeout: Duration(seconds: 10),
+        androidUsesFineLocation: true
+      );
+      
+      var sub = FlutterBluePlus.scanResults.listen((r) {
+        for (var e in r) {
+          var deviceName = e.device.platformName.toUpperCase();
+          // 扩展设备名称匹配逻辑，匹配更多手表设备
+          bool isWatchDevice = deviceName.contains("WATCH") || 
+                              deviceName.contains("华为") || 
+                              deviceName.contains("HUAWEI") || 
+                              deviceName.contains("BAND") || 
+                              deviceName.contains("手表") || 
+                              deviceName.contains("HONOR") || 
+                              deviceName.contains("荣耀") ||
+                              deviceName.contains("GLORY") ||
+                              deviceName.contains("智能手环") ||
+                              deviceName.contains("SMART") ||
+                              deviceName.contains("GT") ||
+                              deviceName.contains("WATCH") ||
+                              deviceName.contains("BRACELET");
+                              
+          if (isWatchDevice && !f.any((d) => d.device.remoteId == e.device.remoteId)) {
+            f.add(e);
+            log('发现手表设备: ${e.device.platformName} (${e.device.remoteId})');
+          } else if (deviceName.isNotEmpty && !f.any((d) => d.device.remoteId == e.device.remoteId)) {
+            // 添加所有有名称的设备，增加发现几率
+            f.add(e);
+            log('发现疑似设备: ${e.device.platformName} (${e.device.remoteId})');
+          }
+        }
+      });
+      
+      // 等待扫描完成
+      await FlutterBluePlus.isScanning.where((val) => val == false).first;
+      
+      sub.cancel();
+    } catch (e) {
+      log('扫描过程中出错: $e');
+      try {
+        await FlutterBluePlus.stopScan();
+      } catch (_) {}
+    } finally {
+      _c = false;
+      log('扫描结束，发现${f.length}个设备');
+    }
+    
+    // 如果没找到设备，尝试搜索系统已连接的设备
+    if (f.isEmpty) {
+      try {
+        log('尝试从系统已连接设备列表中查找');
+        // 使用空列表，不需要过滤特定服务
+        List<BluetoothDevice> systemDevices = await FlutterBluePlus.systemDevices([]);
+        if (systemDevices.isNotEmpty) {
+          log('发现${systemDevices.length}个系统连接的设备');
+          for (var device in systemDevices) {
+            log('系统设备: ${device.platformName} (${device.remoteId})');
+          }
+          return true;
+        }
+      } catch (e) {
+        log('获取系统设备出错: $e');
+      }
+    }
+    
+    return f.isNotEmpty;
+  }
+
+  Future<bool> conn(BluetoothDevice x) async {
+    if (_isConnecting) {
+      log('已有连接操作正在进行，请稍候');
+      return false;
+    }
+    _isConnecting = true;
+    
+    try {
+      log('开始连接设备: ${x.platformName} (${x.remoteId})');
+      
+      // 先确保断开任何已有连接
+      await dis();
+      log('已断开已有连接，准备新连接');
+      
+      // 确保蓝牙已打开
+      if (!await ensureBluetoothEnabled()) {
+        log('蓝牙开启失败，无法连接');
+        _isConnecting = false;
+        return false;
+      }
+      
+      // 重试连接
+      for (_r = 0; _r < 3; _r++) {
+        try {
+          log('连接尝试 ${_r+1}/3');
+          
+          // 检查设备是否已经处于连接状态
+          bool alreadyConnected = false;
+          try {
+            alreadyConnected = x.isConnected;
+          } catch (e) {
+            log('检查设备连接状态异常: $e');
+          }
+          
+          if (alreadyConnected) {
+            log('设备已经连接，尝试发现服务');
+            try {
+              var sv = await x.discoverServices();
+              if (await _set(sv)) {
+                d = x; // 保存当前连接的设备
+                s.add(true);
+                _isConnecting = false;
+                _updateBluetoothIconState(); // 更新蓝牙图标状态
+                _startDataMonitor();
+                log('已复用现有连接');
+                
+                // 保存设备ID用于重连
+                _lastConnectedDeviceId = x.remoteId.toString();
+                log('已保存设备ID: $_lastConnectedDeviceId');
+                
+                // 保存完整MAC地址到文件
+                MacAddressUtil.i.saveLastConnectedMAC(_lastConnectedDeviceId);
+                
+                // 重置重连延迟
+                _reconnectDelay = 2;
+                
+                // 连接成功后获取系统配置
+                fetchSystemConfig();
+                
+                return true;
+              } else {
+                log('复用连接失败: 未找到所需服务');
+              }
+            } catch (e) {
+              log('发现服务出错: $e');
+              // 如果出错，尝试断开后重新连接
+              try {
+                await x.disconnect();
+                await Future.delayed(Duration(milliseconds: 500));
+              } catch (_) {}
+            }
+          }
+          
+          // 执行新连接
+          log('开始新连接...');
+          await x.connect(autoConnect: false, timeout: Duration(seconds: 8));
+          log('设备连接成功，等待稳定');
+          await Future.delayed(Duration(milliseconds: 1000)); // 给系统更多时间稳定连接
+          
+          log('发现设备服务...');
+          var sv = await x.discoverServices();
+          log('服务发现完成，开始设置特征');
+          
+          if (await _set(sv)) {
+            d = x; // 保存当前连接的设备
+            
+            // 优先使用全局设备序列号，而不是蓝牙MAC地址
+            if (global.deviceSn.isNotEmpty && _isValidSerialNumber(global.deviceSn)) {
+              // 保持全局设备序列号不变，不使用MAC地址覆盖
+              log('保持全局设备序列号: ${global.deviceSn}');
+            } else {
+              // 仅在全局设备序列号无效时才使用MAC地址作为临时标识
+              // 注意：此处不要修改global.deviceSn
+              log('警告：未找到有效的设备序列号，后续需从设备信息中获取');
+            }
+            
+            // 仅保存MAC地址用于重连，不作为设备标识
+            _lastConnectedDeviceId = x.remoteId.toString();
+            log('已保存设备MAC地址用于重连: $_lastConnectedDeviceId');
+            
+            // 保存完整MAC地址到文件
+            MacAddressUtil.i.saveLastConnectedMAC(_lastConnectedDeviceId);
+            
+            // 重置重连延迟
+            _reconnectDelay = 2;
+            
+            s.add(true);
+            _isConnecting = false;
+            _updateBluetoothIconState(); // 更新蓝牙图标状态
+            _startDataMonitor();
+            log('设备连接和服务设置完成');
+            
+            // 连接成功后获取系统配置
+            fetchSystemConfig();
+            
+            return true;
+          } else {
+            log('设置特征失败，检查下一个尝试');
+          }
+        } catch (e) {
+          log('连接尝试 ${_r+1} 异常: $e');
+          try {
+            await x.disconnect();
+          } catch (_) {}
+          await Future.delayed(Duration(milliseconds: 800));
+        }
+      }
+      
+      log('所有连接尝试都失败');
+      return false;
+    } catch (e) {
+      log('连接过程中发生严重异常: $e');
+      return false;
+    } finally {
+      _isConnecting = false;
+    }
+  }
+
+  Future<bool> _set(List<BluetoothService> sv) async {
+    var fd = false, fc = false;
+    bool foundService = false;
+    log('开始检查服务，共${sv.length}个服务');
+    
+    // 清理之前的监听
+    if (_dataCharacteristicSubscription != null) {
+      log('取消之前的数据特征监听');
+      await _dataCharacteristicSubscription!.cancel();
+      _dataCharacteristicSubscription = null;
+    }
+    
+    for (var s in sv) {
+      var su = s.uuid.toString().toLowerCase();
+      log('检查服务: $su (完整UUID: ${s.uuid})');
+      // 检查是否包含目标服务UUID
+      if (su.contains(S_UUID)) {
+        foundService = true;
+        _healthServiceAvailable = true;
+        _wasHealthServiceAvailable = true;
+        log('找到目标服务: $su');
+        log('服务特征列表:');
+        for (var c in s.characteristics) {
+          var u = c.characteristicUuid.toString().toLowerCase();
+          log('  特征: $u (完整UUID: ${c.characteristicUuid})');
+          log('  属性: ${c.properties}');
+          for (var d in c.descriptors) {
+            log('    描述符: ${d.uuid}');
+          }
+          
+          // 检查是否包含目标特征UUID
+          if (u.contains(D_UUID)) {
+            log('找到数据特征: $u');
+            dc = c;
+            fd = true;
+            if (c.properties.notify || c.properties.indicate) {
+              try {
+                // 先尝试关闭之前的通知
+                try {
+                  await c.setNotifyValue(false);
+                  await Future.delayed(Duration(milliseconds: 100));
+                } catch (e) {
+                  log('关闭数据特征notify时出错: $e');
+                }
+                
+                // 重新启用通知
+                await c.setNotifyValue(true);
+                await Future.delayed(Duration(milliseconds: 100));
+                
+                // 确保之前的订阅已取消
+                if (_dataCharacteristicSubscription != null) {
+                  await _dataCharacteristicSubscription!.cancel();
+                }
+                
+                // 创建新的订阅
+                _dataCharacteristicSubscription = c.lastValueStream.listen(
+                  (v) {
+                    if (v.isEmpty) {
+                      log('收到空数据包');
+                      return;
+                    }
+                    _lastDataTime = DateTime.now();
+                    log('收到数据分包: ${v.length}字节');
+                    _ph(v);
+                  },
+                  onError: (e) => log('健康监听错:$e')
+                );
+                log('数据特征监听设置成功');
+              } catch (e) {
+                log('数据特征notify打开失败: $e');
+              }
+            } else {
+              log('特征$u不支持notify/indicate，跳过监听');
+            }
+          }
+          if (u.contains(C_UUID)) {
+            log('找到命令特征: $u');
+            if (c.properties.write) {
+              cc = c;
+              fc = true;
+            } else {
+              log('特征$u不支持write，不能作为命令特征');
+            }
+          }
+        }
+      }
+    }
+    
+    if (!foundService) {
+      _healthServiceAvailable = false;
+      _wasHealthServiceAvailable = false;
+      String errMsg = '未找到健康服务(1887)，请确保手表端健康应用已打开';
+      log(errMsg);
+      
+      // 尝试提示用户打开手表端的健康应用
+      events.GlobalEvents.i.showHealthServiceNotFound();
+      
+      // 检查手表型号
+      String modelInfo = d?.platformName ?? '';
+      if (modelInfo.contains('HUAWEI') || modelInfo.contains('华为')) {
+        log('检测到华为手表，可能需要用户手动打开手表端健康应用');
+        events.GlobalEvents.i.showError('请在手表上打开"健康"应用，并保持其运行');
+      } else if (modelInfo.contains('HONOR') || modelInfo.contains('荣耀')) {
+        log('检测到荣耀手表，可能需要用户手动打开手表端健康应用');
+        events.GlobalEvents.i.showError('请在手表上打开"健康"应用，并保持其运行');
+      }
+      
+      return false;
+    }
+    
+    if (fd && fc) {
+      log('数据特征和命令特征都已找到并配置完成');
+      
+      // 添加协议检测
+      log('开始进行协议版本检测');
+      await detectProtocolVersion();
+      
+      // 初始化设备信息，确保有可用的设备序列号
+      if (deviceSn.isNotEmpty) {
+        log('使用已知设备序列号: $deviceSn');
+        
+        // 通知BleDataProcessor当前的设备序列号
+        if (_useBinaryProtocol) {
+          BleDataProcessor.i.initializeDeviceInfo(deviceSn, _uploadMethod);
+          log('已初始化BleDataProcessor设备信息');
+        }
+        
+        // 获取系统配置
+        await fetchSystemConfig();
+      } else {
+        log('设备序列号未知，延迟加载配置');
+      }
+      
+      return true;
+    }
+    
+    log('特征配置失败: fd=$fd, fc=$fc');
+    return false;
+  }
+
+  void _ph(List<int> d) {
+    if (d.isEmpty) { log('收到空数据包，忽略'); return; }
+    
+    // 检测是否为二进制协议数据
+    if (d.length >= 2 && d[0] == 0xA5 && d[1] == 0x5A) {
+      _useBinaryProtocol = true;
+      _processBinaryProtocolData(Uint8List.fromList(d));
+      return;
+    }
+    
+    // 处理原有的JSON协议数据
+    var s = String.fromCharCodes(d);
+    log('收到原始数据: $s');
+    
+    // 打印关键健康数据原始值 - 新增
+    if (s.contains('"heart_rate"') || s.contains('"blood_oxygen"')) {
+      log('原始健康数据检查点1 - 解析前: $s');
+      try {
+        // 使用正则表达式提取关键健康数据
+        final heartRateMatch = RegExp(r'"heart_rate"\s*:\s*(\d+)').firstMatch(s);
+        final bloodOxygenMatch = RegExp(r'"blood_oxygen"\s*:\s*(\d+)').firstMatch(s);
+        final systolicMatch = RegExp(r'"blood_pressure_systolic"\s*:\s*(\d+)').firstMatch(s);
+        final diastolicMatch = RegExp(r'"blood_pressure_diastolic"\s*:\s*(\d+)').firstMatch(s);
+        final cjsjMatch = RegExp(r'"cjsj"\s*:\s*"([^"]+)"').firstMatch(s);
+        
+        log('原始数据提取: 心率=${heartRateMatch?.group(1) ?? "未找到"}, ' +
+            '血氧=${bloodOxygenMatch?.group(1) ?? "未找到"}, ' +
+            '高压=${systolicMatch?.group(1) ?? "未找到"}, ' +
+            '低压=${diastolicMatch?.group(1) ?? "未找到"}, ' +
+            '创建时间=${cjsjMatch?.group(1) ?? "未找到"}');
+      } catch (e) {
+        log('原始数据正则提取失败: $e');
+      }
+    }
+    
+    // 更新最后数据时间并更新蓝牙图标状态
+    _lastDataTime = DateTime.now();
+    _updateBluetoothIconState();
+    
+    // 数据格式验证 - 过滤明显无效的数据
+    if (s.length < 10) { log('数据太短，忽略'); return; }
+    if (!s.trim().startsWith('{') || !s.trim().endsWith('}')) {
+      if (!s.contains("\"id\"") || !s.contains("\"total\"") || !s.contains("\"index\"")) {
+        log('不包含有效JSON结构，忽略');
+        return;
+      }
+    }
+    
+    // 检查是否是健康数据分片 - 使用增强的类型检测
+    try {
+      // 预处理JSON字符串，尝试修复常见问题
+      s = _preprocessJsonString(s);
+      
+      final jsonData = json.decode(s);
+      if (jsonData is Map<String, dynamic>) {
+        // 检查是否包含健康数据 - 新增
+        if (jsonData.containsKey('data')) {
+          var dataObj = jsonData['data'];
+          if (dataObj is Map && (dataObj.containsKey('heart_rate') || dataObj.containsKey('blood_oxygen'))) {
+            log('原始健康数据检查点2 - JSON解析后: 心率=${dataObj['heart_rate']}, 血氧=${dataObj['blood_oxygen']}, 高压=${dataObj['blood_pressure_systolic']}, 低压=${dataObj['blood_pressure_diastolic']}, 创建时间=${dataObj['cjsj']}');
+          }
+        }
+        
+        String type = jsonData['type'] ?? '';
+        
+        // 增强的健康数据类型检测
+        if (_isHealthDataType(type)) {
+          log('识别到健康数据分片(类型:$type)，传递给健康数据合并器处理');
+          // 打印健康数据内容 - 新增
+          if (jsonData.containsKey('data')) {
+            var healthData = jsonData['data'];
+            log('健康数据分片内容: $healthData');
+            
+            // 提取并打印关键字段
+            if (healthData is Map) {
+              log('健康数据检查点3 - 合并器处理前: 心率=${healthData['heart_rate']}, 血氧=${healthData['blood_oxygen']}, 高压=${healthData['blood_pressure_systolic']}, 低压=${healthData['blood_pressure_diastolic']}, 创建时间=${healthData['cjsj']}');
+            }
+          }
+          
+          HealthDataMerger.i.receiveDataMap(jsonData);
+          return; // 交给合并器处理后直接返回
+        }
+        
+        // 处理设备分片数据
+        if (type == TYPE_DEVICE_CHUNK) {
+          log('识别到设备分片数据');
+          _processDeviceChunk(jsonData);
+          return;
+        }
+        
+        // 原始分片数据类型检测
+        if (type == TYPE_RAW_CHUNK) {
+          log('识别到原始分片数据，传递给健康数据合并器处理');
+          HealthDataMerger.i.receiveDataMap(jsonData);
+          return; // 交给合并器处理后直接返回
+        }
+      }
+    } catch (e) {
+      log('尝试识别健康数据分片时出错: $e，将尝试使用传统分包逻辑处理');
+      // 继续执行原有的分包逻辑
+    }
+    
+    // 先检查是否是包含"packet"字段的分包数据
+    if (s.contains("\"packet\"")) {
+      try {
+        // 尝试解析分包信息（只提取必要字段，避免解析整个可能截断的JSON）
+        String? id, indexStr, totalStr, body;
+        
+        // 提取分包ID
+        final idMatch = RegExp(r'"id"\s*:\s*"([^"]+)"').firstMatch(s);
+        if (idMatch != null) {
+          id = idMatch.group(1);
+        }
+        
+        // 提取总包数
+        final totalMatch = RegExp(r'"total"\s*:\s*(\d+)').firstMatch(s);
+        if (totalMatch != null) {
+          totalStr = totalMatch.group(1);
+        }
+        
+        // 提取当前包索引
+        final indexMatch = RegExp(r'"index"\s*:\s*(\d+)').firstMatch(s);
+        if (indexMatch != null) {
+          indexStr = indexMatch.group(1);
+        }
+        
+        // 增强的body内容提取，处理多种可能的嵌套JSON格式
+        body = _extractPacketBody(s);
+        
+        // 检查是否成功提取了所有必要字段
+        if (id != null && totalStr != null && indexStr != null && body != null) {
+          final total = int.parse(totalStr);
+          final index = int.parse(indexStr);
+          
+          // 数据有效性检查
+          if (total <= 0 || index < 0 || index >= total) {
+            log('分包数据无效: total=$total, index=$index');
+            return;
+          }
+          
+          var packetKey = '$id-$index';
+          if (_uploadedIds.contains(id)) { log('分包已上传: $id'); return; }
+          
+          // 如果是新的分包ID，初始化数组
+          _b[id] = _b[id] ?? List.filled(total, null);
+          
+          // 检查是否重复分包
+          if (_b[id]![index] != null) { log('分包重复: $packetKey'); return; }
+          
+          // 存储分包数据
+          _b[id]![index] = body;
+          
+          // 日志记录分包情况
+          final bodyLen = body.length;
+          final headPart = bodyLen > 10 ? body.substring(0, 10) : body;
+          final tailPart = bodyLen > 10 ? body.substring(max(0, bodyLen - 10)) : "";
+          log('分包: $id [$index/$total] body.len=$bodyLen head=$headPart... tail=$tailPart');
+          
+          // 检查是否所有分包都已接收
+          if (_b[id]!.where((e) => e != null).length < total) return;
+          
+          try {
+              // 收到所有分包后，开始分析和修复
+  log('收到所有分包($id)，开始预处理和分析片段边界');
+  
+  // 进行更高级的分包分析
+  _analyzeBoundaries(id, total);
+          
+  // 组装完整数据前预处理每个分包
+  _preProcessHealthDataChunks(id, total);
+            
+            // 组装完整数据
+            String fullData = _mergePackets(id, total);
+            
+            log('组装完成: len=${fullData.length} head=${fullData.substring(0, min(20, fullData.length))}... tail=${fullData.substring(max(0, fullData.length - 20))}');
+            
+            // 对完整数据进行后处理和修复
+            String cleanData = _postProcessHealthData(fullData);
+            
+            // 检查是否包含健康数据 - 新增
+            if (cleanData.contains('"heart_rate"') || cleanData.contains('"blood_oxygen"')) {
+              log('健康数据检查点4 - 分包合并后: $cleanData');
+            }
+            
+            try {
+              var m = json.decode(cleanData);
+              // 处理嵌套JSON字段
+              if (m is Map<String, dynamic>) {
+                _processJsonStringFields(m);
+                _processHealthData(m); // 处理健康数据特有的嵌套结构
+                
+                // 再次检查数据处理后的值 - 新增
+                if (m.containsKey('data')) {
+                  var dataObj = m['data'];
+                  if (dataObj is Map && dataObj.containsKey('data')) {
+                    var healthFields = dataObj['data'];
+                    if (healthFields is Map) {
+                      log('健康数据检查点5 - 处理后: 心率=${healthFields['heart_rate']}, 血氧=${healthFields['blood_oxygen']}, 高压=${healthFields['blood_pressure_systolic']}, 低压=${healthFields['blood_pressure_diastolic']}, 创建时间=${healthFields['cjsj']}');
+                    }
+                  }
+                }
+                
+                var type = m['type'];
+                
+                // 根据数据类型处理，增加健康数据去重
+                if (type == T_HEALTH) { 
+                  // 生成数据摘要用于判断重复
+                  String digest = _generateHealthDataDigest(m);
+                  
+                  // 如果数据已经处理过，直接返回
+                  if (_healthDataCache.contains(digest)) {
+                    log('跳过重复的JSON健康数据');
+                    return;
+                  }
+                  
+                  // 添加到缓存并限制缓存大小
+                  _healthDataCache.add(digest);
+                  if (_healthDataCache.length > _maxCacheSize) {
+                    _healthDataCache.remove(_healthDataCache.first);
+                  }
+                  
+                  h.add(m); 
+                  log('健康数据上传前最终检查 - 心率=${m['data']?['data']?['heart_rate']}, 血氧=${m['data']?['data']?['blood_oxygen']}, 高压=${m['data']?['data']?['blood_pressure_systolic']}, 低压=${m['data']?['data']?['blood_pressure_diastolic']}, 创建时间=${m['data']?['data']?['cjsj']}');
+                  ApiService().uploadHealthData(m).then((ok) => log('health上传${ok ? "成功" : "失败"}')); 
+                }
+                else if (type == T_DEVICE) { 
+                                     // 添加IP Address和Wifi Address字段
+                   if (m is Map && m.containsKey('data')) {
+                     // 移除不需要的字段
+                     m['data'].remove('packet_id');
+                     m['data'].remove('device_broadcast_id');
+                     
+                     // 添加字段，设置为字符串值
+                     m['data']['IP Address'] = "192.168.1.6";
+                     m['data']['Wifi Address'] = "f0:fa:c7:ed:6c:17";
+                     m['data']['upload_method'] = 'bluetooth';
+                     log('添加IP Address、Wifi Address字段和upload_method到设备信息，并移除多余字段');
+                   }
+                  v.add(m); 
+                  ApiService().uploadDeviceInfo(m).then((ok) => log('device上传${ok ? "成功" : "失败"}')); 
+                }
+                else if (type == T_EVENT) { 
+                  ApiService().uploadCommonEvent(m).then((ok) => log('event上传${ok ? "成功" : "失败"}')); 
+                }
+                else { log('未知数据类型: $type'); }
+              }
+            } catch (e) {
+              log('合并后的数据解析失败：$e，尝试进一步修复');
+              try {
+                // 尝试更彻底的修复方法
+                cleanData = _deepFixJson(cleanData);
+                var m = json.decode(cleanData);
+                
+                if (m is Map<String, dynamic>) {
+                  _processJsonStringFields(m);
+                  _processHealthData(m);
+                  
+                  var type = m['type'];
+                  
+                  // 根据数据类型处理，增加健康数据去重
+                  if (type == T_HEALTH) { 
+                    // 生成数据摘要用于判断重复
+                    String digest = _generateHealthDataDigest(m);
+                    
+                    // 如果数据已经处理过，直接返回
+                    if (_healthDataCache.contains(digest)) {
+                      log('跳过重复的JSON健康数据(修复后)');
+                      return;
+                    }
+                    
+                    // 添加到缓存并限制缓存大小
+                    _healthDataCache.add(digest);
+                    if (_healthDataCache.length > _maxCacheSize) {
+                      _healthDataCache.remove(_healthDataCache.first);
+                    }
+                    
+                    h.add(m); 
+                    ApiService().uploadHealthData(m).then((ok) => log('health上传${ok ? "成功" : "失败"}')); 
+                  }
+                  else if (type == T_DEVICE) { 
+                    // 添加IP Address和Wifi Address字段
+                    if (m is Map && m.containsKey('data')) {
+                      // 移除不需要的字段
+                      m['data'].remove('packet_id');
+                      m['data'].remove('device_broadcast_id');
+                      
+                      // 添加字段，设置为字符串值
+                      m['data']['IP Address'] = "192.168.1.6";
+                      m['data']['Wifi Address'] = "f0:fa:c7:ed:6c:17";
+                      m['data']['upload_method'] = 'bluetooth';
+                      log('添加IP Address、Wifi Address字段和upload_method到设备信息，并移除多余字段');
+                    }
+                    v.add(m); 
+                    ApiService().uploadDeviceInfo(m).then((ok) => log('device上传${ok ? "成功" : "失败"}')); 
+                  }
+                  else if (type == T_EVENT) { 
+                    ApiService().uploadCommonEvent(m).then((ok) => log('event上传${ok ? "成功" : "失败"}')); 
+                  }
+                  else { log('未知数据类型: $type'); }
+                }
+              } catch (e2) {
+                log('多级修复失败: $e2，无法处理此数据包');
+              }
+            }
+            
+            // 标记为已上传并清理缓存
+            _uploadedIds.add(id);
+            _b.remove(id);
+          } catch (e) {
+            log('组装解析错: $e, 原始数据片段: ${_b[id] != null && _b[id]!.isNotEmpty && _b[id]![0] != null ? _b[id]![0]!.substring(0, min(100, _b[id]![0]!.length)) : "无法获取数据片段"}...');
+            _b.remove(id);
+          }
+        } else {
+          log('分包字段提取失败：id=${id!=null}, total=${totalStr!=null}, index=${indexStr!=null}, body=${body!=null}');
+        }
+      } catch (e) {
+        log('处理分包错误: $e');
+      }
+    } else {
+      // 非分包数据，尝试直接解析
+      try {
+        var vj = json.decode(s);
+        log('非分包数据: $vj');
+        
+        // 检查是否包含健康数据 - 新增
+        if (vj is Map && vj.containsKey('data')) {
+          var dataObj = vj['data'];
+          if (dataObj is Map && (dataObj.containsKey('heart_rate') || dataObj.containsKey('blood_oxygen'))) {
+            log('健康数据检查点6 - 非分包数据: 心率=${dataObj['heart_rate']}, 血氧=${dataObj['blood_oxygen']}, 高压=${dataObj['blood_pressure_systolic']}, 低压=${dataObj['blood_pressure_diastolic']}, 创建时间=${dataObj['cjsj']}');
+          }
+          
+          // 如果dataObj包含data字段(嵌套结构)
+          if (dataObj is Map && dataObj.containsKey('data')) {
+            var healthFields = dataObj['data'];
+            if (healthFields is Map) {
+              log('健康数据检查点7 - 非分包嵌套数据: 心率=${healthFields['heart_rate']}, 血氧=${healthFields['blood_oxygen']}, 高压=${healthFields['blood_pressure_systolic']}, 低压=${healthFields['blood_pressure_diastolic']}, 创建时间=${healthFields['cjsj']}');
+            }
+          }
+        }
+        
+        var type = vj['type'];
+        var key = json.encode(vj); //使用完整数据作为key
+        var now = DateTime.now();
+        
+        //清理过期缓存
+        _dataCache.removeWhere((k, v) => now.difference(v) > CACHE_TIMEOUT);
+        
+        //检查是否重复
+        if (_dataCache.containsKey(key)) {
+          log('数据重复，忽略: $key');
+          return;
+        }
+        
+        //更新缓存
+        _dataCache[key] = now;
+        
+        // 根据数据类型处理，增加健康数据去重
+        if (type == T_HEALTH) {
+          // 生成数据摘要用于判断重复
+          String digest = _generateHealthDataDigest(vj);
+          
+          // 如果数据已经处理过，直接返回
+          if (_healthDataCache.contains(digest)) {
+            log('跳过重复的非分包健康数据');
+            return;
+          }
+          
+          // 添加到缓存并限制缓存大小
+          _healthDataCache.add(digest);
+          if (_healthDataCache.length > _maxCacheSize) {
+            _healthDataCache.remove(_healthDataCache.first);
+          }
+          
+          // 预处理健康数据：确保结构正确，添加必要字段
+          Map<String, dynamic> processedData = _prepareHealthDataForUpload(vj);
+          
+          h.add(processedData); 
+          log('非分包健康数据上传前最终结构 - 心率=${processedData['data']?['data']?['heart_rate']}, 血氧=${processedData['data']?['data']?['blood_oxygen']}, 高压=${processedData['data']?['data']?['blood_pressure_systolic']}, 低压=${processedData['data']?['data']?['blood_pressure_diastolic']}, 创建时间=${processedData['data']?['data']?['cjsj']}');
+          ApiService().uploadHealthData(processedData).then((ok) => log('health上传${ok ? "成功" : "失败"}')); 
+        }
+        else if (type == T_DEVICE) { 
+                     // 添加IP Address和Wifi Address字段
+           if (vj is Map && vj.containsKey('data')) {
+             // 移除不需要的字段
+             vj['data'].remove('packet_id');
+             vj['data'].remove('device_broadcast_id');
+             
+             // 添加字段，设置为字符串值
+             vj['data']['IP Address'] = "192.168.1.6";
+             vj['data']['Wifi Address'] = "f0:fa:c7:ed:6c:17";
+             vj['data']['upload_method'] = 'bluetooth';
+             log('添加IP Address、Wifi Address字段和upload_method到设备信息，并移除多余字段');
+           }
+          v.add(vj); 
+          ApiService().uploadDeviceInfo(vj).then((ok) => log('device上传${ok ? "成功" : "失败"}')); 
+        }
+        else if (type == T_EVENT) { 
+          ApiService().uploadCommonEvent(vj).then((ok) => log('event上传${ok ? "成功" : "失败"}')); 
+        }
+        else if (type == T_PROBE) { 
+          log('收到探测响应消息: ${vj.toString().substring(0, min(100, vj.toString().length))}...');
+          _handleProbeResponse(vj);
+        }
+        else { log('未知数据类型: $type'); }
+      } catch (e) {
+        log('json解析错: $e, 原始数据: $s');
+      }
+    }
+  }
+  
+  /// 处理二进制协议数据 #处理二进制蓝牙协议数据
+  Future<void> _processBinaryProtocolData(Uint8List data) async {
+    // 更新最后数据时间并更新蓝牙图标状态
+    _lastDataTime = DateTime.now();
+    _currentBluetoothState = "transmitting"; // 设置为传输状态
+    _updateBluetoothIconState();
+    
+    try {
+      // 使用新的JSON协议处理器处理数据包
+      Map<String, dynamic>? result = await BleDataProcessor.i.processRawData(data);
+      
+      // 如果没有有效结果则返回
+      if (result == null) {
+        return;
+      }
+      
+      // 根据数据类型处理
+      String type = result['type'] ?? '';
+      
+      // 处理健康数据
+      if (type == 'health') {
+        // 生成数据摘要用于判断重复
+        String digest = _generateHealthDataDigest(result);
+        
+        // 如果数据已经处理过，直接返回
+        if (_healthDataCache.contains(digest)) {
+          debugPrint('跳过重复的健康数据');
+          return;
+        }
+        
+        // 添加到缓存并限制缓存大小
+        _healthDataCache.add(digest);
+        if (_healthDataCache.length > _maxCacheSize) {
+          _healthDataCache.remove(_healthDataCache.first);
+        }
+        
+        debugPrint('接收到健康数据，准备上传');
+        
+        // 检查data和data.data结构是否存在
+        if (result['data'] != null) {
+          // 确保data.data结构存在 - 注意：JSON协议可能不再嵌套data.data，这部分逻辑可能需要调整
+          if (result['data']['data'] == null) {
+            result['data']['data'] = {};
+            debugPrint('创建缺失的data.data结构');
+          }
+          
+          // 记录健康数据关键字段以便调试
+          if (result['data']['data'] != null) {
+            var healthData = result['data']['data'];
+            
+            // 记录处理前的原始值
+            debugPrint('处理前健康数据: 心率=${healthData['heart_rate'] ?? "缺失"}, ' +
+                '血氧=${healthData['blood_oxygen'] ?? "缺失"}, ' +
+                '高压=${healthData['blood_pressure_systolic'] ?? "缺失"}, ' +
+                '低压=${healthData['blood_pressure_diastolic'] ?? "缺失"}, ' +
+                'cjsj=${healthData['cjsj'] ?? "缺失"}');
+            
+            // 如果健康数据中没有id字段，添加设备序列号
+            if (!healthData.containsKey('id') || healthData['id'] == null) {
+              // 优先使用全局序列号(来自登录API)
+              if (global.deviceSn.isNotEmpty && !global.deviceSn.contains(':')) {
+                healthData['id'] = global.deviceSn;
+                log('添加全局设备序列号到健康数据: ${global.deviceSn}');
+              } 
+              // 如果本地deviceSn不是MAC格式也可使用
+              else if (deviceSn.isNotEmpty && !deviceSn.contains(':')) {
+                healthData['id'] = deviceSn;
+                log('添加本地设备序列号到健康数据: $deviceSn');
+              }
+              // 都不可用时尝试从设备信息获取
+              else {
+                String serialNumber = _getSerialNumberFromDeviceInfo();
+                if (serialNumber.isNotEmpty) {
+                  healthData['id'] = serialNumber;
+                  // 更新全局变量供后续使用
+                  global.deviceSn = serialNumber;
+                  log('从设备信息提取序列号添加到健康数据: $serialNumber');
+                } else {
+                  log('警告：无法获取有效设备序列号，健康数据可能无法正确关联到设备');
+                }
+              }
+            }
+            
+            // 如果没有上传方法，添加默认值
+            if (!healthData.containsKey('upload_method') || healthData['upload_method'] == null) {
+              healthData['upload_method'] = _uploadMethod;
+              debugPrint('添加上传方法到健康数据: $_uploadMethod');
+            }
+            
+            // 保存原始字段值
+            var heartRate = healthData['heart_rate'];
+            var bloodOxygen = healthData['blood_oxygen'];
+            var systolic = healthData['blood_pressure_systolic'];
+            var diastolic = healthData['blood_pressure_diastolic'];
+            var originalCjsj = healthData['cjsj'];
+            
+            // 处理特殊格式值，确保值类型一致性
+            _ensureHealthDataFieldTypes(healthData);
+            
+            // 确保重要字段值没有被重置
+            if (heartRate != null) healthData['heart_rate'] = heartRate;
+            if (bloodOxygen != null) healthData['blood_oxygen'] = bloodOxygen;
+            if (systolic != null) healthData['blood_pressure_systolic'] = systolic;
+            if (diastolic != null) healthData['blood_pressure_diastolic'] = diastolic;
+            if (originalCjsj != null) healthData['cjsj'] = originalCjsj;
+            
+            // 如果没有cjsj字段，添加当前时间
+            if (!healthData.containsKey('cjsj') || healthData['cjsj'] == null) {
+              final now = DateTime.now();
+              final formatter = DateFormat('yyyy-MM-dd HH:mm:ss');
+              healthData['cjsj'] = formatter.format(now);
+              debugPrint('添加创建时间到健康数据: ${healthData['cjsj']}');
+            }
+            
+            // 确保没有字段被设置为null
+            if (healthData['heart_rate'] == null) healthData['heart_rate'] = 0;
+            if (healthData['blood_oxygen'] == null) healthData['blood_oxygen'] = 0;
+            if (healthData['blood_pressure_systolic'] == null) healthData['blood_pressure_systolic'] = 0;
+            if (healthData['blood_pressure_diastolic'] == null) healthData['blood_pressure_diastolic'] = 0;
+            
+            debugPrint('处理后健康数据: 心率=${healthData['heart_rate']}, ' +
+                '血氧=${healthData['blood_oxygen']}, ' +
+                '高压=${healthData['blood_pressure_systolic']}, ' +
+                '低压=${healthData['blood_pressure_diastolic']}, ' +
+                'cjsj=${healthData['cjsj']}');
+          }
+        }
+        
+        // 提取传输ID用于确认
+        String transferId = result['transfer_id'] ?? 
+                        result['packet_id'] ?? 
+                        result['data']?['packet_id'] ?? 
+                        DateTime.now().millisecondsSinceEpoch.toString();
+                        
+        // 预处理健康数据：确保结构正确，添加必要字段
+        Map<String, dynamic> processedData = _prepareHealthDataForUpload(result);
+        
+        h.add(processedData);
+        log('二进制协议健康数据上传前最终结构: ${json.encode(processedData).substring(0, min(100, json.encode(processedData).length))}...');
+        ApiService().uploadHealthData(processedData).then((ok) {
+          log('health上传${ok ? "成功" : "失败"}');
+          // 发送健康数据确认
+          sendHealthDataAck(transferId, ok, error: ok ? null : "上传失败");
+        });
+      }
+      // 处理设备信息
+      else if (type == 'device') {
+        debugPrint('接收到设备信息，准备上传');
+        
+        // 保存设备序列号
+        if (result['data'] != null && result['data']['SerialNumber'] != null) {
+          String serialNumber = result['data']['SerialNumber'].toString();
+          // 只有当序列号不是MAC地址格式时才使用它
+          if (!serialNumber.contains(':')) {
+            // 优先更新全局序列号，避免使用MAC地址
+            global.deviceSn = serialNumber;
+            log('从设备信息更新全局设备序列号: $serialNumber');
+          } else {
+            log('设备返回的序列号似乎是MAC地址，不更新全局序列号: $serialNumber');
+          }
+        }
+        
+        // 添加IP Address和Wifi Address字段，这些字段在蓝牙传输时被手表去掉了
+        if (result['data'] != null) {
+          // 移除不需要的字段
+          result['data'].remove('packet_id');
+          result['data'].remove('device_broadcast_id');
+          
+          // 添加字段，设置为字符串值
+          result['data']['IP Address'] = "192.168.1.6";
+          result['data']['Wifi Address'] = "f0:fa:c7:ed:6c:17";
+          // 添加上传方法
+          result['data']['upload_method'] = 'bluetooth';
+          log('添加IP Address、Wifi Address字段和upload_method到设备信息，并移除多余字段');
+        }
+        
+        v.add(result);
+        ApiService().uploadDeviceInfo(result).then((ok) => 
+          debugPrint('device上传${ok ? "成功" : "失败"}')
+        );
+      }
+      // 处理事件数据
+      else if (type == 'commonEvent') {
+        debugPrint('接收到事件数据，准备上传');
+        
+        // 确保包含设备SN
+        if (result['data'] != null && !result['data'].containsKey('device_sn')) {
+          result['data']['device_sn'] = deviceSn;
+          debugPrint('添加设备序列号到事件数据: $deviceSn');
+        }
+        
+        // 确保包含时间戳
+        if (result['data'] != null && !result['data'].containsKey('timestamp')) {
+          result['data']['timestamp'] = DateTime.now().toString().split('.')[0];
+          debugPrint('添加时间戳到事件数据');
+        }
+        
+        ApiService().uploadCommonEvent(result).then((ok) => 
+          debugPrint('event上传${ok ? "成功" : "失败"}')
+        );
+      }
+      else {
+        debugPrint('未知数据类型: $type');
+      }
+    } catch (e) {
+      debugPrint('处理JSON协议数据错误: $e');
+    }
+  }
+  
+  // 确保健康数据字段类型一致性 #字段类型检查
+  void _ensureHealthDataFieldTypes(Map<String, dynamic> healthData) {
+    // 数值型字段列表
+    final numericFields = ['heart_rate', 'blood_oxygen', 'blood_pressure_systolic', 
+                         'blood_pressure_diastolic', 'step', 'stress'];
+    
+    // 确保数值型字段为整数
+    for (var field in numericFields) {
+      if (healthData.containsKey(field)) {
+        var value = healthData[field];
+        if (value is String) {
+          try {
+            healthData[field] = int.parse(value);
+            log('转换$field从字符串"$value"到整数');
+          } catch (e) {
+            log('无法将$field字段值"$value"转换为整数: $e');
+          }
+        }
+      }
+    }
+    
+    // 确保浮点型字段格式正确
+    final floatFields = ['body_temperature', 'distance', 'calorie', 'latitude', 'longitude', 'altitude'];
+    for (var field in floatFields) {
+      if (healthData.containsKey(field)) {
+        var value = healthData[field];
+        if (value != null && !(value is String)) {
+          healthData[field] = value.toString();
+          log('转换$field到字符串格式: ${healthData[field]}');
+        }
+      }
+    }
+    
+    // 确保特殊JSON字段格式正确
+    final jsonFields = ['sleepData', 'exerciseDailyData', 'exerciseWeekData', 
+                      'scientificSleepData', 'workoutData'];
+    for (var field in jsonFields) {
+      if (healthData.containsKey(field)) {
+        var value = healthData[field];
+        if (value == null) {
+          // 提供默认JSON结构
+          if (field == 'sleepData') {
+            healthData[field] = '{"code":0,"data":[],"name":"sleep","type":"history"}';
+          } else if (field == 'exerciseDailyData') {
+            healthData[field] = '{"code":0,"data":[{"strengthTimes":0,"totalTime":0}],"name":"daily","type":"history"}';
+          } else {
+            healthData[field] = 'null';
+          }
+          log('为$field字段提供默认值');
+        } else if (value is Map) {
+          // 将Map转为JSON字符串
+          try {
+            healthData[field] = json.encode(value);
+            log('将$field从Map转换为JSON字符串');
+          } catch (e) {
+            log('将$field转换为JSON字符串失败: $e');
+            healthData[field] = 'null';
+          }
+        }
+      }
+    }
+  }
+  
+  // 检查是否是健康数据类型
+  bool _isHealthDataType(String type) {
+    return type == HealthDataMerger.TYPE_HEALTH_META || 
+           type == HealthDataMerger.TYPE_HEALTH_SLEEP || 
+           type == HealthDataMerger.TYPE_HEALTH_EXERCISE_DAILY || 
+           type == HealthDataMerger.TYPE_HEALTH_EXERCISE_WEEK || 
+           type == HealthDataMerger.TYPE_HEALTH_SCIENTIFIC_SLEEP || 
+           type == HealthDataMerger.TYPE_HEALTH_WORKOUT;
+  }
+  
+  // 使用二进制协议发送命令 #发送二进制命令
+  Future<bool> _sendBinaryCommand(Map<String, dynamic> command) async {
+    if (cc == null) return false;
+    
+    try {
+      // 确定MTU大小
+      int mtu = _getMtuSize();
+      
+      // 使用新的JSON协议发送命令
+      String commandType = command['type'] ?? 'command';
+      Map<String, dynamic> commandBody = Map<String, dynamic>.from(command);
+      
+      // 创建JSON命令并序列化为二进制
+      Uint8List commandData = BleDataProcessor.i.serializeCommand(commandType, commandBody);
+      
+      log('准备发送JSON命令，长度：${commandData.length}字节');
+      
+      // 如果命令数据超过MTU大小，需要分段发送（简单处理）
+      if (commandData.length > mtu - 3) { // ATT header overhead: 3 bytes
+        log('命令数据大小超过MTU，需要分段发送');
+        
+        // 简单的分段发送逻辑，这里没有使用与手表一致的分包结构，
+        // 后续可根据需要实现更复杂的分包逻辑
+        int offset = 0;
+        int packageIndex = 0;
+        while (offset < commandData.length) {
+          int end = min(offset + mtu - 3, commandData.length);
+          Uint8List segment = Uint8List.fromList(commandData.sublist(offset, end));
+          
+          await cc!.write(segment, withoutResponse: false);
+          log('发送命令分段 ${packageIndex + 1}，大小: ${segment.length}字节');
+          
+          offset = end;
+          packageIndex++;
+          
+          // 分段发送间隔
+          await Future.delayed(Duration(milliseconds: 100));
+        }
+      } else {
+        // 直接发送
+        await cc!.write(commandData, withoutResponse: false);
+        log('命令发送完成，大小: ${commandData.length}字节');
+      }
+      
+      return true;
+    } catch (e) {
+      log('发送JSON命令错误: $e');
+      return false;
+    }
+  }
+  
+  // 使用二进制协议发送配置 #发送二进制配置
+  Future<bool> _sendBinaryConfig(Map<String, dynamic> config) async {
+    if (cc == null) return false;
+    
+    try {
+      // 确定MTU大小
+      int mtu = _getMtuSize();
+      
+      // 使用新的JSON协议发送配置命令
+      String commandType = BleDataProcessor.CMD_CONFIG;
+      Map<String, dynamic> commandBody = Map<String, dynamic>.from(config);
+      
+      // 创建JSON命令并序列化为二进制
+      Uint8List commandData = BleDataProcessor.i.serializeCommand(commandType, commandBody);
+      
+      log('准备发送JSON配置，长度：${commandData.length}字节');
+      
+      // 如果配置数据超过MTU大小，需要分段发送
+      if (commandData.length > mtu - 3) { // ATT header overhead: 3 bytes
+        log('配置数据大小超过MTU，需要分段发送');
+        
+        // 分段发送逻辑
+        int offset = 0;
+        int packageIndex = 0;
+        while (offset < commandData.length) {
+          int end = min(offset + mtu - 3, commandData.length);
+          Uint8List segment = Uint8List.fromList(commandData.sublist(offset, end));
+          
+          await cc!.write(segment, withoutResponse: false);
+          log('发送配置分段 ${packageIndex + 1}，大小: ${segment.length}字节');
+          
+          offset = end;
+          packageIndex++;
+          
+          // 分段发送间隔
+          await Future.delayed(Duration(milliseconds: 100));
+        }
+      } else {
+        // 直接发送
+        await cc!.write(commandData, withoutResponse: false);
+        log('配置发送完成，大小: ${commandData.length}字节');
+      }
+      
+      return true;
+    } catch (e) {
+      log('发送JSON配置错误: $e');
+      return false;
+    }
+  }
+  
+  // 获取当前MTU大小 #获取MTU大小
+  int _getMtuSize() {
+    // 默认MTU值
+    int mtu = 512;
+    
+    try {
+      // 如果系统配置中有设置MTU值
+      if (_systemConfig.containsKey('mtu')) {
+        int configMtu = int.tryParse('${_systemConfig['mtu']}') ?? 512;
+        if (configMtu > 0) mtu = configMtu;
+      }
+    } catch (e) {
+      log('获取MTU值失败: $e');
+    }
+    
+    return mtu;
+  }
+
+  Future<void> dis() async {
+    if (d != null) {
+      try {
+        log('开始断开连接...');
+        
+        // 停止数据特征的监听
+        if (dc != null) {
+          try {
+            await dc!.setNotifyValue(false);
+            log('已关闭数据特征的通知');
+          } catch (e) {
+            log('关闭数据特征通知时出错: $e');
+          }
+        }
+        
+        // 取消数据特征的订阅
+        if (_dataCharacteristicSubscription != null) {
+          await _dataCharacteristicSubscription!.cancel();
+          _dataCharacteristicSubscription = null;
+          log('已取消数据特征订阅');
+        }
+        
+        // 检查设备是否真正连接状态
+        bool isStillConnected = false;
+        try {
+          isStillConnected = d!.isConnected;
+        } catch (_) {}
+        
+        // 不管设备当前状态如何，都尝试断开连接
+        try {
+          await d!.disconnect();
+          log('断开连接命令已发送');
+        } catch (e) {
+          log('断开连接时出错: $e');
+        }
+        
+        // 等待断开确认
+        await Future.delayed(Duration(milliseconds: 300));
+        
+        // 强制清理设备状态
+        d = null;
+        dc = cc = null;
+        _db.clear();
+        _hb.clear();
+        _b.clear();
+        _healthServiceAvailable = false;
+        _wasHealthServiceAvailable = false;
+        s.add(false);
+        _updateBluetoothIconState(); // 更新蓝牙图标状态
+        log('已断开，所有资源已清理');
+      } catch (e) {
+        log('断开连接过程中发生异常: $e');
+        // 即使出现异常，也强制重置状态
+        d = null;
+        dc = cc = null;
+        s.add(false);
+        _updateBluetoothIconState();
+      }
+    }
+  }
+
+  Future<void> fetchAndSendMsg() async {
+    if (deviceSn.isEmpty) return;
+    try {
+      // 确保使用设备序列号而不是MAC地址
+      String targetDeviceSn;
+      
+      // 优先使用全局设备序列号
+      if (global.deviceSn.isNotEmpty && !global.deviceSn.contains(':')) {
+        targetDeviceSn = global.deviceSn;
+        log('获取消息使用全局设备序列号: $targetDeviceSn');
+      }
+      // 如果当前设备SN不是MAC地址，也可以使用
+      else if (!deviceSn.contains(':')) {
+        targetDeviceSn = deviceSn;
+        log('获取消息使用本地设备序列号: $targetDeviceSn');
+      }
+      else {
+        // 尝试从设备信息中获取序列号
+        String serialNumber = _getSerialNumberFromDeviceInfo();
+        if (serialNumber.isNotEmpty) {
+          targetDeviceSn = serialNumber;
+          // 更新全局序列号以便后续使用
+          global.deviceSn = serialNumber;
+          log('从设备信息获取序列号: $targetDeviceSn，并更新全局序列号');
+        } else {
+          log('无法获取有效的设备序列号，无法获取消息');
+          return;
+        }
+      }
+      
+      log('获取设备消息，使用设备序列号: $targetDeviceSn');
+      var msgs = await ApiService().getDeviceMessages(targetDeviceSn);
+      log('获取到${msgs.length}条消息');
+      
+      for (var msg in msgs) {
+        if (msg['message_status'] == 1) {
+          await sendMsg(msg);
+          await Future.delayed(Duration(milliseconds: 100));
+        }
+      }
+    } catch (e) {
+      log('获取消息错误: $e');
+    }
+  }
+
+  Future<void> fetchAndSendCfg() async {
+    if (deviceSn.isEmpty) return;
+    try {
+      // 确保使用设备序列号而不是MAC地址
+      String targetDeviceSn;
+      
+      // 优先使用全局设备序列号
+      if (global.deviceSn.isNotEmpty && !global.deviceSn.contains(':')) {
+        targetDeviceSn = global.deviceSn;
+        log('获取配置使用全局设备序列号: $targetDeviceSn');
+      }
+      // 如果当前设备SN不是MAC地址，也可以使用
+      else if (!deviceSn.contains(':')) {
+        targetDeviceSn = deviceSn;
+        log('获取配置使用本地设备序列号: $targetDeviceSn');
+      }
+      else {
+        // 尝试从设备信息中获取序列号
+        String serialNumber = _getSerialNumberFromDeviceInfo();
+        if (serialNumber.isNotEmpty) {
+          targetDeviceSn = serialNumber;
+          // 更新全局序列号以便后续使用
+          global.deviceSn = serialNumber;
+          log('从设备信息获取序列号: $targetDeviceSn，并更新全局序列号');
+        } else {
+          log('无法获取有效的设备序列号，无法获取配置');
+          return;
+        }
+      }
+      
+      var cfg = await ApiService().getHealthDataConfig(targetDeviceSn);
+      await sendCfg(cfg);
+    } catch (e) {
+      log('获取配置错误: $e');
+    }
+  }
+
+  // 获取和处理系统配置
+  Future<bool> fetchSystemConfig() async {
+    if (_isFetchingConfig) return false;
+    _isFetchingConfig = true;
+    
+    try {
+      if (d == null) {
+        log('设备未连接，使用默认配置');
+        _useDefaultConfig();
+        _isFetchingConfig = false;
+        return false;
+      }
+      
+      // 优先使用全局设备序列号，而不是设备MAC地址
+      String configId;
+      if (global.deviceSn.isNotEmpty && !global.deviceSn.contains(':')) {
+        configId = global.deviceSn;
+        log('获取配置使用全局设备序列号: $configId');
+      } else if (deviceSn.isNotEmpty && !deviceSn.contains(':')) {
+        configId = deviceSn;
+        log('获取配置使用本地设备序列号: $configId');
+      } else {
+        // 尝试从缓存的设备信息中获取序列号
+        String serialNumber = _getSerialNumberFromDeviceInfo();
+        if (serialNumber.isNotEmpty) {
+          configId = serialNumber;
+          // 同时更新全局序列号以供后续使用
+          global.deviceSn = serialNumber;
+          log('从设备信息获取到序列号: $configId，并更新全局序列号');
+        } else {
+          // 如果没有有效的设备序列号，使用默认配置
+          log('没有有效的设备序列号，使用默认配置');
+          _useDefaultConfig();
+          _isFetchingConfig = false;
+          return false;
+        }
+      }
+      
+      try {
+        var healthConfig = await ApiService().getHealthDataConfig(configId);
+        
+        // 检查配置是否有效
+        if (healthConfig == null || (healthConfig is Map && healthConfig.isEmpty)) {
+          log('API返回空配置，使用默认配置');
+          _useDefaultConfig();
+          return true;
+        }
+        
+        log('获取到配置: ${healthConfig.length}项');
+        
+        try {
+          // 显式转换为Map<String, dynamic>类型，解决类型不匹配问题
+          _systemConfig = Map<String, dynamic>.from(healthConfig);
+          _lastConfigFetchTime = DateTime.now();
+          
+          // 解析接口数据
+          _parseInterfaceData(_systemConfig);
+          
+          // 解析客户信息和上传方式
+          _customerName = _systemConfig['customer_name'] ?? "未知企业";
+          _uploadMethod = _systemConfig['upload_method'] ?? "bluetooth";
+          
+          // 更新蓝牙图标状态
+          _updateBluetoothIconState();
+          
+          // 将配置发送给手表
+          await sendConfigToWatch();
+          
+          // 启动消息获取定时器
+          _startMessageFetchTimer();
+          
+          log('系统配置获取并处理完成');
+          return true;
+        } catch (e) {
+          log('配置格式转换失败: $e，使用默认配置');
+          _useDefaultConfig();
+          return true;
+        }
+      } catch (e) {
+        log('API获取配置异常: $e，使用默认配置');
+        _useDefaultConfig();
+        return true;
+      }
+    } catch (e) {
+      log('获取配置过程异常: $e');
+      _useDefaultConfig();
+      return false;
+    } finally {
+      _isFetchingConfig = false;
+    }
+  }
+  
+  // 使用默认配置
+  void _useDefaultConfig() {
+    _systemConfig = {
+      'customer_name': '默认配置',
+      'upload_method': 'bluetooth',
+      'interface_data': {},
+      'mtu': 512
+    };
+    _lastConfigFetchTime = DateTime.now();
+    _customerName = '默认配置';
+    _uploadMethod = 'bluetooth';
+    
+    log('已应用默认配置');
+    
+    // 更新状态
+    _updateBluetoothIconState();
+    _startMessageFetchTimer();
+  }
+  
+  // 解析接口数据
+  void _parseInterfaceData(Map<String, dynamic> config) {
+    try {
+      if (config.containsKey('interface_data')) {
+        final interfaceData = config['interface_data'];
+        
+        // 确保interfaceData是Map<String, dynamic>类型
+        Map<String, dynamic> interfaceMap;
+        if (interfaceData is Map) {
+          // 显式转换为正确的类型
+          interfaceMap = Map<String, dynamic>.from(interfaceData);
+        } else {
+          log('接口数据格式不正确: ${interfaceData.runtimeType}');
+          return;
+        }
+        
+        _interfaceUrls.clear();
+        _interfaceIntervals.clear();
+        
+        interfaceMap.forEach((key, value) {
+          if (value is String) {
+            final parts = value.split(';');
+            if (parts.length >= 2) {
+              final url = parts[0];
+              final interval = int.tryParse(parts[1]) ?? 0;
+              
+              _interfaceUrls[key] = url;
+              _interfaceIntervals[key] = interval;
+              
+              log('解析接口: $key, URL: $url, 间隔: $interval秒');
+            }
+          }
+        });
+      }
+      
+      // 从全局变量获取上传方式
+      _uploadMethod = uploadMethod;
+      log('使用全局上传方式: $_uploadMethod');
+    } catch (e) {
+      log('解析接口数据出错: $e');
+    }
+  }
+  
+  // 更新蓝牙图标状态
+  void _updateBluetoothIconState() {
+    if (d == null) {
+      _currentBluetoothState = "disconnected";
+    } else if (uploadMethod == "wifi") {
+      _currentBluetoothState = "inactive";
+    } else if (_lastDataTime != null && 
+              DateTime.now().difference(_lastDataTime!) < Duration(seconds: 30)) {
+      _currentBluetoothState = "transmitting";
+    } else {
+      _currentBluetoothState = "connected";
+    }
+    
+    _bluetoothIconState.add(_currentBluetoothState);
+    log('蓝牙图标状态更新: $_currentBluetoothState');
+  }
+  
+  // 启动定时获取消息的定时器
+  void _startMessageFetchTimer() {
+    _messageFetchTimer?.cancel();
+    
+    // 获取消息获取间隔，默认60秒
+    int interval = DEFAULT_MESSAGE_FETCH_INTERVAL;
+    if (_interfaceIntervals.containsKey('平台消息交互接口')) {
+      interval = _interfaceIntervals['平台消息交互接口']!;
+    }
+    
+    log('启动消息获取定时器，间隔: $interval秒');
+    _messageFetchTimer = Timer.periodic(Duration(seconds: interval), (timer) {
+      fetchAndSendMsg();
+    });
+    
+    // 启动配置获取定时器
+    _startConfigFetchTimer();
+  }
+  
+  // 启动定时获取配置的定时器
+  void _startConfigFetchTimer() {
+    _configFetchTimer?.cancel();
+    
+    // 获取配置获取间隔，默认36000秒(10小时)
+    int interval = CONFIG_FETCH_INTERVAL;
+    if (_interfaceIntervals.containsKey('配置获取接口')) {
+      interval = _interfaceIntervals['配置获取接口']!;
+    }
+    
+    log('启动配置获取定时器，间隔: $interval秒');
+    _configFetchTimer = Timer.periodic(Duration(seconds: interval), (timer) {
+      fetchSystemConfig();
+    });
+  }
+  
+  // 向手表发送系统配置(根据当前协议选择发送方式)
+  Future<bool> sendConfigToWatch() async {
+    if (cc == null) {
+      log('命令特征未找到，无法发送配置');
+      return false;
+    }
+    
+    if (_systemConfig.isEmpty) {
+      log('系统配置为空，无法发送');
+      return false;
+    }
+    
+    // 根据协议选择发送方式
+    if (_useBinaryProtocol) {
+      log('使用二进制协议发送配置');
+      return await sendBinaryConfig(_systemConfig);
+    } else {
+      // 使用旧的JSON协议发送配置
+      try {
+        // 构建配置数据包
+        final configData = {
+          "type": CMD_CFG,
+          "content": _systemConfig,
+          "ts": DateTime.now().millisecondsSinceEpoch
+        };
+        
+        // 转为JSON
+        final jsonData = json.encode(configData);
+        log('准备发送配置: ${jsonData.substring(0, min(100, jsonData.length))}...');
+        
+        // 如果JSON数据较大，需要分包发送
+        final jsonBytes = utf8.encode(jsonData);
+        
+        if (jsonBytes.length > 512) {
+          log('配置数据较大(${jsonBytes.length}字节)，将进行分包发送');
+          return await _sendLargeConfigData(jsonBytes);
+        } else {
+          // 直接发送
+          await cc!.write(jsonBytes);
+          log('配置数据发送完成');
+          return true;
+        }
+      } catch (e) {
+        log('发送配置失败: $e');
+        return false;
+      }
+    }
+  }
+  
+  // 发送二进制配置数据包 #发送二进制配置数据
+  Future<bool> sendBinaryConfig(Map<String, dynamic> config) async {
+    if (cc == null) {
+      log('命令特征未找到，无法发送配置');
+      return false;
+    }
+    
+    try {
+      // 二进制协议的命令特征使用的类型值
+      final int COMMAND_CONFIG_TYPE = 0x22;
+      
+      // 将配置数据转换为JSON字符串
+      String jsonStr = json.encode(config);
+      Uint8List jsonData = utf8.encode(jsonStr);
+      
+      // 计算需要的分片数量
+      int dataPerPacket = 500; // 假设每个包可以容纳500字节的数据
+      int totalPackets = (jsonData.length / dataPerPacket).ceil();
+      
+      log('开始发送二进制配置，数据长度=${jsonData.length}字节，共$totalPackets个分片');
+      
+      // 发送每个分片
+      for (int i = 0; i < totalPackets; i++) {
+        int start = i * dataPerPacket;
+        int end = min(start + dataPerPacket, jsonData.length);
+        Uint8List chunkData = Uint8List.fromList(jsonData.sublist(start, end));
+        
+        // 构建包头
+        ByteData header = ByteData(7);
+        header.setUint16(0, 0xA55A, Endian.big); // 魔术头 - 直接使用固定值0xA55A代替BleDataProcessor.HEADER_MAGIC
+        header.setUint8(2, COMMAND_CONFIG_TYPE); // 类型
+        header.setUint8(3, i); // 索引
+        header.setUint8(4, totalPackets); // 总包数
+        header.setUint16(5, chunkData.length, Endian.big); // 数据长度
+        
+        // 组合包头和数据
+        Uint8List packet = Uint8List(header.lengthInBytes + chunkData.length);
+        packet.setRange(0, header.lengthInBytes, Uint8List.view(header.buffer));
+        packet.setRange(header.lengthInBytes, packet.length, chunkData);
+        
+        // 发送数据包
+        await cc!.write(packet, withoutResponse: false);
+        log('发送配置分片 ${i+1}/$totalPackets，大小=${packet.length}字节');
+        
+        // 添加延时以避免数据丢失
+        await Future.delayed(Duration(milliseconds: 100));
+      }
+      
+      log('二进制配置发送完成');
+      return true;
+    } catch (e) {
+      log('发送二进制配置错误: $e');
+      return false;
+    }
+  }
+  
+  // 分包发送大量配置数据
+  Future<bool> _sendLargeConfigData(List<int> data) async {
+    if (cc == null) return false;
+    
+    try {
+      // 每包最大字节数
+      const int MAX_PACKET_SIZE = 400;
+      
+      // 计算需要多少包
+      final int totalPackets = (data.length / MAX_PACKET_SIZE).ceil();
+      final String packetId = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      log('开始分包发送，总长度: ${data.length}字节，共$totalPackets包，包ID: $packetId');
+      
+      // 发送每一包
+      for (int i = 0; i < totalPackets; i++) {
+        // 计算当前包的起始和结束位置
+        final int start = i * MAX_PACKET_SIZE;
+        final int end = min(start + MAX_PACKET_SIZE, data.length);
+        final List<int> chunk = data.sublist(start, end);
+        
+        // 构建包信息
+        final packet = {
+          "type": "config_packet",
+          "packet": {
+            "id": packetId,
+            "index": i,
+            "total": totalPackets,
+            "body": String.fromCharCodes(chunk)
+          }
+        };
+        
+        // 发送包
+        final packetJson = json.encode(packet);
+        final packetBytes = utf8.encode(packetJson);
+        
+        log('发送配置分包: ${i+1}/$totalPackets，大小: ${packetBytes.length}字节');
+        await cc!.write(packetBytes);
+        
+        // 添加延迟以避免数据丢失
+        await Future.delayed(Duration(milliseconds: 100));
+      }
+      
+      log('配置分包发送完成');
+      return true;
+    } catch (e) {
+      log('分包发送配置失败: $e');
+      return false;
+    }
+  }
+
+  // 发送分片数据以避免双层分片
+  Future<bool> sendDirectPacket(Map<String, dynamic> packet) async {
+    if (cc == null) return false;
+    try {
+      var json = jsonEncode(packet);
+      var bytes = utf8.encode(json);
+      
+      // 检查数据包大小是否超过MTU限制
+      int mtu = 512; // 默认MTU值
+      try {
+        // 如果系统配置中有设置MTU值
+        if (_systemConfig.containsKey('mtu')) {
+          int configMtu = int.tryParse('${_systemConfig['mtu']}') ?? 512;
+          if (configMtu > 0) mtu = configMtu;
+        }
+      } catch (e) {
+        log('获取MTU值失败: $e');
+      }
+      
+      // 如果数据包超过MTU限制,需要进行分片处理
+      if (bytes.length > mtu) {
+        log('数据包大小(${bytes.length})超过MTU限制($mtu),使用原始分片发送');
+        return await _sendRawChunks(json);
+      }
+      
+      await cc!.write(bytes, withoutResponse: true);
+      log('发送直接数据包:${json.substring(0, min(50, json.length))}...');
+      return true;
+    } catch (e) {
+      log('发送直接数据包失败: $e');
+      return false;
+    }
+  }
+  
+  // 发送原始分片数据
+  Future<bool> _sendRawChunks(String data) async {
+    try {
+      // 生成一个唯一的消息ID
+      String messageId = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      // 分片大小
+      int chunkSize = 480; // 保守值,考虑到包头开销
+      
+      // 计算总分片数
+      int totalChunks = (data.length / chunkSize).ceil();
+      
+      log('开始发送原始分片数据,消息ID:$messageId,总分片数:$totalChunks');
+      
+      // 发送每个分片
+      for (int i = 0; i < totalChunks; i++) {
+        int start = i * chunkSize;
+        int end = min(start + chunkSize, data.length);
+        String chunk = data.substring(start, end);
+        
+        // 构建分片包
+        Map<String, dynamic> chunkPacket = {
+          'type': TYPE_RAW_CHUNK,
+          'id': messageId,
+          'total': totalChunks,
+          'index': i,
+          'data': chunk
+        };
+        
+        // 发送分片
+        var jsonChunk = jsonEncode(chunkPacket);
+        var bytes = utf8.encode(jsonChunk);
+        await cc!.write(bytes, withoutResponse: true);
+        
+        // 添加一个短暂的延时,避免接收端缓冲区溢出
+        await Future.delayed(Duration(milliseconds: 80));
+        
+        log('发送原始分片[$i/$totalChunks]:${jsonChunk.substring(0, min(50, jsonChunk.length))}...');
+      }
+      
+      log('原始分片数据发送完成');
+      return true;
+    } catch (e) {
+      log('发送原始分片数据失败: $e');
+      return false;
+    }
+  }
+  
+  // 辅助函数:取较小值
+  int min(int a, int b) => a < b ? a : b;
+
+  void dispose() {
+    _rt?.cancel();
+    _t?.cancel();
+    _monitorTimer?.cancel();
+    _serviceCheckTimer?.cancel();
+    _messageFetchTimer?.cancel();
+    _configFetchTimer?.cancel();
+    _healthMergerSubscription?.cancel();
+    
+    // 清理数据特征监听
+    if (_dataCharacteristicSubscription != null) {
+      _dataCharacteristicSubscription!.cancel();
+      _dataCharacteristicSubscription = null;
+    }
+    
+    dis();
+  }
+
+  /// 修复字符串中可能的转义问题 #修复转义问题
+  String _fixEscapeIssues(String data) {
+    // 1. 处理过度转义（将 \\\" 转换为 \"）
+    data = data.replaceAll('\\\\\"', '\\\"');
+    
+    // 2. 修复转义字符后紧跟引号的情况（将 \\\" 转换为 \"）
+    data = data.replaceAll('\\\\\"', '\\\"');
+    
+    // 3. 移除多余的反斜杠
+    data = data.replaceAll('\\\\\\', '\\');
+    
+    // 4. 一个更严格的模式，只寻找需要修复的字符串
+    RegExp pattern = RegExp(r'\"(\w+)\":\"([^\"\\]*)$');
+    var matches = pattern.allMatches(data);
+    for (var match in matches) {
+      if (match.group(0) != null) {
+        String original = match.group(0)!;
+        String fixed = original + '\"';
+        data = data.replaceFirst(original, fixed);
+        log('修复了截断的JSON字符串: $original -> $fixed');
+      }
+    }
+    
+    // 5. 修复意外关闭的JSON对象（比如以"}"结尾但还有数据）
+    int lastBraceIdx = data.lastIndexOf('}');
+    if (lastBraceIdx > 0 && lastBraceIdx < data.length - 1) {
+      String remaining = data.substring(lastBraceIdx + 1);
+      // 如果剩余部分包含JSON数据，可能是被错误拼接的
+      if (remaining.contains('{') || remaining.contains(':')) {
+        log('发现JSON对象后的额外数据，尝试修复');
+        data = data.substring(0, lastBraceIdx + 1);
+      }
+    }
+    
+    return data;
+  }
+
+  // 处理设备分片数据
+  void _processDeviceChunk(Map<String, dynamic> data) {
+    try {
+      // 提取设备组ID和设备ID
+      if (!data.containsKey('data')) {
+        log('设备分片数据缺少data字段');
+        return;
+      }
+      
+      Map<String, dynamic> deviceData = data['data'];
+      String groupId = deviceData['device_group_id'] ?? '';
+      String deviceId = deviceData['device_id'] ?? '';
+      String chunk = deviceData['chunk'] ?? '';
+      
+      if (groupId.isEmpty || deviceId.isEmpty || chunk.isEmpty) {
+        log('设备分片数据缺少必要字段');
+        return;
+      }
+      
+      log('处理设备分片数据: 组ID=$groupId, 设备ID=$deviceId, 分片大小=${chunk.length}');
+      
+      // 将分片数据添加到设备信息缓存中
+      // 这里可以实现设备分片的合并逻辑，类似于健康数据合并器
+      
+      // 临时解决方案：直接构建一个设备信息对象并上传
+      Map<String, dynamic> deviceInfo = {
+        'type': T_DEVICE,
+        'data': {
+          'device_id': deviceId,
+          'device_sn': deviceSn,
+          'timestamp': DateTime.now().toString(),
+          // 尝试解析chunk字段
+          ..._parseDeviceChunk(chunk)
+        }
+      };
+      
+      // 发送到设备流并上传
+      v.add(deviceInfo);
+      ApiService().uploadDeviceInfo(deviceInfo).then((ok) => 
+        log('device信息上传${ok ? "成功" : "失败"}')
+      );
+    } catch (e) {
+      log('处理设备分片数据失败: $e');
+    }
+  }
+  
+  // 解析设备分片数据中的chunk字段
+  Map<String, dynamic> _parseDeviceChunk(String chunk) {
+    Map<String, dynamic> result = {};
+    
+    try {
+      // 提取键值对格式
+      final keyValuePattern = RegExp(r'"([^"]+)"\s*:\s*("([^"]*)"|[0-9]+|true|false|null)');
+      final matches = keyValuePattern.allMatches(chunk);
+      
+      for (var match in matches) {
+        if (match.groupCount >= 2) {
+          String key = match.group(1) ?? '';
+          String valueStr = match.group(2) ?? '';
+          
+          // 尝试解析值
+          dynamic value;
+          if (valueStr == 'true') {
+            value = true;
+          } else if (valueStr == 'false') {
+            value = false;
+          } else if (valueStr == 'null') {
+            value = null;
+          } else if (valueStr.startsWith('"') && valueStr.endsWith('"')) {
+            // 字符串值，去掉引号
+            value = valueStr.substring(1, valueStr.length - 1);
+          } else {
+            // 尝试解析为数字
+            value = int.tryParse(valueStr) ?? valueStr;
+          }
+          
+          result[key] = value;
+        }
+      }
+    } catch (e) {
+      log('解析设备分片chunk失败: $e');
+    }
+    
+    return result;
+  }
+
+  /// 检测设备支持的协议版本 #协议版本检测
+  Future<bool> detectProtocolVersion() async {
+    if (cc == null) {
+      log('命令特征未找到，无法检测协议版本');
+      return false;
+    }
+    
+    try {
+      log('开始检测协议版本...');
+      
+      // 直接使用JSON协议，跳过旧协议检测
+      log('直接尝试JSON协议');
+      _useBinaryProtocol = false; // 标记为不使用二进制协议
+      
+      // 创建增强的协议探测命令
+      Map<String, dynamic> probeCommand = {
+        'type': CMD_PROBE,
+        'protocol_version': '1.0',
+        'client_type': 'mobile',
+        'app_version': '1.0.0',
+        'platform': Platform.isAndroid ? 'android' : 'ios',
+        'timestamp': DateTime.now().millisecondsSinceEpoch
+      };
+      
+      // 使用通用命令类型
+      Uint8List probePacket = BleDataProcessor.i.serializeCommand(CMD_PROBE, probeCommand);
+      
+      // 启动接收超时计时器
+      Timer? probeResponseTimer;
+      probeResponseTimer = Timer(Duration(seconds: 3), () {
+        log('未收到探测响应，将使用默认的JSON协议');
+      });
+      
+      // 发送探测包
+      log('发送JSON协议探测包: ${json.encode(probeCommand).substring(0, min(100, json.encode(probeCommand).length))}...');
+      await cc!.write(probePacket);
+      
+      // 不等待响应，直接假设设备支持JSON协议
+      log('默认使用JSON协议通信');
+      return true;
+    } catch (e) {
+      log('检测协议版本出错: $e');
+      // 即使出错也使用JSON协议
+      _useBinaryProtocol = false;
+      return true;
+    }
+  }
+
+  /// 生成测试健康数据 #测试数据生成
+  Future<bool> generateTestHealthData() async {
+    if (d == null || !_useBinaryProtocol) {
+      log('设备未连接或不支持二进制协议，无法生成测试数据');
+      return false;
+    }
+    
+    log('生成测试健康数据');
+    
+    try {
+      // 确保有设备序列号
+      if (deviceSn.isEmpty) {
+        deviceSn = d!.remoteId.toString();
+        log('使用设备ID作为序列号: $deviceSn');
+      }
+      
+      // 创建基础健康数据包
+      Map<String, dynamic> healthData = {
+        'id': deviceSn,
+        'upload_method': _uploadMethod,
+        'heart_rate': '78',
+        'blood_oxygen': '98',
+        'body_temperature': '36.5',
+        'blood_pressure_systolic': '120',
+        'blood_pressure_diastolic': '80',
+        'step': '5678',
+        'distance': '2345.0',
+        'calorie': '356.0',
+        'latitude': '31.2304',
+        'longitude': '121.4737',
+        'altitude': '10.0',
+        'stress': '35',
+        'sleepData': '{"code":0,"data":[{"endTimeStamp":1747440420000,"startTimeStamp":1747418280000,"type":2}],"name":"sleep","type":"history"}',
+        'exerciseDailyData': '{"code":0,"data":[{"strengthTimes":2,"totalTime":5}],"name":"daily","type":"history"}',
+        'exerciseWeekData': 'null',
+        'scientificSleepData': 'null',
+        'workoutData': '{"code":0,"data":[],"name":"workout","type":"history"}'
+      };
+      
+      // 构建完整数据包
+      Map<String, dynamic> completeData = {
+        'type': 'health',
+        'data': {
+          'data': healthData
+        }
+      };
+      
+      // 进行上传
+      h.add(completeData);
+      bool result = await ApiService().uploadHealthData(completeData);
+      log('测试健康数据上传${result ? "成功" : "失败"}');
+      
+      return result;
+    } catch (e) {
+      log('生成测试健康数据失败: $e');
+      return false;
+    }
+  }
+
+  // 添加健康数据缓存用于去重
+  final _healthDataCache = <String>{};
+  final _maxCacheSize = 50; // 最大缓存数据量
+  
+  // 生成健康数据摘要用于去重
+  String _generateHealthDataDigest(Map<String, dynamic> data) {
+    try {
+      // 提取关键字段用于生成摘要
+      var healthData = data['data']?['data'];
+      if (healthData == null) return DateTime.now().millisecondsSinceEpoch.toString();
+      
+      // 组合关键数据生成摘要
+      List<String> fields = [];
+      fields.add(healthData['id']?.toString() ?? '');
+      fields.add(healthData['heart_rate']?.toString() ?? '');
+      fields.add(healthData['blood_oxygen']?.toString() ?? '');
+      fields.add(healthData['blood_pressure_systolic']?.toString() ?? '');
+      fields.add(healthData['blood_pressure_diastolic']?.toString() ?? '');
+      fields.add(healthData['step']?.toString() ?? '');
+      
+      // 加入时间戳，避免时间相近但不同的数据被视为重复
+      fields.add((DateTime.now().millisecondsSinceEpoch ~/ 1000).toString());
+      
+      return fields.join('|');
+    } catch (e) {
+      log('生成健康数据摘要时出错: $e');
+      return DateTime.now().millisecondsSinceEpoch.toString();
+    }
+  }
+  
+  /// 预处理JSON字符串，修复常见问题 #JSON预处理函数
+  String _preprocessJsonString(String data) {
+    String result = data.trim();
+    
+    // 检查并修复双花括号开始的情况
+    if (result.startsWith("{{")) {
+      result = result.substring(1);
+      log('修复了多余的开始{');
+    }
+    
+    // 检查并修复花括号不匹配的情况
+    int openCount = 0, closeCount = 0;
+    for (int i = 0; i < result.length; i++) {
+      if (result[i] == '{') openCount++;
+      if (result[i] == '}') closeCount++;
+    }
+    
+    if (openCount > closeCount) {
+      log('花括号不匹配，缺少}');
+      result = result + '}' * (openCount - closeCount);
+    } else if (closeCount > openCount) {
+      log('花括号不匹配，缺少{');
+      result = '{' * (closeCount - openCount) + result;
+    }
+    
+    // 修复明显的JSON错误
+    result = _fixJsonErrors(result);
+    
+    return result;
+  }
+  
+  /// 修复常见JSON错误 #修复JSON错误
+  String _fixJsonErrors(String json) {
+    // 替换所有连续的双引号（修复修复过程中可能添加的多余引号）
+    RegExp doubleQuotesPattern = RegExp(r'"{2,}');
+    json = json.replaceAll(doubleQuotesPattern, '"');
+    
+    // 修复键值对中截断的字符串
+    RegExp truncatedStringPattern = RegExp(r'"(\w+)":"([^"\\]*(\\.[^"\\]*)*)(?=[^"\\]*[,}\]])');
+    var matches = truncatedStringPattern.allMatches(json);
+    for (var match in matches) {
+      if (match.group(0) != null && !match.group(0)!.endsWith('"')) {
+        // 只有当字符串不是以引号结尾的情况下才修复
+        String original = match.group(0)!;
+        String fixed = original + '"';
+        json = json.replaceFirst(original, fixed);
+        log('修复了截断的JSON值: $original -> $fixed');
+      }
+    }
+    
+    // 修复转义字符
+    json = _fixEscapeIssues(json);
+    
+    return json;
+  }
+  
+  /// 从分包数据中提取body内容 #提取分包体
+  String? _extractPacketBody(String data) {
+    try {
+      // 尝试直接用正则表达式提取body字段
+      final bodyPattern = RegExp(r'"body"\s*:\s*"([^"]+)"');
+      final match = bodyPattern.firstMatch(data);
+      
+      if (match != null && match.groupCount >= 1) {
+        return match.group(1);
+      }
+      
+      // 如果上面的方法失败，尝试提取整个body字段，包括可能的嵌套JSON
+      final fullBodyPattern = RegExp(r'"body"\s*:(.+?)(?=,"\w+"|})');
+      final fullMatch = fullBodyPattern.firstMatch(data);
+      
+      if (fullMatch != null && fullMatch.groupCount >= 1) {
+        String bodyContent = fullMatch.group(1) ?? '';
+        
+        // 如果是字符串(以引号开始和结束)
+        if (bodyContent.trim().startsWith('"') && bodyContent.trim().endsWith('"')) {
+          // 去掉引号
+          return bodyContent.trim().substring(1, bodyContent.trim().length - 1);
+        }
+        // 如果是嵌套的JSON对象
+        else {
+          return bodyContent.trim();
+        }
+      }
+    } catch (e) {
+      debugPrint('提取packet body失败: $e');
+    }
+    
+    return null;
+  }
+  
+  /// 预处理健康数据分包 #处理健康数据分包
+  void _preProcessHealthDataChunks(String id, int total) {
+    try {
+      // 跳过空分包
+      if (_b[id] == null || _b[id]!.isEmpty) return;
+      
+      // 对每个分包进行预处理
+      for (int i = 0; i < total; i++) {
+        if (_b[id]![i] != null) {
+          String chunk = _b[id]![i]!;
+          
+          // 记录原始分包大小
+          int origLength = chunk.length;
+          
+          // 修复JSON格式问题
+          if (chunk.contains("\\\"")) {
+            // 移除过度转义
+            chunk = chunk.replaceAll("\\\"", "\"");
+            _b[id]![i] = chunk;
+            log('修复了分包 $id[$i] 中的过度转义');
+          }
+          
+          // 修复截断的JSON字符串
+          if (chunk.contains("\":\"") && !chunk.endsWith("\"")) {
+            chunk = chunk + "\"";
+            _b[id]![i] = chunk;
+            log('修复了分包 $id[$i] 中的截断JSON字符串');
+          }
+          
+          // 检查特殊情况：如果是第一个分包且不是以{开头
+          if (i == 0 && !chunk.trim().startsWith("{")) {
+            chunk = "{" + chunk;
+            _b[id]![i] = chunk;
+            log('修复了第一个分包 $id[0] 缺少{');
+          }
+          
+          // 检查特殊情况：如果是最后一个分包且不是以}结尾
+          if (i == total - 1 && !chunk.trim().endsWith("}")) {
+            chunk = chunk + "}";
+            _b[id]![i] = chunk;
+            log('修复了最后一个分包 $id[$i] 缺少}');
+          }
+          
+          // 检查分包边界问题
+          if (i < total - 1) { // 不是最后一个分包
+            // 检查是否在字符串中被截断
+            if (_endsWithIncompleteStringLiteral(chunk)) {
+              log('分包 $id[$i] 在字符串中被截断，尝试修复');
+              
+              // 修复截断的字符串，确保不在转义字符中间截断
+              if (chunk.endsWith("\\")) {
+                chunk = chunk.substring(0, chunk.length - 1);
+                _b[id]![i] = chunk;
+                log('移除分包 $id[$i] 末尾的转义字符');
+              }
+              
+              // 确保分包以完整的引号结束
+              if (!_isEvenQuotes(chunk)) {
+                chunk = chunk + "\"";
+                _b[id]![i] = chunk;
+                log('为分包 $id[$i] 添加缺失的引号');
+              }
+            }
+          }
+          
+          // 打印处理结果
+          if (chunk.length != origLength) {
+            log('分包 $id[$i] 预处理: 原始长度=$origLength, 修复后长度=${chunk.length}');
+            log('分包内容前缀: ${chunk.substring(0, min(20, chunk.length))}...');
+          }
+        }
+      }
+    } catch (e) {
+      log('预处理健康数据分包失败: $e');
+    }
+  }
+  
+  /// 检查字符串是否以不完整的字符串字面量结束 #检查不完整字符串
+  bool _endsWithIncompleteStringLiteral(String text) {
+    // 检查是否以奇数个引号结束
+    if (!_isEvenQuotes(text)) return true;
+    
+    // 检查是否在转义序列中间截断
+    int backslashCount = 0;
+    for (int i = text.length - 1; i >= 0; i--) {
+      if (text[i] != '\\') break;
+      backslashCount++;
+    }
+    
+    // 奇数个反斜杠表示转义未完成
+    return backslashCount % 2 == 1;
+  }
+  
+  /// 分析分包边界并尝试重建完整JSON对象 #分析分包边界
+  void _analyzeBoundaries(String id, int total) {
+    try {
+      if (_b[id] == null || _b[id]!.isEmpty) return;
+      
+      // 第一阶段：分析每个分包，寻找JSON对象的起始和结束部分
+      bool startsWithOpenBrace = false;
+      bool endsWithCloseBrace = false;
+      
+      // 检查第一个分包是否以{开头
+      if (_b[id]![0] != null) {
+        String firstChunk = _b[id]![0]!.trim();
+        startsWithOpenBrace = firstChunk.startsWith("{");
+        if (!startsWithOpenBrace) {
+          log('警告：第一个分包不是以{开头，JSON可能不完整');
+          // 尝试在内容中查找{
+          int openBraceIndex = firstChunk.indexOf("{");
+          if (openBraceIndex >= 0) {
+            _b[id]![0] = firstChunk.substring(openBraceIndex);
+            log('已修复第一个分包，移除{之前的内容');
+            startsWithOpenBrace = true;
+          } else {
+            // 如果找不到{，添加一个
+            _b[id]![0] = "{" + firstChunk;
+            log('已修复第一个分包，添加缺失的{');
+            startsWithOpenBrace = true;
+          }
+        }
+      }
+      
+      // 检查最后一个分包是否以}结尾
+      if (_b[id]![total - 1] != null) {
+        String lastChunk = _b[id]![total - 1]!.trim();
+        endsWithCloseBrace = lastChunk.endsWith("}");
+        if (!endsWithCloseBrace) {
+          log('警告：最后一个分包不是以}结尾，JSON可能不完整');
+          // 尝试找到最后一个}
+          int closeBraceIndex = lastChunk.lastIndexOf("}");
+          if (closeBraceIndex >= 0 && closeBraceIndex < lastChunk.length - 1) {
+            _b[id]![total - 1] = lastChunk.substring(0, closeBraceIndex + 1);
+            log('已修复最后一个分包，移除}之后的内容');
+            endsWithCloseBrace = true;
+          } else {
+            // 如果找不到}或已在末尾，添加一个
+            _b[id]![total - 1] = lastChunk + "}";
+            log('已修复最后一个分包，添加缺失的}');
+            endsWithCloseBrace = true;
+          }
+        }
+      }
+      
+      // 第二阶段：分析和修复JSON内部的语法问题
+      for (int i = 0; i < total; i++) {
+        if (_b[id]![i] != null) {
+          String chunk = _b[id]![i]!;
+          
+          // 检测并修复连续引号
+          if (chunk.contains("\"\"")) {
+            chunk = chunk.replaceAll("\"\"", "\"");
+            _b[id]![i] = chunk;
+            log('修复了分包 $id[$i] 中的连续引号');
+          }
+          
+          // 检测并修复无效转义序列
+          if (chunk.contains("\\\\\"")) {
+            chunk = chunk.replaceAll("\\\\\"", "\\\"");
+            _b[id]![i] = chunk;
+            log('修复了分包 $id[$i] 中的过度转义');
+          }
+          
+          // 修复最后一个分片转义不完整的问题
+          if (i < total - 1 && chunk.endsWith("\\")) {
+            chunk = chunk.substring(0, chunk.length - 1);
+            _b[id]![i] = chunk;
+            log('修复了分包 $id[$i] 末尾的不完整转义字符');
+          }
+          
+          // 检查是否有未闭合的对象
+          int openCount = 0, closeCount = 0;
+          for (int j = 0; j < chunk.length; j++) {
+            if (chunk[j] == '{') openCount++;
+            if (chunk[j] == '}') closeCount++;
+          }
+          
+          // 如果未闭合的对象数量过多(通常不应发生)，可能是错误的格式化
+          if (openCount - closeCount > 3 || closeCount - openCount > 3) {
+            log('分包 $id[$i] 中发现严重不匹配的对象括号，尝试修正');
+            chunk = _fixBraceImbalance(chunk);
+            _b[id]![i] = chunk;
+          }
+        }
+      }
+      
+      // 第三阶段：分析和修复分包连接处的问题
+      for (int i = 0; i < total - 1; i++) {
+        if (_b[id]![i] != null && _b[id]![i+1] != null) {
+          String currentChunk = _b[id]![i]!;
+          String nextChunk = _b[id]![i+1]!;
+          
+          // 检查是否在字符串中间截断（末尾无引号、下一包开头有引号）
+          if (currentChunk.contains("\":\"") && !currentChunk.endsWith("\"") &&
+              !currentChunk.endsWith("\\\"")){
+            log('分包 $id[$i] 可能在字符串中间截断');
+            
+            // 查找最后一个键值对开始位置
+            int lastKeyValStart = currentChunk.lastIndexOf("\":\"");
+            if (lastKeyValStart >= 0) {
+              // 计算剩余部分
+              String remaining = currentChunk.substring(lastKeyValStart);
+              
+              // 分析当前分包的引号数量
+              int quoteCount = 0;
+              bool escaped = false;
+              
+              for (int j = 0; j < remaining.length; j++) {
+                if (remaining[j] == '\\') {
+                  escaped = !escaped;
+                } else if (remaining[j] == '"' && !escaped) {
+                  quoteCount++;
+                } else {
+                  escaped = false;
+                }
+              }
+              
+              // 如果引号数量为奇数，说明字符串被截断
+              if (quoteCount % 2 == 1) {
+                log('在分包边界发现被截断的JSON字符串');
+                
+                // 寻找下一个分包中的第一个非转义引号
+                int nextQuotePos = -1;
+                escaped = false;
+                
+                for (int j = 0; j < nextChunk.length; j++) {
+                  if (nextChunk[j] == '\\') {
+                    escaped = !escaped;
+                  } else if (nextChunk[j] == '"' && !escaped) {
+                    nextQuotePos = j;
+                    break;
+                  } else {
+                    escaped = false;
+                  }
+                }
+                
+                if (nextQuotePos >= 0) {
+                  log('找到下一个分包中的引号位置: $nextQuotePos');
+                  
+                  // 获取需要合并的部分
+                  String valueEnd = nextChunk.substring(0, nextQuotePos + 1);
+                  
+                  // 修复当前分包
+                  _b[id]![i] = currentChunk + valueEnd;
+                  log('修复了跨分包的字符串，合并后长度: ${_b[id]![i]!.length}');
+                  
+                  // 更新下一个分包
+                  if (nextQuotePos + 1 < nextChunk.length) {
+                    _b[id]![i+1] = nextChunk.substring(nextQuotePos + 1);
+                  } else {
+                    _b[id]![i+1] = "";
+                  }
+                } else {
+                  // 如果找不到下一个引号，尝试简单修复
+                  _b[id]![i] = currentChunk + "\"";
+                  log('未找到下一个分包中的引号，添加闭合引号');
+                }
+              }
+            }
+          }
+          
+          // 检查JSON值中可能包含的特殊字符
+          _fixCrossPacketJsonValues(id, i, total);
+        }
+      }
+      
+      // 第四阶段：最终检查所有修复后的分包
+      bool needsFinalFix = false;
+      for (int i = 0; i < total; i++) {
+        if (_b[id]![i] != null) {
+          String chunk = _b[id]![i]!;
+          
+          // 检查是否有未闭合的引号（奇数个引号）
+          if (!_isEvenQuotes(chunk)) {
+            log('修复后分包 $id[$i] 仍有未闭合的引号');
+            needsFinalFix = true;
+          }
+          
+          // 检查分包是否为空（可能在修复过程中被清空）
+          if (chunk.trim().isEmpty) {
+            log('修复后分包 $id[$i] 为空，将被忽略');
+            _b[id]![i] = "{}";
+          }
+        }
+      }
+      
+      if (needsFinalFix) {
+        log('分包需要最终修复，尝试统一修复');
+        _finalFixPackets(id, total);
+      }
+      
+      log('分包边界分析完成');
+    } catch (e) {
+      log('分析分包边界时出错: $e');
+    }
+  }
+  
+  /// 修复花括号不匹配的问题 #修复花括号不匹配
+  String _fixBraceImbalance(String data) {
+    int openCount = 0, closeCount = 0;
+    for (int i = 0; i < data.length; i++) {
+      if (data[i] == '{') openCount++;
+      if (data[i] == '}') closeCount++;
+    }
+    
+    if (openCount > closeCount) {
+      return data + '}' * (openCount - closeCount);
+    } else if (closeCount > openCount) {
+      return '{' * (closeCount - openCount) + data;
+    }
+    return data;
+  }
+  
+  /// 修复跨包JSON值 #修复跨包JSON值
+  void _fixCrossPacketJsonValues(String id, int index, int total) {
+    if (index >= total - 1 || _b[id]![index] == null || _b[id]![index+1] == null) return;
+    
+    String curr = _b[id]![index]!;
+    String next = _b[id]![index+1]!;
+    
+    // 检查JSON对象未闭合情况
+    if (curr.contains("{") && !curr.contains("}") && next.contains("}")) {
+      log('发现跨分包的JSON对象');
+      
+      // 查找JSON对象结束位置
+      int endPos = next.indexOf("}");
+      if (endPos >= 0) {
+        _b[id]![index] = curr + next.substring(0, endPos + 1);
+        log('修复了跨分包的JSON对象');
+        
+        // 更新下一个分包
+        if (endPos + 1 < next.length) {
+          _b[id]![index+1] = next.substring(endPos + 1);
+        } else {
+          _b[id]![index+1] = "";
+        }
+      }
+    }
+    
+    // 检查数组未闭合情况
+    if (curr.contains("[") && !curr.contains("]") && next.contains("]")) {
+      log('发现跨分包的JSON数组');
+      
+      // 查找数组结束位置
+      int endPos = next.indexOf("]");
+      if (endPos >= 0) {
+        _b[id]![index] = curr + next.substring(0, endPos + 1);
+        log('修复了跨分包的JSON数组');
+        
+        // 更新下一个分包
+        if (endPos + 1 < next.length) {
+          _b[id]![index+1] = next.substring(endPos + 1);
+        } else {
+          _b[id]![index+1] = "";
+        }
+      }
+    }
+  }
+  
+  /// 对所有分包进行最终修复 #分包最终修复
+  void _finalFixPackets(String id, int total) {
+    // 合并所有分包进行整体修复
+    StringBuffer merged = StringBuffer();
+    for (int i = 0; i < total; i++) {
+      if (_b[id]![i] != null && _b[id]![i]!.trim().isNotEmpty) {
+        merged.write(_b[id]![i]);
+      }
+    }
+    
+    String mergedStr = merged.toString();
+    log('合并所有分包进行整体修复，合并长度: ${mergedStr.length}');
+    
+    // 执行全面JSON检查和修复
+    String fixed = _fixJsonString(mergedStr);
+    if (fixed != mergedStr) {
+      log('成功修复合并后的JSON字符串');
+      
+      // 将修复后的字符串作为单个分包
+      _b[id]![0] = fixed;
+      for (int i = 1; i < total; i++) {
+        _b[id]![i] = "";
+      }
+    }
+  }
+  
+  /// 全面的JSON字符串修复 #全面JSON修复
+  String _fixJsonString(String json) {
+    try {
+      // 1. 确保JSON以{开头、}结尾
+      if (!json.trim().startsWith("{")) json = "{" + json.trim();
+      if (!json.trim().endsWith("}")) json = json.trim() + "}";
+      
+      // 2. 修复引号平衡
+      json = _balanceQuotes(json);
+      
+      // 3. 修复花括号平衡
+      json = _fixBraceImbalance(json);
+      
+      // 4. 修复转义字符
+      if (json.contains("\\\\\"")) json = json.replaceAll("\\\\\"", "\\\"");
+      if (json.contains("\\\\\\")) json = json.replaceAll("\\\\\\", "\\");
+      
+      // 5. 修复多余的逗号
+      json = json.replaceAll(",}", "}").replaceAll(",]", "]");
+      
+      // 6. 尝试解析，如果成功则返回
+      try {
+        jsonDecode(json);
+        return json;
+      } catch (e) {
+        log('修复后仍有JSON解析错误: $e');
+      }
+      
+      return json;
+    } catch (e) {
+      log('全面修复JSON失败: $e');
+      return json;
+    }
+  }
+  
+  /// 平衡JSON字符串中的引号 #平衡引号
+  String _balanceQuotes(String json) {
+    int count = 0;
+    bool escaped = false;
+    
+    for (int i = 0; i < json.length; i++) {
+      if (json[i] == '\\') {
+        escaped = !escaped;
+      } else if (json[i] == '"' && !escaped) {
+        count++;
+      } else {
+        escaped = false;
+      }
+    }
+    
+    // 如果引号数量为奇数，添加一个引号在末尾
+    if (count % 2 == 1) {
+      // 寻找最后一个可能未闭合的字符串
+      RegExp pattern = RegExp(r'"(\w+)":"([^"\\]*(\\.[^"\\]*)*)(}|,|$)');
+      var matches = pattern.allMatches(json);
+      if (matches.isNotEmpty) {
+        var lastMatch = matches.last;
+        String original = lastMatch.group(0) ?? "";
+        if (!original.contains('"}') && !original.contains('",')) {
+          // 使用三个反斜杠来确保转义成功
+          String fixed = original + "\"";
+          json = json.replaceFirst(original, fixed);
+        }
+      } else {
+        // 如果无法找到精确位置，在最后一个}前添加引号
+        int lastBraceIndex = json.lastIndexOf('}');
+        if (lastBraceIndex > 0) {
+          json = json.substring(0, lastBraceIndex) + '"' + json.substring(lastBraceIndex);
+        } else {
+          json = json + '"';
+        }
+      }
+    }
+    
+    return json;
+  }
+  
+  /// 处理JSON字符串字段 #处理JSON字符串字段
+  void _processJsonStringFields(Map<String, dynamic> data) {
+    if (data == null) return;
+    
+    // 特殊处理的字段列表
+    final jsonFields = [
+      'sleepData', 'exerciseDailyData', 'exerciseWeekData', 
+      'scientificSleepData', 'workoutData'
+    ];
+    
+    for (var field in jsonFields) {
+      if (data.containsKey(field) && data[field] is String) {
+        String strValue = data[field];
+        if (strValue != 'null' && strValue.isNotEmpty) {
+          try {
+            // 尝试解析字符串为JSON对象
+            var jsonObj = json.decode(strValue);
+            // 再转回字符串，但是格式化更好
+            data[field] = json.encode(jsonObj);
+          } catch (e) {
+            debugPrint('处理字段 $field 失败: $e');
+          }
+        }
+      }
+    }
+  }
+  
+  /// 处理健康数据 #处理健康数据
+  void _processHealthData(Map<String, dynamic> data) {
+    try {
+      if (data['data'] == null) return;
+      
+      // 处理两种可能的数据结构
+      var healthData = data['data']['data'] ?? data['data'];
+      
+      if (healthData != null && healthData is Map) {
+        // 记录处理前的关键健康数据值
+        var preHeartRate = healthData['heart_rate'];
+        var preBloodOxygen = healthData['blood_oxygen'];
+        var preSystolic = healthData['blood_pressure_systolic'];
+        var preDiastolic = healthData['blood_pressure_diastolic'];
+        var preCjsj = healthData['cjsj'];
+        
+        // 打印原始值用于调试
+        log('健康数据处理前: 心率=${preHeartRate}, 血氧=${preBloodOxygen}, 高压=${preSystolic}, 低压=${preDiastolic}, cjsj=${preCjsj}');
+        
+        // 处理JSON字符串字段，但不改变其他数值字段
+        _processJsonStringFields(healthData as Map<String, dynamic>);
+        
+        // 特别处理睡眠数据字段
+        if (healthData.containsKey('sleepData')) {
+          String sleepDataStr = healthData['sleepData']?.toString() ?? '';
+          
+          // 跳过null值或空字符串
+          if (sleepDataStr != 'null' && sleepDataStr.isNotEmpty) {
+            try {
+              // 尝试解析字符串为JSON对象
+              var sleepJson = json.decode(sleepDataStr);
+              
+              // 处理为空的情况，确保数据结构完整
+              if (sleepJson == null || (sleepJson is Map && !sleepJson.containsKey('data'))) {
+                healthData['sleepData'] = '{"code":0,"data":[],"name":"sleep","type":"history"}';
+              }
+            } catch (e) {
+              log('处理sleepData失败: $e');
+              // 提供默认的睡眠数据格式
+              healthData['sleepData'] = '{"code":0,"data":[],"name":"sleep","type":"history"}';
+            }
+          } else if (sleepDataStr == 'null' || sleepDataStr.isEmpty) {
+            // 如果为null或空，设置默认值
+            healthData['sleepData'] = '{"code":0,"data":[],"name":"sleep","type":"history"}';
+          }
+        } else {
+          // 如果不存在sleepData，添加默认值
+          healthData['sleepData'] = '{"code":0,"data":[],"name":"sleep","type":"history"}';
+          log('添加默认sleepData');
+        }
+        
+        // 添加缺失的字段
+        if (!healthData.containsKey('exerciseDailyData') || healthData['exerciseDailyData'] == null) {
+          healthData['exerciseDailyData'] = '{"code":0,"data":[{"strengthTimes":0,"totalTime":0}],"name":"daily","type":"history"}';
+          log('添加默认exerciseDailyData');
+        }
+        
+        if (!healthData.containsKey('exerciseWeekData') || healthData['exerciseWeekData'] == null) {
+          healthData['exerciseWeekData'] = 'null';
+          log('添加默认exerciseWeekData');
+        }
+        
+        if (!healthData.containsKey('workoutData') || healthData['workoutData'] == null) {
+          healthData['workoutData'] = '{"code":0,"data":[],"name":"workout","type":"history"}';
+          log('添加默认workoutData');
+        }
+        
+        // 添加或更新上传方式
+        healthData['upload_method'] = 'bluetooth';
+        log('设置upload_method=bluetooth');
+        
+        // 根据心率计算血压（如果没有血压值）
+        if (preHeartRate != null && (preSystolic == null || preDiastolic == null)) {
+          int heartRate = 0;
+          if (preHeartRate is String) {
+            heartRate = int.tryParse(preHeartRate) ?? 0;
+          } else if (preHeartRate is int) {
+            heartRate = preHeartRate;
+          }
+          
+          if (heartRate > 0) {
+            var bp = calculateBloodPressure(heartRate);
+            healthData['blood_pressure_systolic'] = bp['systolic'];
+            healthData['blood_pressure_diastolic'] = bp['diastolic'];
+            log('使用心率 $heartRate 计算血压: 高压=${bp['systolic']}, 低压=${bp['diastolic']}');
+          }
+        }
+        
+        // 确保关键健康数据值不会被修改
+        if (preHeartRate != null) healthData['heart_rate'] = preHeartRate;
+        if (preBloodOxygen != null) healthData['blood_oxygen'] = preBloodOxygen;
+        if (preCjsj != null) healthData['cjsj'] = preCjsj;
+        
+        // 如果没有cjsj字段，添加当前时间
+        if (!healthData.containsKey('cjsj') || healthData['cjsj'] == null) {
+          final now = DateTime.now();
+          final formatter = DateFormat('yyyy-MM-dd HH:mm:ss');
+          healthData['cjsj'] = formatter.format(now);
+          log('添加默认创建时间: ${healthData['cjsj']}');
+        }
+        
+        // 打印处理后的值用于确认
+        log('健康数据处理后: 心率=${healthData['heart_rate']}, 血氧=${healthData['blood_oxygen']}, 高压=${healthData['blood_pressure_systolic']}, 低压=${healthData['blood_pressure_diastolic']}, cjsj=${healthData['cjsj']}');
+      }
+    } catch (e) {
+      log('处理健康数据结构失败: $e');
+    }
+  }
+  
+  /// 发送消息 #发送消息
+  Future<bool> sendMsg(Map<String, dynamic> msg) async {
+    try {
+      if (cc == null) {
+        debugPrint('命令特征未找到，无法发送消息');
+        return false;
+      }
+      
+      debugPrint('准备发送消息 ID: ${msg['id']}');
+      
+      // 构建消息数据
+      var data = {
+        "type": CMD_MSG,
+        "content": msg,
+        "ts": DateTime.now().millisecondsSinceEpoch
+      };
+      
+      // 检查是否使用二进制协议
+      if (_useBinaryProtocol) {
+        debugPrint('使用二进制协议发送消息');
+        return await _sendBinaryCommand(data);
+      }
+      
+      // 使用JSON协议发送
+      var jsonStr = json.encode(data);
+      var bytes = utf8.encode(jsonStr);
+      
+      // 检查是否需要分包发送
+      if (bytes.length > 512) {
+        debugPrint('消息数据较大(${bytes.length}字节)，进行分包发送');
+        return await _sendRawChunks(jsonStr);
+      }
+      
+      await cc!.write(bytes);
+      debugPrint('消息发送完成');
+      return true;
+    } catch (e) {
+      debugPrint('发送消息失败: $e');
+      return false;
+    }
+  }
+  
+  /// 发送配置 #发送配置
+  Future<bool> sendCfg(Map<String, dynamic> cfg) async {
+    try {
+      if (cc == null) {
+        debugPrint('命令特征未找到，无法发送配置');
+        return false;
+      }
+      
+      debugPrint('准备发送配置');
+      
+      // 构建配置数据
+      var data = {
+        "type": CMD_CFG,
+        "content": cfg,
+        "ts": DateTime.now().millisecondsSinceEpoch
+      };
+      
+      // 检查是否使用二进制协议
+      if (_useBinaryProtocol) {
+        debugPrint('使用二进制协议发送配置');
+        return await _sendBinaryConfig(cfg);
+      }
+      
+      // 使用JSON协议发送
+      var jsonStr = json.encode(data);
+      var bytes = utf8.encode(jsonStr);
+      
+      // 检查是否需要分包发送
+      if (bytes.length > 512) {
+        debugPrint('配置数据较大(${bytes.length}字节)，进行分包发送');
+        return await _sendRawChunks(jsonStr);
+      }
+      
+      await cc!.write(bytes);
+      debugPrint('配置发送完成');
+      return true;
+    } catch (e) {
+      debugPrint('发送配置失败: $e');
+      return false;
+    }
+  }
+  
+  /// 发送通用数据 #发送数据
+  Future<bool> send(Map<String, dynamic> data) async {
+    try {
+      if (cc == null) {
+        debugPrint('命令特征未找到，无法发送数据');
+        return false;
+      }
+      
+      debugPrint('准备发送数据: ${data['type']}');
+      
+      // 检查是否使用二进制协议
+      if (_useBinaryProtocol) {
+        debugPrint('使用二进制协议发送数据');
+        return await _sendBinaryCommand(data);
+      }
+      
+      // 使用JSON协议发送
+      var jsonStr = json.encode(data);
+      var bytes = utf8.encode(jsonStr);
+      
+      // 检查是否需要分包发送
+      if (bytes.length > 512) {
+        debugPrint('数据较大(${bytes.length}字节)，进行分包发送');
+        return await _sendRawChunks(jsonStr);
+      }
+      
+      await cc!.write(bytes);
+      debugPrint('数据发送完成');
+      return true;
+    } catch (e) {
+      debugPrint('发送数据失败: $e');
+      return false;
+    }
+  }
+
+  /// 获取蓝牙图标颜色 #获取蓝牙图标颜色
+  Color getBluetoothIconColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    switch (_currentBluetoothState) {
+      case "disconnected":
+        return isDark ? Colors.grey[400]! : Colors.grey;
+      case "inactive":
+        return isDark ? Colors.grey[400]! : Colors.grey[600]!;
+      case "connected":
+        return Colors.red;
+      case "transmitting":
+        return Colors.green;
+      default:
+        return Colors.amber;
+    }
+  }
+
+  // 从设备信息中获取序列号
+  String _getSerialNumberFromDeviceInfo() {
+    try {
+      // 尝试从设备信息流中获取到的最新数据中提取序列号
+      String serialNumber = '';
+      
+      // 检查设备信息流中已接收的数据
+      bool foundSerialNumber = false;
+      final savedEvents = [];
+      
+      // 临时订阅设备信息流来查找序列号
+      StreamSubscription? subscription = v.stream.listen((deviceInfo) {
+        savedEvents.add(deviceInfo);
+        if (!foundSerialNumber && 
+            deviceInfo.containsKey('data') && 
+            deviceInfo['data'] is Map && 
+            deviceInfo['data'].containsKey('SerialNumber')) {
+          serialNumber = deviceInfo['data']['SerialNumber'].toString();
+          foundSerialNumber = true;
+          log('从设备数据中找到序列号: $serialNumber');
+        }
+      });
+      
+      // 给一点时间来检查历史数据
+      Future.delayed(Duration(milliseconds: 10), () {
+        subscription?.cancel();
+      });
+      
+      // 如果设备信息流中没有序列号，查看历史存储的设备事件
+      if (!foundSerialNumber && savedEvents.isNotEmpty) {
+        for (var event in savedEvents) {
+          if (event.containsKey('data') && 
+              event['data'] is Map && 
+              event['data'].containsKey('SerialNumber')) {
+            serialNumber = event['data']['SerialNumber'].toString();
+            foundSerialNumber = true;
+            log('从历史设备事件中找到序列号: $serialNumber');
+            break;
+          }
+        }
+      }
+      
+      return serialNumber;
+    } catch (e) {
+      log('获取设备序列号出错: $e');
+      return '';
+    }
+  }
+
+  // 检查字符串是否是MAC地址格式 #MAC地址检查
+  bool _isMacAddress(String str) {
+    // MAC地址通常格式为 XX:XX:XX:XX:XX:XX 或 XX-XX-XX-XX-XX-XX
+    RegExp macPattern = RegExp(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$');
+    return macPattern.hasMatch(str);
+  }
+  
+  // 检查字符串是否是有效的设备序列号 #设备序列号检查
+  bool _isValidSerialNumber(String str) {
+    // 排除明显的MAC地址格式
+    if (_isMacAddress(str)) return false;
+    
+    // 排除空字符串或过短的字符串
+    if (str.isEmpty || str.length < 5) return false;
+    
+    // 设备序列号通常是字母数字组合，不含特殊符号(除了连字符)
+    RegExp validPattern = RegExp(r'^[A-Za-z0-9\-_]+$');
+    return validPattern.hasMatch(str);
+  }
+  
+  /// 处理探测响应消息 #处理探测响应
+  void _handleProbeResponse(Map<String, dynamic> probeData) {
+    try {
+      // 提取探测响应的关键字段
+      Map<String, dynamic> data = probeData.containsKey('data') && probeData['data'] is Map
+          ? Map<String, dynamic>.from(probeData['data'])
+          : probeData;
+      
+      String probeType = (data['probe_type']?.toString() ?? 'unknown');
+      String status = (data['status']?.toString() ?? 'unknown');
+      bool serviceRunning = data['service_running'] == true;
+      bool healthReady = data['health_ready'] == true;
+      String timestamp = (data['timestamp']?.toString() ?? DateTime.now().toString());
+      
+      log('处理探测响应: 类型=$probeType, 状态=$status, 服务运行=$serviceRunning, 健康服务就绪=$healthReady, 时间=$timestamp');
+      
+      // 根据探测响应更新应用状态
+      if (serviceRunning) {
+        // 手表端服务正在运行
+        _healthServiceAvailable = healthReady;
+        _wasHealthServiceAvailable = healthReady;
+        
+        if (healthReady) {
+          log('手表端健康服务就绪，更新本地状态');
+          events.GlobalEvents.i.showSuccess('手表健康服务已就绪');
+          
+          // 如果有待发送的配置，发送配置
+          fetchAndSendCfg();
+        } else {
+          log('手表端健康服务未就绪，可能需要在手表上打开健康应用');
+          events.GlobalEvents.i.showInfo('请确保手表端健康应用已打开');
+        }
+      } else {
+        // 手表端服务未运行
+        _healthServiceAvailable = false;
+        _wasHealthServiceAvailable = false;
+        log('手表端服务未运行，请检查手表状态');
+        events.GlobalEvents.i.showWarning('手表健康服务未运行，请检查手表状态');
+      }
+      
+      // 更新最后数据时间 - 探测响应也算有效通信
+      _lastDataTime = DateTime.now();
+      _updateBluetoothIconState();
+    } catch (e) {
+      log('处理探测响应消息出错: $e');
+    }
+  }
+  
+  /// 发送健康数据确认 #健康数据确认
+  Future<bool> sendHealthDataAck(String transferId, bool success, {String? error}) async {
+    if (cc == null) {
+      log('命令特征未找到，无法发送健康数据确认');
+      return false;
+    }
+    
+    try {
+      // 创建确认命令
+      Map<String, dynamic> ackCommand = {
+        'type': CMD_HEALTH_ACK,
+        'transfer_id': transferId,
+        'success': success,
+        'timestamp': DateTime.now().millisecondsSinceEpoch
+      };
+      
+      // 添加错误信息
+      if (!success && error != null) {
+        ackCommand['error'] = error;
+      }
+      
+      // 序列化命令
+      Uint8List ackPacket = BleDataProcessor.i.serializeCommand(CMD_HEALTH_ACK, ackCommand);
+      
+      // 发送确认
+      log('发送健康数据确认: ${success ? "成功" : "失败"}, 传输ID: $transferId');
+      await cc!.write(ackPacket);
+      return true;
+    } catch (e) {
+      log('发送健康数据确认出错: $e');
+      return false;
+    }
+  }
+
+  /// 合并数据包 #合并数据包
+  String _mergePackets(String id, int total) {
+    try {
+      // 先检查所有分包是否完整
+      for (int i = 0; i < total; i++) {
+        if (_b[id]![i] == null) {
+          log('警告: 分包 $id[$i] 为空，中止合并');
+          return ''; // 返回空字符串表示合并失败
+        }
+      }
+      
+      // 检查是否是设备信息数据，设备信息需要特殊处理
+      bool isDeviceInfo = false;
+      if (_b[id]![0] != null && _b[id]![0]!.contains("\"type\":\"device\"")) {
+        isDeviceInfo = true;
+        log('检测到设备信息数据，使用特殊处理逻辑');
+      }
+      
+      // 进行分包合并前的预处理
+      for (int i = 0; i < total; i++) {
+        if (_b[id]![i] == null) continue;
+        
+        // 移除可能的无效前缀（例如额外的大括号）
+        if (i > 0 && _b[id]![i]!.startsWith("{") && !_b[id]![i-1]!.endsWith("{")) {
+          _b[id]![i] = _b[id]![i]!.substring(1);
+          log('移除分包$i的无效前缀{');
+        }
+        
+        // 移除可能的多余后缀
+        if (i < total - 1 && _b[id]![i]!.endsWith("}") && !_b[id]![i+1]!.startsWith("}")) {
+          _b[id]![i] = _b[id]![i]!.substring(0, _b[id]![i]!.length - 1);
+          log('移除分包$i的无效后缀}');
+        }
+        
+        // 处理设备信息特殊情况：SerialNumber被截断
+        if (isDeviceInfo && i < total - 1) {
+          if (_b[id]![i]!.contains("\"SerialNumber\":\"") && !_b[id]![i]!.contains("\",")) {
+            // 找到SerialNumber的剩余部分
+            RegExp snRegex = RegExp(r'"SerialNumber":"([^"]*?)$');
+            Match? match = snRegex.firstMatch(_b[id]![i]!);
+            if (match != null) {
+              String startPart = match.group(1) ?? "";
+              
+              // 在下一个分包中寻找序列号的结束部分
+              RegExp endRegex = RegExp(r'^([^"]*)"');
+              Match? endMatch = endRegex.firstMatch(_b[id]![i+1]!);
+              if (endMatch != null) {
+                String endPart = endMatch.group(1) ?? "";
+                
+                // 完整的序列号
+                String fullSN = startPart + endPart;
+                log('修复跨分包的序列号: $fullSN');
+                
+                // 替换当前分包中的开始部分
+                _b[id]![i] = _b[id]![i]!.replaceFirst(snRegex, "\"SerialNumber\":\"$fullSN\",");
+                
+                // 更新下一个分包的内容，移除已处理的部分
+                _b[id]![i+1] = _b[id]![i+1]!.replaceFirst(endRegex, "");
+                
+                // 如果下一个分包首字符是逗号，保留它
+                if (!_b[id]![i+1]!.startsWith(",") && _b[id]![i+1]!.length > 0) {
+                  _b[id]![i+1] = "," + _b[id]![i+1]!;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // 正式组装完整数据
+      StringBuilder result = StringBuilder();
+      
+      // 确保第一个分包以{开头
+      if (!_b[id]![0]!.trim().startsWith("{")) {
+        result.write("{");
+      }
+      
+      // 添加所有分包内容
+      for (int i = 0; i < total; i++) {
+        if (_b[id]![i] != null && _b[id]![i]!.trim().isNotEmpty) {
+          // 处理分包之间的连接
+          if (i > 0) {
+            String prev = _b[id]![i-1]!;
+            String curr = _b[id]![i]!;
+            
+            // 确保格式正确（避免连续的逗号或缺少逗号）
+            bool prevEndsWithComma = prev.trim().endsWith(",");
+            bool currStartsWithComma = curr.trim().startsWith(",");
+            
+            if (prevEndsWithComma && currStartsWithComma) {
+              // 移除当前分包的开头逗号
+              _b[id]![i] = curr.trimLeft().substring(1);
+            } else if (!prevEndsWithComma && !currStartsWithComma && 
+                       !prev.trim().endsWith("{") && !curr.trim().startsWith("}") &&
+                       !prev.trim().endsWith("[") && !curr.trim().startsWith("]")) {
+              // 添加缺失的逗号
+              result.write(",");
+            }
+          }
+          
+          result.write(_b[id]![i]!);
+        }
+      }
+      
+      // 确保最后一个分包以}结尾
+      if (!result.toString().trim().endsWith("}")) {
+        result.write("}");
+      }
+      
+      // 对合并后的JSON字符串进行格式清理
+      String finalJson = result.toString();
+      
+      // 替换多余的逗号
+      finalJson = finalJson.replaceAll(",}", "}").replaceAll(",]", "]");
+      
+      // 处理嵌套JSON的格式问题
+      finalJson = _deepFixJson(finalJson);
+      
+      return finalJson;
+    } catch (e) {
+      log('合并分包过程中出错: $e');
+      return ''; // 返回空字符串表示合并失败
+    }
+  }
+  
+  /// 检查字符串中引号数量是否为偶数（判断字符串是否完整） #检查引号匹配
+  bool _isEvenQuotes(String text) {
+    int count = 0;
+    bool escaped = false;
+    
+    for (int i = 0; i < text.length; i++) {
+      if (text[i] == '\\') {
+        escaped = !escaped; // 切换转义状态
+      } else if (text[i] == '"' && !escaped) {
+        count++;
+      } else {
+        escaped = false; // 非转义字符后重置转义状态
+      }
+    }
+    
+    return count % 2 == 0; // 偶数表示引号是成对的
+  }
+  
+  /// 后处理健康数据 #后处理健康数据
+  String _postProcessHealthData(String data) {
+    try {
+      String result = data;
+      
+      // 尝试修复常见的JSON格式问题
+      
+      // 1. 修复可能残留的转义字符
+      if (result.contains("\\\"")) {
+        result = result.replaceAll("\\\"", "\"");
+      }
+      
+      // 2. 修复可能的未闭合引号
+      final unclosedStringPattern = RegExp(r'("[^"]*$)');
+      if (unclosedStringPattern.hasMatch(result)) {
+        result = result + "\"";
+      }
+      
+      // 3. 修复空字段值
+      result = result.replaceAll('"":""', '"":"null"');
+      result = result.replaceAll('"":', '"null":');
+      
+      // 4. 确保整个数据包是有效的JSON对象
+      if (!result.startsWith("{")) {
+        result = "{" + result;
+      }
+      if (!result.endsWith("}")) {
+        result = result + "}";
+      }
+      
+      return result;
+    } catch (e) {
+      debugPrint('后处理健康数据失败: $e');
+      return data; // 如果处理失败，返回原始数据
+    }
+  }
+  
+  /// 深度修复JSON字符串 #深度修复JSON
+  String _deepFixJson(String json) {
+    try {
+      String result = json;
+      
+      // 1. 尝试解析JSON找出错误位置
+      try {
+        jsonDecode(result);
+        return result; // 如果能够解析，就直接返回
+      } catch (e) {
+        debugPrint('JSON解析错误，尝试修复: $e');
+      }
+      
+      // 2. 检查并修复嵌套JSON字符串的转义问题
+      RegExp doubleEscapePattern = RegExp(r'\\\\\"');
+      if (doubleEscapePattern.hasMatch(result)) {
+        result = result.replaceAll(r'\\\"', r'\"');
+      }
+      
+      // 3. 尝试修复截断的JSON字符串
+      RegExp unclosedObjectPattern = RegExp(r'\{([^{}]*)\Z');
+      var match = unclosedObjectPattern.firstMatch(result);
+      if (match != null && match.group(0) != null) {
+        result = result + "}";
+      }
+      
+      // 4. 移除JSON中的无效字符
+      result = result.replaceAll(RegExp(r'[\x00-\x1F]'), '');
+      
+      // 5. 如果字符串没有正确开始和结束，添加大括号
+      if (!result.startsWith("{")) {
+        result = "{" + result;
+      }
+      if (!result.endsWith("}")) {
+        result = result + "}";
+      }
+      
+      return result;
+    } catch (e) {
+      debugPrint('深度修复JSON失败: $e');
+      return json; // 如果处理失败，返回原始数据
+    }
+  }
+
+  /// 处理BLE数据包 #处理数据包
+  void _processPacket(Map m) {
+    try {
+      log('收到数据包: ${json.encode(m).substring(0, min(100, json.encode(m).length))}...');
+    
+      String t = m['type'] ?? '';
+      
+      if (t == T_HEALTH) {
+        try {
+          // 添加设备序列号
+          if (!m.containsKey('data')) {
+            m['data'] = {};
+          }
+          
+          if (m['data'] is Map && !m['data'].containsKey('id')) {
+            m['data']['id'] = deviceSn;
+          }
+          
+          if (m['data'] is Map && m['data']['data'] is Map && !m['data']['data'].containsKey('id')) {
+            m['data']['data']['id'] = deviceSn;
+          }
+          
+          // 处理JSON字符串字段
+          _processJsonStringFields(Map<String, dynamic>.from(m));
+          
+          // 记录接收时间
+          _lastDataTime = DateTime.now();
+          
+          // 发送到流
+          log('上传健康数据包前结构: ${json.encode(m).substring(0, min(100, json.encode(m).length))}...');
+          
+          // 获取传输ID（如果有）用于确认
+          String transferId = '';
+          try {
+            transferId = m['packet_id'] ?? 
+                       m['transfer_id'] ?? 
+                       m['data']?['packet_id'] ?? 
+                       DateTime.now().millisecondsSinceEpoch.toString();
+          } catch (e) {
+            transferId = DateTime.now().millisecondsSinceEpoch.toString();
+          }
+          
+          // 发送到健康数据合并器
+          HealthDataMerger.i.receiveDataMap(Map<String, dynamic>.from(m));
+          
+          // 上传健康数据
+          // 注意：确认会在健康数据合并器处理结果的监听回调中发送
+          
+          // 解除传输中状态并刷新图标
+          _dataTransmitting = false;
+          _updateBluetoothIconState();
+        } catch (e) {
+          log('处理健康数据包出错: $e');
+        }
+      } else if (t == T_DEVICE) {
+        try {
+          // 添加设备序列号
+          if (!m.containsKey('data')) {
+            m['data'] = {};
+          }
+          
+          if (m['data'] is Map && !m['data'].containsKey('device_id')) {
+            m['data']['device_id'] = deviceSn;
+          }
+          
+          // 发送到流
+          v.add(m);
+          
+          // 记录接收时间
+          _lastDataTime = DateTime.now();
+          
+          // 上传设备信息
+          ApiService().uploadDeviceInfo(Map<String, dynamic>.from(m)).then((ok) {
+            log('上传设备信息${ok ? "成功" : "失败"}: ${json.encode(m).substring(0, min(100, json.encode(m).length))}...');
+          });
+        } catch (e) {
+          log('处理设备信息包出错: $e');
+        }
+      } else if (t == T_EVENT) {
+        // 处理通用事件数据
+        try {
+          // 发送到流
+          s.add(true); // 标记为已连接并收到数据
+          
+          // 记录接收时间
+          _lastDataTime = DateTime.now();
+          
+          // 更新蓝牙图标状态
+          _updateBluetoothIconState();
+          
+          // 上传事件数据
+          ApiService().uploadCommonEvent(Map<String, dynamic>.from(m)).then((ok) {
+            log('上传事件数据${ok ? "成功" : "失败"}: ${json.encode(m).substring(0, min(100, json.encode(m).length))}...');
+          });
+        } catch (e) {
+          log('处理事件数据包出错: $e');
+        }
+      } else if (t == T_MSG) {
+        // 处理消息响应
+        try {
+          // 解析消息内容
+          var response = m['response'];
+          var msgId = m['msgId'] ?? '';
+          
+          log('收到消息响应，ID: $msgId, 响应: $response');
+          
+          // 您可以在这里添加自定义处理逻辑
+        } catch (e) {
+          log('处理消息响应包出错: $e');
+        }
+      } else if (t == T_MTU) {
+        // 处理MTU变更通知
+        try {
+          int mtu = m['mtu'] ?? 0;
+          log('收到MTU变更通知: $mtu');
+          
+          // 记录新的MTU值
+          if (mtu > 0) {
+            _currentMtu = mtu;
+            log('更新当前MTU值为: $_currentMtu');
+          }
+        } catch (e) {
+          log('处理MTU通知包出错: $e');
+        }
+      } else if (t == T_PROBE) {
+        // 处理协议探测响应
+        _handleProbeResponse(Map<String, dynamic>.from(m));
+      } else {
+        log('未处理的数据包类型: $t');
+      }
+    } catch (e) {
+      log('处理数据包异常: $e');
+    }
+  }
+
+  /// 计算血压值 #根据心率计算血压
+  Map<String, int> calculateBloodPressure(int heartRate) {
+    if (heartRate < 0 || heartRate > 255) {
+      log('心率值无效，无法计算血压: $heartRate');
+      return {'systolic': 120, 'diastolic': 80}; // 返回默认值
+    }
+
+    // 定义心率到血压的映射范围
+    int minSystolic = 40;  // 最低高压
+    int maxSystolic = 300; // 最高高压
+    int minDiastolic = 30;  // 最低低压
+    int maxDiastolic = 200; // 最高低压
+
+    // 计算高压和低压
+    int systolic = _map(heartRate, 0, 255, minSystolic, maxSystolic);
+    int diastolic = _map(heartRate, 0, 255, minDiastolic, maxDiastolic);
+    
+    log('根据心率 $heartRate 计算血压值：收缩压=$systolic, 舒张压=$diastolic');
+    return {
+      'systolic': systolic,
+      'diastolic': diastolic
+    };
+  }
+
+  /// 映射值从一个范围到另一个范围 #值范围映射
+  int _map(int value, int inMin, int inMax, int outMin, int outMax) {
+    return ((value - inMin) * (outMax - outMin) / (inMax - inMin)).round() + outMin;
+  }
+
+  /// 准备健康数据上传 #准备健康数据上传
+  Map<String, dynamic> _prepareHealthDataForUpload(Map<String, dynamic> data) {
+    try {
+      // 创建一个新的数据对象以避免修改原始数据
+      Map<String, dynamic> result = Map<String, dynamic>.from(data);
+      
+      // 确保data字段存在
+      if (!result.containsKey('data')) {
+        result['data'] = {};
+      }
+      
+      // 获取健康数据引用 (通常是data.data)
+      Map<String, dynamic> healthData;
+      if (result['data'] is Map && result['data'].containsKey('data')) {
+        healthData = result['data']['data'];
+      } else {
+        // 如果没有data.data结构，创建它
+        healthData = {};
+        result['data'] = {'data': healthData};
+      }
+      
+      // 打印处理前的关键字段
+      log('处理健康数据前: 心率=${healthData['heart_rate']}, 血氧=${healthData['blood_oxygen']}, 高压=${healthData['blood_pressure_systolic']}, 低压=${healthData['blood_pressure_diastolic']}');
+      
+      // 1. 确保所有必要字段存在且类型正确
+      
+      // 添加上传方法
+      healthData['upload_method'] = 'bluetooth';
+      
+      // 根据心率计算血压 (如果未设置或为0)
+      if ((healthData['blood_pressure_systolic'] == null || 
+           healthData['blood_pressure_systolic'] == 0 || 
+           healthData['blood_pressure_diastolic'] == null || 
+           healthData['blood_pressure_diastolic'] == 0) && 
+          healthData['heart_rate'] != null) {
+        
+        int heartRate = 0;
+        if (healthData['heart_rate'] is String) {
+          heartRate = int.tryParse(healthData['heart_rate'].toString()) ?? 0;
+        } else if (healthData['heart_rate'] is int) {
+          heartRate = healthData['heart_rate'];
+        }
+        
+        if (heartRate > 0) {
+          Map<String, int> bp = calculateBloodPressure(heartRate);
+          healthData['blood_pressure_systolic'] = bp['systolic'];
+          healthData['blood_pressure_diastolic'] = bp['diastolic'];
+          log('使用心率 $heartRate 计算血压: 高压=${bp['systolic']}, 低压=${bp['diastolic']}');
+        }
+      }
+      
+      // 添加必要的附加JSON字段
+      if (!healthData.containsKey('sleepData') || healthData['sleepData'] == null) {
+        healthData['sleepData'] = '{"code":0,"data":[],"name":"sleep","type":"history"}';
+      }
+      
+      if (!healthData.containsKey('exerciseDailyData') || healthData['exerciseDailyData'] == null) {
+        healthData['exerciseDailyData'] = '{"code":0,"data":[{"strengthTimes":0,"totalTime":0}],"name":"daily","type":"history"}';
+      }
+      
+      if (!healthData.containsKey('exerciseWeekData') || healthData['exerciseWeekData'] == null) {
+        healthData['exerciseWeekData'] = 'null';
+      }
+      
+      if (!healthData.containsKey('scientificSleepData') || healthData['scientificSleepData'] == null) {
+        healthData['scientificSleepData'] = 'null';
+      }
+      
+      if (!healthData.containsKey('workoutData') || healthData['workoutData'] == null) {
+        healthData['workoutData'] = '{"code":0,"data":[],"name":"workout","type":"history"}';
+      }
+      
+      // 2. 移除非必要字段
+      // 移除顶层的packet_id和device_broadcast_id字段
+      result.remove('packet_id');
+      result.remove('device_broadcast_id');
+      result.remove('transfer_id');
+      
+      // 同样移除data层的packet_id和device_broadcast_id字段
+      if (result['data'] is Map) {
+        (result['data'] as Map).remove('packet_id');
+        (result['data'] as Map).remove('device_broadcast_id');
+        (result['data'] as Map).remove('transfer_id');
+      }
+      
+      // 打印处理后的关键字段
+      log('处理健康数据后: 心率=${healthData['heart_rate']}, 血氧=${healthData['blood_oxygen']}, 高压=${healthData['blood_pressure_systolic']}, 低压=${healthData['blood_pressure_diastolic']}');
+      
+      return result;
+    } catch (e) {
+      log('准备健康数据上传时出错: $e');
+      return data; // 如果处理失败，返回原始数据
+    }
+  }
+}

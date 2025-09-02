@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suite name="ljwx-boot-automation-test-suite" verbose="1">
+    
+    <parameter name="environment" value="test"/>
+    <parameter name="base.url" value="http://192.168.1.83:3333"/>
+    
+    <!-- 测试监听器 -->
+    <listeners>
+        <listener class-name="com.ljwx.test.listener.TestResultListener"/>
+    </listeners>
+    
+    <!-- 认证功能测试 -->
+    <test name="Authentication-Tests" preserve-order="true">
+        <parameter name="test.category" value="auth"/>
+        <classes>
+            <class name="com.ljwx.test.auth.AuthenticationTest"/>
+        </classes>
+    </test>
+    
+    <!-- 管理员功能测试 -->
+    <test name="Admin-Functionality-Tests" preserve-order="true">
+        <parameter name="test.category" value="admin"/>
+        <classes>
+            <class name="com.ljwx.test.admin.AdminFunctionalityTest"/>
+        </classes>
+    </test>
+    
+    <!-- 租户管理员功能测试 -->
+    <test name="Tenant-Admin-Functionality-Tests" preserve-order="true">
+        <parameter name="test.category" value="tenant"/>
+        <classes>
+            <class name="com.ljwx.test.tenant.TenantAdminFunctionalityTest"/>
+        </classes>
+    </test>
+    
+    <!-- 权限隔离验证测试 -->
+    <test name="Permission-Isolation-Tests" preserve-order="true">
+        <parameter name="test.category" value="permission"/>
+        <classes>
+            <class name="com.ljwx.test.permission.PermissionIsolationTest"/>
+        </classes>
+    </test>
+    
+    <!-- 全面API接口测试 -->
+    <test name="Comprehensive-API-Tests" preserve-order="true">
+        <parameter name="test.category" value="api"/>
+        <classes>
+            <class name="com.ljwx.test.api.ComprehensiveApiTest"/>
+        </classes>
+    </test>
+    
+    <!-- 完整集成测试 -->
+    <test name="Full-Integration-Tests" preserve-order="true">
+        <parameter name="test.category" value="integration"/>
+        <classes>
+            <class name="com.ljwx.test.integration.FullSystemIntegrationTest"/>
+        </classes>
+    </test>
+    
+</suite>

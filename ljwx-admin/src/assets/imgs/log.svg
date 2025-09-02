@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景渐变 -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- 背景圆角矩形 -->
+  <rect width="120" height="40" rx="8" fill="url(#bgGradient)"/>
+
+  <!-- 图标部分 -->
+  <g transform="translate(8, 8)">
+    <!-- 外圆 -->
+    <circle cx="12" cy="12" r="11" fill="none" stroke="white" stroke-width="1.5" opacity="0.8"/>
+    <!-- 内部几何图形 -->
+    <path d="M6 12 L12 6 L18 12 L12 18 Z" fill="white" opacity="0.9"/>
+    <circle cx="12" cy="12" r="3" fill="url(#bgGradient)"/>
+  </g>
+
+  <!-- 文字部分 -->
+  <text x="32" y="16" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="url(#textGradient)">灵境</text>
+  <text x="32" y="28" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="url(#textGradient)">万象</text>
+</svg>

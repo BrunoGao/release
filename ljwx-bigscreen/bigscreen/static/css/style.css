@@ -1,0 +1,330 @@
+﻿/*大屏*/
+#drag-container, #spin-container {
+  position: absolute;
+  display: flex;
+  margin: auto;
+  top: 48%;
+  left: 45%;
+  transform-style: preserve-3d;
+  transform: rotateX(-10deg);
+}
+
+#drag-container img, #drag-container video {
+  transform-style: preserve-3d;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  line-height: 200px;
+  font-size: 50px;
+  text-align: center;
+  box-shadow: 0 0 8px #fff;
+  -webkit-box-reflect: below 10px linear-gradient(transparent, transparent, #0005);
+}
+
+#drag-container img:hover, #drag-container video:hover {
+  box-shadow: 0 0 15px #fffd;
+  -webkit-box-reflect: below 10px linear-gradient(transparent, transparent, #0007);
+}
+.circle1 { top: 50px; left: 50px; }
+.circle2 { top: 50px; right: 50px; }
+.circle3 { bottom: 50px; left: 50px; }
+.square { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.year-selector-container {
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 10px;
+  background-color: #1a1a1a;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.year-selector {
+  display: inline-block;
+}
+
+.year {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 0 5px;
+  cursor: pointer;
+  color: #fff;
+  background-color: #007BFF;
+  border-radius: 5px;
+  transition: background-color 0.3s;
+}
+
+.year:hover, .year.active {
+  background-color: #0056b3;
+}
+report-container {
+  background-color: #333;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px auto;
+  width: 80%;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+.report-container img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  margin-bottom: 10px;
+}
+.report-container h3 {
+  color: #007BFF;
+  text-shadow: 1px 1px 2px #000;
+}
+.report-container p {
+  text-shadow: 1px 1px 2px #000;
+}
+.select2-container--default .select2-selection--single {
+  background-color: #333;
+  border: 1px solid #007BFF;
+  color: #fff;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  border-left: 1px solid #007BFF;
+}
+
+#drag-container p {
+  font-family: Serif;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%,-50%) rotateX(90deg);
+  color: #fff;
+}
+
+#ground {
+  width: 900px;
+  height: 900px;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%,-50%) rotateX(90deg);
+  background: -webkit-radial-gradient(center center, farthest-side , #9993, transparent);
+}
+
+
+.profile-card {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1); /* Semi-transparent background */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Light border for crystal effect */
+  padding: 15px;
+  border-radius: 30px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  backdrop-filter: blur(10px); /* Background blur for crystal effect */
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #e0e0e0; /* Placeholder background */
+  background-image: url('../images/avatar.jpeg'); /* Placeholder avatar image */
+  background-size: cover;
+  background-position: center;
+  margin-right: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.name-and-age {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.name {
+  font-size: 1.5em;
+  margin-right: 10px;
+}
+
+.age {
+  font-size: 1.2em;
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 2px 10px;
+  border-radius: 15px;
+}
+
+.details {
+  display: flex;
+  align-items: center;
+}
+
+.details span {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+}
+
+.details img {
+  width: 20px;
+  height: 20px;
+  margin-right: 5px;
+}
+
+.health-check-container {
+  width: 600px;
+  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.icon-heart {
+  width: 24px;
+  height: 24px;
+  background: url('icon-heart.png') no-repeat center;
+  background-size: cover;
+  margin-right: 10px;
+}
+
+.header-text {
+  font-size: 1.5em;
+}
+
+
+
+
+
+.modal {
+  display: none; 
+  position: fixed; 
+  z-index: 1000; 
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%; 
+  height: 100%; 
+  overflow: auto; 
+  background-color: rgba(0, 0, 0, 0.4); 
+}
+
+.modal-content {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  margin: 15% auto; 
+  padding: 20px;
+  border: 1px solid #888;
+  width: 200px; /* 调整宽度 */
+  height: auto; /* 自动调整高度 */
+  color: #0ff; 
+  font-family: 'Orbitron', sans-serif; 
+  text-align: left; /* 左对齐文本 */
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* 立体字体效果 */
+.modal-content h2, .modal-content p {
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* 使弹出框内容左对齐 */
+.modal-content p {
+  margin: 0;
+  padding: 5px 0;
+}
+
+#carousel-container {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes spin {
+  from{
+    transform: rotateY(0deg);
+  } to{
+    transform: rotateY(360deg);
+  }
+}
+@keyframes spinRevert {
+  from{
+    transform: rotateY(360deg);
+  } to{
+    transform: rotateY(0deg);
+  }
+}
+
+body {
+    background-color: #000;
+    color: #fff;
+    font-family: Arial, sans-serif;
+}
+
+.health-metrics {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.year-selector-container {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 10px;
+    background-color: #1a1a1a;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.year-selector {
+    display: inline-block;
+}
+
+.year {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 0 5px;
+    cursor: pointer;
+    color: #fff;
+    background-color: #007BFF;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.year:hover, .year.active {
+    background-color: #0056b3;
+}
+
+#healthReport {
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+}

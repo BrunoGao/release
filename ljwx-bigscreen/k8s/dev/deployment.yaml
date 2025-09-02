@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ljwx-bigscreen-dev
+  namespace: ljwx-system
+  labels:
+    app: ljwx-bigscreen
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ljwx-bigscreen
+      env: dev
+  template:
+    metadata:
+      labels:
+        app: ljwx-bigscreen
+        env: dev
+    spec:
+      containers:
+      - name: ljwx-bigscreen
+        image: ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+        ports:
+        - containerPort: 5001
+        env:
+        - name: MYSQL_HOST
+          value: "mysql-service.ljwx-system.svc.cluster.local"
+        - name: MYSQL_PORT
+          value: "3306"
+        - name: REDIS_HOST
+          value: "redis-service.ljwx-system.svc.cluster.local"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: ENV
+          value: "development"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 5001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 5001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ljwx-bigscreen-dev-service
+  namespace: ljwx-system
+spec:
+  selector:
+    app: ljwx-bigscreen
+    env: dev
+  ports:
+  - port: 80
+    targetPort: 5001
+  type: ClusterIP 

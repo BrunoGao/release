@@ -1,0 +1,9 @@
+智能穿戴系统客户部署包
+版本: v1.0.0
+构建时间: $(date '+%Y-%m-%d %H:%M:%S')
+包含组件:
+- ljwx-boot (后端API)
+- ljwx-admin (管理端)
+- ljwx-bigscreen (大屏端)
+- MySQL 8.0 (数据库)
+- Redis 7 (缓存) 

@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+ All Rights Reserved: Copyright [2024] [ljwx]
+ Open Source Agreement: Apache License, Version 2.0
+ For educational purposes only, commercial use shall comply with the author's copyright information.
+ The author does not guarantee or assume any responsibility for the risks of using software.
+
+ Licensed under the Apache License, Version 2.0 (the "License").
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<mapper namespace="com.ljwx.modules.system.repository.mapper.SysOrgClosureMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="SysOrgClosureResultMap" type="com.ljwx.modules.system.domain.entity.SysOrgClosure">
+        <result column="id" property="id"/>
+        <result column="ancestor_id" property="ancestorId"/>
+        <result column="descendant_id" property="descendantId"/>
+        <result column="depth" property="depth"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 组织单位结果映射 -->
+    <resultMap id="SysOrgUnitsResultMap" type="com.ljwx.modules.system.domain.entity.SysOrgUnits">
+        <result column="id" property="id"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="name" property="name"/>
+        <result column="code" property="code"/>
+        <result column="abbr" property="abbr"/>
+        <result column="level" property="level"/>
+        <result column="ancestors" property="ancestors"/>
+        <result column="description" property="description"/>
+        <result column="sort" property="sort"/>
+        <result column="status" property="status"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+    </resultMap>
+
+    <!-- 查询指定组织的所有子组织(包含子孙组织) -->
+    <select id="findAllDescendants" resultMap="SysOrgUnitsResultMap">
+        SELECT org.*
+        FROM sys_org_closure c
+        INNER JOIN sys_org_units org ON c.descendant_id = org.id
+        WHERE c.ancestor_id = #{ancestorId}
+          AND c.customer_id = #{customerId}
+          AND c.depth > 0
+          AND org.is_deleted = 0
+          AND org.status = '1'
+        ORDER BY c.depth ASC, org.sort ASC, org.id ASC
+    </select>
+
+    <!-- 查询指定组织的直接子组织 -->
+    <select id="findDirectChildren" resultMap="SysOrgUnitsResultMap">
+        SELECT org.*
+        FROM sys_org_closure c
+        INNER JOIN sys_org_units org ON c.descendant_id = org.id
+        WHERE c.ancestor_id = #{ancestorId}
+          AND c.customer_id = #{customerId}
+          AND c.depth = 1
+          AND org.is_deleted = 0
+          AND org.status = '1'
+        ORDER BY org.sort ASC, org.id ASC
+    </select>
+
+    <!-- 查询指定组织的祖先路径 -->
+    <select id="findAncestorPath" resultMap="SysOrgUnitsResultMap">
+        SELECT org.*
+        FROM sys_org_closure c
+        INNER JOIN sys_org_units org ON c.ancestor_id = org.id
+        WHERE c.descendant_id = #{descendantId}
+          AND c.customer_id = #{customerId}
+          AND c.depth > 0
+          AND org.is_deleted = 0
+          AND org.status = '1'
+        ORDER BY c.depth DESC
+    </select>
+
+    <!-- 查询指定组织的直接父组织 -->
+    <select id="findDirectParent" resultMap="SysOrgUnitsResultMap">
+        SELECT org.*
+        FROM sys_org_closure c
+        INNER JOIN sys_org_units org ON c.ancestor_id = org.id
+        WHERE c.descendant_id = #{descendantId}
+          AND c.customer_id = #{customerId}
+          AND c.depth = 1
+          AND org.is_deleted = 0
+          AND org.status = '1'
+        LIMIT 1
+    </select>
+
+    <!-- 批量查询多个组织的所有子组织 -->
+    <select id="findBatchDescendants" resultMap="SysOrgUnitsResultMap">
+        SELECT DISTINCT org.*
+        FROM sys_org_closure c
+        INNER JOIN sys_org_units org ON c.descendant_id = org.id
+        WHERE c.ancestor_id IN
+        <foreach collection="ancestorIds" item="ancestorId" open="(" close=")" separator=",">
+            #{ancestorId}
+        </foreach>
+          AND c.customer_id = #{customerId}
+          AND c.depth > 0
+          AND org.is_deleted = 0
+          AND org.status = '1'
+        ORDER BY org.level ASC, org.sort ASC, org.id ASC
+    </select>
+
+    <!-- 查询租户下的所有顶级组织 -->
+    <select id="findTopLevelOrganizations" resultMap="SysOrgUnitsResultMap">
+        SELECT org.*
+        FROM sys_org_units org
+        WHERE org.customer_id = #{customerId}
+          AND org.parent_id = 0
+          AND org.is_deleted = 0
+          AND org.status = '1'
+        ORDER BY org.sort ASC, org.id ASC
+    </select>
+
+    <!-- 检查组织A是否为组织B的祖先 -->
+    <select id="isAncestor" resultType="java.lang.Boolean">
+        SELECT COUNT(*) > 0
+        FROM sys_org_closure
+        WHERE ancestor_id = #{ancestorId}
+          AND descendant_id = #{descendantId}
+          AND customer_id = #{customerId}
+          AND depth > 0
+    </select>
+
+    <!-- 获取组织的层级深度 -->
+    <select id="getOrgDepth" resultType="java.lang.Integer">
+        SELECT MAX(depth)
+        FROM sys_org_closure
+        WHERE descendant_id = #{orgId}
+          AND customer_id = #{customerId}
+    </select>
+
+    <!-- 删除指定组织的所有闭包关系 -->
+    <delete id="deleteOrgClosure">
+        DELETE FROM sys_org_closure
+        WHERE (ancestor_id = #{orgId} OR descendant_id = #{orgId})
+          AND customer_id = #{customerId}
+    </delete>
+
+    <!-- 为新组织创建闭包关系 -->
+    <insert id="insertOrgClosure">
+        INSERT INTO sys_org_closure (ancestor_id, descendant_id, depth, customer_id)
+        SELECT c.ancestor_id, #{orgId}, c.depth + 1, #{customerId}
+        FROM sys_org_closure c
+        WHERE c.descendant_id = #{parentId}
+          AND c.customer_id = #{customerId}
+        UNION ALL
+        SELECT #{orgId}, #{orgId}, 0, #{customerId}
+    </insert>
+
+    <!-- ===================== 告警分发优化相关查询 ===================== -->
+    
+    <!-- 组织层级信息结果映射 - 用于告警通知 -->
+    <resultMap id="OrgHierarchyInfoResultMap" type="com.ljwx.modules.system.domain.dto.OrgHierarchyInfo">
+        <result column="user_id" property="userId"/>
+        <result column="user_name" property="userName"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="principal" property="principal"/>
+        <result column="org_id" property="orgId"/>
+        <result column="org_name" property="orgName"/>
+        <result column="org_level" property="orgLevel"/>
+        <result column="depth" property="depth"/>
+    </resultMap>
+
+    <!-- 获取告警通知层级信息 - 基于闭包表的高效查询 -->
+    <select id="getNotificationHierarchy" resultMap="OrgHierarchyInfoResultMap">
+        SELECT DISTINCT 
+            u.id as user_id, 
+            u.real_name as user_name, 
+            u.phone, 
+            u.email,
+            uo.principal, 
+            o.id as org_id, 
+            o.name as org_name,
+            o.level as org_level,
+            c.depth
+        FROM sys_org_closure c
+        INNER JOIN sys_org_units o ON c.ancestor_id = o.id
+        INNER JOIN sys_user_org uo ON c.ancestor_id = uo.org_id
+        INNER JOIN sys_user u ON uo.user_id = u.id
+        WHERE c.descendant_id = #{orgId}
+          AND c.customer_id = #{customerId}
+          AND u.status = '1' 
+          AND u.is_deleted = 0
+          AND uo.is_deleted = 0
+          AND o.status = '1'
+          AND o.is_deleted = 0
+        ORDER BY c.depth ASC, uo.principal DESC, u.id ASC
+    </select>
+
+    <!-- 获取批量组织的通知层级信息 -->
+    <select id="getBatchNotificationHierarchy" resultMap="OrgHierarchyInfoResultMap">
+        SELECT DISTINCT 
+            u.id as user_id, 
+            u.real_name as user_name, 
+            u.phone, 
+            u.email,
+            uo.principal, 
+            o.id as org_id, 
+            o.name as org_name,
+            o.level as org_level,
+            c.depth
+        FROM sys_org_closure c
+        INNER JOIN sys_org_units o ON c.ancestor_id = o.id
+        INNER JOIN sys_user_org uo ON c.ancestor_id = uo.org_id
+        INNER JOIN sys_user u ON uo.user_id = u.id
+        WHERE c.descendant_id IN
+        <foreach collection="orgIds" item="orgId" open="(" close=")" separator=",">
+            #{orgId}
+        </foreach>
+          AND c.customer_id = #{customerId}
+          AND u.status = '1' 
+          AND u.is_deleted = 0
+          AND uo.is_deleted = 0
+          AND o.status = '1'
+          AND o.is_deleted = 0
+        ORDER BY c.descendant_id ASC, c.depth ASC, uo.principal DESC, u.id ASC
+    </select>
+
+    <!-- 获取用户可接收的告警组织范围 -->
+    <select id="getUserAlertScope" resultType="java.lang.Long">
+        SELECT DISTINCT c.descendant_id
+        FROM sys_org_closure c
+        INNER JOIN sys_user_org uo ON c.ancestor_id = uo.org_id
+        INNER JOIN sys_org_units o ON c.descendant_id = o.id
+        WHERE uo.user_id = #{userId}
+          AND c.customer_id = #{customerId}
+          AND uo.is_deleted = 0
+          AND o.status = '1'
+          AND o.is_deleted = 0
+        UNION
+        SELECT DISTINCT uo.org_id
+        FROM sys_user_org uo
+        INNER JOIN sys_org_units o ON uo.org_id = o.id
+        WHERE uo.user_id = #{userId}
+          AND uo.customer_id = #{customerId}
+          AND uo.is_deleted = 0
+          AND o.status = '1'
+          AND o.is_deleted = 0
+    </select>
+
+</mapper>

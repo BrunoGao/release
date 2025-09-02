@@ -1,0 +1,42 @@
+apply plugin: 'com.huawei.ohos.hap'
+apply plugin: 'com.huawei.ohos.decctest'
+//For instructions on signature configuration, see https://developer.harmonyos.com/cn/docs/documentation/doc-guides-V3/ide_debug_device-0000001053822404-V3#section1112183053510
+ohos {
+    signingConfigs {
+        debug {
+            storeFile file('C:\\Users\\bg\\.ohos\\config\\auto_debug_ljwx-watch_com.ljwx.watch_260086000101910035.p12')
+            storePassword '0000001BF4AABABCA110B8C6DF89640806103A4EF75867617062602DFB25F6BE334C1B0D8489F4E5E55F74'
+            keyAlias = 'debugKey'
+            keyPassword '0000001B7FF865AC5366E5448C2D251B6B237BE5803A76FFE9E3EE49749DE45212362FF97D579F7271A962'
+            signAlg = 'SHA256withECDSA'
+            profile file('C:\\Users\\bg\\.ohos\\config\\auto_debug_ljwx-watch_com.ljwx.watch_260086000101910035.p7b')
+            certpath file('C:\\Users\\bg\\.ohos\\config\\auto_debug_ljwx-watch_com.ljwx.watch_260086000101910035.cer')
+        }
+    }
+    compileSdkVersion 6
+    defaultConfig {
+        compatibleSdkVersion 6
+    }
+    buildTypes {
+        release {
+            proguardOpt {
+                proguardEnabled false
+                rulesFiles 'proguard-rules.pro'
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.har'])
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'com.google.code.gson:gson:2.8.5'
+    testImplementation 'junit:junit:4.13.1'
+    ohosTestImplementation 'com.huawei.ohos.testkit:runner:2.0.0.400'
+    compileOnly files('libs/tdhealth_kit_java_48.jar')
+    compileOnly files('libs/tdmdm_kit_java_SP46.jar')
+    implementation 'org.json:json:20210307'
+}
+decc {
+    supportType = ['html', 'xml']
+}

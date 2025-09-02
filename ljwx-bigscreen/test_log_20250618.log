@@ -1,0 +1,25 @@
+2025-06-18 06:39:56,855 - UploadCommonEventTest - INFO - 开始upload_common_event接口自动化测试
+2025-06-18 06:39:56,878 - UploadCommonEventTest - INFO - API基础功能测试: ✅ PASS
+2025-06-18 06:39:56,878 - UploadCommonEventTest - INFO - 开始测试事件: SOS紧急求救
+2025-06-18 06:39:56,924 - UploadCommonEventTest - INFO - 健康数据插入测试: ✅ PASS
+2025-06-18 06:40:57,828 - UploadCommonEventTest - INFO - 告警生成测试-com.tdtech.ohos.action.SOS_EVENT: ❌ FAIL
+2025-06-18 06:40:57,829 - UploadCommonEventTest - ERROR - 失败详情: {'device_sn': 'TEST_UploadCommonEventTest_1750199996', 'event_type': 'com.tdtech.ohos.action.SOS_EVENT'}
+2025-06-18 06:41:35,143 - UploadCommonEventTest - INFO - 清理t_user_health_data: 2条记录
+2025-06-18 06:41:35,157 - UploadCommonEventTest - INFO - 清理t_alert_info: 0条记录
+2025-06-18 06:41:35,177 - UploadCommonEventTest - INFO - 清理t_device_message: 0条记录
+2025-06-18 06:45:32,370 - UploadCommonEventTest - INFO - 开始upload_common_event接口自动化测试
+2025-06-18 06:45:32,384 - UploadCommonEventTest - INFO - API基础功能测试: ✅ PASS
+2025-06-18 06:45:32,384 - UploadCommonEventTest - INFO - 开始测试事件: SOS紧急求救
+2025-06-18 06:45:32,422 - UploadCommonEventTest - INFO - 健康数据插入测试: ✅ PASS
+2025-06-18 06:46:33,316 - UploadCommonEventTest - INFO - 告警生成测试-SOS_EVENT: ❌ FAIL
+2025-06-18 06:46:33,317 - UploadCommonEventTest - ERROR - 失败详情: {'device_sn': 'TEST_UploadCommonEventTest_1750200332', 'event_type': 'SOS_EVENT'}
+2025-06-18 06:47:34,316 - UploadCommonEventTest - INFO - 平台消息下发测试-SOS_EVENT: ❌ FAIL
+2025-06-18 06:47:34,316 - UploadCommonEventTest - ERROR - 失败详情: {'device_sn': 'TEST_UploadCommonEventTest_1750200332', 'event_type': 'SOS_EVENT'}
+2025-06-18 06:47:35,234 - UploadCommonEventTest - INFO - 微信通知测试-SOS_EVENT: ✅ PASS
+2025-06-18 06:47:35,234 - UploadCommonEventTest - INFO - 完整工作流测试-SOS紧急求救: ❌ FAIL
+2025-06-18 06:47:35,234 - UploadCommonEventTest - ERROR - 失败详情: {'success': False, 'event_name': 'SOS紧急求救', 'event_type': 'SOS_EVENT', 'checks': {'health_data': True, 'alert_generation': False, 'message_delivery': False, 'wechat_notification': True}}
+2025-06-18 06:47:38,238 - UploadCommonEventTest - INFO - 开始测试事件: 跌倒检测
+2025-06-18 06:47:38,262 - UploadCommonEventTest - INFO - 健康数据插入测试: ✅ PASS
+2025-06-18 06:48:17,529 - UploadCommonEventTest - INFO - 清理t_user_health_data: 3条记录
+2025-06-18 06:48:17,549 - UploadCommonEventTest - INFO - 清理t_alert_info: 0条记录
+2025-06-18 06:48:17,560 - UploadCommonEventTest - INFO - 清理t_device_message: 0条记录

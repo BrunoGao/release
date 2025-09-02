@@ -1,0 +1,787 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    54.9986,
+                    -83.4697
+                ]
+            },
+            "properties": {
+                "deviceSn": 5,
+                "alertType": "血压异常",
+                "userName": "Bruno",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -92.8395,
+                    13.5208
+                ]
+            },
+            "properties": {
+                "deviceSn": 6,
+                "alertType": "心率异常",
+                "userName": "Bruno",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 18:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -174.259,
+                    25.359
+                ]
+            },
+            "properties": {
+                "deviceSn": 7,
+                "alertType": "血压异常",
+                "userName": "heguang",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 19:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    113.924,
+                    28.2978
+                ]
+            },
+            "properties": {
+                "deviceSn": 8,
+                "alertType": "心率异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -64.2157,
+                    -47.8575
+                ]
+            },
+            "properties": {
+                "deviceSn": 9,
+                "alertType": "心率异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 20:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -9.64194,
+                    19.4569
+                ]
+            },
+            "properties": {
+                "deviceSn": 10,
+                "alertType": "体温异常",
+                "userName": "Alice",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 12:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -169.566,
+                    -34.2637
+                ]
+            },
+            "properties": {
+                "deviceSn": 11,
+                "alertType": "血压异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -89.213,
+                    5.51875
+                ]
+            },
+            "properties": {
+                "deviceSn": 12,
+                "alertType": "跌倒事件",
+                "userName": "Bruno",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    116.868,
+                    -66.7059
+                ]
+            },
+            "properties": {
+                "deviceSn": 13,
+                "alertType": "血氧异常",
+                "userName": "David",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    108.883,
+                    -21.1988
+                ]
+            },
+            "properties": {
+                "deviceSn": 14,
+                "alertType": "心率异常",
+                "userName": "David",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-12 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    117.031,
+                    -2.19334
+                ]
+            },
+            "properties": {
+                "deviceSn": 15,
+                "alertType": "跌倒事件",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    176.923,
+                    70.537
+                ]
+            },
+            "properties": {
+                "deviceSn": 16,
+                "alertType": "血压异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -3.31093,
+                    -4.55116
+                ]
+            },
+            "properties": {
+                "deviceSn": 17,
+                "alertType": "跌倒事件",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -133.539,
+                    -33.3691
+                ]
+            },
+            "properties": {
+                "deviceSn": 18,
+                "alertType": "血氧异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -1.04041,
+                    6.21648
+                ]
+            },
+            "properties": {
+                "deviceSn": 19,
+                "alertType": "心率异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    5.7585,
+                    76.9672
+                ]
+            },
+            "properties": {
+                "deviceSn": 20,
+                "alertType": "心率异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    8.78246,
+                    0.375019
+                ]
+            },
+            "properties": {
+                "deviceSn": 22,
+                "alertType": "血压异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    142.971,
+                    24.0432
+                ]
+            },
+            "properties": {
+                "deviceSn": 23,
+                "alertType": "血氧异常",
+                "userName": "Bruno",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -2.74673,
+                    89.172
+                ]
+            },
+            "properties": {
+                "deviceSn": 24,
+                "alertType": "血压异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -122.019,
+                    -11.7548
+                ]
+            },
+            "properties": {
+                "deviceSn": 25,
+                "alertType": "血氧异常",
+                "userName": "Alice",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    153.425,
+                    29.2578
+                ]
+            },
+            "properties": {
+                "deviceSn": 26,
+                "alertType": "血氧异常",
+                "userName": "Bruno",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    136.584,
+                    -84.5308
+                ]
+            },
+            "properties": {
+                "deviceSn": 27,
+                "alertType": "跌倒事件",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -5.52968,
+                    -88.4629
+                ]
+            },
+            "properties": {
+                "deviceSn": 28,
+                "alertType": "体温异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    27.0265,
+                    -32.6023
+                ]
+            },
+            "properties": {
+                "deviceSn": 29,
+                "alertType": "心率异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    158.527,
+                    -42.4478
+                ]
+            },
+            "properties": {
+                "deviceSn": 30,
+                "alertType": "跌倒事件",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -66.6033,
+                    53.0246
+                ]
+            },
+            "properties": {
+                "deviceSn": 31,
+                "alertType": "血压异常",
+                "userName": "Bruno",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -93.684,
+                    -32.2021
+                ]
+            },
+            "properties": {
+                "deviceSn": 32,
+                "alertType": "心率异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    62.3579,
+                    6.3074
+                ]
+            },
+            "properties": {
+                "deviceSn": 33,
+                "alertType": "血氧异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    124.667,
+                    51.2767
+                ]
+            },
+            "properties": {
+                "deviceSn": 34,
+                "alertType": "跌倒事件",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    144.921,
+                    -58.3768
+                ]
+            },
+            "properties": {
+                "deviceSn": 35,
+                "alertType": "体温异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -28.5636,
+                    15.7809
+                ]
+            },
+            "properties": {
+                "deviceSn": 36,
+                "alertType": "血氧异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -113.194,
+                    -7.58826
+                ]
+            },
+            "properties": {
+                "deviceSn": 37,
+                "alertType": "血氧异常",
+                "userName": "David",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -60.1072,
+                    63.2799
+                ]
+            },
+            "properties": {
+                "deviceSn": 38,
+                "alertType": "血氧异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    141.373,
+                    -27.6811
+                ]
+            },
+            "properties": {
+                "deviceSn": 39,
+                "alertType": "血氧异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    60.7087,
+                    -45.4477
+                ]
+            },
+            "properties": {
+                "deviceSn": 40,
+                "alertType": "血氧异常",
+                "userName": "David",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -154.102,
+                    -60.9418
+                ]
+            },
+            "properties": {
+                "deviceSn": 41,
+                "alertType": "血氧异常",
+                "userName": "David",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -122.372,
+                    -20.376
+                ]
+            },
+            "properties": {
+                "deviceSn": 42,
+                "alertType": "血压异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -36.8483,
+                    -22.2918
+                ]
+            },
+            "properties": {
+                "deviceSn": 43,
+                "alertType": "体温异常",
+                "userName": "Bruno",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    171.134,
+                    -72.3542
+                ]
+            },
+            "properties": {
+                "deviceSn": 44,
+                "alertType": "体温异常",
+                "userName": "Bruno",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    147.43,
+                    72.9872
+                ]
+            },
+            "properties": {
+                "deviceSn": 45,
+                "alertType": "血氧异常",
+                "userName": "David",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -105.361,
+                    8.24533
+                ]
+            },
+            "properties": {
+                "deviceSn": 46,
+                "alertType": "血氧异常",
+                "userName": "nfkj",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -170.844,
+                    -49.3793
+                ]
+            },
+            "properties": {
+                "deviceSn": 47,
+                "alertType": "心率异常",
+                "userName": "David",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    172.247,
+                    77.7999
+                ]
+            },
+            "properties": {
+                "deviceSn": 48,
+                "alertType": "血氧异常",
+                "userName": "Alice",
+                "severityLevel": "Medium",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    108.846,
+                    34.3938
+                ]
+            },
+            "properties": {
+                "deviceSn": 49,
+                "alertType": "血压异常",
+                "userName": "nfkj",
+                "severityLevel": "Critical",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.017,
+                    22.5405
+                ]
+            },
+            "properties": {
+                "deviceSn": 50,
+                "alertType": "血氧异常",
+                "userName": "Bruno",
+                "severityLevel": "High",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    114.016,
+                    22.5404
+                ]
+            },
+            "properties": {
+                "deviceSn": 51,
+                "alertType": "体温异常",
+                "userName": "nfkj",
+                "severityLevel": "Critical",
+                "timestamp": "2024-05-27 22:18:54"
+            }
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ljwx-config
+  namespace: ljwx-system
+data:
+  redis.host: "redis-service.ljwx-system.svc.cluster.local"
+  redis.port: "6379"
+  app.log.level: "INFO"
+  app.debug: "false"
+  app.timezone: "Asia/Shanghai"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ljwx-db-secret
+  namespace: ljwx-system
+type: Opaque
+data:
+  host: bXlzcWwtc2VydmljZS5sand4LXN5c3RlbS5zdmMuY2x1c3Rlci5sb2NhbA==  # mysql-service.ljwx-system.svc.cluster.local
+  username: bGp3eA==  # ljwx
+  password: bGp3eDEyMw==  # ljwx123
+  database: bGp3eA==  # ljwx 

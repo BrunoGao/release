@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+  <meta charset='utf-8'>
+  <title>TestNG reports</title>
+
+    <link type="text/css" href="testng-reports1.css" rel="stylesheet" id="ultra" />
+    <link type="text/css" href="testng-reports.css" rel="stylesheet" id="retro" disabled="false"/>
+    <script type="text/javascript" src="jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" src="testng-reports.js"></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type='text/javascript'>
+      google.load('visualization', '1', {packages:['table']});
+      google.setOnLoadCallback(drawTable);
+      var suiteTableInitFunctions = new Array();
+      var suiteTableData = new Array();
+    </script>
+    <!--
+      <script type="text/javascript" src="jquery-ui/js/jquery-ui-1.8.16.custom.min.js"></script>
+     -->
+  </head>
+
+  <body>    <div class="top-banner-root">
+      <span class="top-banner-title-font">Test results</span>
+      <button id="button" class="button">Switch Retro Theme</button> <!-- button -->
+      <br/>
+      <span class="top-banner-font-1">1 suite, 17 failed tests</span>
+    </div> <!-- top-banner-root -->
+    <div class="navigator-root">
+      <div class="navigator-suite-header">
+        <span>All suites</span>
+        <a href="#" title="Collapse/expand all the suites" class="collapse-all-link">
+          <img src="collapseall.gif" class="collapse-all-icon">
+          </img> <!-- collapse-all-icon -->
+        </a> <!-- collapse-all-link -->
+      </div> <!-- navigator-suite-header -->
+      <div class="suite">
+        <div class="rounded-window">
+          <div class="suite-header light-rounded-window-top">
+            <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" class="navigator-link">
+              <span class="suite-name border-failed">ljwx-boot-automation-test-suite</span>
+            </a> <!-- navigator-link -->
+          </div> <!-- suite-header light-rounded-window-top -->
+          <div class="navigator-suite-content">
+            <div class="suite-section-title">
+              <span>Info</span>
+            </div> <!-- suite-section-title -->
+            <div class="suite-section-content">
+              <ul>
+                <li>
+                  <a href="#" panel-name="test-xml-ljwx_boot_automation_test_suite" class="navigator-link ">
+                    <span>testng.xml</span>
+                  </a> <!-- navigator-link  -->
+                </li>
+                <li>
+                  <a href="#" panel-name="testlist-ljwx_boot_automation_test_suite" class="navigator-link ">
+                    <span class="test-stats">6 tests</span>
+                  </a> <!-- navigator-link  -->
+                </li>
+                <li>
+                  <a href="#" panel-name="group-ljwx_boot_automation_test_suite" class="navigator-link ">
+                    <span>0 groups</span>
+                  </a> <!-- navigator-link  -->
+                </li>
+                <li>
+                  <a href="#" panel-name="times-ljwx_boot_automation_test_suite" class="navigator-link ">
+                    <span>Times</span>
+                  </a> <!-- navigator-link  -->
+                </li>
+                <li>
+                  <a href="#" panel-name="reporter-ljwx_boot_automation_test_suite" class="navigator-link ">
+                    <span>Reporter output</span>
+                  </a> <!-- navigator-link  -->
+                </li>
+                <li>
+                  <a href="#" panel-name="ignored-methods-ljwx_boot_automation_test_suite" class="navigator-link ">
+                    <span>Ignored methods</span>
+                  </a> <!-- navigator-link  -->
+                </li>
+                <li>
+                  <a href="#" panel-name="chronological-ljwx_boot_automation_test_suite" class="navigator-link ">
+                    <span>Chronological view</span>
+                  </a> <!-- navigator-link  -->
+                </li>
+              </ul>
+            </div> <!-- suite-section-content -->
+            <div class="result-section">
+              <div class="suite-section-title">
+                <span>Results</span>
+              </div> <!-- suite-section-title -->
+              <div class="suite-section-content">
+                <ul>
+                  <li>
+                    <span class="method-stats">42 methods, 17 failed,  5 skipped,  20 passed</span>
+                  </li>
+                  <li>
+                    <span class="method-list-title failed">Failed methods</span>
+                    <span class="show-or-hide-methods failed">
+                      <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" class="hide-methods failed suite-ljwx_boot_automation_test_suite"> (hide)</a> <!-- hide-methods failed suite-ljwx_boot_automation_test_suite -->
+                      <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" class="show-methods failed suite-ljwx_boot_automation_test_suite"> (show)</a> <!-- show-methods failed suite-ljwx_boot_automation_test_suite -->
+                    </span>
+                    <div class="method-list-content failed suite-ljwx_boot_automation_test_suite">
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminCrossTenantAccess">testAdminCrossTenantAccess</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.permission.PermissionIsolationTest" class="method navigator-link" hash-for-method="testAdminGlobalDataAccess">testAdminGlobalDataAccess</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.permission.PermissionIsolationTest" class="method navigator-link" hash-for-method="testCrossTenantAccessDenial">testCrossTenantAccessDenial</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.permission.PermissionIsolationTest" class="method navigator-link" hash-for-method="testHealthDataAccessPermission">testHealthDataAccessPermission</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.permission.PermissionIsolationTest" class="method navigator-link" hash-for-method="testOrganizationPermissionIsolation">testOrganizationPermissionIsolation</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.permission.PermissionIsolationTest" class="method navigator-link" hash-for-method="testParameterBoundarySecurity">testParameterBoundarySecurity</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminAlertManagement">testTenantAdminAlertManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminDataIsolation">testTenantAdminDataIsolation</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.permission.PermissionIsolationTest" class="method navigator-link" hash-for-method="testTenantAdminDataIsolation">testTenantAdminDataIsolation</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminDeviceManagement">testTenantAdminDeviceManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminHealthDataManagement">testTenantAdminHealthDataManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminInterfaceAndHealthConfig">testTenantAdminInterfaceAndHealthConfig</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminMessageManagement">testTenantAdminMessageManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminOrgAndPositionManagement">testTenantAdminOrgAndPositionManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminTenantLimitations">testTenantAdminTenantLimitations</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminUserManagement">testTenantAdminUserManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="failed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.permission.PermissionIsolationTest" class="method navigator-link" hash-for-method="testWechatConfigPermissionManagement">testWechatConfigPermissionManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                    </div> <!-- method-list-content failed suite-ljwx_boot_automation_test_suite -->
+                  </li>
+                  <li>
+                    <span class="method-list-title skipped">Skipped methods</span>
+                    <span class="show-or-hide-methods skipped">
+                      <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" class="hide-methods skipped suite-ljwx_boot_automation_test_suite"> (hide)</a> <!-- hide-methods skipped suite-ljwx_boot_automation_test_suite -->
+                      <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" class="show-methods skipped suite-ljwx_boot_automation_test_suite"> (show)</a> <!-- show-methods skipped suite-ljwx_boot_automation_test_suite -->
+                    </span>
+                    <div class="method-list-content skipped suite-ljwx_boot_automation_test_suite">
+                      <span>
+                        <img src="skipped.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.integration.FullSystemIntegrationTest" class="method navigator-link" hash-for-method="testConcurrentPermissionIsolation">testConcurrentPermissionIsolation</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="skipped.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.integration.FullSystemIntegrationTest" class="method navigator-link" hash-for-method="testDataConsistencyAndIntegrity">testDataConsistencyAndIntegrity</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="skipped.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.integration.FullSystemIntegrationTest" class="method navigator-link" hash-for-method="testEndToEndBusinessFlow">testEndToEndBusinessFlow</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="skipped.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.integration.FullSystemIntegrationTest" class="method navigator-link" hash-for-method="testPerformanceOptimization">testPerformanceOptimization</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="skipped.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.integration.FullSystemIntegrationTest" class="method navigator-link" hash-for-method="testSystemBasicAvailability">testSystemBasicAvailability</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                    </div> <!-- method-list-content skipped suite-ljwx_boot_automation_test_suite -->
+                  </li>
+                  <li>
+                    <span class="method-list-title passed">Passed methods</span>
+                    <span class="show-or-hide-methods passed">
+                      <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" class="hide-methods passed suite-ljwx_boot_automation_test_suite"> (hide)</a> <!-- hide-methods passed suite-ljwx_boot_automation_test_suite -->
+                      <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" class="show-methods passed suite-ljwx_boot_automation_test_suite"> (show)</a> <!-- show-methods passed suite-ljwx_boot_automation_test_suite -->
+                    </span>
+                    <div class="method-list-content passed suite-ljwx_boot_automation_test_suite">
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.api.ComprehensiveApiTest" class="method navigator-link" hash-for-method="testAdminAccessAllApis">testAdminAccessAllApis</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminAlertManagement">testAdminAlertManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminDashboardAccess">testAdminDashboardAccess</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminDeviceManagement">testAdminDeviceManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminHealthDataManagement">testAdminHealthDataManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminInterfaceAndHealthConfig">testAdminInterfaceAndHealthConfig</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminLogin">testAdminLogin</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.auth.AuthenticationTest" class="method navigator-link" hash-for-method="testAdminLoginAuthentication">testAdminLoginAuthentication</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminMessageManagement">testAdminMessageManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminOrgAndPositionManagement">testAdminOrgAndPositionManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminTenantManagement">testAdminTenantManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.admin.AdminFunctionalityTest" class="method navigator-link" hash-for-method="testAdminUserManagement">testAdminUserManagement</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.auth.AuthenticationTest" class="method navigator-link" hash-for-method="testInvalidTokenAccess">testInvalidTokenAccess</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.auth.AuthenticationTest" class="method navigator-link" hash-for-method="testLoginParameterValidation">testLoginParameterValidation</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.api.ComprehensiveApiTest" class="method navigator-link" hash-for-method="testSpecialParameterApis">testSpecialParameterApis</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.api.ComprehensiveApiTest" class="method navigator-link" hash-for-method="testTenantAdminAccessTenantApis">testTenantAdminAccessTenantApis</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminDashboardAccess">testTenantAdminDashboardAccess</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.tenant.TenantAdminFunctionalityTest" class="method navigator-link" hash-for-method="testTenantAdminLogin">testTenantAdminLogin</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.auth.AuthenticationTest" class="method navigator-link" hash-for-method="testTokenValidity">testTokenValidity</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                      <span>
+                        <img src="passed.png" width="3%"/>
+                        <a href="#" panel-name="suite-ljwx_boot_automation_test_suite" title="com.ljwx.test.auth.AuthenticationTest" class="method navigator-link" hash-for-method="testUnauthorizedAccess">testUnauthorizedAccess</a> <!-- method navigator-link -->
+                      </span>
+                      <br/>
+                    </div> <!-- method-list-content passed suite-ljwx_boot_automation_test_suite -->
+                  </li>
+                </ul>
+              </div> <!-- suite-section-content -->
+            </div> <!-- result-section -->
+          </div> <!-- navigator-suite-content -->
+        </div> <!-- rounded-window -->
+      </div> <!-- suite -->
+    </div> <!-- navigator-root -->
+    <div class="wrapper">
+      <div class="main-panel-root">
+        <div panel-name="suite-ljwx_boot_automation_test_suite" class="panel ljwx_boot_automation_test_suite">
+          <div class="suite-ljwx_boot_automation_test_suite-class-failed">
+            <div class="main-panel-header rounded-window-top">
+              <img src="failed.png"/>
+              <span class="class-name">com.ljwx.test.tenant.TenantAdminFunctionalityTest</span>
+            </div> <!-- main-panel-header rounded-window-top -->
+            <div class="main-panel-content rounded-window-bottom">
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminAlertManagement">
+                  </a> <!-- testTenantAdminAlertManagement -->
+                  <span class="method-name">testTenantAdminAlertManagement</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:alert:info:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593572} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminAlertManagement(TenantAdminFunctionalityTest.java:225)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员告警管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminDataIsolation">
+                  </a> <!-- testTenantAdminDataIsolation -->
+                  <span class="method-name">testTenantAdminDataIsolation</span>
+                  <div class="stack-trace">java.lang.NullPointerException: Cannot invoke &quot;java.util.List.isEmpty()&quot; because the return value of &quot;io.restassured.path.json.JsonPath.getList(String)&quot; is null
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminDataIsolation(TenantAdminFunctionalityTest.java:324)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 29 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员数据隔离边界)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminDeviceManagement">
+                  </a> <!-- testTenantAdminDeviceManagement -->
+                  <span class="method-name">testTenantAdminDeviceManagement</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:device:info:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593539} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminDeviceManagement(TenantAdminFunctionalityTest.java:172)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员设备管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminHealthDataManagement">
+                  </a> <!-- testTenantAdminHealthDataManagement -->
+                  <span class="method-name">testTenantAdminHealthDataManagement</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:health:data:config:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593587} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminHealthDataManagement(TenantAdminFunctionalityTest.java:262)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员健康信息管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminInterfaceAndHealthConfig">
+                  </a> <!-- testTenantAdminInterfaceAndHealthConfig -->
+                  <span class="method-name">testTenantAdminInterfaceAndHealthConfig</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:interface:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593601} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminInterfaceAndHealthConfig(TenantAdminFunctionalityTest.java:295)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员接口和健康配置管理)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminMessageManagement">
+                  </a> <!-- testTenantAdminMessageManagement -->
+                  <span class="method-name">testTenantAdminMessageManagement</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:device:message:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593556} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminMessageManagement(TenantAdminFunctionalityTest.java:198)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员消息管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminOrgAndPositionManagement">
+                  </a> <!-- testTenantAdminOrgAndPositionManagement -->
+                  <span class="method-name">testTenantAdminOrgAndPositionManagement</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 sys:org:units:tree&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593506} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminOrgAndPositionManagement(TenantAdminFunctionalityTest.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员组织和岗位管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminTenantLimitations">
+                  </a> <!-- testTenantAdminTenantLimitations -->
+                  <span class="method-name">testTenantAdminTenantLimitations</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:customer:config:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593492} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminTenantLimitations(TenantAdminFunctionalityTest.java:66)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员租户管理功能限制)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminUserManagement">
+                  </a> <!-- testTenantAdminUserManagement -->
+                  <span class="method-name">testTenantAdminUserManagement</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 sys:user:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593524} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminUserManagement(TenantAdminFunctionalityTest.java:144)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员用户管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+            </div> <!-- main-panel-content rounded-window-bottom -->
+          </div> <!-- suite-ljwx_boot_automation_test_suite-class-failed -->
+          <div class="suite-ljwx_boot_automation_test_suite-class-failed">
+            <div class="main-panel-header rounded-window-top">
+              <img src="failed.png"/>
+              <span class="class-name">com.ljwx.test.permission.PermissionIsolationTest</span>
+            </div> <!-- main-panel-header rounded-window-top -->
+            <div class="main-panel-content rounded-window-bottom">
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminGlobalDataAccess">
+                  </a> <!-- testAdminGlobalDataAccess -->
+                  <span class="method-name">testAdminGlobalDataAccess</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 500，响应: {&quot;code&quot;:500,&quot;message&quot;:&quot;服务器错误&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593675} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testAdminGlobalDataAccess(PermissionIsolationTest.java:35)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证Admin全局数据访问权限)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testCrossTenantAccessDenial">
+                  </a> <!-- testCrossTenantAccessDenial -->
+                  <span class="method-name">testCrossTenantAccessDenial</span>
+                  <div class="stack-trace">java.lang.NullPointerException: Cannot invoke &quot;java.util.List.isEmpty()&quot; because the return value of &quot;io.restassured.path.json.JsonPath.getList(String)&quot; is null
+	at com.ljwx.test.permission.PermissionIsolationTest.testCrossTenantAccessDenial(PermissionIsolationTest.java:156)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 29 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证跨租户数据访问拒绝)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testHealthDataAccessPermission">
+                  </a> <!-- testHealthDataAccessPermission -->
+                  <span class="method-name">testHealthDataAccessPermission</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:health:data:config:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706594037} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testHealthDataAccessPermission(PermissionIsolationTest.java:287)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证健康数据访问权限)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testOrganizationPermissionIsolation">
+                  </a> <!-- testOrganizationPermissionIsolation -->
+                  <span class="method-name">testOrganizationPermissionIsolation</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 sys:org:units:tree&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593923} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testOrganizationPermissionIsolation(PermissionIsolationTest.java:221)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证组织架构权限隔离)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testParameterBoundarySecurity">
+                  </a> <!-- testParameterBoundarySecurity -->
+                  <span class="method-name">testParameterBoundarySecurity</span>
+                  <div class="stack-trace">java.lang.NullPointerException: Cannot invoke &quot;java.util.List.isEmpty()&quot; because the return value of &quot;io.restassured.path.json.JsonPath.getList(String)&quot; is null
+	at com.ljwx.test.permission.PermissionIsolationTest.testParameterBoundarySecurity(PermissionIsolationTest.java:179)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 29 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证参数边界安全性)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminDataIsolation">
+                  </a> <!-- testTenantAdminDataIsolation -->
+                  <span class="method-name">testTenantAdminDataIsolation</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 sys:user:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593720} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testTenantAdminDataIsolation(PermissionIsolationTest.java:79)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证租户管理员数据隔离)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testWechatConfigPermissionManagement">
+                  </a> <!-- testWechatConfigPermissionManagement -->
+                  <span class="method-name">testWechatConfigPermissionManagement</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:wechat:alarm:config:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706594147} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testWechatConfigPermissionManagement(PermissionIsolationTest.java:339)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证微信配置权限管理)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+            </div> <!-- main-panel-content rounded-window-bottom -->
+          </div> <!-- suite-ljwx_boot_automation_test_suite-class-failed -->
+          <div class="suite-ljwx_boot_automation_test_suite-class-failed">
+            <div class="main-panel-header rounded-window-top">
+              <img src="failed.png"/>
+              <span class="class-name">com.ljwx.test.admin.AdminFunctionalityTest</span>
+            </div> <!-- main-panel-header rounded-window-top -->
+            <div class="main-panel-content rounded-window-bottom">
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminCrossTenantAccess">
+                  </a> <!-- testAdminCrossTenantAccess -->
+                  <span class="method-name">testAdminCrossTenantAccess</span>
+                  <div class="stack-trace">java.lang.AssertionError: 响应code应该为200或0，实际: 500，响应: {&quot;code&quot;:500,&quot;message&quot;:&quot;服务器错误&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593401} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.admin.AdminFunctionalityTest.testAdminCrossTenantAccess(AdminFunctionalityTest.java:303)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证Admin跨租户数据访问能力)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+            </div> <!-- main-panel-content rounded-window-bottom -->
+          </div> <!-- suite-ljwx_boot_automation_test_suite-class-failed -->
+          <div class="suite-ljwx_boot_automation_test_suite-class-skipped">
+            <div class="main-panel-header rounded-window-top">
+              <img src="skipped.png"/>
+              <span class="class-name">com.ljwx.test.integration.FullSystemIntegrationTest</span>
+            </div> <!-- main-panel-header rounded-window-top -->
+            <div class="main-panel-content rounded-window-bottom">
+              <div class="method">
+                <div class="method-content">
+                  <a name="testConcurrentPermissionIsolation">
+                  </a> <!-- testConcurrentPermissionIsolation -->
+                  <span class="method-name">testConcurrentPermissionIsolation</span>
+                  <div class="stack-trace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证高并发场景下的权限隔离)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testDataConsistencyAndIntegrity">
+                  </a> <!-- testDataConsistencyAndIntegrity -->
+                  <span class="method-name">testDataConsistencyAndIntegrity</span>
+                  <div class="stack-trace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证数据一致性和完整性)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testEndToEndBusinessFlow">
+                  </a> <!-- testEndToEndBusinessFlow -->
+                  <span class="method-name">testEndToEndBusinessFlow</span>
+                  <div class="stack-trace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证端到端业务流程)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testPerformanceOptimization">
+                  </a> <!-- testPerformanceOptimization -->
+                  <span class="method-name">testPerformanceOptimization</span>
+                  <div class="stack-trace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证性能优化效果)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testSystemBasicAvailability">
+                  </a> <!-- testSystemBasicAvailability -->
+                  <span class="method-name">testSystemBasicAvailability</span>
+                  <div class="stack-trace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames
+</div> <!-- stack-trace -->
+                  <em>
+(验证系统基础功能可用性)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+            </div> <!-- main-panel-content rounded-window-bottom -->
+          </div> <!-- suite-ljwx_boot_automation_test_suite-class-skipped -->
+          <div class="suite-ljwx_boot_automation_test_suite-class-passed">
+            <div class="main-panel-header rounded-window-top">
+              <img src="passed.png"/>
+              <span class="class-name">com.ljwx.test.tenant.TenantAdminFunctionalityTest</span>
+            </div> <!-- main-panel-header rounded-window-top -->
+            <div class="main-panel-content rounded-window-bottom">
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminDashboardAccess">
+                  </a> <!-- testTenantAdminDashboardAccess -->
+                  <span class="method-name">testTenantAdminDashboardAccess</span>
+                  <em>
+(验证租户管理员访问首页功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminLogin">
+                  </a> <!-- testTenantAdminLogin -->
+                  <span class="method-name">testTenantAdminLogin</span>
+                  <em>
+(验证租户管理员登录功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+            </div> <!-- main-panel-content rounded-window-bottom -->
+          </div> <!-- suite-ljwx_boot_automation_test_suite-class-passed -->
+          <div class="suite-ljwx_boot_automation_test_suite-class-passed">
+            <div class="main-panel-header rounded-window-top">
+              <img src="passed.png"/>
+              <span class="class-name">com.ljwx.test.auth.AuthenticationTest</span>
+            </div> <!-- main-panel-header rounded-window-top -->
+            <div class="main-panel-content rounded-window-bottom">
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminLoginAuthentication">
+                  </a> <!-- testAdminLoginAuthentication -->
+                  <span class="method-name">testAdminLoginAuthentication</span>
+                  <em>
+(验证Admin用户登录认证流程)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testInvalidTokenAccess">
+                  </a> <!-- testInvalidTokenAccess -->
+                  <span class="method-name">testInvalidTokenAccess</span>
+                  <em>
+(验证错误Token访问被拒绝)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testLoginParameterValidation">
+                  </a> <!-- testLoginParameterValidation -->
+                  <span class="method-name">testLoginParameterValidation</span>
+                  <em>
+(验证登录参数验证)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTokenValidity">
+                  </a> <!-- testTokenValidity -->
+                  <span class="method-name">testTokenValidity</span>
+                  <em>
+(验证Token有效性)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testUnauthorizedAccess">
+                  </a> <!-- testUnauthorizedAccess -->
+                  <span class="method-name">testUnauthorizedAccess</span>
+                  <em>
+(验证无Token访问被拒绝)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+            </div> <!-- main-panel-content rounded-window-bottom -->
+          </div> <!-- suite-ljwx_boot_automation_test_suite-class-passed -->
+          <div class="suite-ljwx_boot_automation_test_suite-class-passed">
+            <div class="main-panel-header rounded-window-top">
+              <img src="passed.png"/>
+              <span class="class-name">com.ljwx.test.api.ComprehensiveApiTest</span>
+            </div> <!-- main-panel-header rounded-window-top -->
+            <div class="main-panel-content rounded-window-bottom">
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminAccessAllApis">
+                  </a> <!-- testAdminAccessAllApis -->
+                  <span class="method-name">testAdminAccessAllApis</span>
+                  <em>
+(验证Admin访问所有接口)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testSpecialParameterApis">
+                  </a> <!-- testSpecialParameterApis -->
+                  <span class="method-name">testSpecialParameterApis</span>
+                  <em>
+(验证特殊参数接口功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testTenantAdminAccessTenantApis">
+                  </a> <!-- testTenantAdminAccessTenantApis -->
+                  <span class="method-name">testTenantAdminAccessTenantApis</span>
+                  <em>
+(验证租户管理员访问租户范围接口)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+            </div> <!-- main-panel-content rounded-window-bottom -->
+          </div> <!-- suite-ljwx_boot_automation_test_suite-class-passed -->
+          <div class="suite-ljwx_boot_automation_test_suite-class-passed">
+            <div class="main-panel-header rounded-window-top">
+              <img src="passed.png"/>
+              <span class="class-name">com.ljwx.test.admin.AdminFunctionalityTest</span>
+            </div> <!-- main-panel-header rounded-window-top -->
+            <div class="main-panel-content rounded-window-bottom">
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminAlertManagement">
+                  </a> <!-- testAdminAlertManagement -->
+                  <span class="method-name">testAdminAlertManagement</span>
+                  <em>
+(验证Admin告警管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminDashboardAccess">
+                  </a> <!-- testAdminDashboardAccess -->
+                  <span class="method-name">testAdminDashboardAccess</span>
+                  <em>
+(验证Admin访问首页功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminDeviceManagement">
+                  </a> <!-- testAdminDeviceManagement -->
+                  <span class="method-name">testAdminDeviceManagement</span>
+                  <em>
+(验证Admin设备管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminHealthDataManagement">
+                  </a> <!-- testAdminHealthDataManagement -->
+                  <span class="method-name">testAdminHealthDataManagement</span>
+                  <em>
+(验证Admin健康信息管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminInterfaceAndHealthConfig">
+                  </a> <!-- testAdminInterfaceAndHealthConfig -->
+                  <span class="method-name">testAdminInterfaceAndHealthConfig</span>
+                  <em>
+(验证Admin接口和健康配置管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminLogin">
+                  </a> <!-- testAdminLogin -->
+                  <span class="method-name">testAdminLogin</span>
+                  <em>
+(验证Admin用户登录功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminMessageManagement">
+                  </a> <!-- testAdminMessageManagement -->
+                  <span class="method-name">testAdminMessageManagement</span>
+                  <em>
+(验证Admin消息管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminOrgAndPositionManagement">
+                  </a> <!-- testAdminOrgAndPositionManagement -->
+                  <span class="method-name">testAdminOrgAndPositionManagement</span>
+                  <em>
+(验证Admin组织架构和岗位管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminTenantManagement">
+                  </a> <!-- testAdminTenantManagement -->
+                  <span class="method-name">testAdminTenantManagement</span>
+                  <em>
+(验证Admin租户管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+              <div class="method">
+                <div class="method-content">
+                  <a name="testAdminUserManagement">
+                  </a> <!-- testAdminUserManagement -->
+                  <span class="method-name">testAdminUserManagement</span>
+                  <em>
+(验证Admin用户管理功能)                  </em>
+                </div> <!-- method-content -->
+              </div> <!-- method -->
+            </div> <!-- main-panel-content rounded-window-bottom -->
+          </div> <!-- suite-ljwx_boot_automation_test_suite-class-passed -->
+        </div> <!-- panel ljwx_boot_automation_test_suite -->
+        <div panel-name="test-xml-ljwx_boot_automation_test_suite" class="panel">
+          <div class="main-panel-header rounded-window-top">
+            <span class="header-content">/Users/brunogao/work/codes/health/ljwx/yunxiang/ljwx-boot/test-automation/src/test/resources/testng.xml</span>
+          </div> <!-- main-panel-header rounded-window-top -->
+          <div class="main-panel-content rounded-window-bottom">
+            <pre>
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;!DOCTYPE suite SYSTEM &quot;https://testng.org/testng-1.0.dtd&quot;&gt;
+&lt;suite name=&quot;ljwx-boot-automation-test-suite&quot; verbose=&quot;0&quot;&gt;
+  &lt;parameter name=&quot;base.url&quot; value=&quot;http://192.168.1.83:3333&quot;/&gt;
+  &lt;parameter name=&quot;environment&quot; value=&quot;test&quot;/&gt;
+  &lt;listeners&gt;
+    &lt;listener class-name=&quot;com.ljwx.test.listener.TestResultListener&quot;/&gt;
+  &lt;/listeners&gt;
+  &lt;test thread-count=&quot;5&quot; name=&quot;Authentication-Tests&quot; verbose=&quot;0&quot;&gt;
+    &lt;parameter name=&quot;test.category&quot; value=&quot;auth&quot;/&gt;
+    &lt;classes&gt;
+      &lt;class name=&quot;com.ljwx.test.auth.AuthenticationTest&quot;/&gt;
+    &lt;/classes&gt;
+  &lt;/test&gt; &lt;!-- Authentication-Tests --&gt;
+  &lt;test thread-count=&quot;5&quot; name=&quot;Admin-Functionality-Tests&quot; verbose=&quot;0&quot;&gt;
+    &lt;parameter name=&quot;test.category&quot; value=&quot;admin&quot;/&gt;
+    &lt;classes&gt;
+      &lt;class name=&quot;com.ljwx.test.admin.AdminFunctionalityTest&quot;/&gt;
+    &lt;/classes&gt;
+  &lt;/test&gt; &lt;!-- Admin-Functionality-Tests --&gt;
+  &lt;test thread-count=&quot;5&quot; name=&quot;Tenant-Admin-Functionality-Tests&quot; verbose=&quot;0&quot;&gt;
+    &lt;parameter name=&quot;test.category&quot; value=&quot;tenant&quot;/&gt;
+    &lt;classes&gt;
+      &lt;class name=&quot;com.ljwx.test.tenant.TenantAdminFunctionalityTest&quot;/&gt;
+    &lt;/classes&gt;
+  &lt;/test&gt; &lt;!-- Tenant-Admin-Functionality-Tests --&gt;
+  &lt;test thread-count=&quot;5&quot; name=&quot;Permission-Isolation-Tests&quot; verbose=&quot;0&quot;&gt;
+    &lt;parameter name=&quot;test.category&quot; value=&quot;permission&quot;/&gt;
+    &lt;classes&gt;
+      &lt;class name=&quot;com.ljwx.test.permission.PermissionIsolationTest&quot;/&gt;
+    &lt;/classes&gt;
+  &lt;/test&gt; &lt;!-- Permission-Isolation-Tests --&gt;
+  &lt;test thread-count=&quot;5&quot; name=&quot;Comprehensive-API-Tests&quot; verbose=&quot;0&quot;&gt;
+    &lt;parameter name=&quot;test.category&quot; value=&quot;api&quot;/&gt;
+    &lt;classes&gt;
+      &lt;class name=&quot;com.ljwx.test.api.ComprehensiveApiTest&quot;/&gt;
+    &lt;/classes&gt;
+  &lt;/test&gt; &lt;!-- Comprehensive-API-Tests --&gt;
+  &lt;test thread-count=&quot;5&quot; name=&quot;Full-Integration-Tests&quot; verbose=&quot;0&quot;&gt;
+    &lt;parameter name=&quot;test.category&quot; value=&quot;integration&quot;/&gt;
+    &lt;classes&gt;
+      &lt;class name=&quot;com.ljwx.test.integration.FullSystemIntegrationTest&quot;/&gt;
+    &lt;/classes&gt;
+  &lt;/test&gt; &lt;!-- Full-Integration-Tests --&gt;
+&lt;/suite&gt; &lt;!-- ljwx-boot-automation-test-suite --&gt;
+            </pre>
+          </div> <!-- main-panel-content rounded-window-bottom -->
+        </div> <!-- panel -->
+        <div panel-name="testlist-ljwx_boot_automation_test_suite" class="panel">
+          <div class="main-panel-header rounded-window-top">
+            <span class="header-content">Tests for ljwx-boot-automation-test-suite</span>
+          </div> <!-- main-panel-header rounded-window-top -->
+          <div class="main-panel-content rounded-window-bottom">
+            <ul>
+              <li>
+                <span class="test-name">Authentication-Tests (1 class)</span>
+              </li>
+              <li>
+                <span class="test-name">Admin-Functionality-Tests (1 class)</span>
+              </li>
+              <li>
+                <span class="test-name">Tenant-Admin-Functionality-Tests (1 class)</span>
+              </li>
+              <li>
+                <span class="test-name">Permission-Isolation-Tests (1 class)</span>
+              </li>
+              <li>
+                <span class="test-name">Comprehensive-API-Tests (1 class)</span>
+              </li>
+              <li>
+                <span class="test-name">Full-Integration-Tests (1 class)</span>
+              </li>
+            </ul>
+          </div> <!-- main-panel-content rounded-window-bottom -->
+        </div> <!-- panel -->
+        <div panel-name="group-ljwx_boot_automation_test_suite" class="panel">
+          <div class="main-panel-header rounded-window-top">
+            <span class="header-content">Groups for ljwx-boot-automation-test-suite</span>
+          </div> <!-- main-panel-header rounded-window-top -->
+          <div class="main-panel-content rounded-window-bottom">
+          </div> <!-- main-panel-content rounded-window-bottom -->
+        </div> <!-- panel -->
+        <div panel-name="times-ljwx_boot_automation_test_suite" class="panel">
+          <div class="main-panel-header rounded-window-top">
+            <span class="header-content">Times for ljwx-boot-automation-test-suite</span>
+          </div> <!-- main-panel-header rounded-window-top -->
+          <div class="main-panel-content rounded-window-bottom">
+            <div class="times-div">
+              <script type="text/javascript">
+suiteTableInitFunctions.push('tableData_ljwx_boot_automation_test_suite');
+function tableData_ljwx_boot_automation_test_suite() {
+var data = new google.visualization.DataTable();
+data.addColumn('number', 'Number');
+data.addColumn('string', 'Method');
+data.addColumn('string', 'Class');
+data.addColumn('number', 'Time (ms)');
+data.addRows(42);
+data.setCell(0, 0, 0)
+data.setCell(0, 1, 'testAdminLoginAuthentication')
+data.setCell(0, 2, 'com.ljwx.test.auth.AuthenticationTest')
+data.setCell(0, 3, 830);
+data.setCell(1, 0, 1)
+data.setCell(1, 1, 'testAdminAccessAllApis')
+data.setCell(1, 2, 'com.ljwx.test.api.ComprehensiveApiTest')
+data.setCell(1, 3, 464);
+data.setCell(2, 0, 2)
+data.setCell(2, 1, 'testTenantAdminAccessTenantApis')
+data.setCell(2, 2, 'com.ljwx.test.api.ComprehensiveApiTest')
+data.setCell(2, 3, 228);
+data.setCell(3, 0, 3)
+data.setCell(3, 1, 'testAdminDashboardAccess')
+data.setCell(3, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(3, 3, 164);
+data.setCell(4, 0, 4)
+data.setCell(4, 1, 'testTokenValidity')
+data.setCell(4, 2, 'com.ljwx.test.auth.AuthenticationTest')
+data.setCell(4, 3, 151);
+data.setCell(5, 0, 5)
+data.setCell(5, 1, 'testAdminAlertManagement')
+data.setCell(5, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(5, 3, 119);
+data.setCell(6, 0, 6)
+data.setCell(6, 1, 'testHealthDataAccessPermission')
+data.setCell(6, 2, 'com.ljwx.test.permission.PermissionIsolationTest')
+data.setCell(6, 3, 113);
+data.setCell(7, 0, 7)
+data.setCell(7, 1, 'testWechatConfigPermissionManagement')
+data.setCell(7, 2, 'com.ljwx.test.permission.PermissionIsolationTest')
+data.setCell(7, 3, 109);
+data.setCell(8, 0, 8)
+data.setCell(8, 1, 'testOrganizationPermissionIsolation')
+data.setCell(8, 2, 'com.ljwx.test.permission.PermissionIsolationTest')
+data.setCell(8, 3, 102);
+data.setCell(9, 0, 9)
+data.setCell(9, 1, 'testAdminOrgAndPositionManagement')
+data.setCell(9, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(9, 3, 81);
+data.setCell(10, 0, 10)
+data.setCell(10, 1, 'testSpecialParameterApis')
+data.setCell(10, 2, 'com.ljwx.test.api.ComprehensiveApiTest')
+data.setCell(10, 3, 71);
+data.setCell(11, 0, 11)
+data.setCell(11, 1, 'testAdminUserManagement')
+data.setCell(11, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(11, 3, 68);
+data.setCell(12, 0, 12)
+data.setCell(12, 1, 'testCrossTenantAccessDenial')
+data.setCell(12, 2, 'com.ljwx.test.permission.PermissionIsolationTest')
+data.setCell(12, 3, 58);
+data.setCell(13, 0, 13)
+data.setCell(13, 1, 'testAdminMessageManagement')
+data.setCell(13, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(13, 3, 55);
+data.setCell(14, 0, 14)
+data.setCell(14, 1, 'testLoginParameterValidation')
+data.setCell(14, 2, 'com.ljwx.test.auth.AuthenticationTest')
+data.setCell(14, 3, 54);
+data.setCell(15, 0, 15)
+data.setCell(15, 1, 'testAdminDeviceManagement')
+data.setCell(15, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(15, 3, 54);
+data.setCell(16, 0, 16)
+data.setCell(16, 1, 'testAdminGlobalDataAccess')
+data.setCell(16, 2, 'com.ljwx.test.permission.PermissionIsolationTest')
+data.setCell(16, 3, 50);
+data.setCell(17, 0, 17)
+data.setCell(17, 1, 'testAdminHealthDataManagement')
+data.setCell(17, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(17, 3, 46);
+data.setCell(18, 0, 18)
+data.setCell(18, 1, 'testAdminInterfaceAndHealthConfig')
+data.setCell(18, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(18, 3, 45);
+data.setCell(19, 0, 19)
+data.setCell(19, 1, 'testTenantAdminDataIsolation')
+data.setCell(19, 2, 'com.ljwx.test.permission.PermissionIsolationTest')
+data.setCell(19, 3, 44);
+data.setCell(20, 0, 20)
+data.setCell(20, 1, 'testParameterBoundarySecurity')
+data.setCell(20, 2, 'com.ljwx.test.permission.PermissionIsolationTest')
+data.setCell(20, 3, 43);
+data.setCell(21, 0, 21)
+data.setCell(21, 1, 'testAdminTenantManagement')
+data.setCell(21, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(21, 3, 29);
+data.setCell(22, 0, 22)
+data.setCell(22, 1, 'testTenantAdminDashboardAccess')
+data.setCell(22, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(22, 3, 29);
+data.setCell(23, 0, 23)
+data.setCell(23, 1, 'testUnauthorizedAccess')
+data.setCell(23, 2, 'com.ljwx.test.auth.AuthenticationTest')
+data.setCell(23, 3, 21);
+data.setCell(24, 0, 24)
+data.setCell(24, 1, 'testAdminCrossTenantAccess')
+data.setCell(24, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(24, 3, 19);
+data.setCell(25, 0, 25)
+data.setCell(25, 1, 'testInvalidTokenAccess')
+data.setCell(25, 2, 'com.ljwx.test.auth.AuthenticationTest')
+data.setCell(25, 3, 17);
+data.setCell(26, 0, 26)
+data.setCell(26, 1, 'testTenantAdminUserManagement')
+data.setCell(26, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(26, 3, 17);
+data.setCell(27, 0, 27)
+data.setCell(27, 1, 'testTenantAdminAlertManagement')
+data.setCell(27, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(27, 3, 15);
+data.setCell(28, 0, 28)
+data.setCell(28, 1, 'testTenantAdminMessageManagement')
+data.setCell(28, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(28, 3, 15);
+data.setCell(29, 0, 29)
+data.setCell(29, 1, 'testTenantAdminTenantLimitations')
+data.setCell(29, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(29, 3, 15);
+data.setCell(30, 0, 30)
+data.setCell(30, 1, 'testTenantAdminDeviceManagement')
+data.setCell(30, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(30, 3, 15);
+data.setCell(31, 0, 31)
+data.setCell(31, 1, 'testTenantAdminHealthDataManagement')
+data.setCell(31, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(31, 3, 14);
+data.setCell(32, 0, 32)
+data.setCell(32, 1, 'testTenantAdminInterfaceAndHealthConfig')
+data.setCell(32, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(32, 3, 14);
+data.setCell(33, 0, 33)
+data.setCell(33, 1, 'testTenantAdminDataIsolation')
+data.setCell(33, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(33, 3, 14);
+data.setCell(34, 0, 34)
+data.setCell(34, 1, 'testTenantAdminOrgAndPositionManagement')
+data.setCell(34, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(34, 3, 13);
+data.setCell(35, 0, 35)
+data.setCell(35, 1, 'testAdminLogin')
+data.setCell(35, 2, 'com.ljwx.test.admin.AdminFunctionalityTest')
+data.setCell(35, 3, 0);
+data.setCell(36, 0, 36)
+data.setCell(36, 1, 'testTenantAdminLogin')
+data.setCell(36, 2, 'com.ljwx.test.tenant.TenantAdminFunctionalityTest')
+data.setCell(36, 3, 0);
+data.setCell(37, 0, 37)
+data.setCell(37, 1, 'testSystemBasicAvailability')
+data.setCell(37, 2, 'com.ljwx.test.integration.FullSystemIntegrationTest')
+data.setCell(37, 3, 0);
+data.setCell(38, 0, 38)
+data.setCell(38, 1, 'testConcurrentPermissionIsolation')
+data.setCell(38, 2, 'com.ljwx.test.integration.FullSystemIntegrationTest')
+data.setCell(38, 3, 0);
+data.setCell(39, 0, 39)
+data.setCell(39, 1, 'testDataConsistencyAndIntegrity')
+data.setCell(39, 2, 'com.ljwx.test.integration.FullSystemIntegrationTest')
+data.setCell(39, 3, 0);
+data.setCell(40, 0, 40)
+data.setCell(40, 1, 'testEndToEndBusinessFlow')
+data.setCell(40, 2, 'com.ljwx.test.integration.FullSystemIntegrationTest')
+data.setCell(40, 3, 0);
+data.setCell(41, 0, 41)
+data.setCell(41, 1, 'testPerformanceOptimization')
+data.setCell(41, 2, 'com.ljwx.test.integration.FullSystemIntegrationTest')
+data.setCell(41, 3, 0);
+window.suiteTableData['ljwx_boot_automation_test_suite']= { tableData: data, tableDiv: 'times-div-ljwx_boot_automation_test_suite'}
+return data;
+}
+              </script>
+              <span class="suite-total-time">Total running time: 3 seconds</span>
+              <div id="times-div-ljwx_boot_automation_test_suite">
+              </div> <!-- times-div-ljwx_boot_automation_test_suite -->
+            </div> <!-- times-div -->
+          </div> <!-- main-panel-content rounded-window-bottom -->
+        </div> <!-- panel -->
+        <div panel-name="reporter-ljwx_boot_automation_test_suite" class="panel">
+          <div class="main-panel-header rounded-window-top">
+            <span class="header-content">Reporter output for ljwx-boot-automation-test-suite</span>
+          </div> <!-- main-panel-header rounded-window-top -->
+          <div class="main-panel-content rounded-window-bottom">
+          </div> <!-- main-panel-content rounded-window-bottom -->
+        </div> <!-- panel -->
+        <div panel-name="ignored-methods-ljwx_boot_automation_test_suite" class="panel">
+          <div class="main-panel-header rounded-window-top">
+            <span class="header-content">0 ignored methods</span>
+          </div> <!-- main-panel-header rounded-window-top -->
+          <div class="main-panel-content rounded-window-bottom">
+          </div> <!-- main-panel-content rounded-window-bottom -->
+        </div> <!-- panel -->
+        <div panel-name="chronological-ljwx_boot_automation_test_suite" class="panel">
+          <div class="main-panel-header rounded-window-top">
+            <span class="header-content">Methods in chronological order</span>
+          </div> <!-- main-panel-header rounded-window-top -->
+          <div class="main-panel-content rounded-window-bottom">
+            <div class="chronological-class">
+              <div class="chronological-class-name">com.ljwx.test.auth.AuthenticationTest</div> <!-- chronological-class-name -->
+              <div class="configuration-class before">
+                <span class="method-name">setupRestAssured</span>
+                <span class="method-start">0 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="configuration-class before">
+                <span class="method-name">setup</span>
+                <span class="method-start">183 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="test-method">
+                <span class="method-name">testAdminLoginAuthentication</span>
+                <span class="method-start">188 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testTokenValidity</span>
+                <span class="method-start">1020 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testUnauthorizedAccess</span>
+                <span class="method-start">1171 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testInvalidTokenAccess</span>
+                <span class="method-start">1192 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testLoginParameterValidation</span>
+                <span class="method-start">1209 ms</span>
+              </div> <!-- test-method -->
+            </div> <!-- chronological-class -->
+            <div class="chronological-class">
+              <div class="chronological-class-name">com.ljwx.test.admin.AdminFunctionalityTest</div> <!-- chronological-class-name -->
+              <div class="configuration-class before">
+                <span class="method-name">setupRestAssured</span>
+                <span class="method-start">1287 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="configuration-class before">
+                <span class="method-name">setup</span>
+                <span class="method-start">1288 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="test-method">
+                <span class="method-name">testAdminLogin</span>
+                <span class="method-start">1330 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testAdminDashboardAccess</span>
+                <span class="method-start">1330 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testAdminTenantManagement</span>
+                <span class="method-start">1495 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testAdminOrgAndPositionManagement</span>
+                <span class="method-start">1524 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testAdminUserManagement</span>
+                <span class="method-start">1605 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testAdminDeviceManagement</span>
+                <span class="method-start">1673 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testAdminMessageManagement</span>
+                <span class="method-start">1728 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testAdminAlertManagement</span>
+                <span class="method-start">1783 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testAdminHealthDataManagement</span>
+                <span class="method-start">1903 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testAdminInterfaceAndHealthConfig</span>
+                <span class="method-start">1950 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testAdminCrossTenantAccess</span>
+                <span class="method-start">1996 ms</span>
+              </div> <!-- test-method -->
+            </div> <!-- chronological-class -->
+            <div class="chronological-class">
+              <div class="chronological-class-name">com.ljwx.test.tenant.TenantAdminFunctionalityTest</div> <!-- chronological-class-name -->
+              <div class="configuration-class before">
+                <span class="method-name">setupRestAssured</span>
+                <span class="method-start">2021 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="configuration-class before">
+                <span class="method-name">setup</span>
+                <span class="method-start">2021 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="test-method">
+                <span class="method-name">testTenantAdminLogin</span>
+                <span class="method-start">2057 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testTenantAdminDashboardAccess</span>
+                <span class="method-start">2058 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminTenantLimitations</span>
+                <span class="method-start">2088 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminOrgAndPositionManagement</span>
+                <span class="method-start">2104 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminUserManagement</span>
+                <span class="method-start">2118 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminDeviceManagement</span>
+                <span class="method-start">2136 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminMessageManagement</span>
+                <span class="method-start">2152 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminAlertManagement</span>
+                <span class="method-start">2168 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminHealthDataManagement</span>
+                <span class="method-start">2184 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminInterfaceAndHealthConfig</span>
+                <span class="method-start">2198 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminDataIsolation</span>
+                <span class="method-start">2213 ms</span>
+              </div> <!-- test-method -->
+            </div> <!-- chronological-class -->
+            <div class="chronological-class">
+              <div class="chronological-class-name">com.ljwx.test.permission.PermissionIsolationTest</div> <!-- chronological-class-name -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testAdminGlobalDataAccess</span>
+                <span class="method-start">2236 ms</span>
+              </div> <!-- test-method -->
+              <div class="configuration-class before">
+                <span class="method-name">setupRestAssured</span>
+                <span class="method-start">2236 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testTenantAdminDataIsolation</span>
+                <span class="method-start">2287 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testCrossTenantAccessDenial</span>
+                <span class="method-start">2331 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testParameterBoundarySecurity</span>
+                <span class="method-start">2389 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testOrganizationPermissionIsolation</span>
+                <span class="method-start">2432 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testHealthDataAccessPermission</span>
+                <span class="method-start">2535 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">testWechatConfigPermissionManagement</span>
+                <span class="method-start">2649 ms</span>
+              </div> <!-- test-method -->
+            </div> <!-- chronological-class -->
+            <div class="chronological-class">
+              <div class="chronological-class-name">com.ljwx.test.api.ComprehensiveApiTest</div> <!-- chronological-class-name -->
+              <div class="configuration-class before">
+                <span class="method-name">setupRestAssured</span>
+                <span class="method-start">2763 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="configuration-class before">
+                <span class="method-name">setup</span>
+                <span class="method-start">2764 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="test-method">
+                <span class="method-name">testAdminAccessAllApis</span>
+                <span class="method-start">2764 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testTenantAdminAccessTenantApis</span>
+                <span class="method-start">3228 ms</span>
+              </div> <!-- test-method -->
+              <div class="test-method">
+                <span class="method-name">testSpecialParameterApis</span>
+                <span class="method-start">3456 ms</span>
+              </div> <!-- test-method -->
+            </div> <!-- chronological-class -->
+            <div class="chronological-class">
+              <div class="chronological-class-name">com.ljwx.test.integration.FullSystemIntegrationTest</div> <!-- chronological-class-name -->
+              <div class="configuration-class before">
+                <img src="failed.png">
+                </img>
+                <span class="method-name">setup</span>
+                <span class="method-start">3529 ms</span>
+              </div> <!-- configuration-class before -->
+              <div class="configuration-class before">
+                <span class="method-name">setupRestAssured</span>
+                <span class="method-start">3529 ms</span>
+              </div> <!-- configuration-class before -->
+          </div> <!-- main-panel-content rounded-window-bottom -->
+        </div> <!-- panel -->
+      </div> <!-- main-panel-root -->
+    </div> <!-- wrapper -->
+  </body>
+<script type="text/javascript" src="testng-reports2.js"></script>
+</html>

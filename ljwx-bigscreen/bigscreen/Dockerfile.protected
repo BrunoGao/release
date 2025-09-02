@@ -1,0 +1,208 @@
+# ===== 第一阶段：源码编译和保护阶段 =====
+FROM python:3.9-slim AS builder
+WORKDIR /app
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ pkg-config libmariadb-dev \
+    && pip install --no-cache-dir --upgrade pip
+
+# 复制依赖文件并安装
+COPY requirements-docker.txt .
+RUN pip install --no-cache-dir --user -r requirements-docker.txt
+
+# 复制源代码
+COPY . .
+
+# 创建源码保护脚本
+RUN cat > protect_source.py << 'EOF'
+#!/usr/bin/env python3
+import os
+import py_compile
+import shutil
+import compileall
+from pathlib import Path
+
+def compile_to_bytecode():
+    """将所有Python文件编译为字节码"""
+    print("🔧 编译Python源码为字节码...")
+    
+    # 编译所有.py文件为.pyc
+    compileall.compile_dir('.', force=True, quiet=1)
+    
+    # 手动编译关键文件确保成功
+    key_files = [
+        'run.py', 'config.py', 'wechat_config.py', 
+        'metrics.py', 'alert_webhook.py'
+    ]
+    
+    for file in key_files:
+        if os.path.exists(file):
+            try:
+                py_compile.compile(file, doraise=True)
+                print(f"✅ 编译成功: {file}")
+            except Exception as e:
+                print(f"❌ 编译失败: {file} - {e}")
+    
+    # 编译bigScreen目录
+    if os.path.exists('bigScreen'):
+        compileall.compile_dir('bigScreen', force=True, quiet=1)
+        print("✅ bigScreen目录编译完成")
+
+def create_minimal_runner():
+    """创建最小化的启动器"""
+    runner_code = '''#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import sys
+import os
+
+# 设置环境变量
+if 'IS_DOCKER' not in os.environ:
+    os.environ['IS_DOCKER'] = 'true'
+
+# 导入编译后的模块
+try:
+    import run
+except ImportError as e:
+    print(f"启动失败: {e}")
+    sys.exit(1)
+'''
+    
+    with open('start_app.py', 'w') as f:
+        f.write(runner_code)
+    
+    print("✅ 创建启动器完成")
+
+def cleanup_source_files():
+    """清理源代码文件，保留字节码"""
+    print("🧹 清理源代码文件...")
+    
+    # 需要保留的文件
+    keep_files = {
+        'start_app.py',  # 启动器
+        'requirements-docker.txt',
+        '__init__.py'  # Python包标识
+    }
+    
+    # 需要保留的目录
+    keep_dirs = {
+        '__pycache__',  # 字节码目录
+        'static',       # 静态资源
+        'templates',    # 模板文件
+        'data'          # 数据目录
+    }
+    
+    removed_count = 0
+    
+    for root, dirs, files in os.walk('.', topdown=False):
+        # 跳过需要保留的目录
+        if any(keep_dir in root for keep_dir in keep_dirs):
+            continue
+            
+        for file in files:
+            filepath = os.path.join(root, file)
+            
+            # 删除.py源文件（除了保留列表）
+            if file.endswith('.py') and file not in keep_files:
+                try:
+                    os.remove(filepath)
+                    removed_count += 1
+                    print(f"删除: {filepath}")
+                except Exception as e:
+                    print(f"删除失败: {filepath} - {e}")
+            
+            # 删除其他敏感文件
+            elif file.endswith(('.log', '.tmp', '.bak', '.orig')):
+                try:
+                    os.remove(filepath)
+                    print(f"删除敏感文件: {filepath}")
+                except:
+                    pass
+    
+    # 删除敏感目录
+    sensitive_dirs = ['.git', 'logs', 'cache', 'venv', 'myenv']
+    for dir_name in sensitive_dirs:
+        if os.path.exists(dir_name):
+            try:
+                shutil.rmtree(dir_name)
+                print(f"删除目录: {dir_name}")
+            except:
+                pass
+    
+    print(f"✅ 清理完成，删除了 {removed_count} 个源文件")
+
+def verify_bytecode():
+    """验证字节码文件存在"""
+    print("🔍 验证字节码文件...")
+    
+    pycache_dirs = []
+    for root, dirs, files in os.walk('.'):
+        if '__pycache__' in dirs:
+            pycache_path = os.path.join(root, '__pycache__')
+            pycache_dirs.append(pycache_path)
+            pyc_files = [f for f in os.listdir(pycache_path) if f.endswith('.pyc')]
+            print(f"📁 {pycache_path}: {len(pyc_files)} 个.pyc文件")
+    
+    if pycache_dirs:
+        print(f"✅ 发现 {len(pycache_dirs)} 个字节码目录")
+    else:
+        print("⚠️  未发现字节码目录")
+
+if __name__ == "__main__":
+    compile_to_bytecode()
+    create_minimal_runner()
+    verify_bytecode()
+    cleanup_source_files()
+    print("🎉 源码保护完成！")
+EOF
+
+# 执行源码保护
+RUN python protect_source.py
+
+# ===== 第二阶段：安全运行阶段 =====
+FROM python:3.9-slim AS runtime
+WORKDIR /app
+
+# 创建非特权用户
+RUN groupadd -r ljwx && useradd -r -g ljwx -s /bin/false -d /app ljwx
+
+# 只安装运行时必需的库
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libmariadb3 tzdata curl \
+    && ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 从构建阶段复制Python包
+COPY --from=builder /root/.local /root/.local
+
+# 从构建阶段复制保护后的应用文件
+COPY --from=builder /app /app
+
+# 设置Python路径
+ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONPATH=/root/.local/lib/python3.9/site-packages:/app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# 设置应用环境变量
+ENV IS_DOCKER=true
+ENV APP_PORT=8001
+
+# 创建必要目录并设置权限
+RUN mkdir -p /app/logs /app/data \
+    && chown -R ljwx:ljwx /app \
+    && chmod -R 755 /app \
+    && chmod +x /app/start_app.py
+
+# 切换到非特权用户
+USER ljwx
+
+# 暴露端口
+EXPOSE 8001
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8001/ || exit 1
+
+# 启动应用（使用字节码）
+CMD ["python3", "start_app.py"] 

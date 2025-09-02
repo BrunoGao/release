@@ -1,0 +1,342 @@
+version: '3.8'
+
+# LJWX BigScreen 多架构部署配置
+# 版本: 1.3.1
+# 支持: AMD64, ARM64
+
+services:
+  # LJWX BigScreen 应用
+  ljwx-bigscreen:
+    image: registry.cn-hangzhou.aliyuncs.com/ljwx-bigscreen/ljwx-bigscreen:1.3.1
+    container_name: ljwx-bigscreen
+    restart: unless-stopped
+    
+    # 多架构支持
+    platform: linux/amd64,linux/arm64
+    
+    # 端口映射
+    ports:
+      - "5001:5001"
+    
+    # 环境变量
+    environment:
+      # 数据库配置
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_USER: ljwx_user
+      MYSQL_PASSWORD: ljwx_secure_pass_2024
+      MYSQL_DATABASE: ljwx
+      
+      # Redis 配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: redis_secure_pass_2024
+      
+      # 应用配置
+      FLASK_ENV: production
+      LOG_LEVEL: INFO
+      APP_VERSION: 1.3.1
+      
+      # 时区设置
+      TZ: Asia/Shanghai
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      
+      # 重启策略
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 120s
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # 数据卷
+    volumes:
+      - app_logs:/app/logs
+      - app_static:/app/static/uploads
+      - app_cache:/app/cache
+    
+    # 网络
+    networks:
+      - ljwx_network
+    
+    # 依赖服务
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+    
+    # 用户设置
+    user: "1000:1000"
+
+  # MySQL 数据库
+  db:
+    image: mysql:8.0
+    container_name: ljwx-mysql
+    restart: unless-stopped
+    
+    # 端口映射 (仅内网访问)
+    ports:
+      - "127.0.0.1:3306:3306"
+    
+    # 环境变量
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secure_pass_2024
+      MYSQL_DATABASE: ljwx
+      MYSQL_USER: ljwx_user
+      MYSQL_PASSWORD: ljwx_secure_pass_2024
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_0900_ai_ci
+      TZ: Asia/Shanghai
+    
+    # 配置参数
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_0900_ai_ci
+      --max_connections=1000
+      --innodb_buffer_pool_size=1G
+      --innodb_log_file_size=256M
+      --slow_query_log=1
+      --slow_query_log_file=/var/log/mysql/slow.log
+      --long_query_time=2
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    
+    # 数据卷
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - mysql_logs:/var/log/mysql
+      - ./bigscreen/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    
+    # 网络
+    networks:
+      - ljwx_network
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: ljwx-redis
+    restart: unless-stopped
+    
+    # 端口映射 (仅内网访问)
+    ports:
+      - "127.0.0.1:6379:6379"
+    
+    # 启动命令
+    command: >
+      redis-server
+      --requirepass redis_secure_pass_2024
+      --appendonly yes
+      --appendfsync everysec
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_secure_pass_2024", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 数据卷
+    volumes:
+      - redis_data:/data
+    
+    # 网络
+    networks:
+      - ljwx_network
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: ljwx-nginx
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    # 配置文件
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 网络
+    networks:
+      - ljwx_network
+    
+    # 依赖服务
+    depends_on:
+      - ljwx-bigscreen
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+
+  # Prometheus 监控
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ljwx-prometheus
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "127.0.0.1:9090:9090"
+    
+    # 配置文件
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    
+    # 启动参数
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    
+    # 网络
+    networks:
+      - ljwx_network
+
+  # Grafana 可视化
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ljwx-grafana
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "127.0.0.1:3000:3000"
+    
+    # 环境变量
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: grafana_admin_2024
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    
+    # 数据卷
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    
+    # 网络
+    networks:
+      - ljwx_network
+    
+    # 依赖服务
+    depends_on:
+      - prometheus
+
+# 数据卷定义
+volumes:
+  mysql_data:
+    driver: local
+  mysql_logs:
+    driver: local
+  redis_data:
+    driver: local
+  app_logs:
+    driver: local
+  app_static:
+    driver: local
+  app_cache:
+    driver: local
+  nginx_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# 网络定义
+networks:
+  ljwx_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

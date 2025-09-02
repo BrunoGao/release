@@ -1,0 +1,141 @@
+# Docker Compose 许可证集成配置示例
+# 本地无外网部署模式
+
+version: '3.8'
+
+services:
+  # 主应用服务
+  ljwx-boot:
+    image: ljwx/boot:latest
+    container_name: ljwx-boot
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-ljwx}
+      - MYSQL_HOST=${MYSQL_HOST:-mysql}
+      - MYSQL_USER=${MYSQL_USER:-ljwx}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      # 许可证配置
+      - LJWX_LICENSE_ENABLED=true
+      - LJWX_LICENSE_FILE_PATH=/app/license/ljwx.lic
+      - LJWX_LICENSE_CHECK_INTERVAL=300
+    volumes:
+      # 挂载许可证文件 - 客户需要将许可证放在此目录
+      - ./license:/app/license:ro
+      # 挂载系统信息用于硬件指纹生成
+      - /sys/class/dmi/id:/host/dmi:ro
+      - /proc/cpuinfo:/host/cpuinfo:ro
+      - /etc/machine-id:/host/machine-id:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - ljwx-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/license/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 前端管理界面
+  ljwx-admin:
+    image: ljwx/admin:latest
+    container_name: ljwx-admin
+    environment:
+      - VITE_API_BASE_URL=http://ljwx-boot:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      ljwx-boot:
+        condition: service_healthy
+    networks:
+      - ljwx-network
+    restart: unless-stopped
+
+  # 大屏服务（需要许可证授权）
+  ljwx-bigscreen:
+    image: ljwx/bigscreen:latest
+    container_name: ljwx-bigscreen
+    environment:
+      - API_BASE_URL=http://ljwx-boot:8080
+      - LICENSE_CHECK_URL=http://ljwx-boot:8080/api/license/feature/big_screen
+    ports:
+      - "5000:5000"
+    depends_on:
+      ljwx-boot:
+        condition: service_healthy
+    networks:
+      - ljwx-network
+    restart: unless-stopped
+
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: ljwx-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-ljwx}
+      - MYSQL_USER=${MYSQL_USER:-ljwx}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    networks:
+      - ljwx-network
+    restart: unless-stopped
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: ljwx-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - ljwx-network
+    restart: unless-stopped
+
+  # 许可证监控服务（可选）
+  license-monitor:
+    image: ljwx/license-monitor:latest
+    container_name: ljwx-license-monitor
+    environment:
+      - LICENSE_API_URL=http://ljwx-boot:8080/api/license
+      - CHECK_INTERVAL=3600  # 1小时检查一次
+      - ALERT_EMAIL=${ALERT_EMAIL}
+      - ALERT_WEBHOOK=${ALERT_WEBHOOK}
+    volumes:
+      - ./logs/license:/app/logs
+    depends_on:
+      ljwx-boot:
+        condition: service_healthy
+    networks:
+      - ljwx-network
+    restart: unless-stopped
+    profiles:
+      - monitoring  # 使用 --profile monitoring 启用
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ljwx-network:
+    driver: bridge
+
+# 使用说明:
+# 1. 创建 .env 文件配置环境变量
+# 2. 将许可证文件放到 ./license/ljwx.lic
+# 3. 运行: docker-compose up -d
+# 4. 检查许可证状态: curl http://localhost:8080/api/license/status

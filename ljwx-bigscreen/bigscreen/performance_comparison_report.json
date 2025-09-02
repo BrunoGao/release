@@ -1,0 +1,61 @@
+{
+  "test_time": "2025-05-26 05:27:17",
+  "function_optimization": "get_all_health_data_by_orgIdAndUserId",
+  "optimization_summary": {
+    "problem": "N+1查询问题",
+    "solution": "批量查询+数据聚合",
+    "key_techniques": [
+      "IN子句批量查询",
+      "数据结构优化",
+      "统计信息聚合",
+      "查询结果限制"
+    ]
+  },
+  "performance_results": {
+    "original_time": 0.0073130130767822266,
+    "optimized_time": 0.002190828323364258,
+    "improvement_percent": 70.04205653180321,
+    "speed_ratio": 3.338012841440853,
+    "original_count": 0,
+    "optimized_count": 0
+  },
+  "scenario_tests": [
+    {
+      "scenario": "小组织查询",
+      "original_time": 0.0011179447174072266,
+      "optimized_time": 0.007819890975952148,
+      "improvement": -599.488163787588,
+      "original_count": 0,
+      "optimized_count": 0
+    },
+    {
+      "scenario": "大时间范围",
+      "original_time": 0.0012242794036865234,
+      "optimized_time": 0.001196146011352539,
+      "improvement": 2.2979552093476143,
+      "original_count": 0,
+      "optimized_count": 0
+    },
+    {
+      "scenario": "最近数据",
+      "original_time": 0.42078304290771484,
+      "optimized_time": 0.19184422492980957,
+      "improvement": 54.407805123486305,
+      "original_count": 0,
+      "optimized_count": 4320
+    }
+  ],
+  "optimization_benefits": [
+    "查询次数从N+1减少到2次",
+    "避免循环查询数据库",
+    "减少数据库连接开销",
+    "提供统计信息聚合",
+    "支持大数据量限制"
+  ],
+  "recommendations": [
+    "生产环境使用优化版本",
+    "大数据量时启用分页",
+    "配置合理的查询限制",
+    "监控查询性能指标"
+  ]
+}

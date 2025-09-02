@@ -1,0 +1,215 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "https://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="https://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<title>TestNG Report</title>
+<style type="text/css">table {margin-bottom:10px;border-collapse:collapse;empty-cells:show}th,td {border:1px solid #009;padding:.25em .5em}th {vertical-align:bottom}td {vertical-align:top}table a {font-weight:bold}.stripe td {background-color: #E6EBF9}.num {text-align:right}.passedodd td {background-color: #3F3}.passedeven td {background-color: #0A0}.skippedodd td {background-color: #DDD}.skippedeven td {background-color: #CCC}.failedodd td,.attn {background-color: #F33}.failedeven td,.stripe .attn {background-color: #D00}.stacktrace {white-space:pre;font-family:monospace}.totop {font-size:85%;text-align:center;border-bottom:2px solid #000}.invisible {display:none}</style>
+</head>
+<body>
+<table>
+<tr><th>Test</th><th># Passed</th><th># Skipped</th><th># Retried</th><th># Failed</th><th>Time (ms)</th><th>Included Groups</th><th>Excluded Groups</th></tr>
+<tr><th colspan="8">ljwx-boot-automation-test-suite</th></tr>
+<tr><td><a href="#t0">Authentication-Tests</a></td><td class="num">5</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">1,274</td><td></td><td></td></tr>
+<tr class="stripe"><td><a href="#t1">Admin-Functionality-Tests</a></td><td class="num">10</td><td class="num">0</td><td class="num">0</td><td class="num attn">1</td><td class="num">730</td><td></td><td></td></tr>
+<tr><td><a href="#t2">Tenant-Admin-Functionality-Tests</a></td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num attn">9</td><td class="num">207</td><td></td><td></td></tr>
+<tr class="stripe"><td><a href="#t3">Permission-Isolation-Tests</a></td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num attn">7</td><td class="num">522</td><td></td><td></td></tr>
+<tr><td><a href="#t4">Comprehensive-API-Tests</a></td><td class="num">3</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">764</td><td></td><td></td></tr>
+<tr class="stripe"><td><a href="#t5">Full-Integration-Tests</a></td><td class="num">0</td><td class="num attn">5</td><td class="num">0</td><td class="num">0</td><td class="num">105</td><td></td><td></td></tr>
+<tr><th>Total</th><th class="num">20</th><th class="num attn">5</th><th class="num">0</th><th class="num attn">17</th><th class="num">3,602</th><th colspan="2"></th></tr>
+</table>
+<table id='summary'><thead><tr><th>Class</th><th>Method</th><th>Start</th><th>Time (ms)</th></tr></thead><tbody><tr><th colspan="4">ljwx-boot-automation-test-suite</th></tr></tbody><tbody id="t0"><tr><th colspan="4">Authentication-Tests &#8212; passed</th></tr><tr class="passedeven"><td rowspan="5">com.ljwx.test.auth.AuthenticationTest</td><td><a href="#m0">testAdminLoginAuthentication</a></td><td rowspan="1">1756706591582</td><td rowspan="1">830</td></tr><tr class="passedeven"><td><a href="#m1">testInvalidTokenAccess</a></td><td rowspan="1">1756706592586</td><td rowspan="1">17</td></tr><tr class="passedeven"><td><a href="#m2">testLoginParameterValidation</a></td><td rowspan="1">1756706592603</td><td rowspan="1">54</td></tr><tr class="passedeven"><td><a href="#m3">testTokenValidity</a></td><td rowspan="1">1756706592414</td><td rowspan="1">151</td></tr><tr class="passedeven"><td><a href="#m4">testUnauthorizedAccess</a></td><td rowspan="1">1756706592565</td><td rowspan="1">21</td></tr></tbody>
+<tbody id="t1"><tr><th colspan="4">Admin-Functionality-Tests &#8212; failed</th></tr><tr class="failedeven"><td rowspan="1">com.ljwx.test.admin.AdminFunctionalityTest</td><td><a href="#m5">testAdminCrossTenantAccess</a></td><td rowspan="1">1756706593390</td><td rowspan="1">19</td></tr><tr><th colspan="4">Admin-Functionality-Tests &#8212; passed</th></tr><tr class="passedeven"><td rowspan="10">com.ljwx.test.admin.AdminFunctionalityTest</td><td><a href="#m6">testAdminAlertManagement</a></td><td rowspan="1">1756706593177</td><td rowspan="1">119</td></tr><tr class="passedeven"><td><a href="#m7">testAdminDashboardAccess</a></td><td rowspan="1">1756706592724</td><td rowspan="1">164</td></tr><tr class="passedeven"><td><a href="#m8">testAdminDeviceManagement</a></td><td rowspan="1">1756706593067</td><td rowspan="1">54</td></tr><tr class="passedeven"><td><a href="#m9">testAdminHealthDataManagement</a></td><td rowspan="1">1756706593297</td><td rowspan="1">46</td></tr><tr class="passedeven"><td><a href="#m10">testAdminInterfaceAndHealthConfig</a></td><td rowspan="1">1756706593344</td><td rowspan="1">45</td></tr><tr class="passedeven"><td><a href="#m11">testAdminLogin</a></td><td rowspan="1">1756706592724</td><td rowspan="1">0</td></tr><tr class="passedeven"><td><a href="#m12">testAdminMessageManagement</a></td><td rowspan="1">1756706593122</td><td rowspan="1">55</td></tr><tr class="passedeven"><td><a href="#m13">testAdminOrgAndPositionManagement</a></td><td rowspan="1">1756706592918</td><td rowspan="1">81</td></tr><tr class="passedeven"><td><a href="#m14">testAdminTenantManagement</a></td><td rowspan="1">1756706592889</td><td rowspan="1">29</td></tr><tr class="passedeven"><td><a href="#m15">testAdminUserManagement</a></td><td rowspan="1">1756706592999</td><td rowspan="1">68</td></tr></tbody>
+<tbody id="t2"><tr><th colspan="4">Tenant-Admin-Functionality-Tests &#8212; failed</th></tr><tr class="failedeven"><td rowspan="9">com.ljwx.test.tenant.TenantAdminFunctionalityTest</td><td><a href="#m16">testTenantAdminAlertManagement</a></td><td rowspan="1">1756706593562</td><td rowspan="1">15</td></tr><tr class="failedeven"><td><a href="#m17">testTenantAdminDataIsolation</a></td><td rowspan="1">1756706593607</td><td rowspan="1">14</td></tr><tr class="failedeven"><td><a href="#m18">testTenantAdminDeviceManagement</a></td><td rowspan="1">1756706593530</td><td rowspan="1">15</td></tr><tr class="failedeven"><td><a href="#m19">testTenantAdminHealthDataManagement</a></td><td rowspan="1">1756706593578</td><td rowspan="1">14</td></tr><tr class="failedeven"><td><a href="#m20">testTenantAdminInterfaceAndHealthConfig</a></td><td rowspan="1">1756706593592</td><td rowspan="1">14</td></tr><tr class="failedeven"><td><a href="#m21">testTenantAdminMessageManagement</a></td><td rowspan="1">1756706593546</td><td rowspan="1">15</td></tr><tr class="failedeven"><td><a href="#m22">testTenantAdminOrgAndPositionManagement</a></td><td rowspan="1">1756706593498</td><td rowspan="1">13</td></tr><tr class="failedeven"><td><a href="#m23">testTenantAdminTenantLimitations</a></td><td rowspan="1">1756706593482</td><td rowspan="1">15</td></tr><tr class="failedeven"><td><a href="#m24">testTenantAdminUserManagement</a></td><td rowspan="1">1756706593512</td><td rowspan="1">17</td></tr><tr><th colspan="4">Tenant-Admin-Functionality-Tests &#8212; passed</th></tr><tr class="passedeven"><td rowspan="2">com.ljwx.test.tenant.TenantAdminFunctionalityTest</td><td><a href="#m25">testTenantAdminDashboardAccess</a></td><td rowspan="1">1756706593452</td><td rowspan="1">29</td></tr><tr class="passedeven"><td><a href="#m26">testTenantAdminLogin</a></td><td rowspan="1">1756706593451</td><td rowspan="1">0</td></tr></tbody>
+<tbody id="t3"><tr><th colspan="4">Permission-Isolation-Tests &#8212; failed</th></tr><tr class="failedeven"><td rowspan="7">com.ljwx.test.permission.PermissionIsolationTest</td><td><a href="#m27">testAdminGlobalDataAccess</a></td><td rowspan="1">1756706593630</td><td rowspan="1">50</td></tr><tr class="failedeven"><td><a href="#m28">testCrossTenantAccessDenial</a></td><td rowspan="1">1756706593725</td><td rowspan="1">58</td></tr><tr class="failedeven"><td><a href="#m29">testHealthDataAccessPermission</a></td><td rowspan="1">1756706593929</td><td rowspan="1">113</td></tr><tr class="failedeven"><td><a href="#m30">testOrganizationPermissionIsolation</a></td><td rowspan="1">1756706593826</td><td rowspan="1">102</td></tr><tr class="failedeven"><td><a href="#m31">testParameterBoundarySecurity</a></td><td rowspan="1">1756706593783</td><td rowspan="1">43</td></tr><tr class="failedeven"><td><a href="#m32">testTenantAdminDataIsolation</a></td><td rowspan="1">1756706593681</td><td rowspan="1">44</td></tr><tr class="failedeven"><td><a href="#m33">testWechatConfigPermissionManagement</a></td><td rowspan="1">1756706594043</td><td rowspan="1">109</td></tr></tbody>
+<tbody id="t4"><tr><th colspan="4">Comprehensive-API-Tests &#8212; passed</th></tr><tr class="passedeven"><td rowspan="3">com.ljwx.test.api.ComprehensiveApiTest</td><td><a href="#m34">testAdminAccessAllApis</a></td><td rowspan="1">1756706594158</td><td rowspan="1">464</td></tr><tr class="passedeven"><td><a href="#m35">testSpecialParameterApis</a></td><td rowspan="1">1756706594850</td><td rowspan="1">71</td></tr><tr class="passedeven"><td><a href="#m36">testTenantAdminAccessTenantApis</a></td><td rowspan="1">1756706594622</td><td rowspan="1">228</td></tr></tbody>
+<tbody id="t5"><tr><th colspan="4">Full-Integration-Tests &#8212; failed (configuration methods)</th></tr><tr class="failedeven"><td rowspan="1">com.ljwx.test.integration.FullSystemIntegrationTest</td><td><a href="#m37">setup</a></td><td rowspan="1">1756706594923</td><td rowspan="1">103</td></tr><tr><th colspan="4">Full-Integration-Tests &#8212; skipped (configuration methods)</th></tr><tr class="skippedeven"><td rowspan="1">com.ljwx.test.integration.FullSystemIntegrationTest</td><td><a href="#m38">cleanup</a></td><td rowspan="1">1756706595028</td><td rowspan="1">0</td></tr><tr><th colspan="4">Full-Integration-Tests &#8212; skipped</th></tr><tr class="skippedeven"><td rowspan="5">com.ljwx.test.integration.FullSystemIntegrationTest</td><td><a href="#m39">testConcurrentPermissionIsolation</a></td><td rowspan="1">1756706595028</td><td rowspan="1">0</td></tr><tr class="skippedeven"><td><a href="#m40">testDataConsistencyAndIntegrity</a></td><td rowspan="1">1756706595028</td><td rowspan="1">0</td></tr><tr class="skippedeven"><td><a href="#m41">testEndToEndBusinessFlow</a></td><td rowspan="1">1756706595027</td><td rowspan="1">0</td></tr><tr class="skippedeven"><td><a href="#m42">testPerformanceOptimization</a></td><td rowspan="1">1756706595028</td><td rowspan="1">0</td></tr><tr class="skippedeven"><td><a href="#m43">testSystemBasicAvailability</a></td><td rowspan="1">1756706595027</td><td rowspan="1">0</td></tr></tbody>
+</table>
+<h2>Authentication-Tests</h2><h3 id="m0">com.ljwx.test.auth.AuthenticationTest#testAdminLoginAuthentication</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m1">com.ljwx.test.auth.AuthenticationTest#testInvalidTokenAccess</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m2">com.ljwx.test.auth.AuthenticationTest#testLoginParameterValidation</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m3">com.ljwx.test.auth.AuthenticationTest#testTokenValidity</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m4">com.ljwx.test.auth.AuthenticationTest#testUnauthorizedAccess</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h2>Admin-Functionality-Tests</h2><h3 id="m5">com.ljwx.test.admin.AdminFunctionalityTest#testAdminCrossTenantAccess</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 500，响应: {&quot;code&quot;:500,&quot;message&quot;:&quot;服务器错误&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593401} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.admin.AdminFunctionalityTest.testAdminCrossTenantAccess(AdminFunctionalityTest.java:303)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m6">com.ljwx.test.admin.AdminFunctionalityTest#testAdminAlertManagement</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m7">com.ljwx.test.admin.AdminFunctionalityTest#testAdminDashboardAccess</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m8">com.ljwx.test.admin.AdminFunctionalityTest#testAdminDeviceManagement</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m9">com.ljwx.test.admin.AdminFunctionalityTest#testAdminHealthDataManagement</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m10">com.ljwx.test.admin.AdminFunctionalityTest#testAdminInterfaceAndHealthConfig</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m11">com.ljwx.test.admin.AdminFunctionalityTest#testAdminLogin</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m12">com.ljwx.test.admin.AdminFunctionalityTest#testAdminMessageManagement</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m13">com.ljwx.test.admin.AdminFunctionalityTest#testAdminOrgAndPositionManagement</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m14">com.ljwx.test.admin.AdminFunctionalityTest#testAdminTenantManagement</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m15">com.ljwx.test.admin.AdminFunctionalityTest#testAdminUserManagement</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h2>Tenant-Admin-Functionality-Tests</h2><h3 id="m16">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminAlertManagement</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:alert:info:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593572} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminAlertManagement(TenantAdminFunctionalityTest.java:225)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m17">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminDataIsolation</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.NullPointerException: Cannot invoke &quot;java.util.List.isEmpty()&quot; because the return value of &quot;io.restassured.path.json.JsonPath.getList(String)&quot; is null
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminDataIsolation(TenantAdminFunctionalityTest.java:324)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 29 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m18">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminDeviceManagement</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:device:info:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593539} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminDeviceManagement(TenantAdminFunctionalityTest.java:172)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m19">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminHealthDataManagement</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:health:data:config:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593587} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminHealthDataManagement(TenantAdminFunctionalityTest.java:262)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m20">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminInterfaceAndHealthConfig</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:interface:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593601} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminInterfaceAndHealthConfig(TenantAdminFunctionalityTest.java:295)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m21">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminMessageManagement</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:device:message:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593556} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminMessageManagement(TenantAdminFunctionalityTest.java:198)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m22">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminOrgAndPositionManagement</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 sys:org:units:tree&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593506} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminOrgAndPositionManagement(TenantAdminFunctionalityTest.java:95)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m23">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminTenantLimitations</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:customer:config:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593492} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminTenantLimitations(TenantAdminFunctionalityTest.java:66)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m24">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminUserManagement</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 sys:user:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593524} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.tenant.TenantAdminFunctionalityTest.testTenantAdminUserManagement(TenantAdminFunctionalityTest.java:144)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m25">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminDashboardAccess</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m26">com.ljwx.test.tenant.TenantAdminFunctionalityTest#testTenantAdminLogin</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h2>Permission-Isolation-Tests</h2><h3 id="m27">com.ljwx.test.permission.PermissionIsolationTest#testAdminGlobalDataAccess</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 500，响应: {&quot;code&quot;:500,&quot;message&quot;:&quot;服务器错误&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593675} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testAdminGlobalDataAccess(PermissionIsolationTest.java:35)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m28">com.ljwx.test.permission.PermissionIsolationTest#testCrossTenantAccessDenial</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.NullPointerException: Cannot invoke &quot;java.util.List.isEmpty()&quot; because the return value of &quot;io.restassured.path.json.JsonPath.getList(String)&quot; is null
+	at com.ljwx.test.permission.PermissionIsolationTest.testCrossTenantAccessDenial(PermissionIsolationTest.java:156)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 29 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m29">com.ljwx.test.permission.PermissionIsolationTest#testHealthDataAccessPermission</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:health:data:config:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706594037} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testHealthDataAccessPermission(PermissionIsolationTest.java:287)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m30">com.ljwx.test.permission.PermissionIsolationTest#testOrganizationPermissionIsolation</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 sys:org:units:tree&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593923} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testOrganizationPermissionIsolation(PermissionIsolationTest.java:221)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m31">com.ljwx.test.permission.PermissionIsolationTest#testParameterBoundarySecurity</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.NullPointerException: Cannot invoke &quot;java.util.List.isEmpty()&quot; because the return value of &quot;io.restassured.path.json.JsonPath.getList(String)&quot; is null
+	at com.ljwx.test.permission.PermissionIsolationTest.testParameterBoundarySecurity(PermissionIsolationTest.java:179)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 29 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m32">com.ljwx.test.permission.PermissionIsolationTest#testTenantAdminDataIsolation</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 sys:user:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706593720} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testTenantAdminDataIsolation(PermissionIsolationTest.java:79)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m33">com.ljwx.test.permission.PermissionIsolationTest#testWechatConfigPermissionManagement</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.lang.AssertionError: 响应code应该为200或0，实际: 400，响应: {&quot;code&quot;:400,&quot;message&quot;:&quot;无权访问 t:wechat:alarm:config:page&quot;,&quot;data&quot;:{},&quot;timestamp&quot;:1756706594147} expected [true] but found [false]
+	at com.ljwx.test.base.BaseApiTest.verifySuccess(BaseApiTest.java:175)
+	at com.ljwx.test.permission.PermissionIsolationTest.testWechatConfigPermissionManagement(PermissionIsolationTest.java:339)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 32 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h2>Comprehensive-API-Tests</h2><h3 id="m34">com.ljwx.test.api.ComprehensiveApiTest#testAdminAccessAllApis</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m35">com.ljwx.test.api.ComprehensiveApiTest#testSpecialParameterApis</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m36">com.ljwx.test.api.ComprehensiveApiTest#testTenantAdminAccessTenantApis</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h2>Full-Integration-Tests</h2><h3 id="m37">com.ljwx.test.integration.FullSystemIntegrationTest#setup</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m38">com.ljwx.test.integration.FullSystemIntegrationTest#cleanup</h3><table class="result"><tr><th class="invisible"/></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m39">com.ljwx.test.integration.FullSystemIntegrationTest#testConcurrentPermissionIsolation</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m40">com.ljwx.test.integration.FullSystemIntegrationTest#testDataConsistencyAndIntegrity</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m41">com.ljwx.test.integration.FullSystemIntegrationTest#testEndToEndBusinessFlow</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m42">com.ljwx.test.integration.FullSystemIntegrationTest#testPerformanceOptimization</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+<h3 id="m43">com.ljwx.test.integration.FullSystemIntegrationTest#testSystemBasicAvailability</h3><table class="result"><tr><th>Exception</th></tr><tr><td><div class="stacktrace">java.sql.SQLSyntaxErrorException: Unknown column &apos;contact_person&apos; in &apos;field list&apos;
+	at com.mysql.cj.jdbc.exceptions.SQLError.createSQLException(SQLError.java:121)
+	at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:122)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeInternal(ClientPreparedStatement.java:916)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1061)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdateInternal(ClientPreparedStatement.java:1009)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeLargeUpdate(ClientPreparedStatement.java:1320)
+	at com.mysql.cj.jdbc.ClientPreparedStatement.executeUpdate(ClientPreparedStatement.java:994)
+	at com.ljwx.test.data.TestDataManager.executeUpdate(TestDataManager.java:352)
+	at com.ljwx.test.data.TestDataManager.prepareTenantData(TestDataManager.java:118)
+	at com.ljwx.test.data.TestDataManager.prepareTestData(TestDataManager.java:38)
+	at com.ljwx.test.integration.FullSystemIntegrationTest.setup(FullSystemIntegrationTest.java:30)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+... Removed 27 stack frames</div></td></tr></table><p class="totop"><a href="#summary">back to summary</a></p>
+</body>
+</html>

@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.ljwx.starter.oss.config.OssAutoConfiguration

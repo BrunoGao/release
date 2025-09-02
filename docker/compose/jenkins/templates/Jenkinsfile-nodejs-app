@@ -1,0 +1,119 @@
+@Library('jenkins-shared-library') _
+
+pipeline {
+    agent any
+    
+    environment {
+        REGISTRY = "${env.DOCKER_REGISTRY ?: 'localhost:5001'}"
+        IMAGE_NAME = "${env.JOB_NAME.toLowerCase()}"
+        NODE_ENV = 'production'
+    }
+    
+    tools {
+        nodejs 'NodeJS-20'
+    }
+    
+    stages {
+        stage('检出代码') {
+            steps {
+                checkout scm
+                script {
+                    env.BUILD_VERSION = sh(
+                        script: "node -p \"require('./package.json').version\"",
+                        returnStdout: true
+                    ).trim()
+                }
+            }
+        }
+        
+        stage('安装依赖') {
+            steps {
+                sh 'npm ci'
+            }
+        }
+        
+        stage('代码分析') {
+            parallel {
+                stage('ESLint') {
+                    steps {
+                        sh 'npm run lint || true'
+                    }
+                    post {
+                        always {
+                            publishHTML([
+                                allowMissing: true,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: 'reports',
+                                reportFiles: 'eslint.html',
+                                reportName: 'ESLint Report'
+                            ])
+                        }
+                    }
+                }
+                
+                stage('类型检查') {
+                    steps {
+                        sh 'npm run type-check || true'
+                    }
+                }
+            }
+        }
+        
+        stage('单元测试') {
+            steps {
+                sh 'npm test -- --coverage'
+            }
+            post {
+                always {
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'coverage/lcov-report',
+                        reportFiles: 'index.html',
+                        reportName: 'Coverage Report'
+                    ])
+                }
+            }
+        }
+        
+        stage('构建应用') {
+            steps {
+                sh 'npm run build'
+                archiveArtifacts artifacts: 'dist/**/*', fingerprint: true
+            }
+        }
+        
+        stage('构建镜像') {
+            steps {
+                script {
+                    def imageName = "${env.REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_VERSION}"
+                    
+                    buildMultiPlatformImage {
+                        imageName = imageName
+                        platforms = "linux/amd64,linux/arm64"
+                        dockerfile = 'Dockerfile'
+                        pushImage = true
+                        registryCredentialsId = 'docker-registry-auth'
+                        buildArgs = [
+                            'NODE_ENV': env.NODE_ENV,
+                            'BUILD_VERSION': env.BUILD_VERSION
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
+            sendNotification {
+                status = currentBuild.result ?: 'SUCCESS'
+                title = "${env.JOB_NAME} #${env.BUILD_NUMBER}"
+                message = "Node.js 应用构建完成\n版本: ${env.BUILD_VERSION}\n分支: ${env.BRANCH_NAME}"
+            }
+        }
+    }
+}

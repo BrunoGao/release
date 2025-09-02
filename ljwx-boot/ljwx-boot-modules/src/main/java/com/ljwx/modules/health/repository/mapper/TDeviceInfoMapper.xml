@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+ All Rights Reserved: Copyright [2024] [ljwx]
+ Open Source Agreement: Apache License, Version 2.0
+ For educational purposes only, commercial use shall comply with the author's copyright information.
+ The author does not guarantee or assume any responsibility for the risks of using software.
+
+ Licensed under the Apache License, Version 2.0 (the "License").
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<mapper namespace="com.ljwx.modules.health.repository.mapper.TDeviceInfoMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="TDeviceInfoResultMap" type="com.ljwx.modules.health.domain.entity.TDeviceInfo">
+        <result column="system_software_version" property="systemSoftwareVersion"/>
+        <result column="wifi_address" property="wifiAddress"/>
+        <result column="bluetooth_address" property="bluetoothAddress"/>
+        <result column="ip_address" property="ipAddress"/>
+        <result column="network_access_mode" property="networkAccessMode"/>
+        <result column="serial_number" property="serialNumber"/>
+        <result column="device_name" property="deviceName"/>
+        <result column="imei" property="imei"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="battery_level" property="batteryLevel"/>
+        <result column="voltage" property="voltage"/>
+        <result column="timestamp" property="timestamp"/>
+        <result column="model" property="model"/>
+        <result column="status" property="status"/>
+        <result column="wearableStatus" property="wearableStatus"/>
+        <result column="chargingStatus" property="chargingStatus"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="user_id" property="userId"/>
+        <result column="org_id" property="orgId"/>
+        <result column="id" property="id"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="TDeviceInfoColumnList">
+        id,
+        system_software_version, wifi_address, bluetooth_address, ip_address, network_access_mode, serial_number, device_name, imei, created_at, battery_level, voltage, timestamp, model, `status`, wearable_status, charging_status, update_time, user_id, org_id, customer_id
+    </sql>
+
+    <!-- Updated SQL query to include user_name -->
+    <select id="`" resultType="com.ljwx.modules.health.domain.entity.TDeviceInfo">
+        SELECT
+            d.id,
+            d.system_software_version,
+            d.wifi_address,
+            d.bluetooth_address,
+            d.ip_address,
+            d.network_access_mode,
+            distinct d.serial_number,
+            d.device_name,
+            d.imei,
+            d.created_at,
+            d.battery_level,
+            d.voltage,
+            d.timestamp,
+            d.model,
+            d.status,
+            d.wearable_status,
+            d.charging_status,
+            d.is_deleted,
+            d.create_user,
+            d.create_user_id,
+            d.create_time,
+            d.update_user,
+            d.update_user_id,
+            d.update_time,
+            u.user_name
+        FROM
+            t_device_info d
+        LEFT JOIN sys_user u ON d.serial_number = u.device_sn
+        WHERE d.is_deleted = 0
+        <if test="bo.serialNumber != null and bo.serialNumber != ''">
+            AND d.serial_number LIKE CONCAT(#{bo.serialNumber}, '%')
+        </if>
+        <if test="bo.status != null and bo.status != ''">
+            AND d.status = #{bo.status}
+        </if>
+        <if test="bo.model != null and bo.model != ''">
+            AND d.model = #{bo.model}
+        </if>
+        <if test="bo.chargingStatus != null and bo.chargingStatus != ''">
+            AND d.charging_status = #{bo.chargingStatus}
+        </if>
+        <if test="bo.wearableStatus != null and bo.wearableStatus != ''">
+            AND d.wearable_status = #{bo.wearableStatus}
+        </if>
+        <if test="bo.userName != null and bo.userName != ''">
+            AND u.user_name = #{bo.userName}
+        </if>
+        order by d.update_time desc
+    </select>
+
+
+</mapper>

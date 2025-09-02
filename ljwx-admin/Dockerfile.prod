@@ -1,0 +1,17 @@
+# 使用预构建的 dist 目录
+FROM nginx:alpine
+
+# 设置北京时区
+ENV TZ=Asia/Shanghai
+RUN apk add --no-cache tzdata && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    echo $TZ > /etc/timezone
+
+RUN apk add --no-cache findutils # 添加find命令支持
+# 直接复制预构建的 dist 目录
+COPY ljwx-admin/dist /usr/share/nginx/html
+COPY ljwx-admin/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY ljwx-admin/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+EXPOSE 80
+ENTRYPOINT ["/docker-entrypoint.sh"]

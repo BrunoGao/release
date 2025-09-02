@@ -1,442 +1,83 @@
-# Jenkins最佳实践完整配置
 jenkins:
   systemMessage: |
-    🚀 Jenkins CI/CD服务器 - 完全自动化配置
-    📅 配置时间: $(date)
-    🔧 自动配置: 工具、插件、云、凭据
-    📚 管理文档: docs/jenkins-persistence-guide.md
+    🚀 Jenkins CI/CD 快速自动化部署
+    📅 部署时间: 2024-08-24
+    🔧 适配现有环境: Registry(localhost:35001), Gitea(192.168.1.6:3000)
     
-  numExecutors: 6
+  numExecutors: 4
   mode: NORMAL
-  scmCheckoutRetryCount: 3
   quietPeriod: 5
   
-  # ===== 安全配置 =====
   securityRealm:
     local:
       allowsSignup: false
       users:
-        - id: "${JENKINS_ADMIN_ID:-admin}"
-          password: "${JENKINS_ADMIN_PASSWORD:-admin123}"
+        - id: "admin"
+          password: "admin123"
           
   authorizationStrategy:
     globalMatrix:
       permissions:
         - "Overall/Administer:admin"
         - "Overall/Read:authenticated"
-        - "Overall/SystemRead:authenticated"
         - "Job/Build:authenticated"
         - "Job/Read:authenticated"
-        - "Job/Workspace:authenticated"
         - "Job/Configure:authenticated"
         - "Job/Create:authenticated"
         - "Job/Delete:authenticated"
-        - "Job/Move:authenticated"
-        - "View/Read:authenticated"
-        - "View/Create:authenticated"
-        - "View/Configure:authenticated"
         
-  # ===== 全局属性 =====
   globalNodeProperties:
     - envVars:
         env:
           - key: "DOCKER_REGISTRY"
-            value: "${DOCKER_REGISTRY:-localhost:5001}"
-          - key: "GITEA_URL"
-            value: "${GITEA_URL:-http://gitea:3000}"
-          - key: "KUBERNETES_MASTER_URL"
-            value: "${KUBERNETES_MASTER_URL:-https://kubernetes.docker.internal:6443}"
-          - key: "CI_ENVIRONMENT"
-            value: "development"
+            value: "localhost:35001"
+          - key: "GITEA_URL" 
+            value: "http://192.168.1.6:3000"
           - key: "BUILD_PLATFORMS"
             value: "linux/amd64,linux/arm64"
-            
-  # ===== 构建保留策略 =====
-  buildDiscarders:
-    - buildDiscarder:
-        strategy:
-          logRotator:
-            daysToKeepStr: "30"
-            numToKeepStr: "100"
-            artifactDaysToKeepStr: "7"
-            artifactNumToKeepStr: "20"
 
-# ===== 工具配置 =====
 tool:
-  # Git配置
   git:
     installations:
       - name: "Default"
         home: "/usr/bin/git"
-      - name: "Git-2.40"
-        home: "/usr/bin/git"
-        
-  # JDK配置
+  
   jdk:
     installations:
-      - name: "JDK-21"
-        home: "/opt/java/openjdk"
       - name: "JDK-17"
-        properties:
-          - installSource:
-              installers:
-                - jdkInstaller:
-                    id: "jdk-17.0.8+101"
-      - name: "JDK-11"
-        properties:
-          - installSource:
-              installers:
-                - jdkInstaller:
-                    id: "jdk-11.0.20+101"
-        
-  # Maven配置
-  maven:
-    installations:
-      - name: "Maven-3.9"
-        properties:
-          - installSource:
-              installers:
-                - maven:
-                    id: "3.9.6"
-      - name: "Maven-3.8"
-        properties:
-          - installSource:
-              installers:
-                - maven:
-                    id: "3.8.8"
-        
-  # Gradle配置
-  gradle:
-    installations:
-      - name: "Gradle-8"
-        properties:
-          - installSource:
-              installers:
-                - gradleInstaller:
-                    id: "8.5"
-      - name: "Gradle-7"
-        properties:
-          - installSource:
-              installers:
-                - gradleInstaller:
-                    id: "7.6.4"
-                    
-  # Node.js配置
-  nodejs:
-    installations:
-      - name: "NodeJS-20"
-        properties:
-          - installSource:
-              installers:
-                - nodeJSInstaller:
-                    id: "20.10.0"
-                    npmPackagesRefreshHours: 72
-      - name: "NodeJS-18"
-        properties:
-          - installSource:
-              installers:
-                - nodeJSInstaller:
-                    id: "18.19.0"
-                    npmPackagesRefreshHours: 72
-                    
-  # Docker配置
-  dockerTool:
-    installations:
-      - name: "Docker"
-        home: "/usr/local/bin/docker"
-      - name: "Docker-Latest"
-        properties:
-          - installSource:
-              installers:
-                - dockerInstaller:
-                    version: "latest"
-                    
-  # Python配置
-  python:
-    installations:
-      - name: "Python-3.11"
-        properties:
-          - installSource:
-              installers:
-                - command:
-                    command: "/usr/bin/python3"
-      - name: "Python-3.9"
-        properties:
-          - installSource:
-              installers:
-                - command:
-                    command: "/usr/bin/python3.9"
+        home: "/opt/java/openjdk"
 
-# ===== 凭据配置 =====
 credentials:
   system:
     domainCredentials:
       - credentials:
-          # Gitea集成凭据
           - string:
               scope: GLOBAL
               id: "gitea-api-token"
-              description: "Gitea API访问令牌"
-              secret: "${GITEA_TOKEN:-changeme-gitea-token}"
+              description: "Gitea API Token - 请在Gitea中生成后更新"
+              secret: "changeme-please-update-with-real-token"
               
-          # Docker Registry凭据
           - usernamePassword:
               scope: GLOBAL
               id: "docker-registry-auth"
-              description: "Docker Registry认证"
-              username: "${REGISTRY_USERNAME:-admin}"
-              password: "${REGISTRY_PASSWORD:-admin123}"
-              
-          # Docker Hub凭据
-          - usernamePassword:
-              scope: GLOBAL
-              id: "dockerhub-auth"
-              description: "Docker Hub认证"
-              username: "${DOCKERHUB_USERNAME:-your-username}"
-              password: "${DOCKERHUB_PASSWORD:-your-password}"
-              
-          # SSH密钥
-          - basicSSHUserPrivateKey:
-              scope: GLOBAL
-              id: "ssh-key-git"
-              description: "Git SSH访问密钥"
-              username: "git"
-              privateKeySource:
-                directEntry:
-                  privateKey: |
-                    -----BEGIN OPENSSH PRIVATE KEY-----
-                    # 这里应该放置实际的SSH私钥内容
-                    # 生成方法: ssh-keygen -t ed25519 -C "jenkins@example.com"
-                    -----END OPENSSH PRIVATE KEY-----
-                    
-          # Kubernetes配置
-          - string:
-              scope: GLOBAL
-              id: "k8s-config"
-              description: "Kubernetes配置文件"
-              secret: "${K8S_CONFIG:-changeme-k8s-config}"
-              
-          # 云平台凭据模板
-          - string:
-              scope: GLOBAL
-              id: "aws-access-key"
-              description: "AWS访问密钥"
-              secret: "${AWS_ACCESS_KEY:-changeme-aws-key}"
-              
-          - string:
-              scope: GLOBAL
-              id: "azure-service-principal"
-              description: "Azure服务主体"
-              secret: "${AZURE_SP:-changeme-azure-sp}"
+              description: "Docker Registry 认证"
+              username: "admin"
+              password: "admin123"
 
-# ===== 系统配置 =====
 unclassified:
-  # 站点配置
   location:
-    url: "http://localhost:38080/"
+    url: "http://localhost:8081/"
     adminAddress: "admin@example.com"
     
-  # Gitea集成
-  gitea:
-    servers:
-      - displayName: "本地Gitea服务器"
-        serverUrl: "${GITEA_URL:-http://gitea:33000}"
-        credentialsId: "gitea-api-token"
-        manageHooks: true
-        
-  # GitHub集成
-  github:
-    apiRateLimitChecker: ThrottleOnOver
-    
-  # 全局库配置
-  globalLibraries:
-    libraries:
-      - name: "jenkins-shared-library"
-        defaultVersion: "main"
-        allowVersionOverride: true
-        includeInChangesets: false
-        retriever:
-          modernSCM:
-            scm:
-              git:
-                remote: "${GITEA_URL:-http://gitea:33000}/infrastructure/jenkins-shared-library.git"
-                credentialsId: "gitea-api-token"
-                
-  # 邮件配置
-  email-ext:
-    mailAccount:
-      smtpHost: "${SMTP_HOST:-localhost}"
-      smtpPort: "${SMTP_PORT:-25}"
-      useSsl: false
-      useTls: false
-      charset: "UTF-8"
-      
-  # Slack通知
-  slack:
-    teamDomain: "${SLACK_TEAM:-your-team}"
-    token: "${SLACK_TOKEN:-changeme-slack-token}"
-    botUser: true
-    
-  # 钉钉通知
-  dingTalk:
-    robots:
-      - name: "Jenkins通知机器人"
-        webhook: "${DINGTALK_WEBHOOK:-changeme-webhook}"
-        
-  # 磁盘使用监控
-  diskUsage:
-    enabled: true
-    countWorkspace: true
-    checkWorkspaceOnSlave: true
-    calculationThreads: 2
-    
-  # 工作空间清理
-  workspaceCleanupPlugin:
-    # 自动清理设置
-    deleteDirectories: true
-    cleanWhenAborted: true
-    cleanWhenFailure: false
-    cleanWhenNotBuilt: true
-    cleanWhenSuccess: false
-    cleanWhenUnstable: false
-    
-  # 性能监控
-  monitoring:
-    enabled: true
-    
-  # 构建历史清理
-  buildDiscarders:
-    configuredBuildDiscarders:
-      - "jobBuildDiscarder"
-      
-  # 安全设置
   csrf:
     defaultCrumbIssuer:
       excludeClientIPFromCrumb: false
-      
-  # API限流
-  apiTokenProperty:
-    tokenGenerationOnCreationEnabled: true
 
-# ===== 云配置 =====
-clouds:
-  # Docker云配置
-  - docker:
-      name: "docker-cloud"
-      dockerApi:
-        dockerHost:
-          uri: "unix:///var/run/docker.sock"
-        connectTimeout: 60
-        readTimeout: 60
-      templates:
-        - labelString: "docker-agent"
-          dockerTemplateBase:
-            image: "jenkins/agent:latest"
-            mounts:
-              - "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock"
-          remoteFs: "/home/jenkins/agent"
-          connector:
-            ssh:
-              sshKeyStrategy:
-                injectSSHKey:
-                  user: "jenkins"
-          instanceCapStr: "10"
-          retentionStrategy:
-            idleMinutes: 10
-            
-  # Kubernetes云配置
-  - kubernetes:
-      name: "kubernetes-cloud"
-      serverUrl: "${KUBERNETES_MASTER_URL:-https://kubernetes.docker.internal:6443}"
-      namespace: "jenkins"
-      credentialsId: "k8s-config"
-      jenkinsUrl: "http://jenkins:8080"
-      jenkinsTunnel: "jenkins:50000"
-      containerCapStr: "100"
-      maxRequestsPerHostStr: "32"
-      retentionTimeoutStr: "300"
-      connectTimeoutStr: "10"
-      readTimeoutStr: "20"
-      templates:
-        - name: "k8s-agent"
-          label: "k8s-agent"
-          nodeUsageMode: NORMAL
-          containers:
-            - name: "jnlp"
-              image: "jenkins/inbound-agent:latest"
-              workingDir: "/home/jenkins/agent"
-              resourceRequestMemory: "512Mi"
-              resourceLimitMemory: "1Gi"
-              resourceRequestCpu: "200m"
-              resourceLimitCpu: "500m"
-          volumes:
-            - hostPathVolume:
-                hostPath: "/var/run/docker.sock"
-                mountPath: "/var/run/docker.sock"
-
-# ===== 预创建作业 =====
 jobs:
-  # 多平台构建演示
   - script: >
-      multibranchPipelineJob('demo-multiplatform-build') {
-        displayName('多平台构建演示')
-        description('展示Docker多平台镜像构建的完整流程')
-        
-        branchSources {
-          git {
-            id('demo-repo')
-            remote('${GITEA_URL}/demo/multiplatform-app.git')
-            credentialsId('gitea-api-token')
-          }
-        }
-        
-        configure { node ->
-          node / sources / data / 'jenkins.branch.BranchSource' << {
-            source(class: 'jenkins.plugins.git.GitSCMSource') {
-              id('demo-repo')
-              remote('${GITEA_URL}/demo/multiplatform-app.git')
-              credentialsId('gitea-api-token')
-              traits {
-                'jenkins.plugins.git.traits.BranchDiscoveryTrait'()
-                'jenkins.plugins.git.traits.TagDiscoveryTrait'()
-              }
-            }
-          }
-        }
-        
-        factory {
-          workflowBranchProjectFactory {
-            scriptPath('Jenkinsfile')
-          }
-        }
-        
-        triggers {
-          periodicFolderTrigger {
-            interval('1h')
-          }
-        }
-      }
-      
-  # 系统监控作业
-  - script: >
-      pipelineJob('system-monitoring') {
-        displayName('系统健康监控')
-        description('监控Jenkins系统状态、磁盘使用、插件状态等')
-        
-        properties {
-          buildDiscarder {
-            strategy {
-              logRotator {
-                daysToKeepStr('7')
-                numToKeepStr('50')
-              }
-            }
-          }
-        }
-        
-        triggers {
-          cron('H/15 * * * *')  # 每15分钟执行
-        }
+      pipelineJob('hello-world-demo') {
+        displayName('Hello World 演示')
+        description('验证 Jenkins 自动化配置')
         
         definition {
           cps {
@@ -445,188 +86,62 @@ jobs:
                   agent any
                   
                   stages {
-                      stage('系统检查') {
-                          parallel {
-                              stage('磁盘使用') {
-                                  steps {
-                                      script {
-                                          def diskUsage = sh(
-                                              script: "df -h /var/jenkins_home | awk 'NR==2{print \$5}' | sed 's/%//'",
-                                              returnStdout: true
-                                          ).trim()
-                                          
-                                          echo "磁盘使用率: ${diskUsage}%"
-                                          
-                                          if (diskUsage.toInteger() > 85) {
-                                              error("磁盘使用率过高: ${diskUsage}%")
-                                          }
-                                      }
-                                  }
-                              }
+                      stage('Hello Jenkins') {
+                          steps {
+                              echo "🎉 Jenkins 自动化配置成功！"
+                              echo "📍 Docker Registry: localhost:35001"
+                              echo "📍 Gitea URL: http://192.168.1.6:3000"
+                              echo "🔨 支持平台: linux/amd64,linux/arm64"
                               
-                              stage('服务连通性') {
-                                  steps {
-                                      script {
-                                          def services = [
-                                              'Registry': 'http://localhost:5001/v2/',
-                                              'Gitea': '${GITEA_URL:-http://localhost:33000}/api/v1/version'
-                                          ]
-                                          
-                                          services.each { name, url ->
-                                              def status = sh(
-                                                  script: "curl -s -o /dev/null -w '%{http_code}' ${url}",
-                                                  returnStdout: true
-                                              ).trim()
-                                              
-                                              if (status == '200') {
-                                                  echo "✅ ${name} 服务正常"
-                                              } else {
-                                                  echo "❌ ${name} 服务异常 (${status})"
-                                              }
-                                          }
-                                      }
-                                  }
-                              }
-                              
-                              stage('插件状态') {
-                                  steps {
-                                      script {
-                                          def pluginCount = Jenkins.instance.getPluginManager().getPlugins().size()
-                                          echo "已安装插件数量: ${pluginCount}"
-                                          
-                                          def failedPlugins = Jenkins.instance.getPluginManager().getPlugins().findAll { 
-                                              !it.isActive() 
-                                          }
-                                          
-                                          if (failedPlugins.size() > 0) {
-                                              echo "⚠️ 失效插件: ${failedPlugins.collect { it.getShortName() }.join(', ')}"
-                                          } else {
-                                              echo "✅ 所有插件正常"
-                                          }
-                                      }
-                                  }
+                              script {
+                                  def dockerVersion = sh(
+                                      script: 'docker --version',
+                                      returnStdout: true
+                                  ).trim()
+                                  echo "🐳 Docker 版本: ${dockerVersion}"
                               }
                           }
                       }
                       
-                      stage('性能指标') {
+                      stage('环境检查') {
                           steps {
+                              echo "🔍 检查服务连接..."
+                              
                               script {
-                                  def runtime = Runtime.getRuntime()
-                                  def maxMemory = runtime.maxMemory() / 1024 / 1024
-                                  def totalMemory = runtime.totalMemory() / 1024 / 1024
-                                  def freeMemory = runtime.freeMemory() / 1024 / 1024
-                                  def usedMemory = totalMemory - freeMemory
+                                  // 检查 Registry 连接
+                                  def registryCheck = sh(
+                                      script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:35001/v2/ || echo "failed"',
+                                      returnStdout: true
+                                  ).trim()
                                   
-                                  echo "JVM内存使用: ${usedMemory}MB / ${maxMemory}MB (${(usedMemory/maxMemory*100).round(2)}%)"
+                                  if (registryCheck == "200") {
+                                      echo "✅ Registry 连接正常"
+                                  } else {
+                                      echo "⚠️ Registry 连接状态: ${registryCheck}"
+                                  }
                                   
-                                  def queueSize = Jenkins.instance.getQueue().getItems().length
-                                  echo "构建队列: ${queueSize} 个任务"
+                                  // 检查 Gitea 连接
+                                  def giteaCheck = sh(
+                                      script: 'curl -s -o /dev/null -w "%{http_code}" http://192.168.1.6:3000/api/v1/version || echo "failed"',
+                                      returnStdout: true
+                                  ).trim()
                                   
-                                  def executors = Jenkins.instance.getComputers().collect { 
-                                      it.getExecutors().size() 
-                                  }.sum()
-                                  echo "可用执行器: ${executors} 个"
+                                  if (giteaCheck == "200") {
+                                      echo "✅ Gitea 连接正常"
+                                  } else {
+                                      echo "⚠️ Gitea 连接状态: ${giteaCheck}"
+                                  }
                               }
                           }
                       }
                   }
                   
                   post {
-                      failure {
-                          script {
-                              // 发送告警通知
-                              emailext (
-                                  subject: "❌ Jenkins系统监控告警",
-                                  body: "Jenkins系统监控检测到异常，请及时处理。\\n\\n构建详情: ${env.BUILD_URL}",
-                                  to: "admin@example.com"
-                              )
-                          }
+                      always {
+                          echo "🎊 Jenkins 快速部署验证完成！"
                       }
-                  }
-              }
-            ''')
-            sandbox()
-          }
-        }
-      }
-      
-  # Docker镜像构建流水线模板
-  - script: >
-      pipelineJob('docker-image-template') {
-        displayName('Docker镜像构建模板')
-        description('可复用的Docker多平台镜像构建流水线模板')
-        
-        parameters {
-          stringParam('GIT_REPO', '${GITEA_URL:-http://gitea:33000}/your-project.git', 'Git仓库地址')
-          stringParam('IMAGE_NAME', 'your-app', '镜像名称')
-          stringParam('IMAGE_TAG', 'latest', '镜像标签')
-          stringParam('PLATFORMS', 'linux/amd64,linux/arm64', '构建平台')
-          booleanParam('PUSH_IMAGE', true, '是否推送镜像')
-        }
-        
-        definition {
-          cps {
-            script('''
-              @Library('jenkins-shared-library') _
-              
-              pipeline {
-                  agent any
-                  
-                  environment {
-                      REGISTRY = '${DOCKER_REGISTRY}'
-                      DOCKER_BUILDKIT = '1'
-                  }
-                  
-                  stages {
-                      stage('检出代码') {
-                          steps {
-                              git branch: 'main', 
-                                  url: params.GIT_REPO,
-                                  credentialsId: 'gitea-api-token'
-                          }
-                      }
-                      
-                      stage('构建多平台镜像') {
-                          steps {
-                              script {
-                                  def fullImageName = "${env.REGISTRY}/${params.IMAGE_NAME}:${params.IMAGE_TAG}"
-                                  
-                                  buildMultiPlatformImage {
-                                      imageName = fullImageName
-                                      platforms = params.PLATFORMS
-                                      dockerfile = 'Dockerfile'
-                                      buildContext = '.'
-                                      pushImage = params.PUSH_IMAGE
-                                      registryCredentialsId = 'docker-registry-auth'
-                                  }
-                              }
-                          }
-                      }
-                      
-                      stage('镜像扫描') {
-                          when {
-                              expression { params.PUSH_IMAGE }
-                          }
-                          steps {
-                              script {
-                                  def imageName = "${env.REGISTRY}/${params.IMAGE_NAME}:${params.IMAGE_TAG}"
-                                  echo "扫描镜像: ${imageName}"
-                                  // 这里可以集成安全扫描工具
-                              }
-                          }
-                      }
-                  }
-                  
-                  post {
                       success {
-                          echo "✅ 多平台镜像构建成功"
-                      }
-                      failure {
-                          echo "❌ 镜像构建失败"
-                      }
-                      cleanup {
-                          cleanWs()
+                          echo "✅ 所有检查通过，环境就绪！"
                       }
                   }
               }
@@ -634,4 +149,4 @@ jobs:
             sandbox()
           }
         }
-      } 
+      }

@@ -1,140 +1,86 @@
-# Jenkins最佳实践插件列表
-# Configuration as Code - 必须首先安装
-configuration-as-code:latest
+# 核心插件
+ant:475.vf34069fef73c
+build-timeout:1.31
+credentials-binding:681.vf91669a_32e45
+timestamper:1.26
+ws-cleanup:0.45
+workflow-aggregator:596.v8c21c963d92d
 
-# ===== 核心CI/CD插件 =====
-# Pipeline和工作流
-workflow-aggregator:latest
-pipeline-stage-view:latest
-pipeline-utility-steps:latest
-pipeline-milestone-step:latest
-pipeline-build-step:latest
-pipeline-input-step:latest
-pipeline-graph-analysis:latest
+# 版本控制
+git:5.0.2
+git-parameter:0.9.19
+github:1.37.3.1
+github-branch-source:1728.v859147241f49
+gitea:1.4.5
+gitlab-plugin:1.8.1
 
-# 构建和部署
-build-timeout:latest
-timestamper:latest
-ws-cleanup:latest
-copy-artifact:latest
-archive-artifacts:latest
-junit:latest
-htmlpublisher:latest
+# 构建工具
+maven-plugin:3.22
+gradle:2.11
+nodejs:1.6.1
+python:1.3
+docker-plugin:1.5.0
+docker-workflow:580.vc0c340686b_54
+kubernetes:4104.v857ce8db_424e
 
-# ===== SCM和版本控制 =====
-git:latest
-gitea:latest
-github:latest
-github-branch-source:latest
-ssh-credentials:latest
-credentials-binding:latest
+# Pipeline 和工作流
+pipeline-stage-view:2.34
+blueocean:1.27.9
+pipeline-graph-analysis:216.vfd8b_ece330ca_
+workflow-multibranch:773.vc4fe1378f1d5
+pipeline-milestone-step:111.v449306f708b_7
 
-# ===== Docker和容器化 =====
-docker-plugin:latest
-docker-build-step:latest
-docker-commons:latest
-docker-workflow:latest
-docker-slaves:latest
-docker-swarm:latest
+# 通知和集成
+email-ext:2.105
+slack:664.vc9a_90f8b_c24a_
+dingtalk:2.4.2
+telegram-notifications:1.4.0
 
-# ===== Kubernetes集成 =====
-kubernetes:latest
-kubernetes-cd:latest
-kubernetes-cli:latest
-kubernetes-credentials:latest
+# 安全和认证
+matrix-auth:3.2.2
+role-strategy:699.v2a_69872237db_
+authorize-project:1.7.0
+ssh-slaves:2.973.v0a_5c0264ce98
 
-# ===== 构建工具 =====
-# Maven
-maven-plugin:latest
-maven-invoker-plugin:latest
+# 代码质量
+warnings-ng:10.7.0
+sonarqube:2.17.2
+checkmarx:2023.4.2
+aqua-security-scanner:3.0.22
 
-# Gradle
-gradle:latest
+# 测试和报告
+junit:1265.v65b_14fa_f12f0
+jacoco:3.3.5
+performance:3.21
+test-results-analyzer:0.3.5.1
 
-# Node.js
-nodejs:latest
-npm:latest
+# 监控和管理
+monitoring:1.98.0
+disk-usage:0.28
+build-monitor-plugin:1.4+build.201809061734
+prometheus:2.2.3
 
-# Python
-python:latest
+# 实用工具
+configuration-as-code:1810.v9b_c30a_249a_4c
+job-dsl:1.87
+build-name-setter:2.4.1
+parameterized-trigger:2.45
+copyartifact:722.v0662a_9b_e22a_c
 
-# Ant
-ant:latest
+# 云集成
+ec2:2.0.7
+kubernetes:4104.v857ce8db_424e
+docker-slaves:1.0.7
+azure-vm-agents:1.0.0
 
-# ===== 代码质量和测试 =====
-warnings-ng:latest
-checkstyle:latest
-pmd:latest
-findbugs:latest
-jacoco:latest
-sonar:latest
-cobertura:latest
+# 文件和存储
+artifactory:3.18.10
+nexus-artifact-uploader:2.15
+s3:1.0.0
+publish-over-ssh:1.25
 
-# ===== 通知和集成 =====
-email-ext:latest
-slack:latest
-dingtalk:latest
-webhook-step:latest
-http_request:latest
-generic-webhook-trigger:latest
-
-# ===== UI和可视化 =====
-blueocean:latest
-dashboard-view:latest
-build-monitor-plugin:latest
-build-pipeline-plugin:latest
-delivery-pipeline-plugin:latest
-radiator-view-plugin:latest
-
-# ===== 安全和权限 =====
-matrix-auth:latest
-role-strategy:latest
-ldap:latest
-pam-auth:latest
-authorize-project:latest
-
-# ===== 系统管理 =====
-locale:latest
-disk-usage:latest
-monitoring:latest
-naginator:latest
-rebuild:latest
-parameterized-trigger:latest
-
-# ===== 文件和存储 =====
-publish-over-ssh:latest
-publish-over-ftp:latest
-s3:latest
-
-# ===== 其他实用插件 =====
-ansicolor:latest
-antisamy-markup-formatter:latest
-build-name-setter:latest
-description-setter:latest
-environment-injector:latest
-promoted-builds:latest
-throttle-concurrents:latest
-job-dsl:latest
-
-# ===== 多平台构建 =====
-matrix-project:latest
-multi-branch-project-plugin:latest
-
-# ===== API和集成 =====
-rest-api:latest
-cli:latest
-
-# ===== 性能和监控 =====
-performance:latest
-plot:latest
-xvfb:latest
-
-# ===== 数据库集成 =====
-database:latest
-database-h2:latest
-database-postgresql:latest
-
-# ===== 云平台集成 =====
-ec2:latest
-azure-vm-agents:latest
-google-compute-engine:latest 
+# 高级功能
+multibranch-scan-webhook-trigger:1.0.10
+generic-webhook-trigger:2.2.2
+pipeline-utility-steps:2.16.2
+http_request:1.18

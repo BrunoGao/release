@@ -1,0 +1,51 @@
+# 多阶段构建：第一阶段在容器内构建JAR包
+FROM eclipse-temurin:21-jdk-alpine AS builder
+LABEL maintainer="gaojunivas@gmail.com"
+
+# 安装Maven
+RUN apk add --no-cache maven
+
+# 设置工作目录
+WORKDIR /build
+
+# 配置阿里云Maven镜像加速
+RUN mkdir -p /root/.m2 && \
+    echo '<?xml version="1.0" encoding="UTF-8"?>' > /root/.m2/settings.xml && \
+    echo '<settings>' >> /root/.m2/settings.xml && \
+    echo '  <mirrors>' >> /root/.m2/settings.xml && \
+    echo '    <mirror>' >> /root/.m2/settings.xml && \
+    echo '      <id>aliyunmaven</id>' >> /root/.m2/settings.xml && \
+    echo '      <mirrorOf>*</mirrorOf>' >> /root/.m2/settings.xml && \
+    echo '      <name>阿里云公共仓库</name>' >> /root/.m2/settings.xml && \
+    echo '      <url>https://maven.aliyun.com/repository/public</url>' >> /root/.m2/settings.xml && \
+    echo '    </mirror>' >> /root/.m2/settings.xml && \
+    echo '  </mirrors>' >> /root/.m2/settings.xml && \
+    echo '</settings>' >> /root/.m2/settings.xml
+
+# 复制源代码
+COPY ljwx-boot/ ./
+
+# 构建JAR包
+RUN mvn clean package -DskipTests -B
+
+# 第二阶段：运行时镜像
+FROM eclipse-temurin:21-jre-alpine
+LABEL maintainer="gaojunivas@gmail.com"
+
+# 设置时区
+ENV TZ='Asia/Shanghai'
+RUN apk add --no-cache tzdata && \
+    ln -snf /usr/share/zoneinfo/"$TZ" /etc/localtime && \
+    echo "$TZ" > /etc/timezone
+
+# 设置工作目录
+WORKDIR /app
+
+# 从构建阶段复制JAR文件
+COPY --from=builder /build/ljwx-boot-admin/target/ljwx-boot-admin-*.jar app.jar
+
+# 暴露端口
+EXPOSE 9998
+
+# 启动应用
+ENTRYPOINT ["java","-Xms256m","-Xmx512m","-jar","app.jar"] 

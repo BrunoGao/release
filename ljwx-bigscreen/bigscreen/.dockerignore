@@ -1,0 +1,73 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+venv/
+myenv/
+.env
+# 日志文件和目录
+*.log
+logs/
+# 大文件
+org.log
+run.log
+# 大型数据文件
+*.xlsx
+*.sql
+insert_statements.sql
+# HTML测试文件
+interactive_*.html
+mine_topology_map.html
+map.html
+daping.html
+# 测试和开发文件
+test_*.py
+*_test.py
+performance_*.py
+stress_test.py
+demo_*.py
+batch_*.py
+insertsql*.py
+mock_*.py
+# 文档和说明文件
+*.md
+# 缓存和临时文件
+cache/
+uploads/
+.pytest_cache/
+.cursor/
+.DS_Store
+# 性能测试和监控相关文件
+performance_*.py
+performance_*.log
+performance_*.json
+performance_*.md
+*_test.py
+test_*.py
+*test*.py
+stress_test.py
+monitor.py
+metrics.py
+# 配置和脚本文件
+*.sh
+docker-compose.yml
+Dockerfile
+# 数据文件
+data/
+knowledge_base/
+# 静态资源（如果不需要）
+drink_flavors.html
+drink_flavors.py
+index.html
+style.css
+# 虚拟环境和Python包
+bigScreen/lib/
+bigScreen/bin/
+bigScreen/include/
+bigScreen/share/
+# 重复的模板目录
+bigScreen/templates copy*/
+# 更多日志和临时文件
+bigScreen/*.log
+bigScreen/templates/*.sql

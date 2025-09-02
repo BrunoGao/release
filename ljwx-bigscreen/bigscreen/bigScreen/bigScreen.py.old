@@ -1,0 +1,810 @@
+from random import uniform
+from flask import Flask, render_template, request, jsonify, Response
+from flask_cors import CORS
+from flask import request, jsonify
+from datetime import datetime, timedelta
+from .device import gather_device_info as device_gather_device_info, upload_device_info, fetch_devices_by_customer_id as device_fetch_devices_by_customer_id, fetch_device_info as device_fetch_device_info, generate_device_stats as device_generate_device_stats, fetch_devices_by_orgIdAndUserId, fetch_customer_id_by_deviceSn
+from .user_health_data import generate_health_json as user_generate_health_json, upload_health_data, fetch_health_data as user_fetch_health_data, get_health_data as user_get_health_data, query_health_data_config, fetch_user_locations as user_fetch_user_locations, fetch_health_data_by_id as user_fetch_health_data_by_id, fetch_health_data_by_orgIdAndUserId, fetch_health_stats_by_dimension, get_health_data_by_date as user_get_health_data_by_date, fetch_all_health_data_by_orgIdAndUserId
+from .alert import fetch_alerts as alert_fetch_alerts, upload_alerts as alert_upload_alerts, upload_common_event as alert_upload_common_event
+from .alert import test_wechat_alert as alert_test_wechat_alert, generate_alert_json as alert_generate_alert_json, gather_deal_alert as alert_gather_deal_alert
+from .alert import generate_alert_chart as alert_generate_alert_chart, deal_alert as alert_deal_alert, generate_alert_stats as alert_generate_alert_stats, generate_alert_chart_by_type
+from .alert import fetch_alerts_by_orgIdAndUserId as alert_fetch_alerts_by_orgIdAndUserId
+from .message import fetch_messages as message_fetch_messages, send_message as message_send_message, received_messages as message_received_messages, generate_message_stats as message_generate_message_stats, fetch_messages_by_orgIdAndUserId as message_fetch_messages_by_orgIdAndUserId
+from .user import get_user_info as user_get_user_info, get_all_users as user_get_all_users, get_user_deviceSn as user_get_user_deviceSn, get_user_id as user_get_user_id
+from .org import fetch_departments_by_orgId, fetch_departments, fetch_users_stats_by_orgId
+from .org import fetch_users_by_orgId
+from .util import check_license as util_check_license
+from .fetchConfig import copy_health_data_config as fetch_config_copy_health_data_config, fetch_health_data_config as fetch_config_fetch_health_data_config
+from .wechat import send_message as wechat_send_message
+from .user import get_user_info_by_orgIdAndUserId, fetch_device_info_by_phone
+from redis import Redis
+import requests  # 用于发送HTTP请求
+import json
+import threading
+import time
+from .models import db
+from flask_socketio import SocketIO, emit
+from decimal import Decimal
+from sqlalchemy import func
+from .redis_helper import RedisHelper
+import logging
+from .models import UserHealthDataNew, UserInfo
+from sqlalchemy import and_
+
+from .device import gather_device_info as device_gather_device_info
+app = Flask(__name__, static_folder='../static')
+socketio = SocketIO(app, cors_allowed_origins="*")
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:aV5mV7kQ@localhost:3306/hg_health'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:aV5mV7kQ%21%40%23@127.0.0.1:3306/lj-04'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+redis = RedisHelper()
+db.init_app(app)
+CORS(app)
+
+# Configure logging
+logging.basicConfig(filename='app.log', level=logging.INFO,
+                    format='%(asctime)s %(levelname)s: %(message)s')
+
+logger = logging.getLogger(__name__)
+
+@app.route("/test")
+def test_index():
+    return render_template("test.html")
+
+@app.route("/personal")
+def bigscreen_index():
+    deviceSn = request.args.get('deviceSn')  # Get the deviceSn from query parameters
+    logger.info(f"deviceSn: {deviceSn}")
+    #personalInfo = get_personal_info(deviceSn)  # Get the userName from query parameters
+    #print("deviceSn", deviceSn)
+    #print("personalInfo", personalInfo)
+    # You can now use deviceSn in your logic or pass it to the template
+    #return render_template("bigscreen_new.html", deviceSn=deviceSn, userName=userName)
+    return render_template("personal.html", deviceSn=deviceSn)
+
+@app.route("/personal_cool")
+def personal_cool():
+    deviceSn = request.args.get('deviceSn')  # Get the deviceSn from query parameters
+    #personalInfo = get_personal_info(deviceSn)  # Get the userName from query parameters
+    logger.info(f"deviceSn: {deviceSn}")
+    #print("personalInfo", personalInfo)
+    # You can now use deviceSn in your logic or pass it to the template
+    #return render_template("bigscreen_new.html", deviceSn=deviceSn, userName=userName)
+    return render_template("bigscreen_new.html", deviceSn=deviceSn)
+
+@app.route("/main")
+def main_index():
+    customerId = request.args.get('customerId')  # Get the deviceSn from query parameters
+    logger.info(f"customerId: {customerId}")
+    return render_template("bigscreen_main.html", customerId=customerId)
+
+@app.route("/index")
+def index_index():
+    customerId = request.args.get('customerId')  # Get the deviceSn from query parameters
+    logger.info(f"customerId: {customerId}")
+    return render_template("index.html", customerId=customerId)
+@app.route("/alert")
+def alert_index():
+    return render_template("alert.html")
+
+@app.route("/message")
+def message_index():
+    return render_template("message.html")
+
+@app.route("/map")
+def map_index(deviceSn=None, date_str=None, customerId=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    if date_str is None:
+        date_str = request.args.get('date_str')
+    customerId = request.args.get('customerId')  # Get the deviceSn from query parameters
+    logger.info(f"customerId: {customerId}")
+    return render_template("map.html", deviceSn=deviceSn, date_str=date_str, customerId=customerId)
+
+@app.route("/chart")
+def chart_index():
+    return render_template("chart.html")
+
+@app.route('/chat')
+def chat_page():
+    return render_template('chat.html')
+@app.route('/get_customer_id_by_deviceSn', methods=['GET'])
+def get_customer_id_by_deviceSn():
+    deviceSn = request.args.get('deviceSn')
+    return fetch_customer_id_by_deviceSn(deviceSn)
+@app.route('/getUserInfo', methods=['GET'])
+def get_user_info(deviceSn=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    return user_get_user_info(deviceSn)
+
+@app.route('/getUserDeviceSn', methods=['GET'])
+def get_user_deviceSn(phone=None):
+    if phone is None:
+        phone = request.args.get('phone')
+    return user_get_user_deviceSn(phone)
+
+@app.route('/getUserId', methods=['GET'])
+def get_user_id(phone=None):
+    if phone is None:
+        phone = request.args.get('phone')
+    return user_get_user_id(phone)
+@app.route('/get_all_users', methods=['GET'])
+def get_all_users():
+    return user_get_all_users()
+
+
+@app.route('/DeviceMessage/send', methods=['POST'])
+def send_message():
+    message = request.get_json()
+    logger.info(f"DeviceMessage:send_message: {message}")
+    return message_send_message(message)
+
+@app.route('/DeviceMessage/receive', methods=['GET'])
+def received_messages(deviceSn=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    return message_received_messages(deviceSn)
+
+
+# Initialize the heart_rate_timestamps list
+
+
+@app.route("/get_departments_by_orgId", methods=['GET'])
+def get_departments_by_orgId():
+    orgId = request.args.get('orgId')
+    return fetch_departments_by_orgId(orgId)
+@app.route("/fetch_users", methods=['GET'])
+def fetch_users():
+    orgId = request.args.get('orgId')
+    return fetch_users_by_orgId(orgId)
+@app.route("/get_users_by_orgIdAndUserId", methods=['GET'])
+def get_users_by_orgIdAndUserId():
+    orgId = request.args.get('orgId')
+    userId = request.args.get('userId')
+    return get_user_info_by_orgIdAndUserId(orgId, userId)
+@app.route("/fetch_users_stats", methods=['GET'])
+def fetch_users_stats():
+    orgId = request.args.get('orgId')
+    return fetch_users_stats_by_orgId(orgId)
+
+@app.route("/upload_device_info", methods=['POST'])
+def handle_device_info():
+    device_info = request.get_json()
+    return upload_device_info(device_info)
+
+@app.route("/upload_health_data", methods=['POST'])
+def handle_health_data():
+    health_data = request.get_json()
+    return upload_health_data(health_data)
+
+@app.route('/fetch_health_data', methods=['GET'])
+def fetch_health_data(deviceSn=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    return user_fetch_health_data(deviceSn)
+
+@app.route('/dealAlert', methods=['GET'])
+def deal_alert(alertId=None):
+    if alertId is None:
+        alertId = request.args.get('alertId')
+    return alert_deal_alert(alertId)
+@app.route('/fetch_health_data_config', methods=['GET'])
+def fetch_health_data_config(customer_id=None,deviceSn=None):
+    if customer_id is None:
+        customer_id = request.args.get('customer_id')
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    return fetch_config_fetch_health_data_config(customer_id,deviceSn)
+
+@app.route('/get_health_data', methods=['GET'])
+def get_health_data(deviceSn=None, date=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    if date is None:
+        date = request.args.get('date')
+    return user_get_health_data(deviceSn, date)
+
+@app.route('/fetch_device_info', methods=['GET'])
+def fetch_device_info(serial_number=None):
+    if serial_number is None:
+        serial_number = request.args.get('serial_number')
+    return device_fetch_device_info(serial_number)
+
+@app.route('/fetch_alertType_stats', methods=['GET'])
+
+@app.route('/copy_health_data_config', methods=['GET'])
+def copy_health_data_config():
+    old_customer_id = request.args.get('old_customer_id')
+    new_customer_id = request.args.get('new_customer_id')
+    return fetch_config_copy_health_data_config(old_customer_id, new_customer_id)
+
+@app.route('/fetch_personal_user_info', methods=['GET'])
+def fetch_user_info(deviceSn=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    return user_get_user_info(deviceSn)
+
+@app.route('/fetch_user_locations', methods=['GET'])
+def fetch_user_locations(deviceSn=None, date_str=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    if date_str is None:
+        date_str = request.args.get('date_str')
+    return user_fetch_user_locations(deviceSn, date_str)
+
+@app.route('/fetch_alerts', methods=['GET'])
+def fetch_alerts(deviceSn=None, customerId=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    if customerId is None:
+        customerId = request.args.get('customerId')
+    return alert_fetch_alerts(deviceSn, customerId)
+
+
+
+@app.route('/upload_alerts', methods=['POST'])
+def upload_alerts():
+    return alert_upload_alerts()
+
+
+@app.route('/fetch_health_metrics', methods=['GET'])
+
+@app.route('/test_wechat_alert', methods=['GET'])
+def test_wechat_alert():
+    return alert_test_wechat_alert()
+
+
+
+# Start the background thread to refresh the access token
+
+
+@app.route('/checkLicense', methods=['GET'])
+def check_license():
+    return util_check_license()
+
+
+@app.route('/upload_common_event', methods=['POST'])
+def upload_common_event():
+    return alert_upload_common_event()
+
+@app.route('/generateAlertTypeChart', methods=['GET'])
+def generate_alert_type_chart(customerId=None):
+    if customerId is None:
+        customerId = request.args.get('customerId')
+    return generate_alert_chart_by_type(customerId)
+
+@app.route('/generateHealthJson', methods=['GET'])
+def generate_health_json(customerId=None,userId=None):
+    if customerId is None:
+        customerId = request.args.get('customerId')
+    if userId is None:
+        userId = request.args.get('userId')
+    if userId == '-1' or userId == 'all':
+        userId = None
+    return user_generate_health_json(customerId,userId)
+
+
+@app.route('/fetchHealthDataById', methods=['GET'])
+def fetch_health_data_by_id(id=None):
+    if id is None:
+        id = request.args.get('id')
+    return user_fetch_health_data_by_id(id)
+
+@app.route('/get_departments', methods=['GET'])
+def get_departments(orgId=None):
+    if orgId is None:
+        orgId = request.args.get('orgId')
+    return fetch_departments(orgId)
+
+@app.route('/generateAlertJson', methods=['GET'])
+def generate_alert_json(customerId=None,userId=None,severityLevel=None):
+    if customerId is None:
+        customerId = request.args.get('customerId')
+    if userId is None:
+        userId = request.args.get('userId')
+    if userId == '-1' or userId == 'all':
+        userId = None
+    if severityLevel is None:
+        severityLevel = request.args.get('severityLevel')
+    return alert_generate_alert_json(customerId,userId,severityLevel)
+
+@app.route('/generateAlertChart', methods=['GET'])
+def generate_alert_chart():
+    return alert_generate_alert_chart()
+
+
+  # Create an instance of RedisHelper
+@app.route('/gatherDealAlert', methods=['GET'])
+def gather_deal_alert(customerId=None):
+    if customerId is None:
+        customerId = request.args.get('customerId')
+    return alert_gather_deal_alert(customerId)
+
+def personal_redis_change_listener():
+    pubsub = redis.pubsub()
+    pubsub.psubscribe('health_data_channel:*', 'device_info_channel:*', 'user_info_channel:*', 'message_info_channel:*', 'alert_info_channel:*')
+
+    with app.app_context():
+        for message in pubsub.listen():
+            if message['type'] == 'pmessage':
+                logger.info(f"pattern message: {message}")
+                deviceSn = message['data'].decode('utf-8')
+                data = get_personal_info(deviceSn)
+                logger.info(f"personal_info_update::data: {data}")
+                socketio.emit('personal_info_update', data)
+
+def total_redis_change_listener():
+    pubsub = redis.pubsub()
+    # Subscribe to specific channels
+    pubsub.subscribe('health_data_channel', 'device_info_channel', 'user_info_channel', 'message_info_channel', 'alert_info_channel')
+
+    with app.app_context():  # Set up the application context
+        for message in pubsub.listen():
+            if message['type'] == 'pmessage':  # Check for pattern message
+                logger.info(f"pattern message: {message}")
+                customerId = message['data'].decode('utf-8')
+                data = gather_total_info(customerId)
+                #print("total_info_update::data", data)
+                socketio.emit('total_info_update', data)
+# Start the Redis change listener in a separate thread
+threading.Thread(target=total_redis_change_listener, daemon=True).start()
+threading.Thread(target=personal_redis_change_listener, daemon=True).start()
+@app.route('/get_personal_info_old', methods=['GET'])
+def get_personal_info_old(deviceSn=None):
+    if not deviceSn:
+        deviceSn = request.args.get('deviceSn')
+    if not deviceSn:
+        return jsonify({'success': False, 'error': 'Missing deviceSn parameter'}), 400
+
+    # Strip any leading or trailing whitespace from deviceSn
+    deviceSn = deviceSn.strip()
+
+    def fetch_or_update_data(key_prefix, fetch_function, *args):
+        data = redis.hgetall_data(f"{key_prefix}:{deviceSn}")
+        if not data:
+            fetch_function(*args)
+            data = redis.hgetall_data(f"{key_prefix}:{deviceSn}")
+        return data
+
+    # Fetch data using the helper function
+    logger.info("health_data:")
+    health_data = fetch_or_update_data("health_data", fetch_health_data, deviceSn)
+    logger.info("device_info:")
+    device_info = fetch_or_update_data("device_info", fetch_device_info, deviceSn)
+    logger.info("user_info:")
+    user_info = fetch_or_update_data("user_info", get_user_info, deviceSn)
+    logger.info("message_info:")
+    message_info = fetch_or_update_data("message_info", fetch_messages_direct, deviceSn, None, 1)  # Pass None for messageType
+    logger.info("alert_info:")
+    alert_info = fetch_or_update_data("alert_info", fetch_alerts, deviceSn)
+
+    return {
+        'success': True,
+        'data': {
+            'health_data': health_data,
+            'device_info': device_info,
+            'user_info': user_info,
+            'message_info': message_info,
+            'alert_info': alert_info
+        }
+    }
+@app.route('/fetch_messages', methods=['GET'])
+def fetch_messages(deviceSn=None, messageType=None, customerId=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    if messageType is None:
+        messageType = request.args.get('messageType')
+    if customerId is None:
+        customerId = request.args.get('customerId')
+        print("fetch_messages::customerId:", customerId)
+    return message_fetch_messages(deviceSn, messageType, customerId)
+
+def fetch_messages_direct(deviceSn, messageType=None, customerId=1):
+    # Directly call the message_fetch_messages function without relying on request
+    return message_fetch_messages(deviceSn, messageType, customerId)
+
+@app.route('/gather_device_info', methods=['GET'])
+def gather_device_info(customer_id=None):
+    if customer_id is None:
+        customer_id = request.args.get('customer_id')
+    return device_gather_device_info(customer_id)
+
+@app.route('/fetch_devices_by_customer_id', methods=['GET'])
+def fetch_devices_by_customer_id(customer_id=None):
+    if customer_id is None:
+        customer_id = request.args.get('customer_id')
+    return device_fetch_devices_by_customer_id(customer_id)
+
+
+@app.route('/get_health_stats')
+def get_health_stats():
+    dimension = request.args.get('dimension', 'day')
+    org_id = request.args.get('orgId')
+    user_id = request.args.get('userId')
+    return jsonify(fetch_health_stats_by_dimension(org_id, user_id, dimension))
+
+@app.route('/get_devices_by_orgIdAndUserId', methods=['GET'])
+def get_devices_by_orgIdAndUserId(orgId=None, userId=None):
+    if orgId is None:
+        orgId = request.args.get('orgId')
+    if userId is None:
+        userId = request.args.get('userId')
+    return fetch_devices_by_orgIdAndUserId(orgId, userId)
+@app.route('/get_alerts_by_orgIdAndUserId', methods=['GET'])
+def get_alerts_by_orgIdAndUserId(orgId=None, userId=None,severityLevel=None):
+    if orgId is None:
+        orgId = request.args.get('orgId')
+    if userId is None:
+        userId = request.args.get('userId')
+    if severityLevel is None:
+        severityLevel = request.args.get('severityLevel')
+    return alert_fetch_alerts_by_orgIdAndUserId(orgId, userId,severityLevel)
+
+@app.route('/get_messages_by_orgIdAndUserId', methods=['GET'])
+def get_messages_by_orgIdAndUserId(orgId=None, userId=None,messageType=None):
+    if orgId is None:
+        orgId = request.args.get('orgId')
+    if userId is None:
+        userId = request.args.get('userId')
+    if messageType is None:
+        messageType = request.args.get('messageType')
+    return message_fetch_messages_by_orgIdAndUserId(orgId, userId,messageType)
+@app.route('/get_health_data_by_orgIdAndUserId', methods=['GET'])
+def get_health_data_by_orgIdAndUserId(orgId=None, userId=None):
+    if orgId is None:
+        orgId = request.args.get('orgId')
+    if userId is None:
+        userId = request.args.get('userId')
+    return fetch_health_data_by_orgIdAndUserId(orgId, userId)
+@app.route('/get_health_data_by_date', methods=['GET'])
+def get_health_data_by_date(date=None,orgId=None,userId=None):
+    if date is None:
+        date = request.args.get('date')
+    if orgId is None:
+        orgId = request.args.get('orgId')
+    if userId is None:
+        userId = request.args.get('userId')
+    return user_get_health_data_by_date(date, orgId, userId)
+@app.route('/get_total_info', methods=['GET'])
+def get_total_info(customer_id=None):
+    if customer_id is None:
+        customer_id = request.args.get('customer_id')
+
+    alert_info = get_alerts_by_orgIdAndUserId(orgId=customer_id)
+    message_info = get_messages_by_orgIdAndUserId(orgId=customer_id)
+    device_info = get_devices_by_orgIdAndUserId(orgId=customer_id)
+    health_data = get_health_data_by_orgIdAndUserId(orgId=customer_id)
+    user_info = get_user_info_by_orgIdAndUserId(orgId=customer_id)
+    print("user_info:", user_info)
+
+    # 处理不同格式的返回数据
+    def extract_data(response_or_dict):
+        if hasattr(response_or_dict, 'get_json'):
+            # 如果是 Response 对象
+            return response_or_dict.get_json()
+        elif isinstance(response_or_dict, dict):
+            if 'data' in response_or_dict:
+                # 新格式
+                return response_or_dict['data']
+            elif 'success' in response_or_dict:
+                # 旧格式，但没有 data 字段
+                return {k: v for k, v in response_or_dict.items() if k != 'success'}
+            else:
+                # 纯数据字典
+                return response_or_dict
+        return response_or_dict
+
+    response_data = {
+        'success': True,
+        'data': {
+            'alert_info': extract_data(alert_info),
+            'message_info': extract_data(message_info),
+            'device_info': extract_data(device_info),
+            'health_data': extract_data(health_data),
+            'user_info': extract_data(user_info)
+        }
+    }
+
+    return jsonify(response_data)
+@app.route('/get_all_health_data_by_orgIdAndUserId')
+def get_all_health_data_by_orgIdAndUserId():
+    orgId = request.args.get('orgId')
+    userId = request.args.get('userId')
+    startDate = request.args.get('startDate')
+    endDate = request.args.get('endDate')
+    return fetch_all_health_data_by_orgIdAndUserId(orgId, userId, startDate, endDate)
+
+
+
+@app.route('/get_personal_info', methods=['GET'])
+def get_personal_info(deviceSn=None):
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    print("get_personal_info::deviceSn:", deviceSn)
+    from .models import UserInfo
+    user = UserInfo.query.filter_by(device_sn=deviceSn).first()
+    userId = user.id
+    alert_info = get_alerts_by_orgIdAndUserId(userId=userId)
+    message_info = get_messages_by_orgIdAndUserId(userId=userId)
+    device_info = get_devices_by_orgIdAndUserId(userId=userId)
+    health_data = get_health_data_by_orgIdAndUserId(userId=userId)
+    user_info = get_user_info_by_orgIdAndUserId(userId=userId)
+    config_info = fetch_health_data_config(deviceSn)
+    # 处理不同格式的返回数据
+    def extract_data(response_or_dict):
+        if hasattr(response_or_dict, 'get_json'):
+            # 如果是 Response 对象
+            return response_or_dict.get_json()
+        elif isinstance(response_or_dict, dict):
+            if 'data' in response_or_dict:
+                # 新格式
+                return response_or_dict['data']
+            elif 'success' in response_or_dict:
+                # 旧格式，但没有 data 字段
+                return {k: v for k, v in response_or_dict.items() if k != 'success'}
+            else:
+                # 纯数据字典
+                return response_or_dict
+        return response_or_dict
+
+    response_data = {
+        'success': True,
+        'data': {
+            'alert_info': extract_data(alert_info),
+            'message_info': extract_data(message_info),
+            'device_info': extract_data(device_info),
+            'health_data': extract_data(health_data),
+            'user_info': extract_data(user_info),
+            'config_info': extract_data(config_info)
+        }
+    }
+
+    return jsonify(response_data)
+@app.route('/gather_total_info', methods=['GET'])
+def gather_total_info(customer_id=None):
+    if customer_id is None:
+        customer_id = request.args.get('customer_id')
+    logger.info(f"begin to gather total info: {customer_id}")
+    devices = fetch_devices_by_customer_id(customer_id)
+
+    # Convert the list of devices into a dictionary
+    devices_dict = {device.serial_number: device.to_dict() for device in devices}
+    devices_json = json.dumps(devices_dict)
+
+    # Store the dictionary in Redis
+    redis.set(f"total_info:{customer_id}", devices_json)
+    if not devices:
+        return jsonify({'success': False, 'error': 'Device info not found'}), 404
+    else:
+        total_device_info = {}
+        total_message_info = []  # Change to a list to aggregate all messages
+        total_alert_info = []
+        total_health_data = {}
+        total_user_info = {}
+        for device in devices:
+            serial_number = device.serial_number
+            #print("serial_number:", serial_number)
+            # Gather device info for each serial number
+            personal_info = get_personal_info(serial_number)
+            total_device_info[serial_number] = personal_info['data']['device_info']
+
+            # Append message_info to the list
+            message_info = personal_info['data']['message_info']
+            total_message_info.extend([message_info])
+
+            alert_info = personal_info['data']['alert_info']
+            total_alert_info.extend([alert_info])
+
+
+            total_health_data[serial_number] = personal_info['data']['health_data']
+            total_user_info[serial_number] = personal_info['data']['user_info']
+
+        # Sort the aggregated message_info by received_time
+        try:
+            #print("total_message_info:", total_message_info)
+            parsed_messages = []
+            for message_dict in total_message_info:
+                for key, json_str in message_dict.items():
+                    # Parse the JSON string into a dictionary
+                    #print("json_str:", json_str)
+                    message_data = json.loads(json_str)
+                    parsed_messages.append(message_data)
+            parsed_messages.sort(key=lambda x: datetime.strptime(x['received_time'], '%Y-%m-%d %H:%M:%S'), reverse=True)
+            #print("sorted_message_info:", parsed_messages)
+        except TypeError as e:
+            logger.error("Error sorting message_info:", e)
+            logger.error("total_message_info:", total_message_info)  # Debugging line to check structure
+
+        # Sort the aggregated alert_info by timestamp
+        try:
+            parsed_alerts = []
+            for alert_dict in total_alert_info:
+                for key, json_str in alert_dict.items():
+                    # Parse the JSON string into a dictionary
+                    #print("json_str:", json_str)
+                    alert_data = json.loads(json_str)
+                    parsed_alerts.append(alert_data)
+            parsed_alerts.sort(key=lambda x: datetime.strptime(x['timestamp'], '%Y-%m-%d %H:%M:%S'), reverse=True)
+            #print("sorted_alert_info:", parsed_alerts)
+        except TypeError as e:
+            logger.error("Error sorting alert_info:", e)
+            logger.error("total_alert_info:", total_alert_info)  # Debugging line to check structure
+
+        # Ensure that generate_alert_stats returns a JSON-serializable object
+        alert_info = generate_alert_stats(parsed_alerts)
+
+
+        message_info = generate_message_stats(parsed_messages)
+
+
+        device_info = generate_device_stats(total_device_info)
+
+
+        # Combine all information into a single JSON response
+        total_info = {
+            'device_info': device_info,
+            'message_info': message_info,  # Now a sorted list
+            'alert_info': alert_info,
+            'health_data': total_health_data,
+            'user_info': total_user_info
+        }
+
+        return jsonify(total_info)
+
+def generate_alert_stats(alert_info):
+    return alert_generate_alert_stats(alert_info)
+
+def generate_message_stats(message_info):
+    return message_generate_message_stats(message_info)
+
+def generate_device_stats(device_info):
+    return device_generate_device_stats(device_info)
+
+def generate_health_stats(health_info):
+    return alert_generate_alert_stats(health_info)
+
+def generate_user_stats(user_info):
+    return alert_generate_alert_stats(user_info)
+
+@app.route('/wechat_send_message', methods=['GET'])
+def we_send_message(content=None):
+    if content is None:
+        content = "温度异常，请及时处理！"
+    return wechat_send_message(content)
+
+@app.route('/<template>')
+def render_template_view(template):
+    if template in ['alert_view.html', 'message_view.html', 'device_view.html',
+                   'health_view.html', 'user_view.html', 'user_profile.html', 'user_health_data.html', 'user_health_data_analysis.html']:
+        return render_template(template)
+    return "Template not found", 404
+@app.route('/user_health_data_analysis')
+def user_health_data_analysis():
+    # 创建默认的健康状态数据
+    default_health_status = {
+        'score': 0,
+        'level': '暂无数据',
+        'summary': '请选择日期范围查看健康分析',
+        'insights': []
+    }
+
+    return render_template('user_health_data_analysis.html', health_status=default_health_status)
+@app.route('/alert_view.html')
+def alert_view():
+    return render_template('alert_view.html')
+
+
+@app.route('/get_device_info_by_phone', methods=['GET'])
+def get_device_info_by_phone():
+    phone = request.args.get('phone')
+    return jsonify(fetch_device_info_by_phone(phone))
+
+@app.route('/phone_get_personal_info', methods=['GET'])
+def phone_get_personal_info():
+    try:
+        phone = request.args.get('phone')
+        if not phone:
+            return jsonify({
+                'success': False,
+                'error': 'phone is required'
+            })
+
+        from .user import get_user_info_by_phone
+        user = get_user_info_by_phone(phone)
+        print("user:", user)
+
+        if user and user.device_sn:
+            return get_personal_info(user.device_sn)
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'User not found or no device associated with this user',
+                'data': {
+                    'phone': phone,
+                    'user': user.to_dict() if user else None
+                }
+            })
+
+    except Exception as e:
+        print(f"Error in phone_get_personal_info: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get personal info: {str(e)}'
+        })
+
+@app.route('/phone_login', methods=['GET'])
+def phone_login():
+    """登录接口"""
+    try:
+        phone = request.args.get('phone')
+        password = request.args.get('password')
+
+        if not phone or not password:
+            return jsonify({
+                'success': False,
+                'error': '手机号和密码不能为空'
+            })
+
+        from .user import login_user
+        result = login_user(phone, password)
+        print("result:", result)
+        return jsonify(result)
+
+
+
+    except Exception as e:
+        print(f"Login error: {str(e)}")  # 添加错误日志
+        return jsonify({
+            'success': False,
+            'error': f'登录失败: {str(e)}'
+        })
+
+@app.route('/phone/reset_password', methods=['POST'])
+def phone_reset_password():
+    """重置密码接口"""
+    try:
+        data = request.get_json()
+        user_id = data.get('userId')
+
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': '用户ID不能为空'
+            })
+        from .user import reset_password
+        result = reset_password(user_id)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'密码重置失败: {str(e)}'
+        })
+
+@app.route("/get_all_health_data_by_orgIdAndUserId_mobile")
+def get_all_health_data_by_orgIdAndUserId_mobile():
+    """
+    移动端优化的健康数据分析接口
+    """
+
+    phone = request.args.get('phone')
+    startDate = request.args.get('startDate') or time.strftime('%Y-%m-%d', time.localtime(time.time() - 30 * 24 * 60 * 60))
+    endDate = request.args.get('endDate') or time.strftime('%Y-%m-%d', time.localtime(time.time()))
+    print("get_all_health_data_by_orgIdAndUserId_mobile.phone:", phone)
+    print("get_all_health_data_by_orgIdAndUserId_mobile.startDate:", startDate)
+    print("get_all_health_data_by_orgIdAndUserId_mobile.endDate:", endDate)
+
+    from .user_health_data import fetch_all_health_data_by_orgIdAndUserId_mobile
+    result =  fetch_all_health_data_by_orgIdAndUserId_mobile(phone, startDate, endDate)
+    return jsonify(result)
+
+
+
+def main():
+    #context = ('cert.pem', 'key.pem')
+
+    #app.run(host='0.0.0.0', port=3003, debug=True, ssl_context=context)
+    socketio.run(app, host='0.0.0.0', port=5002, debug=True)
+if __name__ == "__main__":
+     main()

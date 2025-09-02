@@ -1,36 +1,72 @@
+version: '3.8'
+
 services:
   jenkins:
-    image: jenkins/jenkins:lts-jdk21
-    container_name: jenkins-complete-auto
+    image: jenkins/jenkins:2.440-lts
+    container_name: jenkins-ultimate
     restart: unless-stopped
+    privileged: true
+    user: root
     ports:
       - "8081:8080"
       - "50000:50000"
     volumes:
-      # 主数据持久化 - 使用简化路径避免权限问题
-      - jenkins-auto-data:/var/jenkins_home
+      # Jenkins 数据持久化
+      - jenkins-data:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client:ro
+      
+      # Docker 集成
       - /var/run/docker.sock:/var/run/docker.sock
       
-      # 配置文件 - 使用复制而非挂载避免权限问题
-      - ./jenkins/setup:/tmp/jenkins-setup:ro
+      # 配置文件挂载
+      - ./jenkins/casc:/var/jenkins_home/casc_configs:ro
+      - ./jenkins/plugins.txt:/usr/share/jenkins/ref/plugins.txt:ro
+      - ./jenkins/init-scripts:/var/jenkins_home/init.groovy.d:ro
+      - ./jenkins/shared-library:/var/jenkins_home/shared-library:ro
+      
+      # 时区同步
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
       
     environment:
-      # 基础配置
+      # Jenkins 配置
       - JENKINS_OPTS=--httpPort=8080
-      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Djenkins.install.runSetupWizard=false
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2g -XX:+UseG1GC
       
-      # 用户配置
+      # Configuration as Code
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
+      - CASC_RELOAD_TOKEN=jenkins-auto-reload-token
+      
+      # Docker 配置
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DOCKER_TLS_CERTDIR=/certs
+      
+      # 服务集成环境变量
       - JENKINS_ADMIN_ID=admin
       - JENKINS_ADMIN_PASSWORD=admin123
-      
-      # 服务集成
       - DOCKER_REGISTRY=localhost:5001
-      - GITEA_URL=http://gitea:3000
+      - GITEA_URL=http://192.168.1.6:3000
+      - GITEA_TOKEN=changeme-generate-in-gitea
       
-      # 时区
-      - TZ=Asia/Shanghai
+      # 邮件配置
+      - SMTP_HOST=localhost
+      - SMTP_PORT=587
+      - SMTP_USER=jenkins@example.com
+      - SMTP_PASSWORD=changeme
       
-    user: root
+      # Slack 通知
+      - SLACK_TEAM=your-team
+      - SLACK_TOKEN=changeme-slack-token
+      
+      # 钉钉通知
+      - DINGTALK_WEBHOOK=changeme-dingtalk-webhook
+      
+      # 云平台凭据
+      - AWS_ACCESS_KEY=changeme-aws-key
+      - AWS_SECRET_KEY=changeme-aws-secret
+      - AZURE_SP=changeme-azure-sp
+      - K8S_CONFIG=changeme-k8s-config
+      
     networks:
       - cicd-network
     healthcheck:
@@ -38,28 +74,64 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 300s
+      start_period: 60s
+    depends_on:
+      - docker-registry
+      - registry-ui
 
   # Docker Registry
-  registry:
-    image: registry:2
-    container_name: jenkins-registry-auto
+  docker-registry:
+    image: registry:2.8
+    container_name: docker-registry-ultimate
     restart: unless-stopped
     ports:
       - "5001:5000"
     volumes:
-      - registry-auto-data:/var/lib/registry
+      - registry-data:/var/lib/registry
+      - ./registry/config.yml:/etc/docker/registry/config.yml:ro
     environment:
       - REGISTRY_STORAGE_DELETE_ENABLED=true
+      - REGISTRY_HTTP_ADDR=0.0.0.0:5000
+      - REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin=['*']
+      - REGISTRY_HTTP_HEADERS_Access-Control-Allow-Methods=['HEAD','GET','OPTIONS','DELETE']
+      - REGISTRY_HTTP_HEADERS_Access-Control-Allow-Headers=['Authorization','Accept','Cache-Control']
+      - REGISTRY_HTTP_HEADERS_Access-Control-Max-Age=[1728000]
+      - REGISTRY_HTTP_HEADERS_Access-Control-Allow-Credentials=[true]
     networks:
       - cicd-network
+
+  # Registry UI
+  registry-ui:
+    image: joxit/docker-registry-ui:latest
+    container_name: registry-ui-ultimate
+    restart: unless-stopped
+    ports:
+      - "5002:80"
+    environment:
+      - SINGLE_REGISTRY=true
+      - REGISTRY_TITLE=Jenkins Docker Registry
+      - DELETE_IMAGES=true
+      - SHOW_CONTENT_DIGEST=true
+      - NGINX_PROXY_PASS_URL=http://docker-registry:5000
+      - SHOW_CATALOG_NB_TAGS=true
+      - CATALOG_MIN_BRANCHES=1
+      - CATALOG_MAX_BRANCHES=1
+    networks:
+      - cicd-network
+    depends_on:
+      - docker-registry
 
 networks:
   cicd-network:
     driver: bridge
+    name: cicd-network
 
 volumes:
-  jenkins-auto-data:
+  jenkins-data:
     driver: local
-  registry-auto-data:
-    driver: local 
+    name: jenkins-ultimate-data
+  jenkins-docker-certs:
+    driver: local
+  registry-data:
+    driver: local
+    name: registry-ultimate-data

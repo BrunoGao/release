@@ -1,0 +1,8 @@
+# 事件规则ID映射配置
+# 生成时间: 2025-06-18 06:52:56.289534
+
+RULE_ID_MAPPING = {'FALLDOWN_EVENT': 1920703322679980035, 'one_key_alarm': 1920247213216960513, 'SOS_EVENT': 1920703322679980034, 'WEAR_STATUS_CHANGED': 1920703322679980036}
+
+def get_rule_id(event_type):
+    """根据事件类型获取规则ID"""
+    return RULE_ID_MAPPING.get(event_type)

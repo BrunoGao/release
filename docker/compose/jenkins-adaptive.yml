@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:2.440-lts
+    container_name: jenkins-smart
+    restart: unless-stopped
+    privileged: true
+    user: root
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      # Jenkins 数据持久化
+      - jenkins-smart-data:/var/jenkins_home
+      
+      # Docker 集成
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # 配置文件挂载
+      - ./jenkins/casc:/var/jenkins_home/casc_configs:ro
+      - ./jenkins/plugins.txt:/usr/share/jenkins/ref/plugins.txt:ro
+      - ./jenkins/init-scripts:/var/jenkins_home/init.groovy.d:ro
+      - ./jenkins/shared-library:/var/jenkins_home/shared-library:ro
+      
+      # 时区同步
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      
+    environment:
+      # Jenkins 配置
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2g -XX:+UseG1GC
+      
+      # Configuration as Code
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
+      
+      # Docker 配置
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      
+      # 服务集成环境变量
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin123
+      - DOCKER_REGISTRY=localhost:35001
+      - GITEA_URL=http://192.168.1.6:3000
+      - GITEA_TOKEN=changeme-generate-in-gitea
+      
+    networks:
+      - cicd-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  cicd-network:
+    external: true
+    name: cicd-network
+
+volumes:
+  jenkins-smart-data:
+    driver: local
+    name: jenkins-smart-data

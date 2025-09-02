@@ -1,0 +1,11 @@
+version: '3'
+services:
+  ljwx-boot:
+    build: .
+    ports:
+      - "9998:9998"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    volumes:
+      - ./logs:/app/logs
+    restart: always

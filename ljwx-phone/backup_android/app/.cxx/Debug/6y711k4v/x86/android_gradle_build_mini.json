@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/bg/work/codes/opensource/Flutter-Music-Player-App-With-BLoc/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/bg/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/bg/work/codes/springboot/ljwx/flutter/ljwx_health/android/app/.cxx/Debug/6y711k4v/x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/bg/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/bg/work/codes/springboot/ljwx/flutter/ljwx_health/android/app/.cxx/Debug/6y711k4v/x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}

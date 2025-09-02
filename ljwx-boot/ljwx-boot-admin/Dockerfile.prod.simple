@@ -1,0 +1,10 @@
+# 简化版Dockerfile - 假设JAR已经构建好
+FROM eclipse-temurin:21-jre-alpine
+LABEL maintainer="gaojunivas@gmail.com"
+ENV TZ='Asia/Shanghai'
+RUN apk add --no-cache tzdata && ln -snf /usr/share/zoneinfo/"$TZ" /etc/localtime && echo "$TZ" > /etc/timezone
+WORKDIR /app
+# 直接复制预构建的JAR
+COPY ljwx-boot/ljwx-boot-admin/target/*.jar app.jar
+EXPOSE 9998
+ENTRYPOINT ["java","-Xms256m","-Xmx512m","-jar","app.jar"]

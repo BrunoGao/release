@@ -1,0 +1,44 @@
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:lj-06}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:123456}
+  data:
+    redis:
+      # 使用URL方式连接，解决Redis 8.x认证问题
+      url: redis://default:${REDIS_PASSWORD:123456}@${REDIS_HOST:localhost}:${REDIS_PORT:6379}/${REDIS_DB:1}
+      connect-timeout: 10000ms
+      timeout: 5000ms
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+        # Redis 8.x版本兼容配置
+        client-options:
+          ping-before-activate-connection: false
+          auto-reconnect: true
+  jackson:
+    serialization:
+      ORDER_MAP_ENTRIES_BY_KEYS: false
+  quartz:
+    job-store-type: memory  # 临时使用内存存储，避免数据库连接问题
+
+mybatis-plus:
+  type-handlers-package: com.ljwx.modules.geofence.util
+
+oss:
+  name: minio
+  bucket-name: ${OSS_BUCKET_NAME:panis}
+  endpoint: ${OSS_ENDPOINT:http://127.0.0.1:9000}
+  access-key: ${OSS_ACCESS_KEY:X8TyWsvQMK7CSlYIStbD}
+  secret-key: ${OSS_SECRET_KEY:X8TyWsvQMK7CSlYIStbD}
+  sync-delete: true
+  expiry: 3600
+
+logging:
+  level:
+    root: ${LOG_LEVEL:info} 

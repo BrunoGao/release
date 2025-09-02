@@ -1,0 +1,65 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ljwx-bigscreen-monitor
+  namespace: ljwx-system
+  labels:
+    app: ljwx-bigscreen
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: ljwx-bigscreen
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ljwx-bigscreen-alerts
+  namespace: ljwx-system
+  labels:
+    app: ljwx-bigscreen
+    release: prometheus
+spec:
+  groups:
+  - name: ljwx-bigscreen.rules
+    rules:
+    - alert: LjwxBigscreenDown
+      expr: up{job="ljwx-bigscreen"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "LJWX BigScreen服务不可用"
+        description: "LJWX BigScreen服务已停止响应超过1分钟"
+    
+    - alert: LjwxBigscreenHighCPU
+      expr: rate(container_cpu_usage_seconds_total{pod=~"ljwx-bigscreen.*"}[5m]) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "LJWX BigScreen CPU使用率过高"
+        description: "Pod {{ $labels.pod }} CPU使用率超过80%已持续5分钟"
+    
+    - alert: LjwxBigscreenHighMemory
+      expr: container_memory_usage_bytes{pod=~"ljwx-bigscreen.*"} / container_spec_memory_limit_bytes > 0.9
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "LJWX BigScreen内存使用率过高"
+        description: "Pod {{ $labels.pod }} 内存使用率超过90%已持续5分钟"
+    
+    - alert: LjwxBigscreenPodRestarts
+      expr: increase(kube_pod_container_status_restarts_total{pod=~"ljwx-bigscreen.*"}[1h]) > 3
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: "LJWX BigScreen Pod重启频繁"
+        description: "Pod {{ $labels.pod }} 在过去1小时内重启超过3次" 

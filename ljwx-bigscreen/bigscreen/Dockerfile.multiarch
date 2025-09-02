@@ -1,0 +1,115 @@
+# 多架构构建 - 支持 AMD64 和 ARM64
+# 使用本地python镜像，避免网络问题
+FROM python:3.12-slim
+
+# 构建参数
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION
+ARG BUILD_DATE
+ARG VCS_REF
+
+# 标签信息
+LABEL maintainer="brunogao <38455629@qq.com>" \
+      version="${VERSION}" \
+      description="LJWX BigScreen Multi-Architecture Application" \
+      build-date="${BUILD_DATE}" \
+      vcs-ref="${VCS_REF}" \
+      architecture="${TARGETARCH}"
+
+# 设置工作目录
+WORKDIR /app
+
+# 根据架构设置不同的源 - 更新为Bookworm适配Python 3.12
+RUN case "${TARGETARCH}" in \
+      amd64) \
+        echo "Setting up sources for AMD64..."; \
+        echo "deb http://mirrors.aliyun.com/debian/ bookworm main non-free-firmware" > /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian/ bookworm main non-free-firmware" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian-security/ bookworm-security main" >> /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian-security/ bookworm-security main" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian/ bookworm-updates main non-free-firmware" >> /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian/ bookworm-updates main non-free-firmware" >> /etc/apt/sources.list; \
+        ;; \
+      arm64) \
+        echo "Setting up sources for ARM64..."; \
+        echo "deb http://mirrors.aliyun.com/debian/ bookworm main non-free-firmware" > /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian/ bookworm main non-free-firmware" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian-security/ bookworm-security main" >> /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian-security/ bookworm-security main" >> /etc/apt/sources.list; \
+        echo "deb http://mirrors.aliyun.com/debian/ bookworm-updates main non-free-firmware" >> /etc/apt/sources.list; \
+        echo "deb-src http://mirrors.aliyun.com/debian/ bookworm-updates main non-free-firmware" >> /etc/apt/sources.list; \
+        ;; \
+      *) \
+        echo "Unsupported architecture: ${TARGETARCH}"; \
+        exit 1; \
+        ;; \
+    esac
+
+# 配置pip使用国内源并增加超时和重试设置
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip config set install.trusted-host mirrors.aliyun.com && \
+    pip config set global.timeout 300 && \
+    pip config set global.retries 3
+
+# 安装系统依赖 - 针对不同架构优化
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    default-libmysqlclient-dev \
+    pkg-config \
+    curl \
+    && case "${TARGETARCH}" in \
+         amd64) echo "Installing AMD64 specific packages..."; ;; \
+         arm64) echo "Installing ARM64 specific packages..."; ;; \
+       esac \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# 复制依赖文件
+COPY requirements-docker.txt .
+
+# 安装Python依赖 - 分阶段安装以提高稳定性和架构兼容性
+RUN echo "Installing Python packages for ${TARGETARCH} architecture..." && \
+    pip install --upgrade pip && \
+    pip install --no-cache-dir --timeout=300 --retries=3 wheel setuptools && \
+    case "${TARGETARCH}" in \
+      amd64) \
+        echo "Installing AMD64 optimized packages..."; \
+        pip install --no-cache-dir --timeout=300 --retries=3 -r requirements-docker.txt; \
+        ;; \
+      arm64) \
+        echo "Installing ARM64 compatible packages..."; \
+        pip install --no-cache-dir --timeout=300 --retries=3 --force-reinstall -r requirements-docker.txt; \
+        ;; \
+    esac
+
+# 创建非root用户
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# 复制应用代码并设置权限
+COPY . .
+RUN chown -R appuser:appuser /app
+
+# 切换到非root用户
+USER appuser
+
+# 设置环境变量
+ENV MYSQL_HOST=host.docker.internal \
+    MYSQL_PORT=3306 \
+    REDIS_HOST=host.docker.internal \
+    REDIS_PORT=6379 \
+    PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    ARCH=${TARGETARCH}
+
+# 暴露应用端口
+EXPOSE 5001
+
+# 健康检查 - 使用curl而不是Python requests以减少依赖
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:5001/api/health || exit 1
+
+# 启动应用
+CMD ["python3", "run.py"] 

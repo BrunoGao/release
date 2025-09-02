@@ -1,0 +1,15 @@
+# mybatis plus 配置
+mybatis-plus:
+  type-handlers-package: com.ljwx.modules.geofence.util
+  mapper-locations: classpath:com/ljwx/modules/*/repository/mapper/*Mapper.xml
+  typeAliasesPackage: com.ljwx.modules.**.domain.entity
+  global-config:
+    banner: false
+    db-config:
+      # 主键类型
+      id-type: assign_id
+      # 字段策略
+      insert-strategy: not_null
+      update-strategy: not_null
+      table-underline: true
+      logic-delete-field: is_deleted

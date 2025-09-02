@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>告警标记测试</title>
+    <!-- 引入高德地图 API -->
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=7de0c6b90cb13571ce931ca75a66c6e7"></script>
+    <script type="text/javascript" src="https://webapi.amap.com/loca?v=2.0.0&key=7de0c6b90cb13571ce931ca75a66c6e7"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            color: #fff;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            min-height: 0;
+        }
+
+        #mapContainer {
+            width: 100%;
+            height: 100%;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+
+        .control-panel button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .control-panel button:hover {
+            background: #40a9ff;
+        }
+
+        .alert-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            pointer-events: auto;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+        }
+
+        .alert-critical {
+            background-color: rgba(255, 0, 0, 0.8);
+            animation: pulse-critical 2s infinite;
+        }
+
+        .alert-high {
+            background-color: rgba(255, 165, 0, 0.8);
+            animation: pulse-high 2s infinite;
+        }
+
+        .alert-medium {
+            background-color: rgba(255, 255, 0, 0.8);
+            animation: pulse-medium 2s infinite;
+        }
+
+        .alert-low {
+            background-color: rgba(0, 255, 0, 0.8);
+            animation: pulse-low 2s infinite;
+        }
+
+        @keyframes pulse-critical {
+            0% {
+                transform: translate(-50%, -50%) scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+            }
+            70% {
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 0 0 0 20px rgba(255, 0, 0, 0);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+            }
+        }
+
+        @keyframes pulse-high {
+            0% {
+                transform: translate(-50%, -50%) scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 165, 0, 0.7);
+            }
+            70% {
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 0 0 0 15px rgba(255, 165, 0, 0);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 165, 0, 0);
+            }
+        }
+
+        @keyframes pulse-medium {
+            0% {
+                transform: translate(-50%, -50%) scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 255, 0, 0.7);
+            }
+            70% {
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 0 0 0 10px rgba(255, 255, 0, 0);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 255, 0, 0);
+            }
+        }
+
+        @keyframes pulse-low {
+            0% {
+                transform: translate(-50%, -50%) scale(0.95);
+                box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7);
+            }
+            70% {
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 0 0 0 5px rgba(0, 255, 0, 0);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(0.95);
+                box-shadow: 0 0 0 0 rgba(0, 255, 0, 0);
+            }
+        }
+
+        .alert-info-window {
+            position: absolute;
+            background: rgba(0, 21, 41, 0.9);
+            border: 1px solid #1890ff;
+            border-radius: 4px;
+            padding: 15px;
+            color: #fff;
+            font-size: 14px;
+            min-width: 280px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .alert-info-window .close-btn {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .alert-info-window .title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-right: 20px;
+        }
+
+        .alert-info-window .info-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+
+        .alert-info-window .label {
+            color: #8f8f8f;
+            width: 80px;
+            flex-shrink: 0;
+        }
+
+        .alert-info-window .value {
+            color: #fff;
+            flex-grow: 1;
+        }
+
+        .alert-info-window .severity-critical {
+            color: #ff4d4f;
+        }
+
+        .alert-info-window .severity-high {
+            color: #ffa940;
+        }
+
+        .alert-info-window .severity-medium {
+            color: #ffd666;
+        }
+
+        .alert-info-window .severity-low {
+            color: #73d13d;
+        }
+
+        .search-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 21, 41, 0.9);
+            padding: 15px;
+            border-radius: 4px;
+            z-index: 100;
+            width: 300px;
+        }
+
+        .search-panel .title {
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .search-item {
+            margin-bottom: 10px;
+        }
+
+        .search-item label {
+            color: #8f8f8f;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .search-item select,
+        .search-item input {
+            width: 100%;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 2px;
+        }
+
+        .search-item select option {
+            background: #001529;
+            color: #fff;
+        }
+
+        .search-panel .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .search-panel button {
+            flex: 1;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .search-panel .search-btn {
+            background: #1890ff;
+            color: white;
+        }
+
+        .search-panel .reset-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .search-panel button:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="map-container">
+            <div id="mapContainer"></div>
+            <div class="search-panel">
+                <div class="title">告警筛选</div>
+                <div class="search-item">
+                    <label>组织ID</label>
+                    <select id="orgSelect">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="search-item">
+                    <label>用户ID</label>
+                    <select id="userSelect">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="buttons">
+                    <button class="search-btn" onclick="searchAlerts()">搜索</button>
+                    <button class="reset-btn" onclick="resetSearch()">重置</button>
+                </div>
+            </div>
+            <div class="control-panel">
+                <button onclick="addTestAlert()">添加测试告警</button>
+                <button onclick="clearAllAlerts()">清除所有告警</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 告警标记管理类
+        class AlertMarkerManager {
+            constructor(map) {
+                this.map = map;
+                this.markers = new Map();
+                this.currentInfoWindow = null;
+            }
+
+            addAlertMarker(alert) {
+                const { alert_id, latitude, longitude, severity_level, alert_type, alert_desc } = alert;
+                
+                if (this.markers.has(alert_id)) {
+                    this.removeAlertMarker(alert_id);
+                }
+
+                const marker = document.createElement('div');
+                marker.className = `alert-marker alert-${severity_level}`;
+                marker.setAttribute('data-alert-id', alert_id);
+                
+                // 添加点击事件
+                marker.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showInfoWindow(alert, marker);
+                });
+
+                const position = [parseFloat(longitude), parseFloat(latitude)];
+                const pixel = this.map.lngLatToContainer(position);
+                
+                marker.style.left = pixel.x + 'px';
+                marker.style.top = pixel.y + 'px';
+                
+                this.map.getContainer().appendChild(marker);
+                
+                this.markers.set(alert_id, {
+                    element: marker,
+                    position: position,
+                    data: alert
+                });
+            }
+
+            showInfoWindow(alert, markerElement) {
+                // 关闭已存在的信息窗口
+                this.closeInfoWindow();
+
+                // 创建信息窗口
+                const infoWindow = document.createElement('div');
+                infoWindow.className = 'alert-info-window';
+
+                // 获取告警等级对应的中文
+                const severityText = {
+                    'critical': '严重',
+                    'high': '高',
+                    'medium': '中',
+                    'low': '低'
+                }[alert.severity_level] || alert.severity_level;
+
+                // 构建信息窗口内容
+                infoWindow.innerHTML = `
+                    <div class="close-btn">×</div>
+                    <div class="title">${alert.alert_type}</div>
+                    <div class="info-row">
+                        <span class="label">告警级别:</span>
+                        <span class="value severity-${alert.severity_level}">${severityText}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">告警描述:</span>
+                        <span class="value">${alert.alert_desc}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">设备编号:</span>
+                        <span class="value">${alert.device_sn}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">用户名称:</span>
+                        <span class="value">${alert.user_name || '未知'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">所属部门:</span>
+                        <span class="value">${alert.dept_name || '未知'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">告警状态:</span>
+                        <span class="value">${this.getStatusText(alert.alert_status)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">告警时间:</span>
+                        <span class="value">${alert.alert_timestamp}</span>
+                    </div>
+                    ${this.getHealthDataHtml(alert)}
+                `;
+
+                // 设置信息窗口位置
+                const markerRect = markerElement.getBoundingClientRect();
+                infoWindow.style.left = `${markerRect.left}px`;
+                infoWindow.style.top = `${markerRect.top - 10}px`;
+                
+                // 添加关闭按钮事件
+                infoWindow.querySelector('.close-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.closeInfoWindow();
+                });
+
+                // 添加到地图容器
+                this.map.getContainer().appendChild(infoWindow);
+                this.currentInfoWindow = infoWindow;
+
+                // 调整信息窗口位置，确保在可视区域内
+                this.adjustInfoWindowPosition(infoWindow);
+            }
+
+            getStatusText(status) {
+                const statusMap = {
+                    'pending': '待处理',
+                    'responded': '已响应',
+                    'resolved': '已解决'
+                };
+                return statusMap[status] || status;
+            }
+
+            getHealthDataHtml(alert) {
+                // 如果有健康数据，显示健康数据信息
+                if (alert.temperature || alert.heart_rate || alert.blood_oxygen) {
+                    return `
+                        <div class="info-row">
+                            <span class="label">体温:</span>
+                            <span class="value">${alert.temperature ? alert.temperature + '℃' : '未知'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">心率:</span>
+                            <span class="value">${alert.heart_rate ? alert.heart_rate + '次/分' : '未知'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">血氧:</span>
+                            <span class="value">${alert.blood_oxygen ? alert.blood_oxygen + '%' : '未知'}</span>
+                        </div>
+                    `;
+                }
+                return '';
+            }
+
+            adjustInfoWindowPosition(infoWindow) {
+                const windowRect = infoWindow.getBoundingClientRect();
+                const mapRect = this.map.getContainer().getBoundingClientRect();
+
+                // 检查是否超出右边界
+                if (windowRect.right > mapRect.right) {
+                    infoWindow.style.left = `${mapRect.right - windowRect.width - 10}px`;
+                }
+
+                // 检查是否超出左边界
+                if (windowRect.left < mapRect.left) {
+                    infoWindow.style.left = `${mapRect.left + 10}px`;
+                }
+
+                // 检查是否超出上边界
+                if (windowRect.top < mapRect.top) {
+                    infoWindow.style.top = `${mapRect.top + 10}px`;
+                }
+
+                // 检查是否超出下边界
+                if (windowRect.bottom > mapRect.bottom) {
+                    infoWindow.style.top = `${mapRect.bottom - windowRect.height - 10}px`;
+                }
+            }
+
+            closeInfoWindow() {
+                if (this.currentInfoWindow) {
+                    this.currentInfoWindow.remove();
+                    this.currentInfoWindow = null;
+                }
+            }
+
+            updateMarkerPositions() {
+                this.markers.forEach((marker, alertId) => {
+                    const pixel = this.map.lngLatToContainer(marker.position);
+                    marker.element.style.left = pixel.x + 'px';
+                    marker.element.style.top = pixel.y + 'px';
+                });
+                
+                // 更新信息窗口位置
+                if (this.currentInfoWindow) {
+                    const alertId = this.currentInfoWindow.getAttribute('data-alert-id');
+                    const marker = this.markers.get(alertId);
+                    if (marker) {
+                        const pixel = this.map.lngLatToContainer(marker.position);
+                        this.adjustInfoWindowPosition(this.currentInfoWindow);
+                    }
+                }
+            }
+
+            removeAlertMarker(alertId) {
+                const marker = this.markers.get(alertId);
+                if (marker) {
+                    marker.element.remove();
+                    this.markers.delete(alertId);
+                }
+            }
+
+            updateAlerts(alerts) {
+                const newAlertIds = new Set(alerts.map(alert => alert.alert_id));
+                
+                this.markers.forEach((marker, alertId) => {
+                    if (!newAlertIds.has(alertId)) {
+                        this.removeAlertMarker(alertId);
+                    }
+                });
+                
+                alerts.forEach(alert => {
+                    this.addAlertMarker(alert);
+                });
+            }
+
+            clearAllMarkers() {
+                this.markers.forEach((marker, alertId) => {
+                    this.removeAlertMarker(alertId);
+                });
+            }
+        }
+
+        // 全局变量
+        let map;
+        let alertManager;
+        let testAlertId = 1;
+        let currentOrgId = '';
+        let currentUserId = '';
+        let organizations = [];
+        let users = [];
+
+        // 添加获取 URL 参数的函数
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // 修改初始化函数
+        async function initSearchPanel() {
+            try {
+                // 从 URL 获取 customerId
+                const customerId = getUrlParameter('customerId');
+                if (!customerId) {
+                    console.error('Missing customerId in URL');
+                    return;
+                }
+
+                console.log("initSearchPanel:customerId:", customerId);
+                // 获取部门列表
+                const response = await fetch(`/fetch_departments?orgId=${customerId}`);
+                const result = await response.json();
+                console.log("initSearchPanel:获取到的部门列表:", result);
+
+                if (result.success && Array.isArray(result.data)) {
+                    const orgSelect = document.getElementById('orgSelect');
+                    orgSelect.innerHTML = '<option value="">全部</option>';
+
+                    // 添加当前组织作为第一个选项
+                    const currentOrgOption = document.createElement('option');
+                    currentOrgOption.value = customerId;
+                    currentOrgOption.textContent = '总部';  // 或者从后端获取组织名称
+                    orgSelect.appendChild(currentOrgOption);
+
+                    // 添加子部门
+                    result.data.forEach(dept => {
+                        console.log("initSearchPanel:添加子部门:", dept);
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = dept.name;
+                        orgSelect.appendChild(option);
+                    });
+
+                    // 默认选中当前组织
+                    orgSelect.value = customerId;
+                    // 触发一次用户列表更新
+                    await updateUserSelect(customerId);
+                }
+
+                // 监听组织选择变化
+                document.getElementById('orgSelect').addEventListener('change', async (e) => {
+                    const orgId = e.target.value;
+                    await updateUserSelect(orgId);
+                });
+
+                // 初始化完成后立即触发一次搜索
+                searchAlerts();
+            } catch (error) {
+                console.error('初始化搜索面板失败:', error);
+            }
+        }
+
+        // 修改地图初始化函数
+        function initMap() {
+            const customerId = getUrlParameter('customerId');
+            if (!customerId) {
+                console.error('Missing customerId in URL');
+                return;
+            }
+
+            map = new AMap.Map('mapContainer', {
+                zoom: 13,
+                center: [114.014997, 22.540329],
+                mapStyle: 'amap://styles/dark',
+                viewMode: '3D'
+            });
+
+            alertManager = new AlertMarkerManager(map);
+
+            map.on('mapmove', () => {
+                alertManager.updateMarkerPositions();
+            });
+
+            map.on('click', () => {
+                alertManager.closeInfoWindow();
+            });
+
+            // 初始化搜索面板
+            initSearchPanel();
+        }
+
+        // 添加测试告警
+        function addTestAlert() {
+            const center = map.getCenter();
+            const randomOffset = () => (Math.random() - 0.5) * 0.02;
+            
+            const alert = {
+                alert_id: `test_${testAlertId++}`,
+                latitude: (center.lat + randomOffset()).toString(),
+                longitude: (center.lng + randomOffset()).toString(),
+                severity_level: ['critical', 'high', 'medium', 'low'][Math.floor(Math.random() * 4)],
+                alert_type: '测试告警',
+                alert_desc: '这是一个测试告警'
+            };
+
+            alertManager.addAlertMarker(alert);
+        }
+
+        // 清除所有告警
+        function clearAllAlerts() {
+            alertManager.clearAllMarkers();
+            testAlertId = 1;
+        }
+
+        // 更新用户下拉框
+        async function updateUserSelect(orgId) {
+            try {
+                const userSelect = document.getElementById('userSelect');
+                userSelect.innerHTML = '<option value="">全部</option>';
+
+                if (!orgId) {
+                    return;
+                }
+
+                const response = await fetch(`/fetch_users?orgId=${orgId}`);
+                const result = await response.json();
+                console.log("updateUserSelect:data:", result);
+                
+                if ( Array.isArray(result.data)) {
+                    result.data.forEach(user => {
+                        const option = document.createElement('option');
+                        option.value = user.id;
+                        // 使用 user_name 作为显示名称，如果有 real_name 则优先使用
+                        const displayName = user.real_name || user.user_name;
+                        // 添加部门信息
+                        const deptInfo = user.department_name ? ` (${user.department_name})` : '';
+                        option.textContent = `${displayName}${deptInfo}`;
+                        userSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('获取用户列表失败:', error);
+            }
+        }
+
+        // 搜索告警
+        function searchAlerts() {
+            const orgId = document.getElementById('orgSelect').value;
+            const userId = document.getElementById('userSelect').value;
+            
+            // 更新当前选择的值
+            currentOrgId = orgId || getUrlParameter('customerId');  // 如果没有选择，使用 customerId
+            currentUserId = userId;
+            
+            console.log("搜索条件:", {
+                orgId: currentOrgId,
+                userId: currentUserId
+            });
+            
+            // 更新告警数据
+            updateRealAlerts();
+        }
+
+        // 重置搜索时也要考虑 customerId
+        function resetSearch() {
+            const customerId = getUrlParameter('customerId');
+            document.getElementById('orgSelect').value = customerId;
+            document.getElementById('userSelect').innerHTML = '<option value="">全部</option>';
+            currentOrgId = customerId;
+            currentUserId = '';
+            updateRealAlerts();
+        }
+
+        // 修改更新告警数据的函数
+        function updateRealAlerts() {
+            const params = new URLSearchParams();
+            if (currentOrgId) params.append('orgId', currentOrgId);
+            if (currentUserId) params.append('userId', currentUserId);
+            
+            // 如果没有选择任何筛选条件，使用 customerId
+            if (!currentOrgId && !currentUserId) {
+                const customerId = getUrlParameter('customerId');
+                if (customerId) {
+                    params.append('orgId', customerId);
+                }
+            }
+
+            const queryString = params.toString();
+            const url = `/get_alerts_by_orgIdAndUserId?${queryString}`;
+
+            console.log("请求告警数据URL:", url);
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("获取到的告警数据:", data);
+                    if (data.success && data.data && data.data.alerts) {
+                        const alerts = data.data.alerts
+                            .filter(alert => 
+                                alert.latitude && 
+                                alert.longitude && 
+                                alert.latitude !== '0' && 
+                                alert.longitude !== '0' &&
+                                alert.latitude !== 'None' &&
+                                alert.longitude !== 'None'
+                            )
+                            .map(alert => ({
+                                alert_id: alert.alert_id,
+                                latitude: alert.latitude,
+                                longitude: alert.longitude,
+                                severity_level: alert.severity_level,
+                                alert_type: alert.alert_type,
+                                alert_desc: alert.alert_desc,
+                                device_sn: alert.device_sn,
+                                user_name: alert.user_name,
+                                dept_name: alert.dept_name || alert.department_name,
+                                alert_status: alert.alert_status,
+                                alert_timestamp: alert.alert_timestamp,
+                                temperature: alert.temperature,
+                                heart_rate: alert.heart_rate,
+                                blood_oxygen: alert.blood_oxygen
+                            }));
+
+                        console.log("处理后的告警数据:", alerts);
+                        alertManager.updateAlerts(alerts);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取告警数据失败:', error);
+                });
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            const customerId = getUrlParameter('customerId');
+            if (!customerId) {
+                console.error('Missing customerId in URL');
+                return;
+            }
+
+            if (typeof AMap !== 'undefined') {
+                initMap();
+            } else {
+                console.error('高德地图 API 未加载');
+            }
+        });
+    </script>
+</body>
+</html> 

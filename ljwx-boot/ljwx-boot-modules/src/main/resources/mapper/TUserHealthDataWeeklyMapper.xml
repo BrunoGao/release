@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ljwx.modules.health.repository.mapper.TUserHealthDataWeeklyMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="TUserHealthDataWeeklyResultMap" type="com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly">
+        <result column="id" property="id"/>
+        <result column="device_sn" property="deviceSn"/>
+        <result column="org_id" property="orgId"/>
+        <result column="user_id" property="userId"/>
+        <result column="week_start" property="timestamp"/>
+        <result column="exercise_week_data" property="exerciseWeekData"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="TUserHealthDataWeeklyColumnList">
+        id, device_sn, org_id, user_id, week_start, exercise_week_data, create_time, update_time
+    </sql>
+
+</mapper> 

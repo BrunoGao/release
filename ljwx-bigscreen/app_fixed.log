@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/Users/bg/work/codes/springboot/ljwx/docker/ljwx-bigscreen/bigscreen/app.py", line 6, in <module>
+    from bigScreen.device_bind import bp as device_bind_bp  #导入设备绑定蓝图
+ImportError: cannot import name 'bp' from 'bigScreen.device_bind' (/Users/bg/work/codes/springboot/ljwx/docker/ljwx-bigscreen/bigscreen/bigScreen/device_bind.py)

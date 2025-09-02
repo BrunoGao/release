@@ -1,13 +1,11 @@
-version: '3.8'
-
 services:
   gitea:
-    image: gitea/gitea:1.21
+    image: gitea/gitea:latest
     container_name: gitea
     restart: unless-stopped
     ports:
       - "33000:3000"
-      - "32222:22"
+      - "32222:32222"
     volumes:
       # 使用 Docker 命名卷持久化
       - gitea-data:/data
@@ -19,13 +17,15 @@ services:
       - USER_GID=1000
       - GITEA__database__DB_TYPE=sqlite3
       - GITEA__database__PATH=/data/gitea/gitea.db
-      - GITEA__server__DOMAIN=localhost
-      - GITEA__server__SSH_DOMAIN=localhost
-      - GITEA__server__ROOT_URL=http://localhost:33000/
+      - GITEA__server__DOMAIN=192.168.1.83
+      - GITEA__server__SSH_DOMAIN=192.168.1.83
+      - GITEA__server__ROOT_URL=http://192.168.1.83:33000/
       - GITEA__server__DISABLE_SSH=false
       - GITEA__server__SSH_PORT=32222
-      - GITEA__server__SSH_LISTEN_PORT=22
+      - GITEA__server__SSH_LISTEN_PORT=32222
       - GITEA__server__START_SSH_SERVER=true
+      - GITEA__server__LFS_START_SERVER=true
+      - GITEA__server__BUILTIN_SSH_SERVER_USER=git
       - GITEA__repository__ENABLE_PUSH_CREATE_USER=true
       - GITEA__repository__ENABLE_PUSH_CREATE_ORG=true
       - GITEA__webhook__ALLOWED_HOST_LIST=localhost,jenkins,192.168.1.83

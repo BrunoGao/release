@@ -1,0 +1,150 @@
+@Library('jenkins-shared-library') _
+
+pipeline {
+    agent any
+    
+    environment {
+        REGISTRY = "${env.DOCKER_REGISTRY ?: 'localhost:5001'}"
+        IMAGE_NAME = "${env.JOB_NAME.toLowerCase()}"
+        MAVEN_OPTS = '-Dmaven.repo.local=.m2/repository'
+    }
+    
+    tools {
+        maven 'Maven-3.9'
+        jdk 'JDK-17'
+    }
+    
+    stages {
+        stage('检出代码') {
+            steps {
+                checkout scm
+                script {
+                    env.BUILD_VERSION = sh(
+                        script: "echo '1.0.${BUILD_NUMBER}'",
+                        returnStdout: true
+                    ).trim()
+                }
+            }
+        }
+        
+        stage('代码分析') {
+            parallel {
+                stage('编译') {
+                    steps {
+                        sh 'mvn clean compile -DskipTests'
+                    }
+                }
+                
+                stage('代码检查') {
+                    steps {
+                        sh 'mvn checkstyle:check'
+                    }
+                    post {
+                        always {
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: 'target/site',
+                                reportFiles: 'checkstyle.html',
+                                reportName: 'Checkstyle Report'
+                            ])
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('单元测试') {
+            steps {
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/**/*.xml'
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'target/site/jacoco',
+                        reportFiles: 'index.html',
+                        reportName: 'Coverage Report'
+                    ])
+                }
+            }
+        }
+        
+        stage('构建应用') {
+            steps {
+                sh 'mvn package -DskipTests'
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+            }
+        }
+        
+        stage('构建镜像') {
+            steps {
+                script {
+                    def imageName = "${env.REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_VERSION}"
+                    
+                    buildMultiPlatformImage {
+                        imageName = imageName
+                        platforms = "linux/amd64,linux/arm64"
+                        dockerfile = 'Dockerfile'
+                        pushImage = true
+                        registryCredentialsId = 'docker-registry-auth'
+                        buildArgs = [
+                            'JAR_FILE': 'target/*.jar',
+                            'BUILD_VERSION': env.BUILD_VERSION
+                        ]
+                    }
+                }
+            }
+        }
+        
+        stage('部署测试') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                    // 这里添加部署到测试环境的逻辑
+                    echo "部署到测试环境: ${env.REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_VERSION}"
+                }
+            }
+        }
+        
+        stage('部署生产') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    // 添加人工确认
+                    timeout(time: 5, unit: 'MINUTES') {
+                        input message: '是否部署到生产环境?', 
+                              parameters: [choice(choices: ['Deploy', 'Abort'], description: '选择操作', name: 'ACTION')]
+                    }
+                    
+                    echo "部署到生产环境: ${env.REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_VERSION}"
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
+            sendNotification {
+                status = currentBuild.result ?: 'SUCCESS'
+                title = "${env.JOB_NAME} #${env.BUILD_NUMBER}"
+                message = "Java 应用构建完成\n版本: ${env.BUILD_VERSION}\n分支: ${env.BRANCH_NAME}"
+            }
+        }
+        success {
+            echo "✅ Java 应用构建成功"
+        }
+        failure {
+            echo "❌ Java 应用构建失败"
+        }
+    }
+}
