@@ -1,158 +1,141 @@
 # ==============================================================================
-# 根目录 .gitignore - 统一忽略规则
+# 根目录 .gitignore - 精确忽略规则 (只忽略日志、venv、编译产物等)
 # ==============================================================================
 #
-# 重要提醒：确保以下业务功能目录不被忽略：
-# ✅ ljwx-phone/lib/          - Flutter应用核心代码
-# ✅ ljwx-watch/entry/src/    - 手表应用源代码  
-# ✅ ljwx-boot/src/          - Spring Boot后端代码
-# ✅ ljwx-admin/src/         - 管理前端源代码
-# ✅ ljwx-bigscreen/bigscreen/ - 大屏应用核心逻辑（除日志外）
-# ✅ docs/                   - 项目文档
+# 原则：只忽略真正不需要的文件，保留所有源代码和配置文件
+# ✅ 所有源代码目录都会被包含
+# ✅ 所有配置文件都会被包含  
+# ✅ 所有模板文件都会被包含
+# ❌ 只忽略：日志、venv、编译产物、临时文件、大型数据文件
 #
 # ==============================================================================
 
 # ================================
-# 大文件和数据库相关
+# 日志文件 - 确实需要忽略
 # ================================
-# SQL 导入文件 (通常很大)
-*.sql
-!schema.sql
-!migration*.sql
-!*_schema.sql
+*.log
+*.log.*
+**/logs/
+**/log/
 
-# 数据库文件
+# ================================
+# Python虚拟环境 - 确实需要忽略
+# ================================
+**/venv/
+**/env/
+**/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ================================
+# Node.js依赖 - 确实需要忽略
+# ================================
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ================================
+# 编译产物和构建输出 - 确实需要忽略
+# ================================
+**/target/
+**/build/
+**/dist/
+**/*.class
+**/*.jar
+**/*.war
+
+# ================================
+# IDE和编辑器文件 - 确实需要忽略
+# ================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ================================
+# 操作系统文件 - 确实需要忽略
+# ================================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# ================================
+# 大型数据文件 - 确实需要忽略
+# ================================
+*.xlsx
+*.xls
+*.csv
+# 保留配置相关的json文件
+*.json
+!package.json
+!config.json
+!*config*.json
+!*Config*.json
+
+# ================================
+# 数据库文件 - 确实需要忽略
+# ================================
 *.db
 *.sqlite
 *.sqlite3
 *.db3
 
-# Excel 数据文件
-*.xlsx
-*.xls
+# ================================
+# 大型SQL文件 - 但保留小的迁移文件
+# ================================
+*.sql
+!schema.sql
+!migration*.sql
+!*migration*.sql
+!create*.sql
 
 # ================================
-# 日志文件
+# 临时和缓存文件 - 确实需要忽略
 # ================================
-# 所有日志文件
-*.log
-*.log.*
-logs/
-log/
+**/tmp/
+**/temp/
+**/.cache/
+**/cache/*.log
+**/cache/*.tmp
+**/cache/*.json
 
 # ================================
-# 缓存和临时文件
+# 上传和用户数据 - 确实需要忽略
 # ================================
-# Python 缓存
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-# Python特定的build目录，不影响其他项目的build配置
-**/venv/build/
-**/env/build/
-**/.venv/build/
-develop-eggs/
-# Python特定的dist目录，不影响其他项目的打包输出
-**/venv/dist/
-**/env/dist/
-**/.venv/dist/
-downloads/
-eggs/
-.eggs/
-# Python特定的lib目录，不影响Flutter等其他技术栈的lib目录
-**/venv/lib/
-**/env/lib/
-**/.venv/lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm
-.yarn/cache
-.yarn/unplugged
-.yarn/build-state.yml
-.yarn/install-state.gz
-.pnp.*
+**/uploads/
 
 # ================================
-# 开发工具配置
+# 证书和密钥 - 确实需要忽略
 # ================================
-# IDE 配置
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS 生成的文件
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# ================================
-# 运行时和输出文件
-# ================================
-# Docker 相关
-.dockerignore
-
-# 证书和密钥
 *.pem
 *.key
 *.crt
 *.p12
 *.pfx
 
-# 配置文件中的敏感信息
-*config.local*
-*.env.local
-*.env.development.local
-*.env.test.local
-*.env.production.local
-
 # ================================
-# 大屏应用特定文件
+# 性能测试数据 - 确实需要忽略
 # ================================
-# 缓存目录
-cache/
-.cache/
-
-# 只忽略用户上传内容和构建输出，不忽略源码中的静态资源
-**/uploads/
-# 仅忽略bigscreen的静态资源输出目录
-ljwx-bigscreen/bigscreen/static/
-
-# 性能测试和监控数据
 performance_*.json
 performance_*.log
 *_report.json
 *_report.html
 
-# 备份文件
+# ================================
+# 备份文件 - 确实需要忽略
+# ================================
 *.backup
 *.bak
 *.orig
 
 # ================================
-# 其他大文件类型
+# 媒体文件 - 确实需要忽略
 # ================================
-# 媒体文件
 *.mp4
 *.avi
 *.mov
@@ -161,36 +144,10 @@ performance_*.log
 *.wav
 *.flac
 
-# 压缩包
+# ================================
+# 压缩包 - 确实需要忽略
+# ================================
 *.zip
 *.tar.gz
 *.rar
 *.7z
-
-# 大型数据文件
-*.csv
-*.json
-!package.json
-!config.json
-!*.config.json
-
-# ================================
-# 特定大文件路径
-# ================================
-# GitHub 警告的具体文件
-ljwx-bigscreen/bigscreen/insert_statements.sql
-ljwx-bigscreen/bigscreen/logs/database_json.log.1
-ljwx-bigscreen/bigscreen/logs/redis_json.log.4
-
-# 其他发现的大文件
-ljwx-bigscreen/bigscreen/logs/
-ljwx-bigscreen/bigscreen/cache/
-ljwx-bigscreen/bigscreen/static/
-ljwx-bigscreen/bigscreen/uploads/
-ljwx-bigscreen/bigscreen/org.log
-ljwx-bigscreen/bigscreen/run.log
-ljwx-bigscreen/bigscreen/app_output.log
-ljwx-bigscreen/bigscreen/health_data.xlsx
-ljwx-bigscreen/bigscreen/interactive_pipeline_map.html
-ljwx-bigscreen/bigscreen/map.html
-ljwx-bigscreen/bigscreen/mine_topology_map.html
