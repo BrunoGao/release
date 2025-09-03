@@ -50,6 +50,26 @@ public interface ITHealthDataConfigService extends IService<THealthDataConfig> {
     IPage<THealthDataConfig> listTHealthDataConfigPage(PageQuery pageQuery, THealthDataConfigBO tHealthDataConfigBO);
 
     /**
+     * 根据 customerId 查询启用的健康数据配置
+     *
+     * @param customerId 客户ID
+     * @return {@link List} 启用的健康数据配置列表
+     * @author jjgao
+     * @CreateTime 2025-01-15
+     */
+    List<THealthDataConfig> getEnabledConfigsByCustomerId(Long customerId);
+
+    /**
+     * 根据 customerId 查询基础健康数据配置（t_user_health_data主表字段）
+     *
+     * @param customerId 客户ID
+     * @return {@link List} 基础健康数据配置列表
+     * @author jjgao
+     * @CreateTime 2025-01-15
+     */
+    List<THealthDataConfig> getBaseConfigsByCustomerId(Long customerId);
+
+    /**
      * 根据 orgId 查询启用的健康数据配置
      *
      * @param orgId 组织ID

@@ -67,6 +67,36 @@ public class THealthDataConfigServiceImpl extends ServiceImpl<THealthDataConfigM
     }
 
     @Override
+    public List<THealthDataConfig> getEnabledConfigsByCustomerId(Long customerId) {
+        return list(new LambdaQueryWrapper<THealthDataConfig>()
+            .eq(THealthDataConfig::getIsEnabled, 1)
+            .eq(THealthDataConfig::getCustomerId, customerId)
+            .orderByDesc(THealthDataConfig::getWeight));
+    }
+
+    @Override
+    public List<THealthDataConfig> getBaseConfigsByCustomerId(Long customerId) {
+        // 定义t_user_health_data主表的基础体征字段（排除复杂的分表数据）
+        List<String> baseMetrics = Arrays.asList(
+            "heart_rate",      // 心率
+            "blood_oxygen",    // 血氧
+            "temperature",     // 体温  
+            "pressure_high",   // 收缩压
+            "pressure_low",    // 舒张压
+            "step",            // 步数
+            "stress",          // 压力
+            "calorie",         // 卡路里
+            "distance"         // 距离
+        );
+        
+        return list(new LambdaQueryWrapper<THealthDataConfig>()
+            .eq(THealthDataConfig::getIsEnabled, 1)
+            .eq(THealthDataConfig::getCustomerId, customerId)
+            .in(THealthDataConfig::getDataType, baseMetrics)
+            .orderByDesc(THealthDataConfig::getWeight));
+    }
+
+    @Override
     public List<THealthDataConfig> getEnabledConfigsByOrgId(Long orgId) {
         // 获取顶级部门ID用于查询配置
         Long topLevelDeptId = sysOrgUnitsService.getTopLevelDeptIdByOrgId(orgId);

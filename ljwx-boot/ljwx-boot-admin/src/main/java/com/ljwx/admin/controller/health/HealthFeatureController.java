@@ -56,7 +56,17 @@ public class HealthFeatureController {
     @GetMapping(value = "/base")
     public Result<List<Map<String, String>>> getBaseFeatures(@RequestParam("customerId") Long customerId) {
         try {
-            List<THealthDataConfig> configs = healthDataConfigService.getBaseConfigsByOrgId(customerId);
+            log.info("📈 获取基础健康特征配置 - customerId: {}", customerId);
+            
+            // 直接使用customerId查询t_health_data_config表获取基础体征配置
+            List<THealthDataConfig> configs = healthDataConfigService.getBaseConfigsByCustomerId(customerId);
+            
+            log.info("✅ 查询到 {} 个基础体征配置", configs.size());
+            configs.forEach(config -> 
+                log.debug("  - {}: {} (enabled: {}, weight: {})", 
+                    config.getDataType(), getDataTypeLabel(config.getDataType()), 
+                    config.getIsEnabled(), config.getWeight())
+            );
 
             List<Map<String, String>> features = configs.stream()
                 .map(config -> {
@@ -70,7 +80,7 @@ public class HealthFeatureController {
 
             return Result.data(features);
         } catch (Exception e) {
-            log.error("Failed to get base features for customerId: {}", customerId, e);
+            log.error("❌ 获取基础健康特征失败 - customerId: {}", customerId, e);
             return Result.failure("获取健康特征失败");
         }
     }
@@ -79,7 +89,12 @@ public class HealthFeatureController {
     @GetMapping(value = "/full")
     public Result<List<Map<String, String>>> getFullFeatures(@RequestParam("customerId") Long customerId) {
         try {
-            List<THealthDataConfig> configs = healthDataConfigService.getEnabledConfigsByOrgId(customerId);
+            log.info("📈 获取全量健康特征配置 - customerId: {}", customerId);
+            
+            // 直接使用customerId查询t_health_data_config表获取所有启用的特征配置
+            List<THealthDataConfig> configs = healthDataConfigService.getEnabledConfigsByCustomerId(customerId);
+            
+            log.info("✅ 查询到 {} 个全量特征配置", configs.size());
 
             List<Map<String, String>> features = configs.stream()
                 .map(config -> {
@@ -93,7 +108,7 @@ public class HealthFeatureController {
 
             return Result.data(features);
         } catch (Exception e) {
-            log.error("Failed to get full features for customerId: {}", customerId, e);
+            log.error("❌ 获取全量健康特征失败 - customerId: {}", customerId, e);
             return Result.failure("获取健康特征失败");
         }
     }
