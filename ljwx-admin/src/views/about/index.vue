@@ -82,16 +82,6 @@ const techStack = {
         <NDescriptionsItem :label="$t('page.about.projectInfo.latestBuildTime')">
           <NTag type="primary">{{ latestBuildTime }}</NTag>
         </NDescriptionsItem>
-        <NDescriptionsItem :label="$t('page.about.projectInfo.githubLink')">
-          <a class="text-primary" :href="pkg.homepage" target="_blank" rel="noopener noreferrer">
-            {{ $t('page.about.projectInfo.githubLink') }}
-          </a>
-        </NDescriptionsItem>
-        <NDescriptionsItem :label="$t('page.about.projectInfo.previewLink')">
-          <a class="text-primary" :href="pkg.website || pkg.homepage" target="_blank" rel="noopener noreferrer">
-            {{ $t('page.about.projectInfo.previewLink') }}
-          </a>
-        </NDescriptionsItem>
       </NDescriptions>
     </NCard>
 

@@ -217,7 +217,7 @@ public class MainAbilitySlice extends AbilitySlice {
 
         //configUrl = "http://www.lingjingwanxiang.com:5001/fetch_health_data_config?customer_id=0&deviceSn=" + deviceSn;
 
-        configUrl = "http://192.168.1.83:5001/fetch_health_data_config?customer_id=0&deviceSn=" + deviceSn;
+        configUrl = "http://192.168.1.153:5001/fetch_health_data_config?customer_id=0&deviceSn=" + deviceSn;
         HiLog.info(LABEL_LOG, "MainAbilitySlice::onStart::configUrl:" + configUrl);
 
 
