@@ -1127,4 +1127,28 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         userPosition.setPositionId(positionId);
         sysUserPositionService.save(userPosition);
     }
+
+    @Override
+    public Map<Long, String> getUserNamesMapByIds(List<Long> userIds) {
+        System.out.println("🔍 getUserNamesMapByIds 被调用，userIds: " + userIds);
+        if (userIds == null || userIds.isEmpty()) {
+            System.out.println("❌ userIds 为空，返回空映射");
+            return new HashMap<>();
+        }
+        
+        List<SysUser> users = this.listByIds(userIds);
+        System.out.println("🔍 查询到的用户列表: " + users.size() + " 个用户");
+        for (SysUser user : users) {
+            System.out.println("🔍 用户: ID=" + user.getId() + ", 昵称=" + user.getNickName());
+        }
+        
+        Map<Long, String> result = users.stream()
+                .collect(Collectors.toMap(
+                    SysUser::getId,
+                    SysUser::getNickName,
+                    (existing, replacement) -> existing
+                ));
+        System.out.println("🔍 返回的用户名映射: " + result);
+        return result;
+    }
 }

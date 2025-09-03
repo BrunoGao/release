@@ -80,6 +80,11 @@ public class TDeviceInfoFacadeImpl implements ITDeviceInfoFacade {
         // Convert to VO with orgName mapping
         IPage<TDeviceInfoVO> voPage = tDeviceInfoIPage.convert(entity -> {
             TDeviceInfoVO vo = CglibUtil.convertObj(entity, TDeviceInfoVO::new);
+            
+            // 🔧 确保userName字段被正确复制
+            vo.setUserName(entity.getUserName());
+            System.out.println("🔄 TDeviceInfo userName: " + entity.getUserName() + " -> VO userName: " + vo.getUserName());
+            
             // Set orgName from orgId lookup
             if (entity.getOrgId() != null) {
                 try {

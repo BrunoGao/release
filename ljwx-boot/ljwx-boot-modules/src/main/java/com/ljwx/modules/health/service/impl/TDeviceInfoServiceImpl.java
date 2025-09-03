@@ -28,6 +28,7 @@ import com.ljwx.modules.health.domain.entity.TDeviceInfo;
 import com.ljwx.modules.health.repository.mapper.TDeviceInfoMapper;
 import com.ljwx.modules.health.service.IDeviceUserMappingService;
 import com.ljwx.modules.health.service.ITDeviceInfoService;
+import com.ljwx.modules.system.service.ISysUserService;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -53,6 +54,9 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
 
     @Autowired
     private IDeviceUserMappingService deviceUserMappingService;
+
+    @Autowired
+    private ISysUserService sysUserService;
 
 
     @Override
@@ -112,12 +116,16 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
 
+        System.out.println("🔍 设备记录数: " + page.getRecords().size());
+        System.out.println("🔍 收集到的userIds: " + userIds);
+        System.out.println("🔍 收集到的orgIds: " + orgIds);
+
         // 批量获取用户信息
-        Map<Long, String> userIdToNameMap = new HashMap<>();
-        if (!userIds.isEmpty()) {
-            // 这里需要添加用户服务的批量查询方法
-            // userIdToNameMap = sysUserService.getUserNamesMapByIds(userIds);
-        }
+        final Map<Long, String> userIdToNameMap = !userIds.isEmpty() 
+            ? sysUserService.getUserNamesMapByIds(userIds.stream().collect(Collectors.toList()))
+            : new HashMap<>();
+        
+        System.out.println("🔍 获取到的用户名映射: " + userIdToNameMap);
         
         // 批量获取部门信息  
         Map<Long, String> orgIdToNameMap = new HashMap<>();
@@ -128,11 +136,18 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
 
         // 为每条记录添加用户和部门信息
         page.getRecords().forEach(record -> {
+            System.out.println("🔍 处理设备记录 ID: " + record.getId() + ", userId: " + record.getUserId());
             if (record.getUserId() != null) {
                 String userName = userIdToNameMap.get(record.getUserId());
+                System.out.println("🔍 设备 " + record.getId() + " 的用户名: " + userName);
                 if (userName != null) {
                     record.setUserName(userName);
+                    System.out.println("✅ 已设置设备 " + record.getId() + " 的用户名为: " + userName);
+                } else {
+                    System.out.println("❌ 未找到用户ID " + record.getUserId() + " 对应的用户名");
                 }
+            } else {
+                System.out.println("❌ 设备 " + record.getId() + " 没有关联的userId");
             }
             // 注意：这里不再设置departmentInfo字段，因为实体中只有orgId
         });

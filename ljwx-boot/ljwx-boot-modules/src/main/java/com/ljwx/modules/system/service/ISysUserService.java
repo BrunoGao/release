@@ -262,4 +262,14 @@ public interface ISysUserService extends IService<SysUser> {
      * @CreateTime 2025-01-20
      */
     Map<String, Object> batchImportUsers(MultipartFile file, String orgIds);
+
+    /**
+     * 根据用户ID集合批量获取用户名映射
+     *
+     * @param userIds 用户ID集合
+     * @return {@link Map} 用户ID到用户名的映射
+     * @author bruno.gao
+     * @CreateTime 2025-01-25
+     */
+    Map<Long, String> getUserNamesMapByIds(List<Long> userIds);
 }
