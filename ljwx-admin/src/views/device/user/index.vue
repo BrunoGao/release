@@ -35,7 +35,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     page: 1,
     pageSize: 20,
     deviceId: null,
-    departmentInfo: customerId,
+    orgId: customerId,
     userId: null,
     status: null
   },
