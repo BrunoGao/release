@@ -74,69 +74,66 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
                        .eq(TDeviceInfo::getCustomerId, tDeviceInfoBO.getCustomerId())
             );
         }
-        // 🔧 设备过滤逻辑: 根据用户ID或部门ID过滤设备，特殊处理orgId=0的情况
-        System.out.println("🔍 查询条件 - userIdStr: " + tDeviceInfoBO.getUserIdStr() + ", orgId: " + tDeviceInfoBO.getOrgId());
-        System.out.println("🔍 过滤条件判断 - userIdStr isEmpty: " + ObjectUtils.isEmpty(tDeviceInfoBO.getUserIdStr()) 
-            + ", orgId isEmpty: " + ObjectUtils.isEmpty(tDeviceInfoBO.getOrgId()) 
-            + ", orgId equals 0: " + (tDeviceInfoBO.getOrgId() != null && tDeviceInfoBO.getOrgId().equals(0L)));
+        // 🔧 设备过滤逻辑: 直接使用userId和orgId过滤，不再通过deviceSn转换
+        System.out.println("🔍 查询条件 - userIdStr: " + tDeviceInfoBO.getUserIdStr() + ", orgId: " + tDeviceInfoBO.getOrgId() + ", customerId: " + tDeviceInfoBO.getCustomerId());
         
-        // 当有具体的用户ID或者部门ID不为空且不为0时进行过滤
-        if (ObjectUtils.isNotEmpty(tDeviceInfoBO.getUserIdStr()) || 
-           (ObjectUtils.isNotEmpty(tDeviceInfoBO.getOrgId()) && !tDeviceInfoBO.getOrgId().equals(0L))) {
-            
-            System.out.println("🔍 开始调用 getDeviceSnList 进行设备过滤...");
-            List<String> deviceSnList = deviceUserMappingService.getDeviceSnList(
-                tDeviceInfoBO.getUserIdStr(),
-                tDeviceInfoBO.getOrgId() != null ? String.valueOf(tDeviceInfoBO.getOrgId()) : null
-            );
-
-            System.out.println("✅ 获取设备列表: " + (deviceSnList != null ? deviceSnList.toString() : "null"));
-            
-            if (deviceSnList == null || deviceSnList.isEmpty()) {
-                System.out.println("⚠️ 设备列表为空，返回空页面");
-                return pageQuery.buildPage();
+        // 直接使用userId过滤（如果指定）
+        if (ObjectUtils.isNotEmpty(tDeviceInfoBO.getUserIdStr()) && 
+            !"0".equals(tDeviceInfoBO.getUserIdStr()) && 
+            !"all".equals(tDeviceInfoBO.getUserIdStr())) {
+            try {
+                Long userId = Long.parseLong(tDeviceInfoBO.getUserIdStr());
+                queryWrapper.eq(TDeviceInfo::getUserId, userId);
+                System.out.println("✅ 添加userId过滤条件: " + userId);
+            } catch (NumberFormatException e) {
+                System.err.println("❌ userId格式错误: " + tDeviceInfoBO.getUserIdStr());
             }
-            
-            List<String> validDeviceSnList = deviceSnList.stream()
-                .filter(Objects::nonNull)
-                .filter(sn -> !sn.trim().isEmpty())
-                .distinct()
-                .collect(Collectors.toList());
-            
-            System.out.println("✅ 过滤后有效设备列表: " + validDeviceSnList.toString());
-            
-            if (validDeviceSnList.isEmpty()) {
-                System.out.println("⚠️ 有效设备列表为空，返回空页面");
-                return pageQuery.buildPage();
-            }
-            
-            queryWrapper.in(TDeviceInfo::getSerialNumber, validDeviceSnList);
-            System.out.println("✅ 已添加设备序列号过滤条件");
-        } else {
-            System.out.println("⚠️ 跳过设备过滤，将查询所有设备");
+        }
+        
+        // 直接使用orgId过滤（如果指定）
+        if (ObjectUtils.isNotEmpty(tDeviceInfoBO.getOrgId()) && 
+            !tDeviceInfoBO.getOrgId().equals(0L)) {
+            queryWrapper.eq(TDeviceInfo::getOrgId, tDeviceInfoBO.getOrgId());
+            System.out.println("✅ 添加orgId过滤条件: " + tDeviceInfoBO.getOrgId());
         }
 
         // 执行分页查询
         IPage<TDeviceInfo> page = baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
 
-        // 获取所有不重复的deviceSn
-        Set<String> deviceSns = page.getRecords().stream()
-            .map(TDeviceInfo::getSerialNumber)
+        // 获取所有不重复的userId和orgId，批量获取用户和部门信息
+        Set<Long> userIds = page.getRecords().stream()
+            .map(TDeviceInfo::getUserId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        
+        Set<Long> orgIds = page.getRecords().stream()
+            .map(TDeviceInfo::getOrgId)
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
 
-        // 获取设备关联的用户和部门信息
-        Map<String, IDeviceUserMappingService.UserInfo> deviceUserMap = deviceUserMappingService.getDeviceUserInfo(deviceSns);
+        // 批量获取用户信息
+        Map<Long, String> userIdToNameMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            // 这里需要添加用户服务的批量查询方法
+            // userIdToNameMap = sysUserService.getUserNamesMapByIds(userIds);
+        }
+        
+        // 批量获取部门信息  
+        Map<Long, String> orgIdToNameMap = new HashMap<>();
+        if (!orgIds.isEmpty()) {
+            // 这里需要添加部门服务的批量查询方法
+            // orgIdToNameMap = sysOrgUnitsService.getOrgNamesMapByIds(orgIds);
+        }
 
         // 为每条记录添加用户和部门信息
         page.getRecords().forEach(record -> {
-            if (record.getSerialNumber() != null) {
-                IDeviceUserMappingService.UserInfo userInfo = deviceUserMap.get(record.getSerialNumber());
-                if (userInfo != null) {
-                    record.setUserName(userInfo.getUserName());
-                    // Note: departmentInfo field removed as entity only has orgId
+            if (record.getUserId() != null) {
+                String userName = userIdToNameMap.get(record.getUserId());
+                if (userName != null) {
+                    record.setUserName(userName);
                 }
             }
+            // 注意：这里不再设置departmentInfo字段，因为实体中只有orgId
         });
 
         return page;
