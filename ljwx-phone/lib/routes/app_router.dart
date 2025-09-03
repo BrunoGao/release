@@ -8,8 +8,6 @@ import 'package:ljwx_health_new/models/health_model.dart' as health;
 import 'package:ljwx_health_new/models/user_model.dart' as user;
 import 'package:ljwx_health_new/screens/login_screen.dart';
 import 'package:ljwx_health_new/screens/home_screen.dart';
-import 'package:ljwx_health_new/screens/health_main_screen.dart';
-import 'package:ljwx_health_new/screens/device_main_screen.dart';
 import 'package:ljwx_health_new/screens/alert_details_screen.dart';
 import 'package:ljwx_health_new/screens/message_details_screen.dart';
 import 'package:ljwx_health_new/screens/device_details_screen.dart';
@@ -204,28 +202,6 @@ class AppRouter {
           return HomeScreen(loginData: loginData);
         },
       ),
-      // 新的健康数据主页面
-      GoRoute(
-        path: '/health',
-        builder: (context, state) {
-          final loginData = state.extra as login.LoginData? ?? _loginData;
-          if (loginData == null) {
-            return const LoginScreen();
-          }
-          return HealthMainScreen(loginData: loginData);
-        },
-      ),
-      // 新的设备管理主页面
-      GoRoute(
-        path: '/device',
-        builder: (context, state) {
-          final loginData = state.extra as login.LoginData? ?? _loginData;
-          if (loginData == null) {
-            return const LoginScreen();
-          }
-          return DeviceMainScreen(loginData: loginData);
-        },
-      ),
       GoRoute(
         path: '/alerts',
         builder: (context, state) {
@@ -283,81 +259,6 @@ class AppRouter {
             webPassword: loginData.webPassword,
             webPasswordSha: loginData.webPasswordSha, // 传递SHA密码 #SHA密码传递
           );
-        },
-      ),
-      // 通知页面
-      GoRoute(
-        path: '/notifications',
-        builder: (context, state) {
-          final loginData = state.extra as login.LoginData? ?? _loginData;
-          if (loginData == null) {
-            return const LoginScreen();
-          }
-          // TODO: 创建通知页面
-          return Scaffold(
-            appBar: AppBar(title: const Text('通知中心')),
-            body: const Center(
-              child: Text('通知页面开发中...'),
-            ),
-          );
-        },
-      ),
-      // 管理员各个功能页面路由
-      GoRoute(
-        path: '/admin/overview',
-        builder: (context, state) {
-          final loginData = state.extra as login.LoginData? ?? _loginData;
-          if (loginData == null || !loginData.isAdmin) {
-            return const LoginScreen();
-          }
-          return HomeScreen(loginData: loginData); // 使用HomeScreen作为管理员总览
-        },
-      ),
-      GoRoute(
-        path: '/admin/monitor',
-        builder: (context, state) {
-          final loginData = state.extra as login.LoginData? ?? _loginData;
-          if (loginData == null || !loginData.isAdmin) {
-            return const LoginScreen();
-          }
-          // TODO: 创建管理员监控页面
-          return HealthMainScreen(loginData: loginData); // 临时使用健康页面
-        },
-      ),
-      GoRoute(
-        path: '/admin/management',
-        builder: (context, state) {
-          final loginData = state.extra as login.LoginData? ?? _loginData;
-          if (loginData == null || !loginData.isAdmin) {
-            return const LoginScreen();
-          }
-          // TODO: 创建管理员管理页面
-          return DeviceMainScreen(loginData: loginData); // 临时使用设备页面
-        },
-      ),
-      GoRoute(
-        path: '/admin/alerts',
-        builder: (context, state) {
-          final loginData = state.extra as login.LoginData? ?? _loginData;
-          if (loginData == null || !loginData.isAdmin) {
-            return const LoginScreen();
-          }
-          // TODO: 创建管理员告警页面
-          return const Scaffold(
-            body: Center(
-              child: Text('管理员告警管理页面\n(开发中)'),
-            ),
-          );
-        },
-      ),
-      GoRoute(
-        path: '/admin/settings',
-        builder: (context, state) {
-          final loginData = state.extra as login.LoginData? ?? _loginData;
-          if (loginData == null || !loginData.isAdmin) {
-            return const LoginScreen();
-          }
-          return const SettingsScreen(); // 使用现有设置页面
         },
       ),
     ],

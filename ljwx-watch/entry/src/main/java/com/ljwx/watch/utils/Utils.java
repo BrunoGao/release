@@ -211,17 +211,6 @@ public class Utils {
             }
             HiLog.info(LABEL_LOG, "Utils::getDeviceInfo ipAddress:" + ipAddress);
             
-            // 添加客户信息字段
-            if (dataManager.getCustomerId() != null) {
-                deviceInfoJson.put("customer_id", dataManager.getCustomerId());
-            }
-            if (dataManager.getOrgId() != null) {
-                deviceInfoJson.put("org_id", dataManager.getOrgId());
-            }
-            if (dataManager.getUserId() != null) {
-                deviceInfoJson.put("user_id", dataManager.getUserId());
-            }
-            
             // 更新设备信息
             int batteryLevelPercentage = batteryInfo.getCapacity();
             deviceInfoJson.put("batteryLevel", batteryLevelPercentage);
@@ -279,17 +268,6 @@ public class Utils {
         try {
             HiLog.info(LABEL_LOG, "Utils::getHealthInfo dataManager.getDeviceSn():" + dataManager.getDeviceSn());
             healthInfoJson.put("deviceSn", dataManager.getDeviceSn());
-            
-            // 添加客户信息字段
-            if (dataManager.getCustomerId() != null) {
-                healthInfoJson.put("customer_id", dataManager.getCustomerId());
-            }
-            if (dataManager.getOrgId() != null) {
-                healthInfoJson.put("org_id", dataManager.getOrgId());
-            }
-            if (dataManager.getUserId() != null) {
-                healthInfoJson.put("user_id", dataManager.getUserId());
-            }
            
             
             // 获取健康数据，确保不使用0值(可能表示未采集)
@@ -387,17 +365,6 @@ public class Utils {
             
             HiLog.info(LABEL_LOG, "Utils::getHealthInfoForCommonEvent deviceSn:" + dataManager.getDeviceSn());
             healthInfoJson.put("deviceSn", dataManager.getDeviceSn());
-            
-            // 添加客户信息字段
-            if (dataManager.getCustomerId() != null) {
-                healthInfoJson.put("customer_id", dataManager.getCustomerId());
-            }
-            if (dataManager.getOrgId() != null) {
-                healthInfoJson.put("org_id", dataManager.getOrgId());
-            }
-            if (dataManager.getUserId() != null) {
-                healthInfoJson.put("user_id", dataManager.getUserId());
-            }
             
             // 获取健康数据
             int heartRate = dataManager.getHeartRate();

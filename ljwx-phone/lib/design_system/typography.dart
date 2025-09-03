@@ -1,22 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'colors.dart';
 
-/// 企业级设计系统字体排版定义
-/// 提供完整的字体样式体系，支持多语言和可访问性
+/// 企业级设计系统 - 文字样式规范
+/// 基于8px网格系统的排版设计
 class DSTypography {
+  DSTypography._();
+
   // ==================== 字体家族 ====================
   
-  /// 主要字体 - 用于中文和英文混排
-  static String get primaryFontFamily => 'PingFang SC';
+  /// 主要字体 - 用于标题和重要内容
+  static String get primaryFont => GoogleFonts.nunito().fontFamily!;
   
-  /// 数字字体 - 用于数据展示
-  static String get numberFontFamily => 'SF Mono';
+  /// 次要字体 - 用于正文内容
+  static String get secondaryFont => GoogleFonts.roboto().fontFamily!;
   
-  /// 代码字体 - 用于代码和技术信息
-  static String get codeFontFamily => 'JetBrains Mono';
+  /// 单等宽字体 - 用于代码和数据展示
+  static String get monospaceFont => GoogleFonts.robotoMono().fontFamily!;
 
-  // ==================== 字体权重 ====================
+  // ==================== 字体大小 ====================
+  
+  /// 特大标题 - 32px
+  static const double displayLarge = 32.0;
+  
+  /// 大标题 - 28px
+  static const double displayMedium = 28.0;
+  
+  /// 中等标题 - 24px
+  static const double displaySmall = 24.0;
+  
+  /// 主要标题 - 22px
+  static const double headlineLarge = 22.0;
+  
+  /// 次要标题 - 20px
+  static const double headlineMedium = 20.0;
+  
+  /// 小标题 - 18px
+  static const double headlineSmall = 18.0;
+  
+  /// 卡片标题 - 16px
+  static const double titleLarge = 16.0;
+  
+  /// 列表标题 - 14px
+  static const double titleMedium = 14.0;
+  
+  /// 小标题 - 12px
+  static const double titleSmall = 12.0;
+  
+  /// 正文大 - 16px
+  static const double bodyLarge = 16.0;
+  
+  /// 正文中 - 14px
+  static const double bodyMedium = 14.0;
+  
+  /// 正文小 - 12px
+  static const double bodySmall = 12.0;
+  
+  /// 标签大 - 14px
+  static const double labelLarge = 14.0;
+  
+  /// 标签中 - 12px
+  static const double labelMedium = 12.0;
+  
+  /// 标签小 - 10px
+  static const double labelSmall = 10.0;
+
+  // ==================== 字重 ====================
   
   static const FontWeight thin = FontWeight.w100;
   static const FontWeight extraLight = FontWeight.w200;
@@ -28,373 +76,195 @@ class DSTypography {
   static const FontWeight extraBold = FontWeight.w800;
   static const FontWeight black = FontWeight.w900;
 
-  // ==================== 字体大小 ====================
+  // ==================== 行高比例 ====================
   
-  /// 字体大小常量 - 基于8pt网格系统
-  static const double fontSize10 = 10.0;
-  static const double fontSize12 = 12.0;
-  static const double fontSize14 = 14.0;
-  static const double fontSize16 = 16.0;
-  static const double fontSize18 = 18.0;
-  static const double fontSize20 = 20.0;
-  static const double fontSize24 = 24.0;
-  static const double fontSize28 = 28.0;
-  static const double fontSize32 = 32.0;
-  static const double fontSize36 = 36.0;
-  static const double fontSize40 = 40.0;
-  static const double fontSize48 = 48.0;
-  static const double fontSize56 = 56.0;
-  static const double fontSize64 = 64.0;
-  static const double fontSize72 = 72.0;
-
-  // ==================== 行高 ====================
-  
-  /// 行高常量
-  static const double lineHeight1_2 = 1.2; // 紧凑
-  static const double lineHeight1_4 = 1.4; // 正常
-  static const double lineHeight1_5 = 1.5; // 舒适
-  static const double lineHeight1_6 = 1.6; // 宽松
-  static const double lineHeight2_0 = 2.0; // 超宽松
+  static const double tightHeight = 1.1;
+  static const double normalHeight = 1.4;
+  static const double relaxedHeight = 1.6;
+  static const double looseHeight = 1.8;
 
   // ==================== 字间距 ====================
   
-  /// 字间距常量
-  static const double letterSpacingTight = -0.5;
-  static const double letterSpacingNormal = 0.0;
-  static const double letterSpacingWide = 0.5;
-  static const double letterSpacingWider = 1.0;
-  static const double letterSpacingWidest = 1.5;
+  static const double tightSpacing = -0.5;
+  static const double normalSpacing = 0.0;
+  static const double wideSpacing = 0.5;
+  static const double extraWideSpacing = 1.0;
 
-  // ==================== 预定义文本样式 ====================
+  // ==================== 预定义文字样式 ====================
   
-  /// 标题样式
-  static TextStyle get displayLarge => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize72,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingTight,
-  );
-
-  static TextStyle get displayMedium => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize56,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingTight,
-  );
-
-  static TextStyle get displaySmall => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize48,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get headlineLarge => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize40,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get headlineMedium => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize32,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get headlineSmall => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize28,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get titleLarge => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize24,
-    fontWeight: semiBold,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get titleMedium => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize20,
-    fontWeight: semiBold,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get titleSmall => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize18,
-    fontWeight: semiBold,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  /// 正文样式
-  static TextStyle get bodyLarge => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize16,
-    fontWeight: regular,
-    height: lineHeight1_5,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get bodyMedium => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize14,
-    fontWeight: regular,
-    height: lineHeight1_5,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get bodySmall => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize12,
-    fontWeight: regular,
-    height: lineHeight1_5,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  /// 标签样式
-  static TextStyle get labelLarge => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize14,
-    fontWeight: medium,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingWide,
-  );
-
-  static TextStyle get labelMedium => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize12,
-    fontWeight: medium,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingWide,
-  );
-
-  static TextStyle get labelSmall => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize10,
-    fontWeight: medium,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingWider,
-  );
-
-  // ==================== 数据展示样式 ====================
-  
-  /// 数字展示 - 大型数据
-  static TextStyle get numberLarge => GoogleFonts.getFont(
-    numberFontFamily,
-    fontSize: fontSize48,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingTight,
-  );
-
-  static TextStyle get numberMedium => GoogleFonts.getFont(
-    numberFontFamily,
-    fontSize: fontSize32,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get numberSmall => GoogleFonts.getFont(
-    numberFontFamily,
-    fontSize: fontSize24,
-    fontWeight: semiBold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  /// 代码样式
-  static TextStyle get codeLarge => GoogleFonts.getFont(
-    codeFontFamily,
-    fontSize: fontSize16,
-    fontWeight: regular,
-    height: lineHeight1_6,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get codeMedium => GoogleFonts.getFont(
-    codeFontFamily,
-    fontSize: fontSize14,
-    fontWeight: regular,
-    height: lineHeight1_6,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get codeSmall => GoogleFonts.getFont(
-    codeFontFamily,
-    fontSize: fontSize12,
-    fontWeight: regular,
-    height: lineHeight1_6,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  // ==================== 健康数据专用样式 ====================
-  
-  /// 健康指标数值
-  static TextStyle get healthValueLarge => GoogleFonts.getFont(
-    numberFontFamily,
-    fontSize: fontSize36,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingTight,
-  );
-
-  static TextStyle get healthValueMedium => GoogleFonts.getFont(
-    numberFontFamily,
-    fontSize: fontSize28,
-    fontWeight: bold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get healthValueSmall => GoogleFonts.getFont(
-    numberFontFamily,
-    fontSize: fontSize20,
-    fontWeight: semiBold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  /// 健康指标单位
-  static TextStyle get healthUnit => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize12,
-    fontWeight: regular,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  /// 健康指标标签
-  static TextStyle get healthLabel => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize14,
-    fontWeight: medium,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingWide,
-  );
-
-  // ==================== 按钮样式 ====================
-  
-  static TextStyle get buttonLarge => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize16,
-    fontWeight: semiBold,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingWide,
-  );
-
-  static TextStyle get buttonMedium => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize14,
-    fontWeight: semiBold,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingWide,
-  );
-
-  static TextStyle get buttonSmall => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize12,
-    fontWeight: semiBold,
-    height: lineHeight1_4,
-    letterSpacing: letterSpacingWider,
-  );
-
-  // ==================== 导航样式 ====================
-  
-  static TextStyle get navigationActive => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize12,
-    fontWeight: semiBold,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  static TextStyle get navigationInactive => GoogleFonts.getFont(
-    primaryFontFamily,
-    fontSize: fontSize12,
-    fontWeight: medium,
-    height: lineHeight1_2,
-    letterSpacing: letterSpacingNormal,
-  );
-
-  // ==================== 构建主题方法 ====================
-  
-  /// 构建文本主题
+  /// 构建完整的文字主题
   static TextTheme buildTextTheme(Color baseColor) {
     return TextTheme(
-      // Display styles
-      displayLarge: displayLarge.copyWith(color: baseColor),
-      displayMedium: displayMedium.copyWith(color: baseColor),
-      displaySmall: displaySmall.copyWith(color: baseColor),
+      // 展示级标题
+      displayLarge: GoogleFonts.nunito(
+        fontSize: displayLarge,
+        fontWeight: bold,
+        color: baseColor,
+        letterSpacing: tightSpacing,
+        height: tightHeight,
+      ),
+      displayMedium: GoogleFonts.nunito(
+        fontSize: displayMedium,
+        fontWeight: bold,
+        color: baseColor,
+        letterSpacing: tightSpacing,
+        height: tightHeight,
+      ),
+      displaySmall: GoogleFonts.nunito(
+        fontSize: displaySmall,
+        fontWeight: bold,
+        color: baseColor,
+        letterSpacing: tightSpacing,
+        height: normalHeight,
+      ),
       
-      // Headline styles
-      headlineLarge: headlineLarge.copyWith(color: baseColor),
-      headlineMedium: headlineMedium.copyWith(color: baseColor),
-      headlineSmall: headlineSmall.copyWith(color: baseColor),
+      // 标题级文字
+      headlineLarge: GoogleFonts.nunito(
+        fontSize: headlineLarge,
+        fontWeight: semiBold,
+        color: baseColor,
+        height: normalHeight,
+      ),
+      headlineMedium: GoogleFonts.nunito(
+        fontSize: headlineMedium,
+        fontWeight: semiBold,
+        color: baseColor,
+        height: normalHeight,
+      ),
+      headlineSmall: GoogleFonts.nunito(
+        fontSize: headlineSmall,
+        fontWeight: semiBold,
+        color: baseColor,
+        height: normalHeight,
+      ),
       
-      // Title styles
-      titleLarge: titleLarge.copyWith(color: baseColor),
-      titleMedium: titleMedium.copyWith(color: baseColor),
-      titleSmall: titleSmall.copyWith(color: baseColor),
+      // 标题文字
+      titleLarge: GoogleFonts.nunito(
+        fontSize: titleLarge,
+        fontWeight: medium,
+        color: baseColor,
+        height: normalHeight,
+      ),
+      titleMedium: GoogleFonts.nunito(
+        fontSize: titleMedium,
+        fontWeight: medium,
+        color: baseColor,
+        height: normalHeight,
+      ),
+      titleSmall: GoogleFonts.nunito(
+        fontSize: titleSmall,
+        fontWeight: medium,
+        color: baseColor,
+        height: normalHeight,
+      ),
       
-      // Body styles
-      bodyLarge: bodyLarge.copyWith(color: baseColor),
-      bodyMedium: bodyMedium.copyWith(color: baseColor),
-      bodySmall: bodySmall.copyWith(color: baseColor),
+      // 正文文字
+      bodyLarge: GoogleFonts.roboto(
+        fontSize: bodyLarge,
+        fontWeight: regular,
+        color: baseColor.withOpacity(0.87),
+        height: relaxedHeight,
+      ),
+      bodyMedium: GoogleFonts.roboto(
+        fontSize: bodyMedium,
+        fontWeight: regular,
+        color: baseColor.withOpacity(0.87),
+        height: relaxedHeight,
+      ),
+      bodySmall: GoogleFonts.roboto(
+        fontSize: bodySmall,
+        fontWeight: regular,
+        color: baseColor.withOpacity(0.6),
+        height: normalHeight,
+      ),
       
-      // Label styles
-      labelLarge: labelLarge.copyWith(color: baseColor),
-      labelMedium: labelMedium.copyWith(color: baseColor),
-      labelSmall: labelSmall.copyWith(color: baseColor),
+      // 标签文字
+      labelLarge: GoogleFonts.roboto(
+        fontSize: labelLarge,
+        fontWeight: medium,
+        color: baseColor,
+        height: normalHeight,
+      ),
+      labelMedium: GoogleFonts.roboto(
+        fontSize: labelMedium,
+        fontWeight: medium,
+        color: baseColor,
+        height: normalHeight,
+      ),
+      labelSmall: GoogleFonts.roboto(
+        fontSize: labelSmall,
+        fontWeight: medium,
+        color: baseColor.withOpacity(0.6),
+        height: normalHeight,
+        letterSpacing: wideSpacing,
+      ),
     );
   }
 
-  /// 应用颜色到文本样式
-  static TextStyle applyColor(TextStyle style, Color color) {
-    return style.copyWith(color: color);
-  }
-
-  /// 应用透明度到文本样式
-  static TextStyle applyOpacity(TextStyle style, double opacity) {
-    return style.copyWith(color: style.color?.withOpacity(opacity));
-  }
-}
-
-/// 排版工具类
-class DSTypographyUtils {
-  /// 获取响应式字体大小
-  static double getResponsiveFontSize(BuildContext context, double baseFontSize) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    if (screenWidth < 360) {
-      return baseFontSize * 0.9; // 小屏幕
-    } else if (screenWidth > 600) {
-      return baseFontSize * 1.1; // 大屏幕
-    }
-    return baseFontSize; // 标准屏幕
-  }
-
-  /// 获取可访问性字体大小
-  static double getAccessibleFontSize(BuildContext context, double baseFontSize) {
-    final textScaleFactor = MediaQuery.of(context).textScaleFactor;
-    return baseFontSize * textScaleFactor;
-  }
-
-  /// 计算行高
-  static double calculateLineHeight(double fontSize, double lineHeightMultiplier) {
-    return fontSize * lineHeightMultiplier;
-  }
+  // ==================== 特殊用途文字样式 ====================
+  
+  /// 数值显示样式 - 用于健康数据等数字展示
+  static TextStyle numberDisplay(Color color, {double? fontSize}) => GoogleFonts.robotoMono(
+    fontSize: fontSize ?? 24.0,
+    fontWeight: bold,
+    color: color,
+    height: tightHeight,
+  );
+  
+  /// 单位样式 - 用于数值单位
+  static TextStyle unit(Color color, {double? fontSize}) => GoogleFonts.roboto(
+    fontSize: fontSize ?? 12.0,
+    fontWeight: regular,
+    color: color.withOpacity(0.6),
+    height: normalHeight,
+  );
+  
+  /// 卡片标题样式
+  static TextStyle cardTitle(Color color) => GoogleFonts.nunito(
+    fontSize: titleLarge,
+    fontWeight: semiBold,
+    color: color,
+    height: normalHeight,
+  );
+  
+  /// 卡片副标题样式
+  static TextStyle cardSubtitle(Color color) => GoogleFonts.roboto(
+    fontSize: bodyMedium,
+    fontWeight: regular,
+    color: color.withOpacity(0.7),
+    height: normalHeight,
+  );
+  
+  /// 按钮文字样式
+  static TextStyle button(Color color) => GoogleFonts.nunito(
+    fontSize: labelLarge,
+    fontWeight: semiBold,
+    color: color,
+    height: normalHeight,
+    letterSpacing: wideSpacing,
+  );
+  
+  /// 标签样式
+  static TextStyle chip(Color color) => GoogleFonts.roboto(
+    fontSize: labelMedium,
+    fontWeight: medium,
+    color: color,
+    height: normalHeight,
+  );
+  
+  /// 错误信息样式
+  static TextStyle error(Color color) => GoogleFonts.roboto(
+    fontSize: bodySmall,
+    fontWeight: regular,
+    color: color,
+    height: normalHeight,
+  );
+  
+  /// 提示信息样式
+  static TextStyle caption(Color color) => GoogleFonts.roboto(
+    fontSize: bodySmall,
+    fontWeight: regular,
+    color: color.withOpacity(0.6),
+    height: normalHeight,
+  );
 }

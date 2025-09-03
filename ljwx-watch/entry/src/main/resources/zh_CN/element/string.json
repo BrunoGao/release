@@ -2,11 +2,11 @@
   "string": [
     {
       "name": "entry_MainAbility",
-      "value": "灵境万象"
+      "value": "健康精灵"
     },
     {
       "name": "mainability_description",
-      "value": "灵境万象"
+      "value": "健康精灵"
     },
     {
       "name": "mainability_HelloWorld",
@@ -18,11 +18,11 @@
     },
     {
       "name": "bluetoothability_HelloWorld",
-      "value": "灵境万象"
+      "value": "健康精灵"
     },
     {
       "name": "entry_bluetoothAbility",
-      "value": "灵境万象"
+      "value": "健康精灵"
     },
     {
       "name": "btability_description",
@@ -30,7 +30,7 @@
     },
     {
       "name": "btability_HelloWorld",
-      "value": "灵境万象"
+      "value": "健康精灵"
     },
     {
       "name": "entry_btAbility",

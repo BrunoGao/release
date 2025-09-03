@@ -1149,7 +1149,10 @@ class ApiService {
   /// 处理告警信息 #处理告警API
   Future<Map<String, dynamic>> processAlert(String alertId, String status) async {
     try {
-      debugPrint('处理告警请求，告警ID: $alertId，状态: $status');
+      debugPrint('🚨 [告警处理] 开始处理告警');
+      debugPrint('🚨 [告警处理] 告警ID: $alertId');
+      debugPrint('🚨 [告警处理] 状态: $status');
+      debugPrint('🚨 [告警处理] API基础URL: ${_config.apiBaseUrl}');
       
       final requestBody = {
         'alert_id': alertId,
@@ -1157,26 +1160,44 @@ class ApiService {
         'processed_time': DateTime.now().toIso8601String(),
       };
       
+      final url = '${_config.apiBaseUrl}/api/phone/alerts/process';
+      debugPrint('🚨 [告警处理] 完整请求URL: $url');
+      debugPrint('🚨 [告警处理] 请求头: $_headers');
+      debugPrint('🚨 [告警处理] 请求体: ${jsonEncode(requestBody)}');
+      
       final response = await http.post(
-        Uri.parse('${_config.apiBaseUrl}/api/alerts/process'),
+        Uri.parse(url),
         headers: _headers,
         body: jsonEncode(requestBody),
       ).timeout(_timeout);
       
-      debugPrint('处理告警响应状态: ${response.statusCode}');
-      debugPrint('处理告警响应内容: ${response.body}');
+      debugPrint('🚨 [告警处理] HTTP响应状态码: ${response.statusCode}');
+      debugPrint('🚨 [告警处理] HTTP响应内容: ${response.body}');
+      debugPrint('🚨 [告警处理] HTTP响应头: ${response.headers}');
       
       if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        return jsonData;
+        try {
+          final jsonData = jsonDecode(response.body);
+          debugPrint('🚨 [告警处理] JSON解析成功: $jsonData');
+          debugPrint('🚨 [告警处理] success字段: ${jsonData['success']}');
+          return jsonData;
+        } catch (e) {
+          debugPrint('🚨 [告警处理] JSON解析失败: $e');
+          return {
+            'success': false,
+            'error': 'JSON解析失败: $e'
+          };
+        }
       } else {
+        debugPrint('🚨 [告警处理] HTTP状态码错误: ${response.statusCode}');
         return {
           'success': false,
           'error': '服务器错误 (${response.statusCode}): ${response.body}'
         };
       }
-    } catch (e) {
-      debugPrint('处理告警失败: $e');
+    } catch (e, stackTrace) {
+      debugPrint('🚨 [告警处理] 异常捕获: $e');
+      debugPrint('🚨 [告警处理] 异常堆栈: $stackTrace');
       return {
         'success': false,
         'error': '处理告警失败：$e'
@@ -1187,10 +1208,23 @@ class ApiService {
   /// 标记告警为已处理 #标记告警已处理
   Future<bool> markAlertAsProcessed(String alertId) async {
     try {
+      debugPrint('🚨 [标记告警] 开始标记告警为已处理');
+      debugPrint('🚨 [标记告警] 告警ID: $alertId');
+      
       final result = await processAlert(alertId, 'processed');
-      return result['success'] == true;
-    } catch (e) {
-      debugPrint('标记告警已处理失败: $e');
+      
+      debugPrint('🚨 [标记告警] processAlert返回结果: $result');
+      debugPrint('🚨 [标记告警] result类型: ${result.runtimeType}');
+      debugPrint('🚨 [标记告警] success字段值: ${result['success']}');
+      debugPrint('🚨 [标记告警] success字段类型: ${result['success'].runtimeType}');
+      
+      final success = result['success'] == true;
+      debugPrint('🚨 [标记告警] 最终判断结果: $success');
+      
+      return success;
+    } catch (e, stackTrace) {
+      debugPrint('🚨 [标记告警] 标记告警已处理失败: $e');
+      debugPrint('🚨 [标记告警] 异常堆栈: $stackTrace');
       return false;
     }
   }

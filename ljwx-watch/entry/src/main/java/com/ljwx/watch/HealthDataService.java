@@ -16,7 +16,6 @@ import com.tdtech.ohos.health.ServiceStateException;
 import com.tdtech.ohos.health.StepsQueryConfig;
 
 import com.ljwx.watch.utils.DataManager;
-import com.ljwx.watch.utils.DataManagerAdapter;
 import com.ljwx.watch.utils.Utils;
 import ohos.rpc.RemoteException;
 
@@ -45,7 +44,7 @@ public class HealthDataService extends Ability {
     private static final HiLogLabel LABEL_LOG = new HiLogLabel(3, 0xD001100, "ljwx-log");
 
     HealthManager healthManager;
-    private DataManagerAdapter dataManager = DataManagerAdapter.getInstance();
+    private DataManager dataManager = DataManager.getInstance();
     boolean mIsServiceReady = false;
     private Timer masterTimer; // 统一主定时器
     private long tick = 0; // 计数器
@@ -1021,7 +1020,7 @@ public class HealthDataService extends Ability {
         }).start();
     }
     
-    // 启动健康数据采集的具体逻辑 - 集成统一任务调度器
+    // 启动健康数据采集的具体逻辑
     private void startHealthDataCollection() {
         enableAutoMeasures();
         setMeasurePeriod();
@@ -1032,43 +1031,10 @@ public class HealthDataService extends Ability {
         // 初始化缓存变量，避免定时器中重复计算（省电优化）
         initCachedVariables();
 
-        // 使用统一任务调度器替代独立Timer
-        initializeUnifiedTaskScheduler();
-        
-        showNotification("开始采集健康数据 - 统一调度器模式");
-        getCommonEvent();
-    }
-    
-    // 初始化统一任务调度器
-    private void initializeUnifiedTaskScheduler() {
-        try {
-            com.ljwx.watch.scheduler.UnifiedTaskScheduler taskScheduler = 
-                com.ljwx.watch.scheduler.UnifiedTaskScheduler.getInstance();
-            
-            // 注册健康监测任务
-            taskScheduler.addTask(new com.ljwx.watch.scheduler.tasks.HeartRateTask());
-            taskScheduler.addTask(new com.ljwx.watch.scheduler.tasks.SpO2Task());
-            taskScheduler.addTask(new com.ljwx.watch.scheduler.tasks.TemperatureTask());
-            
-            // 启动统一调度器
-            taskScheduler.start(this);
-            
-            HiLog.info(LABEL_LOG, "HealthDataService::统一任务调度器初始化完成");
-            
-        } catch (Exception e) {
-            HiLog.error(LABEL_LOG, "HealthDataService::统一任务调度器初始化失败，使用传统Timer: " + e.getMessage());
-            
-            // 回退到传统Timer模式
-            startLegacyTimerMode();
-        }
-    }
-    
-    // 传统Timer模式（作为回退方案）
-    private void startLegacyTimerMode() {
         // 统一定时器调度 - 以心率为基数
         masterTimer = new Timer();
 
-        HiLog.info(LABEL_LOG, "jjgao::startLegacyTimerMode:basePeriod:" + basePeriod);
+        HiLog.info(LABEL_LOG, "jjgao::startHealthDataCollection:basePeriod:" + basePeriod);
         masterTimer.schedule(new TimerTask() {
             @Override
             public void run() {
