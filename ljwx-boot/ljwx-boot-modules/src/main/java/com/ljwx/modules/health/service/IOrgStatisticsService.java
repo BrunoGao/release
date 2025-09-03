@@ -9,4 +9,12 @@ import com.ljwx.modules.health.domain.vo.OrgStatisticsVO;
 
 public interface IOrgStatisticsService {
     OrgStatisticsVO getOrgStatistics(String orgId);
+    
+    /**
+     * 根据customerId获取组织统计信息
+     * 支持多级部门管理员登录，将customerId转换为orgId进行查询
+     * @param customerId 客户ID
+     * @return 组织统计信息
+     */
+    OrgStatisticsVO getOrgStatisticsByCustomerId(String customerId);
 }

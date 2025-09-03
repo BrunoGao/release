@@ -40,6 +40,7 @@ import com.ljwx.modules.health.service.ITUserHealthDataService;
 import com.ljwx.modules.system.service.ISysUserService;
 import com.ljwx.modules.system.service.ISysOrgUnitsService;
 import com.ljwx.modules.system.domain.entity.SysUser;
+import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.health.util.HealthDataTableUtil;
 import com.ljwx.common.cache.HighPerformanceQueryService;
 import com.ljwx.common.cache.RedisRelationCacheService;
@@ -366,7 +367,10 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
         
         // 批量获取部门信息
         if (!orgIds.isEmpty()) {
-            orgIdToNameMap = sysOrgUnitsService.getOrgNamesMapByIds(orgIds);
+            List<SysOrgUnits> orgs = sysOrgUnitsService.listByIds(orgIds);
+            orgIdToNameMap = orgs.stream().collect(
+                Collectors.toMap(SysOrgUnits::getId, SysOrgUnits::getName, (a, b) -> a)
+            );
         }
 
         // 缓存用户和部门信息映射，避免重复查询

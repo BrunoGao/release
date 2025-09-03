@@ -78,6 +78,85 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         return statistics;
     }
     
+    @Override
+    public OrgStatisticsVO getOrgStatisticsByCustomerId(String customerId) {
+        log.info("🏢 根据customerId获取组织统计信息: {}", customerId);
+        
+        // 1. 将customerId转换为orgId
+        Long orgId = convertCustomerIdToOrgId(customerId);
+        if (orgId == null) {
+            log.warn("⚠️ 无法根据customerId找到对应的组织ID: {}", customerId);
+            return createEmptyStatistics();
+        }
+        
+        log.info("✅ customerId {} -> orgId {}", customerId, orgId);
+        
+        // 2. 使用转换后的orgId获取统计信息
+        return getOrgStatistics(String.valueOf(orgId));
+    }
+    
+    /**
+     * 将customerId转换为对应的顶级orgId
+     * 支持多级部门管理员登录，次级部门管理员的id只能是orgId而不是customerId
+     * @param customerId 客户ID
+     * @return 对应的组织ID
+     */
+    private Long convertCustomerIdToOrgId(String customerId) {
+        try {
+            Long customerIdLong = Long.parseLong(customerId);
+            
+            // 查找该customerId下的顶级组织（parent_id = 0）
+            LambdaQueryWrapper<SysOrgUnits> query = new LambdaQueryWrapper<SysOrgUnits>()
+                .eq(SysOrgUnits::getCustomerId, customerIdLong)
+                .eq(SysOrgUnits::getParentId, 0L)
+                .eq(SysOrgUnits::getDeleted, 0)
+                .eq(SysOrgUnits::getStatus, "1") // 只查询启用的组织
+                .orderByAsc(SysOrgUnits::getId) // 如果有多个，取最早创建的
+                .last("LIMIT 1");
+            
+            SysOrgUnits rootOrg = sysOrgUnitsService.getOne(query);
+            if (rootOrg != null) {
+                log.info("✅ 找到customerId {} 对应的顶级组织: {} ({})", 
+                    customerId, rootOrg.getId(), rootOrg.getName());
+                return rootOrg.getId();
+            } else {
+                // 如果没有找到顶级组织，尝试直接使用customerId作为orgId
+                log.warn("⚠️ 未找到customerId {} 的顶级组织，尝试直接使用作为orgId", customerId);
+                
+                // 检查该ID是否存在于组织表中
+                SysOrgUnits directOrg = sysOrgUnitsService.getById(customerIdLong);
+                if (directOrg != null && !directOrg.getDeleted().equals(1)) {
+                    log.info("✅ customerId {} 直接存在于组织表中: {} ({})", 
+                        customerId, directOrg.getId(), directOrg.getName());
+                    return directOrg.getId();
+                }
+            }
+            
+            log.error("❌ 无法找到customerId {} 对应的组织", customerId);
+            return null;
+            
+        } catch (NumberFormatException e) {
+            log.error("❌ customerId格式错误: {}", customerId, e);
+            return null;
+        } catch (Exception e) {
+            log.error("❌ 转换customerId到orgId失败: {}", customerId, e);
+            return null;
+        }
+    }
+    
+    /**
+     * 创建空的统计信息
+     */
+    private OrgStatisticsVO createEmptyStatistics() {
+        OrgStatisticsVO statistics = new OrgStatisticsVO();
+        statistics.setAlertInfo(createEmptyTAlertInfo());
+        statistics.setDeviceInfo(createEmptyDeviceInfo());
+        statistics.setHealthData(new HashMap<>());
+        statistics.setMessageInfo(createEmptyMessageInfo());
+        statistics.setUserInfo(createEmptyUserInfo());
+        return statistics;
+    }
+    
     private OrgStatisticsVO.AlertInfoVO getTAlertInfo(List<String> deviceSnList ) {
         OrgStatisticsVO.AlertInfoVO alertInfo = new OrgStatisticsVO.AlertInfoVO();
         
