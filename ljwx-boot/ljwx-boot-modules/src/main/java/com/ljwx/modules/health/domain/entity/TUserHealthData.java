@@ -61,14 +61,6 @@ public class TUserHealthData extends BaseEntity {
     @TableField(exist = false)
     private String userName;
 
-    /**
-     * 部门信息
-     */
-    @TableField(exist = false)
-    // Deprecated: Use orgId instead
-    @Deprecated
-    private String departmentInfo;
-
     private Integer heartRate;
 
     private Integer pressureHigh;

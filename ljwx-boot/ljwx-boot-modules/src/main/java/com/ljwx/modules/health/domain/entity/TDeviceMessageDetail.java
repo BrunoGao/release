@@ -52,6 +52,11 @@ public class TDeviceMessageDetail extends BaseEntity {
      */
     private Long customerId;
 
+    /**
+     * 组织ID
+     */
+    private Long orgId;
+
     private String deviceSn;
 
     private String message;

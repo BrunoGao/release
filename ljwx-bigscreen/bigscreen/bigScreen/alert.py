@@ -7,13 +7,17 @@ from .redis_helper import RedisHelper
 import time
 import threading
 from sqlalchemy import and_, case, text
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from .device import get_device_user_org_info
 from .time_config import get_now #统一时间配置
+from typing import List, Dict, Optional, Tuple
 import os
 from dotenv import load_dotenv
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 导入组织架构优化查询服务
 from .org_optimized import get_org_service, find_principals_optimized, find_escalation_chain_optimized
@@ -27,6 +31,623 @@ from wechat_config import get_wechat_config
 load_dotenv()
 
 redis = RedisHelper()
+
+def get_all_alert_data_optimized(orgId=None, userId=None, startDate=None, endDate=None, latest_only=False, page=1, pageSize=None, severity_level=None, include_details=False):
+    """
+    统一的告警数据查询接口，支持分页和优化查询
+    
+    Args:
+        orgId: 组织ID
+        userId: 用户ID  
+        startDate: 开始日期
+        endDate: 结束日期
+        latest_only: 是否只查询最新记录
+        page: 页码
+        pageSize: 每页大小
+        severity_level: 严重程度
+        include_details: 是否包含详细信息
+    
+    Returns:
+        dict: 包含告警数据和分页信息的字典
+    """
+    try:
+        import time
+        from datetime import datetime, timedelta
+        start_time = time.time()
+        
+        # 参数验证和缓存键构建
+        page = max(1, int(page or 1))
+        if pageSize is not None:
+            pageSize = min(int(pageSize), 1000)
+        else:
+            pageSize = None
+        mode = 'latest' if latest_only else 'range'
+        cache_key = f"alert_opt_v1:{orgId}:{userId}:{startDate}:{endDate}:{mode}:{page}:{pageSize}:{severity_level}:{include_details}"
+        
+        # 缓存检查
+        cached = redis.get_data(cache_key)
+        if cached:
+            result = json.loads(cached)
+            result['performance'] = {'cached': True, 'response_time': round(time.time() - start_time, 3)}
+            return result
+        
+        # 构建查询条件
+        query = db.session.query(
+            AlertInfo.id,
+            AlertInfo.alert_type,
+            AlertInfo.severity_level,
+            AlertInfo.alert_desc,
+            AlertInfo.alert_status,
+            AlertInfo.alert_timestamp,
+            AlertInfo.responded_time,
+            AlertInfo.device_sn,
+            AlertInfo.health_id,
+            AlertInfo.user_id,
+            AlertInfo.org_id,
+            AlertInfo.latitude,
+            AlertInfo.longitude,
+            AlertInfo.altitude,
+            UserInfo.user_name,
+            OrgInfo.name.label('org_name')
+        ).outerjoin(
+            UserInfo, AlertInfo.user_id == UserInfo.id
+        ).outerjoin(
+            OrgInfo, AlertInfo.org_id == OrgInfo.id
+        )
+        
+        if userId:
+            # 单用户查询
+            query = query.filter(AlertInfo.user_id == userId)
+            
+        elif orgId:
+            # 组织查询 - 获取组织下所有用户的告警
+            from .org import fetch_users_by_orgId
+            users = fetch_users_by_orgId(orgId)
+            if not users:
+                return {"success": True, "data": {"alertData": [], "totalRecords": 0, "pagination": {"currentPage": page, "pageSize": pageSize, "totalCount": 0, "totalPages": 0}}}
+            
+            user_ids = [int(user['id']) for user in users]
+            query = query.filter(AlertInfo.user_id.in_(user_ids))
+            
+        else:
+            return {"success": False, "message": "缺少orgId或userId参数", "data": {"alertData": [], "totalRecords": 0}}
+        
+        # 时间范围过滤
+        if startDate:
+            query = query.filter(AlertInfo.alert_timestamp >= startDate)
+        if endDate:
+            query = query.filter(AlertInfo.alert_timestamp <= endDate)
+        
+        # 严重程度过滤
+        if severity_level:
+            if severity_level == 'high':
+                query = query.filter(AlertInfo.severity_level.in_(['high', 'critical']))
+            else:
+                query = query.filter(AlertInfo.severity_level == severity_level)
+        
+        # 统计总数
+        total_count = query.count()
+        
+        # 排序：严重级别优先，状态次之，时间倒序
+        severity_order = case(
+            (AlertInfo.severity_level == 'critical', 1),
+            (AlertInfo.severity_level == 'high', 2),
+            (AlertInfo.severity_level == 'medium', 3),
+            else_=4
+        )
+        status_order = case(
+            (AlertInfo.alert_status == 'pending', 1),
+            (AlertInfo.alert_status == 'responded', 2),
+            else_=3
+        )
+        query = query.order_by(severity_order, status_order, AlertInfo.alert_timestamp.desc())
+        
+        # 分页处理
+        if pageSize is not None:
+            offset = (page - 1) * pageSize
+            query = query.offset(offset).limit(pageSize)
+        
+        if latest_only and not pageSize:
+            query = query.limit(1)
+        
+        # 执行查询
+        alerts = query.all()
+        
+        # 格式化数据
+        alert_data_list = []
+        for alert in alerts:
+            alert_dict = {
+                'id': alert.id,
+                'alert_type': alert.alert_type,
+                'severity_level': alert.severity_level,
+                'alert_desc': alert.alert_desc,
+                'alert_status': alert.alert_status,
+                'alert_timestamp': alert.alert_timestamp.strftime('%Y-%m-%d %H:%M:%S') if alert.alert_timestamp else None,
+                'responded_time': alert.responded_time.strftime('%Y-%m-%d %H:%M:%S') if alert.responded_time else None,
+                'device_sn': alert.device_sn,
+                'health_id': alert.health_id,
+                'user_id': alert.user_id,
+                'org_id': alert.org_id,
+                'latitude': str(alert.latitude) if alert.latitude else '22.54036796',
+                'longitude': str(alert.longitude) if alert.longitude else '114.01508952',
+                'altitude': str(alert.altitude) if alert.altitude else '0',
+                'user_name': alert.user_name or '未知用户',
+                'org_name': alert.org_name or '未知组织',
+                'dept_name': alert.org_name or '未知组织',  # 兼容字段
+                'dept_id': alert.org_id
+            }
+            
+            # 如果需要包含详细信息
+            if include_details:
+                alert_dict['details'] = []  # 可以在此处添加告警相关详细信息
+            
+            alert_data_list.append(alert_dict)
+        
+        # 构建分页信息
+        pagination = {
+            'currentPage': page,
+            'pageSize': pageSize,
+            'totalCount': total_count,
+            'totalPages': (total_count + pageSize - 1) // pageSize if pageSize else 1
+        }
+        
+        # 构建结果
+        result = {
+            'success': True,
+            'data': {
+                'alertData': alert_data_list,
+                'totalRecords': len(alert_data_list),
+                'pagination': pagination
+            },
+            'performance': {
+                'cached': False,
+                'response_time': round(time.time() - start_time, 3),
+                'query_time': round(time.time() - start_time, 3)
+            }
+        }
+        
+        # 缓存结果
+        redis.set_data(cache_key, json.dumps(result, default=str), 300)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"告警查询失败: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'data': {'alertData': [], 'totalRecords': 0}
+        }
+
+class AlertService:
+    """告警管理统一服务封装类 - 基于userId的查询和汇总"""
+    
+    def __init__(self):
+        self.redis = redis
+    
+    def get_alerts_by_common_params(self, customer_id: int = None, org_id: int = None,
+                                  user_id: int = None, start_date: str = None, 
+                                  end_date: str = None, severity_level: str = None,
+                                  page: int = 1, page_size: int = None, 
+                                  include_details: bool = False) -> Dict:
+        """
+        基于统一参数获取告警信息 - 整合现有get_all_alert_data_optimized接口
+        
+        Args:
+            customer_id: 客户ID (映射到orgId)
+            org_id: 组织ID
+            user_id: 用户ID
+            start_date: 开始日期
+            end_date: 结束日期
+            severity_level: 严重程度
+            page: 页码
+            page_size: 每页大小
+            include_details: 是否包含详细信息
+            
+        Returns:
+            告警信息字典
+        """
+        try:
+            # 参数映射和优先级处理
+            if user_id:
+                result = get_all_alert_data_optimized(
+                    orgId=None,
+                    userId=user_id, 
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=False,
+                    page=page,
+                    pageSize=page_size,
+                    severity_level=severity_level,
+                    include_details=include_details
+                )
+                logger.info(f"基于userId查询告警数据: user_id={user_id}")
+                
+            elif org_id:
+                # 组织查询 - 获取组织下所有用户的告警
+                result = get_all_alert_data_optimized(
+                    orgId=org_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=False,
+                    page=page,
+                    pageSize=page_size,
+                    severity_level=severity_level,
+                    include_details=include_details
+                )
+                logger.info(f"基于orgId查询告警数据: org_id={org_id}")
+                
+            elif customer_id:
+                # 客户查询 - 将customer_id作为orgId处理
+                result = get_all_alert_data_optimized(
+                    orgId=customer_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=False,
+                    page=page,
+                    pageSize=page_size,
+                    severity_level=severity_level,
+                    include_details=include_details
+                )
+                logger.info(f"基于customerId查询告警数据: customer_id={customer_id}")
+                
+            else:
+                return {
+                    'success': False,
+                    'error': 'Missing required parameters: customer_id, org_id, or user_id',
+                    'data': {'alerts': [], 'total_count': 0}
+                }
+            
+            # 统一返回格式，兼容新的服务接口
+            if result.get('success', True):
+                alert_data = result.get('data', {}).get('alertData', [])
+                
+                unified_result = {
+                    'success': True,
+                    'data': {
+                        'alerts': alert_data,
+                        'total_count': result.get('data', {}).get('totalRecords', len(alert_data)),
+                        'pagination': result.get('data', {}).get('pagination', {}),
+                        'query_params': {
+                            'customer_id': customer_id,
+                            'org_id': org_id,
+                            'user_id': user_id,
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'severity_level': severity_level,
+                            'page': page,
+                            'page_size': page_size,
+                            'include_details': include_details
+                        }
+                    },
+                    'performance': result.get('performance', {}),
+                    'from_cache': result.get('performance', {}).get('cached', False)
+                }
+                
+                return unified_result
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"告警查询失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'alerts': [], 'total_count': 0}
+            }
+    
+    def _get_alerts_by_user_id(self, user_id: int, start_date: str = None,
+                              end_date: str = None, severity_level: str = None) -> List[Dict]:
+        """基于用户ID查询告警"""
+        try:
+            query = db.session.query(
+                AlertInfo.id,
+                AlertInfo.alert_type,
+                AlertInfo.severity_level,
+                AlertInfo.alert_desc,
+                AlertInfo.alert_status,
+                AlertInfo.alert_timestamp,
+                AlertInfo.responded_time,
+                AlertInfo.device_sn,
+                AlertInfo.health_id,
+                AlertInfo.user_id,
+                AlertInfo.org_id,
+                AlertInfo.latitude,
+                AlertInfo.longitude,
+                AlertInfo.altitude,
+                UserInfo.user_name,
+                OrgInfo.name.label('org_name')
+            ).outerjoin(
+                UserInfo, AlertInfo.user_id == UserInfo.id
+            ).outerjoin(
+                OrgInfo, AlertInfo.org_id == OrgInfo.id
+            ).filter(
+                AlertInfo.user_id == user_id
+            )
+            
+            # 时间范围过滤
+            if start_date:
+                query = query.filter(AlertInfo.alert_timestamp >= start_date)
+            if end_date:
+                query = query.filter(AlertInfo.alert_timestamp <= end_date)
+            if severity_level:
+                query = query.filter(AlertInfo.severity_level == severity_level)
+            
+            results = query.order_by(AlertInfo.alert_timestamp.desc()).all()
+            
+            alerts = []
+            for result in results:
+                alerts.append(self._format_alert_data(result))
+            
+            return alerts
+            
+        except Exception as e:
+            logger.error(f"基于用户ID查询告警失败: {e}")
+            return []
+    
+    def _get_alerts_by_org_id(self, org_id: int, customer_id: int = None,
+                             start_date: str = None, end_date: str = None,
+                             severity_level: str = None) -> List[Dict]:
+        """基于组织ID查询告警"""
+        try:
+            # 获取组织下所有用户
+            from .org import fetch_users_by_orgId
+            users = fetch_users_by_orgId(org_id, customer_id)
+            
+            if not users:
+                return []
+            
+            user_ids = [int(user['id']) for user in users]
+            
+            query = db.session.query(
+                AlertInfo.id,
+                AlertInfo.alert_type,
+                AlertInfo.severity_level,
+                AlertInfo.alert_desc,
+                AlertInfo.alert_status,
+                AlertInfo.alert_timestamp,
+                AlertInfo.responded_time,
+                AlertInfo.device_sn,
+                AlertInfo.health_id,
+                AlertInfo.user_id,
+                AlertInfo.org_id,
+                AlertInfo.latitude,
+                AlertInfo.longitude,
+                AlertInfo.altitude,
+                UserInfo.user_name,
+                OrgInfo.name.label('org_name')
+            ).outerjoin(
+                UserInfo, AlertInfo.user_id == UserInfo.id
+            ).outerjoin(
+                OrgInfo, AlertInfo.org_id == OrgInfo.id
+            ).filter(
+                AlertInfo.user_id.in_(user_ids)
+            )
+            
+            # 时间范围过滤
+            if start_date:
+                query = query.filter(AlertInfo.alert_timestamp >= start_date)
+            if end_date:
+                query = query.filter(AlertInfo.alert_timestamp <= end_date)
+            if severity_level:
+                query = query.filter(AlertInfo.severity_level == severity_level)
+            
+            results = query.order_by(AlertInfo.alert_timestamp.desc()).all()
+            
+            alerts = []
+            for result in results:
+                alerts.append(self._format_alert_data(result))
+            
+            return alerts
+            
+        except Exception as e:
+            logger.error(f"基于组织ID查询告警失败: {e}")
+            return []
+    
+    def _get_alerts_by_customer_id(self, customer_id: int, start_date: str = None,
+                                  end_date: str = None, severity_level: str = None) -> List[Dict]:
+        """基于客户ID查询告警"""
+        try:
+            # 通过用户表的customer_id查询
+            query = db.session.query(
+                AlertInfo.id,
+                AlertInfo.alert_type,
+                AlertInfo.severity_level,
+                AlertInfo.alert_desc,
+                AlertInfo.alert_status,
+                AlertInfo.alert_timestamp,
+                AlertInfo.responded_time,
+                AlertInfo.device_sn,
+                AlertInfo.health_id,
+                AlertInfo.user_id,
+                AlertInfo.org_id,
+                AlertInfo.latitude,
+                AlertInfo.longitude,
+                AlertInfo.altitude,
+                UserInfo.user_name,
+                OrgInfo.name.label('org_name')
+            ).join(
+                UserInfo, AlertInfo.user_id == UserInfo.id
+            ).outerjoin(
+                OrgInfo, AlertInfo.org_id == OrgInfo.id
+            ).filter(
+                UserInfo.customer_id == customer_id
+            )
+            
+            # 时间范围过滤
+            if start_date:
+                query = query.filter(AlertInfo.alert_timestamp >= start_date)
+            if end_date:
+                query = query.filter(AlertInfo.alert_timestamp <= end_date)
+            if severity_level:
+                query = query.filter(AlertInfo.severity_level == severity_level)
+            
+            results = query.order_by(AlertInfo.alert_timestamp.desc()).all()
+            
+            alerts = []
+            for result in results:
+                alerts.append(self._format_alert_data(result))
+            
+            return alerts
+            
+        except Exception as e:
+            logger.error(f"基于客户ID查询告警失败: {e}")
+            return []
+    
+    def _format_alert_data(self, result) -> Dict:
+        """格式化告警数据"""
+        return {
+            'id': result.id,
+            'alert_type': result.alert_type,
+            'severity_level': result.severity_level,
+            'alert_desc': result.alert_desc,
+            'alert_status': result.alert_status,
+            'alert_timestamp': result.alert_timestamp.strftime('%Y-%m-%d %H:%M:%S') if result.alert_timestamp else None,
+            'responded_time': result.responded_time.strftime('%Y-%m-%d %H:%M:%S') if result.responded_time else None,
+            'device_sn': result.device_sn,
+            'health_id': result.health_id,
+            'user_id': result.user_id,
+            'org_id': result.org_id,
+            'latitude': str(result.latitude) if result.latitude else None,
+            'longitude': str(result.longitude) if result.longitude else None,
+            'altitude': str(result.altitude) if result.altitude else None,
+            'user_name': result.user_name,
+            'org_name': result.org_name
+        }
+    
+    def get_alert_statistics_by_common_params(self, customer_id: int = None,
+                                            org_id: int = None, user_id: int = None,
+                                            start_date: str = None, end_date: str = None) -> Dict:
+        """基于统一参数获取告警统计"""
+        try:
+            cache_key = f"alert_stats_v2:{customer_id}:{org_id}:{user_id}:{start_date}:{end_date}"
+            
+            # 缓存检查
+            cached = self.redis.get_data(cache_key)
+            if cached:
+                return json.loads(cached)
+            
+            # 获取告警数据
+            alerts_result = self.get_alerts_by_common_params(
+                customer_id, org_id, user_id, start_date, end_date
+            )
+            
+            if not alerts_result.get('success'):
+                return alerts_result
+            
+            alerts = alerts_result['data']['alerts']
+            
+            # 计算统计数据
+            total_alerts = len(alerts)
+            severity_stats = {'high': 0, 'medium': 0, 'low': 0}
+            status_stats = {'pending': 0, 'resolved': 0, 'ignored': 0}
+            type_stats = {}
+            
+            for alert in alerts:
+                # 严重程度统计
+                severity = alert.get('severity_level', 'low')
+                if severity in severity_stats:
+                    severity_stats[severity] += 1
+                
+                # 状态统计
+                status = alert.get('alert_status', 'pending')
+                if status in status_stats:
+                    status_stats[status] += 1
+                
+                # 告警类型统计
+                alert_type = alert.get('alert_type', 'unknown')
+                if alert_type not in type_stats:
+                    type_stats[alert_type] = 0
+                type_stats[alert_type] += 1
+            
+            # 按组织统计
+            org_stats = {}
+            for alert in alerts:
+                org_name = alert.get('org_name', '未知组织')
+                if org_name not in org_stats:
+                    org_stats[org_name] = {
+                        'total': 0,
+                        'high': 0,
+                        'medium': 0,
+                        'low': 0,
+                        'pending': 0,
+                        'resolved': 0
+                    }
+                
+                org_stats[org_name]['total'] += 1
+                severity = alert.get('severity_level', 'low')
+                status = alert.get('alert_status', 'pending')
+                
+                if severity in ['high', 'medium', 'low']:
+                    org_stats[org_name][severity] += 1
+                if status in ['pending', 'resolved']:
+                    org_stats[org_name][status] += 1
+            
+            result = {
+                'success': True,
+                'data': {
+                    'overview': {
+                        'total_alerts': total_alerts,
+                        'severity_stats': severity_stats,
+                        'status_stats': status_stats,
+                        'type_stats': type_stats,
+                        'resolution_rate': round(status_stats['resolved'] / total_alerts * 100, 2) if total_alerts > 0 else 0
+                    },
+                    'org_statistics': org_stats,
+                    'query_params': {
+                        'customer_id': customer_id,
+                        'org_id': org_id,
+                        'user_id': user_id,
+                        'start_date': start_date,
+                        'end_date': end_date
+                    }
+                }
+            }
+            
+            # 缓存结果
+            self.redis.set_data(cache_key, json.dumps(result, default=str), 180)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"告警统计计算失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'overview': {}, 'org_statistics': {}}
+            }
+
+# 全局实例
+_alert_service_instance = None
+
+def get_unified_alert_service() -> AlertService:
+    """获取统一告警服务实例"""
+    global _alert_service_instance
+    if _alert_service_instance is None:
+        _alert_service_instance = AlertService()
+    return _alert_service_instance
+
+# 向后兼容的函数，供现有代码使用
+def get_alerts_unified(customer_id: int = None, org_id: int = None,
+                      user_id: int = None, start_date: str = None,
+                      end_date: str = None, severity_level: str = None,
+                      page: int = 1, page_size: int = None, 
+                      include_details: bool = False) -> Dict:
+    """统一的告警查询接口 - 整合现有get_all_alert_data_optimized接口"""
+    service = get_unified_alert_service()
+    return service.get_alerts_by_common_params(
+        customer_id, org_id, user_id, start_date, end_date, severity_level,
+        page, page_size, include_details
+    )
+
+def get_alert_statistics_unified(customer_id: int = None, org_id: int = None,
+                               user_id: int = None, start_date: str = None,
+                               end_date: str = None) -> Dict:
+    """统一的告警统计接口"""
+    service = get_unified_alert_service()
+    return service.get_alert_statistics_by_common_params(customer_id, org_id, user_id, start_date, end_date)
 
 # 获取微信配置实例
 wechat_config = get_wechat_config()

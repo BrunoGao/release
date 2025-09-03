@@ -52,12 +52,6 @@ public class TAlertInfo extends BaseEntity {
     @TableField(exist = false)
     private String userName;
 
-    /**
-     * 部门信息
-     */
-    @TableField(exist = false)
-    private String departmentInfo;
-
     private Long ruleId;
 
     private String alertType;

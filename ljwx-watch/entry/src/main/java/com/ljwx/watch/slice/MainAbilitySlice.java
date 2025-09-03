@@ -81,6 +81,8 @@ public class MainAbilitySlice extends AbilitySlice {
      private String deviceSn = "";
      private String customerId = "0";
      private String customerName = "云祥灵境";
+     private String orgId = "";
+     private String userId = "";
      private String currentDeviceInfo = "";
      private String lastDeviceInfo = "";
  
@@ -333,6 +335,25 @@ public class MainAbilitySlice extends AbilitySlice {
             storeValue("deviceSn", deviceSn);
         }
         dataManager.setDeviceSn(deviceSn);
+        
+        // 加载保存的ID信息
+        loadSavedIds();
+    }
+
+    private void loadSavedIds(){
+        // 从本地存储加载 customer_id, org_id, user_id
+        customerId = fetchValue("customerId", "0");
+        dataManager.setCustomerId(customerId);
+        
+        orgId = fetchValue("orgId", "");
+        dataManager.setOrgId(orgId);
+        
+        userId = fetchValue("userId", "");
+        dataManager.setUserId(userId);
+        
+        HiLog.info(LABEL_LOG, "MainAbilitySlice::loadSavedIds::customerId:" + customerId);
+        HiLog.info(LABEL_LOG, "MainAbilitySlice::loadSavedIds::orgId:" + orgId);
+        HiLog.info(LABEL_LOG, "MainAbilitySlice::loadSavedIds::userId:" + userId);
     }
 
     /**  
@@ -662,6 +683,30 @@ public class MainAbilitySlice extends AbilitySlice {
         String uploadMethod = configJson.getString("upload_method");
         dataManager.setUploadMethod(uploadMethod);
         HiLog.info(LABEL_LOG, "MainAbilitySlice::processConfig::uploadMethod:" + uploadMethod);
+
+        // 解析并保存 customer_id
+        if (configJson.has("customer_id")) {
+            customerId = configJson.getString("customer_id");
+            storeValue("customerId", customerId);
+            dataManager.setCustomerId(customerId);
+            HiLog.info(LABEL_LOG, "MainAbilitySlice::processConfig::customerId:" + customerId);
+        }
+
+        // 解析并保存 org_id
+        if (configJson.has("org_id")) {
+            orgId = String.valueOf(configJson.getLong("org_id"));
+            storeValue("orgId", orgId);
+            dataManager.setOrgId(orgId);
+            HiLog.info(LABEL_LOG, "MainAbilitySlice::processConfig::orgId:" + orgId);
+        }
+
+        // 解析并保存 user_id
+        if (configJson.has("user_id")) {
+            userId = String.valueOf(configJson.getLong("user_id"));
+            storeValue("userId", userId);
+            dataManager.setUserId(userId);
+            HiLog.info(LABEL_LOG, "MainAbilitySlice::processConfig::userId:" + userId);
+        }
 
         // 设置客户名称
         String customerName = configJson.getString("customer_name");

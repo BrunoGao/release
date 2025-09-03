@@ -86,15 +86,15 @@
     
          if (ObjectUtils.isNotEmpty(tDeviceUserBO.getUserId()) && !tDeviceUserBO.getUserId().equals("all")) {
                      queryWrapper.eq(TDeviceUser::getUserId, tDeviceUserBO.getUserId());
-         } else if (ObjectUtils.isNotEmpty(tDeviceUserBO.getDepartmentInfo())) {
-                     Long deptId = Long.parseLong(tDeviceUserBO.getDepartmentInfo());
+         } else if (ObjectUtils.isNotEmpty(tDeviceUserBO.getOrgId())) {
+                     Long deptId = tDeviceUserBO.getOrgId();
                      List<SysOrgUnits> descendants = sysOrgUnitsService.listAllDescendants(Collections.singletonList(deptId));
                      
-                     List<String> allDeptIds = new ArrayList<>();
-                     allDeptIds.add(tDeviceUserBO.getDepartmentInfo());
+                     List<Long> allDeptIds = new ArrayList<>();
+                     allDeptIds.add(tDeviceUserBO.getOrgId());
                      if (descendants != null) {
                          allDeptIds.addAll(descendants.stream()
-                             .map(unit -> String.valueOf(unit.getId()))
+                             .map(SysOrgUnits::getId)
                              .collect(Collectors.toList()));
                      }
                      

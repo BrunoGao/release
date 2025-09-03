@@ -44,9 +44,9 @@ import java.time.LocalDateTime;
 @Schema(name = "TDeviceUserVO", description = "设备与用户关联表 VO 对象")
 public class TDeviceUserVO extends BaseVO {
     /**
-     * 部门信息
+     * 组织ID
      */
-    private String departmentInfo;
+    private Long orgId;
 
     @Schema(description = "设备序列号")
     private String deviceSn;

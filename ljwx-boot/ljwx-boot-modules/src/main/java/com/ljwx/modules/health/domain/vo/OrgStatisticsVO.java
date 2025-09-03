@@ -27,7 +27,7 @@ public class OrgStatisticsVO {
     public static class AlertDetailVO {
         private Long id;
         private String userName;
-        private String departmentInfo;
+        private Long orgId;
         private String alertType;
         private String deviceSn;
         private String alertStatus;

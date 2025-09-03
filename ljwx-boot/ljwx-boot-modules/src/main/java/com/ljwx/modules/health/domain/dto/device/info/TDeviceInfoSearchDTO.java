@@ -37,8 +37,6 @@ import java.io.Serializable;
 @Setter
 @Schema(name = "TDeviceInfoSearchDTO", description = " 查询 DTO 对象")
 public class TDeviceInfoSearchDTO implements Serializable {
-    private String departmentInfo;
-
     private String orgId;  // 前端发送的参数名
 
     private String userId;

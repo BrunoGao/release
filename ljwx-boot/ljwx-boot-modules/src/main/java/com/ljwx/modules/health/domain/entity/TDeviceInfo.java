@@ -23,7 +23,6 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.ljwx.infrastructure.domain.BaseEntity;
 
-import io.swagger.v3.oas.models.security.SecurityScheme.In;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -52,12 +51,6 @@ public class TDeviceInfo extends BaseEntity {
      */
     @TableField(exist = false)
     private String userName;
-
-    /**
-     * 部门信息
-     */
-    @TableField(exist = false)
-    private String departmentInfo;
 
     private String systemSoftwareVersion;
 

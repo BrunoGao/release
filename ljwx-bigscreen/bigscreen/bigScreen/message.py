@@ -4,9 +4,687 @@ from .models import DeviceMessage, DeviceMessageDetail, db, DeviceInfo, UserInfo
 from .redis_helper import RedisHelper
 from datetime import datetime, timedelta
 from .org import fetch_departments_by_orgId
+from typing import List, Dict, Optional, Tuple
+import logging
 
-
+logger = logging.getLogger(__name__)
 redis = RedisHelper()
+
+def get_all_message_data_optimized(orgId=None, userId=None, startDate=None, endDate=None, latest_only=False, page=1, pageSize=None, message_type=None, include_details=False):
+    """
+    统一的消息数据查询接口，支持分页和优化查询
+    
+    Args:
+        orgId: 组织ID
+        userId: 用户ID  
+        startDate: 开始日期
+        endDate: 结束日期
+        latest_only: 是否只查询最新记录
+        page: 页码
+        pageSize: 每页大小
+        message_type: 消息类型
+        include_details: 是否包含详细信息
+    
+    Returns:
+        dict: 包含消息数据和分页信息的字典
+    """
+    try:
+        import time
+        from datetime import datetime, timedelta
+        start_time = time.time()
+        
+        # 参数验证和缓存键构建
+        page = max(1, int(page or 1))
+        if pageSize is not None:
+            pageSize = min(int(pageSize), 1000)
+        else:
+            pageSize = None
+        mode = 'latest' if latest_only else 'range'
+        cache_key = f"message_opt_v1:{orgId}:{userId}:{startDate}:{endDate}:{mode}:{page}:{pageSize}:{message_type}:{include_details}"
+        
+        # 缓存检查
+        cached = redis.get_data(cache_key)
+        if cached:
+            result = json.loads(cached)
+            result['performance'] = {'cached': True, 'response_time': round(time.time() - start_time, 3)}
+            return result
+        
+        # 构建查询条件
+        query = db.session.query(
+            DeviceMessage.id,
+            DeviceMessage.message,
+            DeviceMessage.message_type,
+            DeviceMessage.sender_type,
+            DeviceMessage.receiver_type,
+            DeviceMessage.message_status,
+            DeviceMessage.send_time,
+            DeviceMessage.received_time,
+            DeviceMessage.user_id,
+            DeviceMessage.org_id,
+            DeviceMessage.responded_number,
+            DeviceMessage.total_number,
+            UserInfo.user_name,
+            OrgInfo.name.label('org_name')
+        ).outerjoin(
+            UserInfo, DeviceMessage.user_id == UserInfo.id
+        ).outerjoin(
+            OrgInfo, DeviceMessage.org_id == OrgInfo.id
+        ).filter(
+            DeviceMessage.is_deleted == False
+        )
+        
+        if userId:
+            # 单用户查询 - 包括个人消息和发给组织的群发消息
+            from .admin_helper import is_admin_user
+            if is_admin_user(userId):
+                return {"success": True, "data": {"messageData": [], "totalRecords": 0, "pagination": {"currentPage": page, "pageSize": pageSize, "totalCount": 0, "totalPages": 0}}}
+            
+            # 获取用户所在组织ID
+            user_org = UserOrg.query.filter_by(user_id=userId).first()
+            if user_org:
+                org_id = user_org.org_id
+                # 获取组织及其所有上级组织的ID
+                org_info = OrgInfo.query.filter_by(id=org_id).first()
+                if org_info and org_info.ancestors:
+                    ancestor_org_ids = [int(id) for id in org_info.ancestors.split(',') if id != '0']
+                    ancestor_org_ids.append(org_id)
+                else:
+                    ancestor_org_ids = [org_id] if org_id else []
+                
+                # 查询用户个人消息和公告消息
+                query = query.filter(
+                    db.or_(
+                        DeviceMessage.user_id == userId,  # 个人消息
+                        db.and_(DeviceMessage.org_id.in_(ancestor_org_ids), DeviceMessage.user_id.is_(None))  # 公告消息
+                    )
+                )
+            else:
+                # 如果用户没有组织关联，只查个人消息
+                query = query.filter(DeviceMessage.user_id == userId)
+                
+        elif orgId:
+            # 组织查询 - 获取组织下所有用户的消息
+            from .org import fetch_users_by_orgId
+            users = fetch_users_by_orgId(orgId)
+            if not users:
+                return {"success": True, "data": {"messageData": [], "totalRecords": 0, "pagination": {"currentPage": page, "pageSize": pageSize, "totalCount": 0, "totalPages": 0}}}
+            
+            user_ids = [int(user['id']) for user in users]
+            
+            # 获取所有相关组织ID（包括子部门）
+            departments_response = fetch_departments_by_orgId(orgId)
+            subordinate_org_ids = []
+            if departments_response['success'] and departments_response['data']:
+                def extract_department_ids(departments):
+                    dept_ids = []
+                    for dept in departments:
+                        dept_ids.append(int(dept['id']))
+                        if 'children' in dept and dept['children']:
+                            dept_ids.extend(extract_department_ids(dept['children']))
+                    return dept_ids
+                subordinate_org_ids = extract_department_ids(departments_response['data'])
+            
+            all_org_ids = list(set([orgId] + subordinate_org_ids))
+            
+            # 查询用户消息和群发消息
+            query = query.filter(
+                db.or_(
+                    DeviceMessage.user_id.in_(user_ids),  # 用户消息
+                    db.and_(DeviceMessage.org_id.in_(all_org_ids), DeviceMessage.user_id.is_(None))  # 群发消息
+                )
+            )
+            
+        else:
+            return {"success": False, "message": "缺少orgId或userId参数", "data": {"messageData": [], "totalRecords": 0}}
+        
+        # 时间范围过滤
+        if startDate:
+            query = query.filter(DeviceMessage.send_time >= startDate)
+        if endDate:
+            query = query.filter(DeviceMessage.send_time <= endDate)
+        
+        # 消息类型过滤
+        if message_type:
+            query = query.filter(DeviceMessage.message_type == message_type)
+        
+        # 统计总数
+        total_count = query.count()
+        
+        # 排序
+        query = query.order_by(DeviceMessage.send_time.desc())
+        
+        # 分页处理
+        if pageSize is not None:
+            offset = (page - 1) * pageSize
+            query = query.offset(offset).limit(pageSize)
+        
+        if latest_only and not pageSize:
+            query = query.limit(1)
+        
+        # 执行查询
+        messages = query.all()
+        
+        # 格式化数据
+        message_data_list = []
+        for message in messages:
+            message_dict = {
+                'id': message.id,
+                'message': message.message,
+                'message_type': message.message_type,
+                'sender_type': message.sender_type,
+                'receiver_type': message.receiver_type,
+                'message_status': message.message_status,
+                'send_time': message.send_time.strftime('%Y-%m-%d %H:%M:%S') if message.send_time else None,
+                'received_time': message.received_time.strftime('%Y-%m-%d %H:%M:%S') if message.received_time else None,
+                'user_id': message.user_id,
+                'org_id': message.org_id,
+                'responded_number': message.responded_number or 0,
+                'total_number': message.total_number or 0,
+                'user_name': message.user_name,
+                'org_name': message.org_name,
+                'dept_name': message.org_name,  # 兼容字段
+                'dept_id': message.org_id
+            }
+            
+            # 如果需要包含详细信息
+            if include_details:
+                message_dict['details'] = []  # 可以在此处添加消息相关详细信息
+            
+            message_data_list.append(message_dict)
+        
+        # 构建分页信息
+        pagination = {
+            'currentPage': page,
+            'pageSize': pageSize,
+            'totalCount': total_count,
+            'totalPages': (total_count + pageSize - 1) // pageSize if pageSize else 1
+        }
+        
+        # 构建结果
+        result = {
+            'success': True,
+            'data': {
+                'messageData': message_data_list,
+                'totalRecords': len(message_data_list),
+                'pagination': pagination
+            },
+            'performance': {
+                'cached': False,
+                'response_time': round(time.time() - start_time, 3),
+                'query_time': round(time.time() - start_time, 3)
+            }
+        }
+        
+        # 缓存结果
+        redis.set_data(cache_key, json.dumps(result, default=str), 300)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"消息查询失败: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'data': {'messageData': [], 'totalRecords': 0}
+        }
+
+class MessageService:
+    """消息管理统一服务封装类 - 基于userId的查询和汇总"""
+    
+    def __init__(self):
+        self.redis = redis
+    
+    def get_messages_by_common_params(self, customer_id: int = None, org_id: int = None,
+                                    user_id: int = None, start_date: str = None, 
+                                    end_date: str = None, message_type: str = None,
+                                    page: int = 1, page_size: int = None,
+                                    latest_only: bool = False, include_details: bool = False) -> Dict:
+        """
+        基于统一参数获取消息信息 - 整合现有get_all_message_data_optimized接口
+        
+        Args:
+            customer_id: 客户ID (映射到orgId)
+            org_id: 组织ID
+            user_id: 用户ID
+            start_date: 开始日期
+            end_date: 结束日期
+            message_type: 消息类型
+            page: 页码
+            page_size: 每页大小
+            latest_only: 是否只查询最新记录
+            include_details: 是否包含详细信息
+            
+        Returns:
+            消息信息字典
+        """
+        try:
+            # 参数映射和优先级处理
+            if user_id:
+                result = get_all_message_data_optimized(
+                    orgId=None,
+                    userId=user_id, 
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=latest_only,
+                    page=page,
+                    pageSize=page_size,
+                    message_type=message_type,
+                    include_details=include_details
+                )
+                logger.info(f"基于userId查询消息数据: user_id={user_id}")
+                
+            elif org_id:
+                # 组织查询 - 获取组织下所有用户的消息
+                result = get_all_message_data_optimized(
+                    orgId=org_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=latest_only,
+                    page=page,
+                    pageSize=page_size,
+                    message_type=message_type,
+                    include_details=include_details
+                )
+                logger.info(f"基于orgId查询消息数据: org_id={org_id}")
+                
+            elif customer_id:
+                # 客户查询 - 将customer_id作为orgId处理
+                result = get_all_message_data_optimized(
+                    orgId=customer_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=latest_only,
+                    page=page,
+                    pageSize=page_size,
+                    message_type=message_type,
+                    include_details=include_details
+                )
+                logger.info(f"基于customerId查询消息数据: customer_id={customer_id}")
+                
+            else:
+                return {
+                    'success': False,
+                    'error': 'Missing required parameters: customer_id, org_id, or user_id',
+                    'data': {'messages': [], 'total_count': 0}
+                }
+            
+            # 统一返回格式，兼容新的服务接口
+            if result.get('success', True):
+                message_data = result.get('data', {}).get('messageData', [])
+                
+                unified_result = {
+                    'success': True,
+                    'data': {
+                        'messages': message_data,
+                        'total_count': result.get('data', {}).get('totalRecords', len(message_data)),
+                        'pagination': result.get('data', {}).get('pagination', {}),
+                        'query_params': {
+                            'customer_id': customer_id,
+                            'org_id': org_id,
+                            'user_id': user_id,
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'message_type': message_type,
+                            'page': page,
+                            'page_size': page_size,
+                            'latest_only': latest_only,
+                            'include_details': include_details
+                        }
+                    },
+                    'performance': result.get('performance', {}),
+                    'from_cache': result.get('performance', {}).get('cached', False)
+                }
+                
+                return unified_result
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"消息查询失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'messages': [], 'total_count': 0}
+            }
+    
+    def _get_messages_by_user_id(self, user_id: int, start_date: str = None,
+                                end_date: str = None, message_type: str = None) -> List[Dict]:
+        """基于用户ID查询消息"""
+        try:
+            # 查询用户相关的消息
+            query = db.session.query(
+                DeviceMessage.id,
+                DeviceMessage.message,
+                DeviceMessage.message_type,
+                DeviceMessage.sender_type,
+                DeviceMessage.receiver_type,
+                DeviceMessage.message_status,
+                DeviceMessage.send_time,
+                DeviceMessage.received_time,
+                DeviceMessage.user_id,
+                DeviceMessage.org_id,
+                DeviceMessage.responded_number,
+                DeviceMessage.total_number,
+                UserInfo.user_name,
+                OrgInfo.name.label('org_name')
+            ).outerjoin(
+                UserInfo, DeviceMessage.user_id == UserInfo.id
+            ).outerjoin(
+                OrgInfo, DeviceMessage.org_id == OrgInfo.id
+            ).filter(
+                DeviceMessage.user_id == user_id
+            )
+            
+            # 时间范围过滤
+            if start_date:
+                query = query.filter(DeviceMessage.send_time >= start_date)
+            if end_date:
+                query = query.filter(DeviceMessage.send_time <= end_date)
+            if message_type:
+                query = query.filter(DeviceMessage.message_type == message_type)
+            
+            results = query.order_by(DeviceMessage.send_time.desc()).all()
+            
+            messages = []
+            for result in results:
+                messages.append(self._format_message_data(result))
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"基于用户ID查询消息失败: {e}")
+            return []
+    
+    def _get_messages_by_org_id(self, org_id: int, customer_id: int = None,
+                               start_date: str = None, end_date: str = None,
+                               message_type: str = None) -> List[Dict]:
+        """基于组织ID查询消息"""
+        try:
+            # 获取组织下所有用户
+            from .org import fetch_users_by_orgId
+            users = fetch_users_by_orgId(org_id, customer_id)
+            
+            if not users:
+                # 没有用户时，查询发送给组织的群发消息
+                query = db.session.query(
+                    DeviceMessage.id,
+                    DeviceMessage.message,
+                    DeviceMessage.message_type,
+                    DeviceMessage.sender_type,
+                    DeviceMessage.receiver_type,
+                    DeviceMessage.message_status,
+                    DeviceMessage.send_time,
+                    DeviceMessage.received_time,
+                    DeviceMessage.user_id,
+                    DeviceMessage.org_id,
+                    DeviceMessage.responded_number,
+                    DeviceMessage.total_number,
+                    UserInfo.user_name,
+                    OrgInfo.name.label('org_name')
+                ).outerjoin(
+                    UserInfo, DeviceMessage.user_id == UserInfo.id
+                ).outerjoin(
+                    OrgInfo, DeviceMessage.org_id == OrgInfo.id
+                ).filter(
+                    DeviceMessage.org_id == org_id,
+                    DeviceMessage.user_id.is_(None)  # 群发消息
+                )
+            else:
+                user_ids = [int(user['id']) for user in users]
+                
+                # 查询用户消息和群发消息
+                query = db.session.query(
+                    DeviceMessage.id,
+                    DeviceMessage.message,
+                    DeviceMessage.message_type,
+                    DeviceMessage.sender_type,
+                    DeviceMessage.receiver_type,
+                    DeviceMessage.message_status,
+                    DeviceMessage.send_time,
+                    DeviceMessage.received_time,
+                    DeviceMessage.user_id,
+                    DeviceMessage.org_id,
+                    DeviceMessage.responded_number,
+                    DeviceMessage.total_number,
+                    UserInfo.user_name,
+                    OrgInfo.name.label('org_name')
+                ).outerjoin(
+                    UserInfo, DeviceMessage.user_id == UserInfo.id
+                ).outerjoin(
+                    OrgInfo, DeviceMessage.org_id == OrgInfo.id
+                ).filter(
+                    db.or_(
+                        DeviceMessage.user_id.in_(user_ids),
+                        db.and_(DeviceMessage.org_id == org_id, DeviceMessage.user_id.is_(None))
+                    )
+                )
+            
+            # 时间范围过滤
+            if start_date:
+                query = query.filter(DeviceMessage.send_time >= start_date)
+            if end_date:
+                query = query.filter(DeviceMessage.send_time <= end_date)
+            if message_type:
+                query = query.filter(DeviceMessage.message_type == message_type)
+            
+            results = query.order_by(DeviceMessage.send_time.desc()).all()
+            
+            messages = []
+            for result in results:
+                messages.append(self._format_message_data(result))
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"基于组织ID查询消息失败: {e}")
+            return []
+    
+    def _get_messages_by_customer_id(self, customer_id: int, start_date: str = None,
+                                    end_date: str = None, message_type: str = None) -> List[Dict]:
+        """基于客户ID查询消息"""
+        try:
+            # 通过用户表的customer_id查询
+            query = db.session.query(
+                DeviceMessage.id,
+                DeviceMessage.message,
+                DeviceMessage.message_type,
+                DeviceMessage.sender_type,
+                DeviceMessage.receiver_type,
+                DeviceMessage.message_status,
+                DeviceMessage.send_time,
+                DeviceMessage.received_time,
+                DeviceMessage.user_id,
+                DeviceMessage.org_id,
+                DeviceMessage.responded_number,
+                DeviceMessage.total_number,
+                UserInfo.user_name,
+                OrgInfo.name.label('org_name')
+            ).outerjoin(
+                UserInfo, DeviceMessage.user_id == UserInfo.id
+            ).outerjoin(
+                OrgInfo, DeviceMessage.org_id == OrgInfo.id
+            ).filter(
+                db.or_(
+                    UserInfo.customer_id == customer_id,
+                    db.and_(DeviceMessage.user_id.is_(None), OrgInfo.customer_id == customer_id)
+                )
+            )
+            
+            # 时间范围过滤
+            if start_date:
+                query = query.filter(DeviceMessage.send_time >= start_date)
+            if end_date:
+                query = query.filter(DeviceMessage.send_time <= end_date)
+            if message_type:
+                query = query.filter(DeviceMessage.message_type == message_type)
+            
+            results = query.order_by(DeviceMessage.send_time.desc()).all()
+            
+            messages = []
+            for result in results:
+                messages.append(self._format_message_data(result))
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"基于客户ID查询消息失败: {e}")
+            return []
+    
+    def _format_message_data(self, result) -> Dict:
+        """格式化消息数据"""
+        return {
+            'id': result.id,
+            'message': result.message,
+            'message_type': result.message_type,
+            'sender_type': result.sender_type,
+            'receiver_type': result.receiver_type,
+            'message_status': result.message_status,
+            'send_time': result.send_time.strftime('%Y-%m-%d %H:%M:%S') if result.send_time else None,
+            'received_time': result.received_time.strftime('%Y-%m-%d %H:%M:%S') if result.received_time else None,
+            'user_id': result.user_id,
+            'org_id': result.org_id,
+            'responded_number': result.responded_number or 0,
+            'total_number': result.total_number or 0,
+            'user_name': result.user_name,
+            'org_name': result.org_name
+        }
+    
+    def get_message_statistics_by_common_params(self, customer_id: int = None,
+                                               org_id: int = None, user_id: int = None,
+                                               start_date: str = None, end_date: str = None) -> Dict:
+        """基于统一参数获取消息统计"""
+        try:
+            cache_key = f"message_stats_v2:{customer_id}:{org_id}:{user_id}:{start_date}:{end_date}"
+            
+            # 缓存检查
+            cached = self.redis.get_data(cache_key)
+            if cached:
+                return json.loads(cached)
+            
+            # 获取消息数据
+            messages_result = self.get_messages_by_common_params(
+                customer_id, org_id, user_id, start_date, end_date
+            )
+            
+            if not messages_result.get('success'):
+                return messages_result
+            
+            messages = messages_result['data']['messages']
+            
+            # 计算统计数据
+            total_messages = len(messages)
+            type_stats = {}
+            status_stats = {'pending': 0, 'sent': 0, 'received': 0, 'responded': 0}
+            response_stats = {'total_sent': 0, 'total_responded': 0}
+            
+            for message in messages:
+                # 消息类型统计
+                msg_type = message.get('message_type', 'unknown')
+                if msg_type not in type_stats:
+                    type_stats[msg_type] = 0
+                type_stats[msg_type] += 1
+                
+                # 消息状态统计
+                status = message.get('message_status', 'pending')
+                if status in status_stats:
+                    status_stats[status] += 1
+                
+                # 响应统计
+                total_num = message.get('total_number', 0)
+                responded_num = message.get('responded_number', 0)
+                response_stats['total_sent'] += total_num
+                response_stats['total_responded'] += responded_num
+            
+            # 按组织统计
+            org_stats = {}
+            for message in messages:
+                org_name = message.get('org_name', '未知组织')
+                if org_name not in org_stats:
+                    org_stats[org_name] = {
+                        'total': 0,
+                        'pending': 0,
+                        'responded': 0,
+                        'response_rate': 0
+                    }
+                
+                org_stats[org_name]['total'] += 1
+                status = message.get('message_status', 'pending')
+                if status == 'pending':
+                    org_stats[org_name]['pending'] += 1
+                elif status in ['responded', 'received']:
+                    org_stats[org_name]['responded'] += 1
+            
+            # 计算响应率
+            for org_name in org_stats:
+                total = org_stats[org_name]['total']
+                responded = org_stats[org_name]['responded']
+                org_stats[org_name]['response_rate'] = round(responded / total * 100, 2) if total > 0 else 0
+            
+            result = {
+                'success': True,
+                'data': {
+                    'overview': {
+                        'total_messages': total_messages,
+                        'type_stats': type_stats,
+                        'status_stats': status_stats,
+                        'response_stats': response_stats,
+                        'overall_response_rate': round(response_stats['total_responded'] / response_stats['total_sent'] * 100, 2) if response_stats['total_sent'] > 0 else 0
+                    },
+                    'org_statistics': org_stats,
+                    'query_params': {
+                        'customer_id': customer_id,
+                        'org_id': org_id,
+                        'user_id': user_id,
+                        'start_date': start_date,
+                        'end_date': end_date
+                    }
+                }
+            }
+            
+            # 缓存结果
+            self.redis.set_data(cache_key, json.dumps(result, default=str), 180)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"消息统计计算失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'overview': {}, 'org_statistics': {}}
+            }
+
+# 全局实例
+_message_service_instance = None
+
+def get_unified_message_service() -> MessageService:
+    """获取统一消息服务实例"""
+    global _message_service_instance
+    if _message_service_instance is None:
+        _message_service_instance = MessageService()
+    return _message_service_instance
+
+# 向后兼容的函数，供现有代码使用
+def get_messages_unified(customer_id: int = None, org_id: int = None,
+                        user_id: int = None, start_date: str = None,
+                        end_date: str = None, message_type: str = None,
+                        page: int = 1, page_size: int = None,
+                        latest_only: bool = False, include_details: bool = False) -> Dict:
+    """统一的消息查询接口 - 整合现有get_all_message_data_optimized接口"""
+    service = get_unified_message_service()
+    return service.get_messages_by_common_params(
+        customer_id, org_id, user_id, start_date, end_date, message_type,
+        page, page_size, latest_only, include_details
+    )
+
+def get_message_statistics_unified(customer_id: int = None, org_id: int = None,
+                                  user_id: int = None, start_date: str = None,
+                                  end_date: str = None) -> Dict:
+    """统一的消息统计接口"""
+    service = get_unified_message_service()
+    return service.get_message_statistics_by_common_params(customer_id, org_id, user_id, start_date, end_date)
 def send_message(data):
     print("DeviceMessage:send_message", data)
 

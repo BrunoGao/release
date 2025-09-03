@@ -40,7 +40,7 @@ import java.time.LocalDateTime;
 public class TDeviceMessageUpdateDTO implements Serializable {
     private Long id;
 
-    private String departmentInfo;
+    private Long orgId;
 
     private String userName;
 

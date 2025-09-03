@@ -75,19 +75,19 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
             );
         }
         // 🔧 设备过滤逻辑: 根据用户ID或部门ID过滤设备，特殊处理orgId=0的情况
-        System.out.println("🔍 查询条件 - userIdStr: " + tDeviceInfoBO.getUserIdStr() + ", departmentInfo: " + tDeviceInfoBO.getDepartmentInfo());
+        System.out.println("🔍 查询条件 - userIdStr: " + tDeviceInfoBO.getUserIdStr() + ", orgId: " + tDeviceInfoBO.getOrgId());
         System.out.println("🔍 过滤条件判断 - userIdStr isEmpty: " + ObjectUtils.isEmpty(tDeviceInfoBO.getUserIdStr()) 
-            + ", departmentInfo isEmpty: " + ObjectUtils.isEmpty(tDeviceInfoBO.getDepartmentInfo()) 
-            + ", departmentInfo equals '0': " + "0".equals(tDeviceInfoBO.getDepartmentInfo()));
+            + ", orgId isEmpty: " + ObjectUtils.isEmpty(tDeviceInfoBO.getOrgId()) 
+            + ", orgId equals 0: " + (tDeviceInfoBO.getOrgId() != null && tDeviceInfoBO.getOrgId().equals(0L)));
         
-        // 当有具体的用户ID或者部门ID不为空且不为"0"时进行过滤
+        // 当有具体的用户ID或者部门ID不为空且不为0时进行过滤
         if (ObjectUtils.isNotEmpty(tDeviceInfoBO.getUserIdStr()) || 
-           (ObjectUtils.isNotEmpty(tDeviceInfoBO.getDepartmentInfo()) && !"0".equals(tDeviceInfoBO.getDepartmentInfo()))) {
+           (ObjectUtils.isNotEmpty(tDeviceInfoBO.getOrgId()) && !tDeviceInfoBO.getOrgId().equals(0L))) {
             
             System.out.println("🔍 开始调用 getDeviceSnList 进行设备过滤...");
             List<String> deviceSnList = deviceUserMappingService.getDeviceSnList(
                 tDeviceInfoBO.getUserIdStr(),
-                tDeviceInfoBO.getDepartmentInfo()
+                tDeviceInfoBO.getOrgId() != null ? String.valueOf(tDeviceInfoBO.getOrgId()) : null
             );
 
             System.out.println("✅ 获取设备列表: " + (deviceSnList != null ? deviceSnList.toString() : "null"));
@@ -134,7 +134,7 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
                 IDeviceUserMappingService.UserInfo userInfo = deviceUserMap.get(record.getSerialNumber());
                 if (userInfo != null) {
                     record.setUserName(userInfo.getUserName());
-                    record.setDepartmentInfo(userInfo.getDepartmentName());
+                    // Note: departmentInfo field removed as entity only has orgId
                 }
             }
         });

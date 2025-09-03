@@ -34,7 +34,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
   apiParams: {
     page: 1,
     pageSize: 20,
-    departmentInfo: customerId,
+    orgId: customerId,
     userId: null,
     messageType: null,
     messageStatus: null
@@ -48,8 +48,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center'
     },
     {
-      key: 'departmentInfo',
-      title: $t('page.health.data.info.departmentInfo'),
+      key: 'departmentName',
+      title: $t('page.health.device.info.orgName'),
       align: 'center',
       minWidth: 120
     },
@@ -269,7 +269,7 @@ async function handleInitOptions() {
 
 // 监听部门变化，更新员工列表
 watch(
-  () => searchParams.departmentInfo,
+  () => searchParams.orgId,
   async newValue => {
     if (newValue) {
       const result = await handleBindUsersByOrgId(String(newValue));

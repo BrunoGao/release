@@ -1,15 +1,653 @@
 from flask import request, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import json
 import time
 import pytz  # 添加时区处理支持
+from typing import List, Dict, Optional, Tuple
 from .redis_helper import RedisHelper
 from .models import db, DeviceInfo, UserInfo, CustomerConfig, UserOrg, OrgInfo, DeviceInfoHistory, Interface
 from .device_batch_processor import get_batch_processor
-# Import necessary modules and functions
+import logging
 
+logger = logging.getLogger(__name__)
 redis = RedisHelper()
+
+def get_all_device_data_optimized(orgId=None, userId=None, startDate=None, endDate=None, latest_only=False, page=1, pageSize=None, include_alerts=False):
+    """
+    统一的设备数据查询接口，支持分页和优化查询
+    
+    Args:
+        orgId: 组织ID
+        userId: 用户ID  
+        startDate: 开始日期
+        endDate: 结束日期
+        latest_only: 是否只查询最新记录
+        page: 页码
+        pageSize: 每页大小
+        include_alerts: 是否包含告警信息
+    
+    Returns:
+        dict: 包含设备数据和分页信息的字典
+    """
+    try:
+        import time
+        from datetime import datetime, timedelta
+        start_time = time.time()
+        
+        # 参数验证和缓存键构建
+        page = max(1, int(page or 1))
+        if pageSize is not None:
+            pageSize = min(int(pageSize), 1000)
+        else:
+            pageSize = None
+        mode = 'latest' if latest_only else 'range'
+        cache_key = f"device_opt_v1:{orgId}:{userId}:{startDate}:{endDate}:{mode}:{page}:{pageSize}:{include_alerts}"
+        
+        # 缓存检查
+        cached = redis.get_data(cache_key)
+        if cached:
+            result = json.loads(cached)
+            result['performance'] = {'cached': True, 'response_time': round(time.time() - start_time, 3)}
+            return result
+        
+        # 构建查询条件
+        query = db.session.query(DeviceInfo).filter(DeviceInfo.is_deleted == False)
+        
+        if userId:
+            # 单用户查询
+            query = query.filter(DeviceInfo.user_id == userId)
+            
+        elif orgId:
+            # 组织查询 - 获取组织下所有用户的设备
+            from .org import fetch_users_by_orgId
+            users = fetch_users_by_orgId(orgId)
+            if not users:
+                return {"success": True, "data": {"deviceData": [], "totalRecords": 0, "pagination": {"currentPage": page, "pageSize": pageSize, "totalCount": 0, "totalPages": 0}}}
+            
+            user_ids = [int(user['id']) for user in users]
+            query = query.filter(DeviceInfo.user_id.in_(user_ids))
+            
+        else:
+            return {"success": False, "message": "缺少orgId或userId参数", "data": {"deviceData": [], "totalRecords": 0}}
+        
+        # 时间范围过滤
+        if startDate:
+            query = query.filter(DeviceInfo.update_time >= startDate)
+        if endDate:
+            query = query.filter(DeviceInfo.update_time <= endDate)
+        
+        # 统计总数
+        total_count = query.count()
+        
+        # 排序
+        query = query.order_by(DeviceInfo.update_time.desc())
+        
+        # 分页处理
+        if pageSize is not None:
+            offset = (page - 1) * pageSize
+            query = query.offset(offset).limit(pageSize)
+        
+        if latest_only and not pageSize:
+            query = query.limit(1)
+        
+        # 执行查询
+        devices = query.all()
+        
+        # 格式化数据
+        device_data_list = []
+        for device in devices:
+            # 获取用户信息
+            user_info = UserInfo.query.filter_by(id=device.user_id).first() if device.user_id else None
+            org_info = OrgInfo.query.filter_by(id=device.org_id).first() if device.org_id else None
+            
+            device_dict = {
+                'id': device.id,
+                'serial_number': device.serial_number,
+                'device_name': device.device_name,
+                'imei': device.imei,
+                'battery_level': device.battery_level,
+                'charging_status': device.charging_status,
+                'wearable_status': device.wearable_status,
+                'status': device.status,
+                'update_time': device.update_time.strftime('%Y-%m-%d %H:%M:%S') if device.update_time else None,
+                'voltage': device.voltage,
+                'system_software_version': device.system_software_version,
+                'wifi_address': device.wifi_address,
+                'bluetooth_address': device.bluetooth_address,
+                'ip_address': device.ip_address,
+                'network_access_mode': device.network_access_mode,
+                'user_id': device.user_id,
+                'org_id': device.org_id,
+                'customer_id': device.customer_id,
+                'user_name': user_info.user_name if user_info else None,
+                'dept_name': org_info.name if org_info else None,
+                'dept_id': org_info.id if org_info else None
+            }
+            
+            # 如果需要包含告警信息
+            if include_alerts:
+                device_dict['alerts'] = []  # 可以在此处添加设备相关告警
+            
+            device_data_list.append(device_dict)
+        
+        # 构建分页信息
+        pagination = {
+            'currentPage': page,
+            'pageSize': pageSize,
+            'totalCount': total_count,
+            'totalPages': (total_count + pageSize - 1) // pageSize if pageSize else 1
+        }
+        
+        # 构建结果
+        result = {
+            'success': True,
+            'data': {
+                'deviceData': device_data_list,
+                'totalRecords': len(device_data_list),
+                'pagination': pagination
+            },
+            'performance': {
+                'cached': False,
+                'response_time': round(time.time() - start_time, 3),
+                'query_time': round(time.time() - start_time, 3)
+            }
+        }
+        
+        # 缓存结果
+        redis.set_data(cache_key, json.dumps(result, default=str), 300)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"设备查询失败: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'data': {'deviceData': [], 'totalRecords': 0}
+        }
+
+class DeviceService:
+    """设备管理统一服务封装类 - 基于userId的查询和汇总"""
+    
+    def __init__(self):
+        self.redis = redis
+    
+    def get_devices_by_common_params(self, customer_id: int = None, org_id: int = None, 
+                                   user_id: int = None, start_date: str = None, 
+                                   end_date: str = None, page: int = 1, 
+                                   page_size: int = None, include_alerts: bool = False) -> Dict:
+        """
+        基于统一参数获取设备信息 - 整合现有get_all_device_data_optimized接口
+        
+        Args:
+            customer_id: 客户ID (映射到orgId)
+            org_id: 组织ID
+            user_id: 用户ID
+            start_date: 开始日期
+            end_date: 结束日期
+            page: 页码
+            page_size: 每页大小
+            include_alerts: 是否包含告警信息
+            
+        Returns:
+            设备信息字典
+        """
+        try:
+            # 参数映射和优先级处理
+            if user_id:
+                result = get_all_device_data_optimized(
+                    orgId=None,
+                    userId=user_id, 
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=False,
+                    page=page,
+                    pageSize=page_size,
+                    include_alerts=include_alerts
+                )
+                logger.info(f"基于userId查询设备数据: user_id={user_id}")
+                
+            elif org_id:
+                # 组织查询 - 获取组织下所有用户的设备
+                result = get_all_device_data_optimized(
+                    orgId=org_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=False,
+                    page=page,
+                    pageSize=page_size,
+                    include_alerts=include_alerts
+                )
+                logger.info(f"基于orgId查询设备数据: org_id={org_id}")
+                
+            elif customer_id:
+                # 客户查询 - 将customer_id作为orgId处理
+                result = get_all_device_data_optimized(
+                    orgId=customer_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=False,
+                    page=page,
+                    pageSize=page_size,
+                    include_alerts=include_alerts
+                )
+                logger.info(f"基于customerId查询设备数据: customer_id={customer_id}")
+                
+            else:
+                return {
+                    'success': False,
+                    'error': 'Missing required parameters: customer_id, org_id, or user_id',
+                    'data': {'devices': [], 'total_count': 0}
+                }
+            
+            # 统一返回格式，兼容新的服务接口
+            if result.get('success', True):
+                device_data = result.get('data', {}).get('deviceData', [])
+                
+                unified_result = {
+                    'success': True,
+                    'data': {
+                        'devices': device_data,
+                        'total_count': result.get('data', {}).get('totalRecords', len(device_data)),
+                        'pagination': result.get('data', {}).get('pagination', {}),
+                        'query_params': {
+                            'customer_id': customer_id,
+                            'org_id': org_id,
+                            'user_id': user_id,
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'page': page,
+                            'page_size': page_size,
+                            'include_alerts': include_alerts
+                        }
+                    },
+                    'performance': result.get('performance', {}),
+                    'from_cache': result.get('performance', {}).get('cached', False)
+                }
+                
+                return unified_result
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"设备查询失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'devices': [], 'total_count': 0}
+            }
+    
+    def _get_devices_by_user_id(self, user_id: int, start_date: str = None, 
+                               end_date: str = None) -> List[Dict]:
+        """基于用户ID查询设备"""
+        try:
+            # 查询用户信息和设备信息
+            query = db.session.query(
+                DeviceInfo, UserInfo, OrgInfo
+            ).join(
+                UserInfo, DeviceInfo.user_id == UserInfo.id
+            ).join(
+                UserOrg, UserInfo.id == UserOrg.user_id
+            ).join(
+                OrgInfo, UserOrg.org_id == OrgInfo.id
+            ).filter(
+                DeviceInfo.user_id == user_id,
+                DeviceInfo.is_deleted == False,
+                UserInfo.is_deleted == False
+            )
+            
+            # 时间范围过滤
+            if start_date:
+                query = query.filter(DeviceInfo.update_time >= start_date)
+            if end_date:
+                query = query.filter(DeviceInfo.update_time <= end_date)
+            
+            results = query.all()
+            
+            devices = []
+            for device_info, user_info, org_info in results:
+                devices.append(self._format_device_data(device_info, user_info, org_info))
+            
+            return devices
+            
+        except Exception as e:
+            logger.error(f"基于用户ID查询设备失败: {e}")
+            return []
+    
+    def _get_devices_by_org_id(self, org_id: int, customer_id: int = None,
+                              start_date: str = None, end_date: str = None) -> List[Dict]:
+        """基于组织ID查询设备"""
+        try:
+            # 获取组织下所有用户
+            from .org import fetch_users_by_orgId
+            users = fetch_users_by_orgId(org_id, customer_id)
+            
+            if not users:
+                return []
+            
+            user_ids = [int(user['id']) for user in users]
+            
+            # 查询这些用户的设备
+            query = db.session.query(
+                DeviceInfo, UserInfo, OrgInfo
+            ).join(
+                UserInfo, DeviceInfo.user_id == UserInfo.id
+            ).join(
+                UserOrg, UserInfo.id == UserOrg.user_id
+            ).join(
+                OrgInfo, UserOrg.org_id == OrgInfo.id
+            ).filter(
+                DeviceInfo.user_id.in_(user_ids),
+                DeviceInfo.is_deleted == False,
+                UserInfo.is_deleted == False
+            )
+            
+            # 时间范围过滤
+            if start_date:
+                query = query.filter(DeviceInfo.update_time >= start_date)
+            if end_date:
+                query = query.filter(DeviceInfo.update_time <= end_date)
+            
+            results = query.all()
+            
+            devices = []
+            for device_info, user_info, org_info in results:
+                devices.append(self._format_device_data(device_info, user_info, org_info))
+            
+            return devices
+            
+        except Exception as e:
+            logger.error(f"基于组织ID查询设备失败: {e}")
+            return []
+    
+    def _get_devices_by_customer_id(self, customer_id: int, start_date: str = None,
+                                   end_date: str = None) -> List[Dict]:
+        """基于客户ID查询设备"""
+        try:
+            query = db.session.query(
+                DeviceInfo, UserInfo, OrgInfo
+            ).join(
+                UserInfo, DeviceInfo.user_id == UserInfo.id
+            ).join(
+                UserOrg, UserInfo.id == UserOrg.user_id
+            ).join(
+                OrgInfo, UserOrg.org_id == OrgInfo.id
+            ).filter(
+                DeviceInfo.customer_id == customer_id,
+                DeviceInfo.is_deleted == False,
+                UserInfo.is_deleted == False
+            )
+            
+            # 时间范围过滤
+            if start_date:
+                query = query.filter(DeviceInfo.update_time >= start_date)
+            if end_date:
+                query = query.filter(DeviceInfo.update_time <= end_date)
+            
+            results = query.all()
+            
+            devices = []
+            for device_info, user_info, org_info in results:
+                devices.append(self._format_device_data(device_info, user_info, org_info))
+            
+            return devices
+            
+        except Exception as e:
+            logger.error(f"基于客户ID查询设备失败: {e}")
+            return []
+    
+    def _format_device_data(self, device_info: DeviceInfo, user_info: UserInfo, 
+                           org_info: OrgInfo) -> Dict:
+        """格式化设备数据"""
+        return {
+            'id': device_info.id,
+            'serial_number': device_info.serial_number,
+            'device_name': device_info.device_name,
+            'model': device_info.model,
+            'status': device_info.status,
+            'battery_level': device_info.battery_level,
+            'charging_status': device_info.charging_status,
+            'wearable_status': device_info.wearable_status,
+            'wifi_address': device_info.wifi_address,
+            'bluetooth_address': device_info.bluetooth_address,
+            'ip_address': device_info.ip_address,
+            'update_time': device_info.update_time.strftime('%Y-%m-%d %H:%M:%S') if device_info.update_time else None,
+            'customer_id': device_info.customer_id,
+            'user_id': device_info.user_id,
+            'org_id': device_info.org_id,
+            'user_name': user_info.user_name,
+            'real_name': user_info.real_name,
+            'org_name': org_info.name
+        }
+    
+    def get_device_statistics_by_common_params(self, customer_id: int = None, 
+                                             org_id: int = None, user_id: int = None,
+                                             start_date: str = None, end_date: str = None) -> Dict:
+        """基于统一参数获取设备统计"""
+        try:
+            cache_key = f"device_stats_v2:{customer_id}:{org_id}:{user_id}:{start_date}:{end_date}"
+            
+            # 缓存检查
+            cached = self.redis.get_data(cache_key)
+            if cached:
+                return json.loads(cached)
+            
+            # 获取设备数据
+            devices_result = self.get_devices_by_common_params(
+                customer_id, org_id, user_id, start_date, end_date
+            )
+            
+            if not devices_result.get('success'):
+                return devices_result
+            
+            devices = devices_result['data']['devices']
+            
+            # 计算统计数据
+            total_devices = len(devices)
+            online_devices = sum(1 for d in devices if d.get('status') == '1')
+            battery_low_devices = sum(1 for d in devices if d.get('battery_level') and int(d['battery_level']) < 20)
+            charging_devices = sum(1 for d in devices if d.get('charging_status') == '1')
+            
+            # 按组织统计
+            org_stats = {}
+            for device in devices:
+                org_name = device.get('org_name', '未知组织')
+                if org_name not in org_stats:
+                    org_stats[org_name] = {
+                        'total': 0,
+                        'online': 0,
+                        'battery_low': 0,
+                        'charging': 0
+                    }
+                
+                org_stats[org_name]['total'] += 1
+                if device.get('status') == '1':
+                    org_stats[org_name]['online'] += 1
+                if device.get('battery_level') and int(device['battery_level']) < 20:
+                    org_stats[org_name]['battery_low'] += 1
+                if device.get('charging_status') == '1':
+                    org_stats[org_name]['charging'] += 1
+            
+            result = {
+                'success': True,
+                'data': {
+                    'overview': {
+                        'total_devices': total_devices,
+                        'online_devices': online_devices,
+                        'offline_devices': total_devices - online_devices,
+                        'battery_low_devices': battery_low_devices,
+                        'charging_devices': charging_devices,
+                        'online_rate': round(online_devices / total_devices * 100, 2) if total_devices > 0 else 0
+                    },
+                    'org_statistics': org_stats,
+                    'query_params': {
+                        'customer_id': customer_id,
+                        'org_id': org_id,
+                        'user_id': user_id,
+                        'start_date': start_date,
+                        'end_date': end_date
+                    }
+                }
+            }
+            
+            # 缓存结果
+            self.redis.set_data(cache_key, json.dumps(result, default=str), 180)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"设备统计计算失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'overview': {}, 'org_statistics': {}}
+            }
+    
+    def get_device_alerts_by_common_params(self, customer_id: int = None,
+                                         org_id: int = None, user_id: int = None,
+                                         start_date: str = None, end_date: str = None) -> Dict:
+        """基于统一参数获取设备告警信息"""
+        try:
+            cache_key = f"device_alerts_v2:{customer_id}:{org_id}:{user_id}:{start_date}:{end_date}"
+            
+            # 缓存检查
+            cached = self.redis.get_data(cache_key)
+            if cached:
+                return json.loads(cached)
+            
+            # 获取设备数据
+            devices_result = self.get_devices_by_common_params(
+                customer_id, org_id, user_id, start_date, end_date
+            )
+            
+            if not devices_result.get('success'):
+                return devices_result
+            
+            devices = devices_result['data']['devices']
+            
+            alerts = []
+            
+            # 生成设备告警
+            for device in devices:
+                device_alerts = self._generate_device_alerts(device)
+                alerts.extend(device_alerts)
+            
+            # 按告警级别分类
+            alert_levels = {'high': 0, 'medium': 0, 'low': 0}
+            for alert in alerts:
+                level = alert.get('level', 'low')
+                if level in alert_levels:
+                    alert_levels[level] += 1
+            
+            result = {
+                'success': True,
+                'data': {
+                    'alerts': alerts,
+                    'total_alerts': len(alerts),
+                    'alert_levels': alert_levels,
+                    'query_params': {
+                        'customer_id': customer_id,
+                        'org_id': org_id,
+                        'user_id': user_id,
+                        'start_date': start_date,
+                        'end_date': end_date
+                    }
+                }
+            }
+            
+            # 缓存结果
+            self.redis.set_data(cache_key, json.dumps(result, default=str), 120)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"设备告警查询失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'alerts': [], 'total_alerts': 0, 'alert_levels': {}}
+            }
+    
+    def _generate_device_alerts(self, device: Dict) -> List[Dict]:
+        """为单个设备生成告警"""
+        alerts = []
+        
+        # 电池电量低告警
+        if device.get('battery_level') and int(device['battery_level']) < 20:
+            alerts.append({
+                'type': 'battery_low',
+                'level': 'high' if int(device['battery_level']) < 10 else 'medium',
+                'message': f"设备 {device['device_name']} 电池电量过低: {device['battery_level']}%",
+                'device_sn': device['serial_number'],
+                'user_name': device['user_name'],
+                'org_name': device['org_name'],
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+        
+        # 设备离线告警
+        if device.get('status') != '1':
+            alerts.append({
+                'type': 'device_offline',
+                'level': 'high',
+                'message': f"设备 {device['device_name']} 离线",
+                'device_sn': device['serial_number'],
+                'user_name': device['user_name'],
+                'org_name': device['org_name'],
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+        
+        # 设备未佩戴告警
+        if device.get('wearable_status') != '1':
+            alerts.append({
+                'type': 'not_wearing',
+                'level': 'medium',
+                'message': f"设备 {device['device_name']} 未佩戴",
+                'device_sn': device['serial_number'],
+                'user_name': device['user_name'],
+                'org_name': device['org_name'],
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+        
+        return alerts
+
+# 全局实例
+_device_service_instance = None
+
+def get_unified_device_service() -> DeviceService:
+    """获取统一设备服务实例"""
+    global _device_service_instance
+    if _device_service_instance is None:
+        _device_service_instance = DeviceService()
+    return _device_service_instance
+
+# 向后兼容的函数，供现有代码使用
+def get_devices_unified(customer_id: int = None, org_id: int = None, 
+                       user_id: int = None, start_date: str = None, 
+                       end_date: str = None, page: int = 1, 
+                       page_size: int = None, include_alerts: bool = False) -> Dict:
+    """统一的设备查询接口 - 整合现有get_all_device_data_optimized接口"""
+    service = get_unified_device_service()
+    return service.get_devices_by_common_params(
+        customer_id, org_id, user_id, start_date, end_date, 
+        page, page_size, include_alerts
+    )
+
+def get_device_statistics_unified(customer_id: int = None, org_id: int = None,
+                                user_id: int = None, start_date: str = None,
+                                end_date: str = None) -> Dict:
+    """统一的设备统计接口"""
+    service = get_unified_device_service()
+    return service.get_device_statistics_by_common_params(customer_id, org_id, user_id, start_date, end_date)
+
+def get_device_alerts_unified(customer_id: int = None, org_id: int = None,
+                            user_id: int = None, start_date: str = None,
+                            end_date: str = None) -> Dict:
+    """统一的设备告警接口"""
+    service = get_unified_device_service()
+    return service.get_device_alerts_by_common_params(customer_id, org_id, user_id, start_date, end_date)
 
 # 高并发设备信息上传接口 v1.0.34
 def upload_device_info(device_info, app=None):
@@ -77,6 +715,12 @@ def upload_device_info(device_info, app=None):
 def upload_device_info_sync(device_info):
     """同步处理设备信息 - 降级方案，支持单个设备或设备列表"""
     
+    # 提取顶级的客户信息参数
+    customer_id = device_info.get("customer_id") if isinstance(device_info, dict) else None
+    org_id = device_info.get("org_id") if isinstance(device_info, dict) else None
+    user_id = device_info.get("user_id") if isinstance(device_info, dict) else None
+    print(f"🔍 提取顶级客户信息: customer_id={customer_id}, org_id={org_id}, user_id={user_id}")
+    
     # 处理单个设备的函数
     def process_single_device(single_device_info):
         """处理单个设备信息"""
@@ -102,10 +746,10 @@ def upload_device_info_sync(device_info):
             status = data.get("status")
             timestamp = data.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            # 提取客户信息字段 - 优先使用直接传递的参数
-            customerId = data.get("customer_id")
-            orgId = data.get("org_id") 
-            userId = data.get("user_id")
+            # 提取客户信息字段 - 优先使用顶级传递的参数，其次使用数据项中的参数
+            customerId = customer_id or data.get("customer_id")
+            orgId = org_id or data.get("org_id") 
+            userId = user_id or data.get("user_id")
             
             print(f"🔍 解析的关键字段: serial_number={serial_number}, battery_level={data.get('batteryLevel')}, wearable_status={wearable_status}, charging_status={data.get('chargingStatus')}")
             print(f"🔍 客户信息: customerId={customerId}, orgId={orgId}, userId={userId}")

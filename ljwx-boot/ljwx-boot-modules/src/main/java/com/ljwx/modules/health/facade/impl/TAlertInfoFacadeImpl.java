@@ -28,6 +28,8 @@ import com.ljwx.modules.health.domain.entity.TAlertInfo;
 import com.ljwx.modules.health.domain.vo.TAlertInfoVO;
 import com.ljwx.modules.health.facade.ITAlertInfoFacade;
 import com.ljwx.modules.health.service.ITAlertInfoService;
+import com.ljwx.modules.system.service.ISysOrgUnitsService;
+import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import org.springframework.stereotype.Service;
 import lombok.NonNull;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,18 +55,52 @@ public class TAlertInfoFacadeImpl implements ITAlertInfoFacade {
 
     @NonNull
     private ITAlertInfoService tAlertInfoService;
+    
+    @NonNull
+    private ISysOrgUnitsService sysOrgUnitsService;
 
     @Override
     public RPage<TAlertInfoVO> listTAlertInfoPage(PageQuery pageQuery, TAlertInfoSearchDTO tAlertInfoSearchDTO) {
         TAlertInfoBO tAlertInfoBO = CglibUtil.convertObj(tAlertInfoSearchDTO, TAlertInfoBO::new);
         IPage<TAlertInfo> tAlertInfoIPage = tAlertInfoService.listTAlertInfoPage(pageQuery, tAlertInfoBO);
-        return RPage.build(tAlertInfoIPage, TAlertInfoVO::new);
+        
+        // Convert to VO with orgName mapping
+        IPage<TAlertInfoVO> voPage = tAlertInfoIPage.convert(entity -> {
+            TAlertInfoVO vo = CglibUtil.convertObj(entity, TAlertInfoVO::new);
+            // Set orgName from orgId lookup
+            if (entity.getOrgId() != null) {
+                try {
+                    SysOrgUnits orgUnit = sysOrgUnitsService.getById(entity.getOrgId());
+                    String orgName = orgUnit != null ? orgUnit.getName() : null;
+                    vo.setOrgName(orgName);
+                    System.out.println("🔄 TAlertInfo orgId->orgName: " + entity.getOrgId() + " -> " + orgName);
+                } catch (Exception e) {
+                    vo.setOrgName(null);
+                    System.out.println("❌ TAlertInfo orgName lookup failed for orgId: " + entity.getOrgId() + ", error: " + e.getMessage());
+                }
+            }
+            return vo;
+        });
+        
+        return RPage.build(voPage);
     }
 
     @Override
     public TAlertInfoVO get(Long id) {
         TAlertInfo byId = tAlertInfoService.getById(id);
-        return CglibUtil.convertObj(byId, TAlertInfoVO::new);
+        TAlertInfoVO vo = CglibUtil.convertObj(byId, TAlertInfoVO::new);
+        
+        // Set orgName from orgId lookup
+        if (byId != null && byId.getOrgId() != null) {
+            try {
+                SysOrgUnits orgUnit = sysOrgUnitsService.getById(byId.getOrgId());
+                vo.setOrgName(orgUnit != null ? orgUnit.getName() : null);
+            } catch (Exception e) {
+                vo.setOrgName(null);
+            }
+        }
+        
+        return vo;
     }
 
     @Override

@@ -19,10 +19,9 @@
 
 package com.ljwx.modules.health.domain.entity;
 
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.ljwx.infrastructure.domain.BaseEntity;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,51 +30,63 @@ import lombok.experimental.SuperBuilder;
 import java.time.LocalDateTime;
 
 /**
-*  Entity 实体类
+* 设备信息历史表 Entity 实体类
 *
-* @Author brunoGao
+* @Author jjgao
 * @ProjectName ljwx-boot
-* @ClassName com.ljwx.modules.health.domain.entity.TAlertActionLog
-* @CreateTime 2024-10-27 - 21:37:48
+* @ClassName com.ljwx.modules.health.domain.entity.TDeviceInfoHistory
+* @CreateTime 2025-01-03 - 12:00:00
 */
 
 @Data
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("t_alert_action_log")
-public class TAlertActionLog extends BaseEntity {
-    
-    // 排除BaseEntity的id字段
-    @TableField(exist = false)
-    private Long id;
-    
+@TableName("t_device_info_history")
+public class TDeviceInfoHistory extends BaseEntity {
+
+    private String systemSoftwareVersion;
+
+    private String wifiAddress;
+
+    private String bluetoothAddress;
+
+    private String ipAddress;
+
+    private String networkAccessMode;
+
+    private String serialNumber;
+
+    private String deviceName;
+
+    private String imei;
+
+    private LocalDateTime createdAt;
+
+    private Integer batteryLevel;
+
+    private Integer voltage;
+
+    private LocalDateTime timestamp;
+
+    private String model;
+
+    private String status;
+
+    private String wearableStatus;
+
+    private String chargingStatus;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING) // 防止前端精度丢失
+    private Long orgId; // 组织ID
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING) // 防止前端精度丢失
+    private Long userId; // 用户ID
+
     /**
-     * 用户ID
+     * 租户ID，继承自当前绑定用户，0表示全局设备
      */
-    @TableField(exist = false)
-    private String userName;
-
-    @TableId // 指定logId为主键
-    private Long logId;
-
-    private Long alertId;
-
-    /**
-     * 租户ID，继承自告警所属租户
-     */
+    @JsonFormat(shape = JsonFormat.Shape.STRING) // 防止前端精度丢失
     private Long customerId;
-
-    private String action;
-
-    private LocalDateTime actionTimestamp;
-
-    private String actionUser;
-
-    private Long actionUserId;
-
-    private String details;
-
-    private String result;
 
 }

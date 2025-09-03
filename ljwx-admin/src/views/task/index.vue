@@ -52,7 +52,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     },
     {
       key: 'orgName',
-      title: $t('page.health.data.info.departmentInfo'),
+      title: $t('page.health.data.info.orgId'),
       align: 'center',
       minWidth: 120
     },

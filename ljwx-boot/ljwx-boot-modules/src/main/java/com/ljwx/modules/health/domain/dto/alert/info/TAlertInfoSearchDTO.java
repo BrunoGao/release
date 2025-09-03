@@ -38,7 +38,7 @@ import java.io.Serializable;
 @Schema(name = "TAlertInfoSearchDTO", description = " 查询 DTO 对象")
 public class TAlertInfoSearchDTO implements Serializable {
     
-    private String departmentInfo;
+    private String orgId;
 
     private String userId;
 

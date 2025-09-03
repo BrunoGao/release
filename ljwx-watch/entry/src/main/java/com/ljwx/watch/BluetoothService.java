@@ -797,6 +797,9 @@ public class BluetoothService extends Ability implements BleConstants {
                     eventJson.put("action", parts[0]);
                     eventJson.put("value", parts[1]);
                     eventJson.put("device_sn", parts[2]);
+                    eventJson.put("customerId", dataManager.getCustomerId() != null ? dataManager.getCustomerId() : "0");
+                    eventJson.put("orgId", dataManager.getOrgId() != null ? dataManager.getOrgId() : "");
+                    eventJson.put("userId", dataManager.getUserId() != null ? dataManager.getUserId() : "");
                     eventJson.put("timestamp", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
                     
                     HiLog.info(LABEL_LOG, "正在推送公共事件: " + eventJson.toString());

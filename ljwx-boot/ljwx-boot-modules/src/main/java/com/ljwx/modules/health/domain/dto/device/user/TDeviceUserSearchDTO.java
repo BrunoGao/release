@@ -53,8 +53,8 @@ public class TDeviceUserSearchDTO implements Serializable {
     private String userId;
 
     /**
-     * 部门信息
+     * 组织ID
      */
-    private String departmentInfo;
+    private Long orgId;
 
 }

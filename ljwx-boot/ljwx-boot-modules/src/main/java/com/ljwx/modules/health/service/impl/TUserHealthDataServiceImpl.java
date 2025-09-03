@@ -101,7 +101,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
     /**
      * 获取过滤管理员后的设备列表 #管理员过滤功能
      * @param userId 用户ID
-     * @param departmentInfo 部门信息
+     * @param orgId 组织ID
      * @return 过滤后的设备序列号列表
      */
     private List<String> getFilteredDeviceSnList(String userId, String orgId) {
@@ -352,7 +352,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
                 IDeviceUserMappingService.UserInfo userInfo = deviceUserMap.get(record.getDeviceSn());
                 if (userInfo != null) {
                     record.setUserName(userInfo.getUserName());
-                    record.setDepartmentInfo(userInfo.getDepartmentName());
+                    // Note: departmentInfo field removed as entity only has orgId
                 }
                 //record.setSleepData(processSleepData(record.getSleepData().toString()));
                 //record.setWorkoutData(processWorkoutData(record.getWorkoutData().toString()));
@@ -406,7 +406,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             IDeviceUserMappingService.UserInfo userInfo = deviceUserMap.get(record.getDeviceSn());
             if (userInfo != null) {
                 filteredData.put("userName", userInfo.getUserName());
-                filteredData.put("departmentInfo", userInfo.getDepartmentName());
+                filteredData.put("orgName", userInfo.getDepartmentName());
             }
         }
 

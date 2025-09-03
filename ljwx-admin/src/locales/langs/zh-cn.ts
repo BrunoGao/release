@@ -830,7 +830,7 @@ const local: App.I18n.Schema = {
           }
         },
         info: {
-          departmentInfo: '直属部门',
+          orgId: '直属部门',
           phonenumber: '手机号码',
           heartrate: '心率',
           pressurehigh: '高压',
@@ -895,6 +895,7 @@ const local: App.I18n.Schema = {
           chargingStatus: '充电状态',
           updateTime: '更新时间',
           customerId: '租户ID',
+          orgName: '所属部门',
           userName: '绑定员工',
           form: {
             systemSoftwareVersion: '请输入系统软件版本',

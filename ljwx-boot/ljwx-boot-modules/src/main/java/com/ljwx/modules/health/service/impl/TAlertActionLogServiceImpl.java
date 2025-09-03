@@ -69,15 +69,15 @@ public class TAlertActionLogServiceImpl extends ServiceImpl<TAlertActionLogMappe
             .orderByDesc(TAlertActionLog::getActionTimestamp);
         if (ObjectUtils.isNotEmpty(tAlertActionLogBO.getUserId()) && !"all".equals(tAlertActionLogBO.getUserId())) {
                 queryWrapper.eq(TAlertActionLog::getActionUserId, tAlertActionLogBO.getUserId());
-        }else if (ObjectUtils.isNotEmpty(tAlertActionLogBO.getDepartmentInfo())) {
-                Long deptId = Long.parseLong(tAlertActionLogBO.getDepartmentInfo());
+        }else if (ObjectUtils.isNotEmpty(tAlertActionLogBO.getOrgId())) {
+                Long deptId = tAlertActionLogBO.getOrgId();
                 List<SysOrgUnits> descendants = sysOrgUnitsService.listAllDescendants(Collections.singletonList(deptId));
                 
-                List<String> allDeptIds = new ArrayList<>();
-                allDeptIds.add(tAlertActionLogBO.getDepartmentInfo());
+                List<Long> allDeptIds = new ArrayList<>();
+                allDeptIds.add(tAlertActionLogBO.getOrgId());
                 if (descendants != null) {
                     allDeptIds.addAll(descendants.stream()
-                        .map(unit -> String.valueOf(unit.getId()))
+                        .map(SysOrgUnits::getId)
                         .collect(Collectors.toList()));
                 }
                 

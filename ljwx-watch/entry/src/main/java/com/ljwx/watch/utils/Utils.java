@@ -220,6 +220,9 @@ public class Utils {
             deviceInfoJson.put("timestamp", timestamp);
             HiLog.info(LABEL_LOG, "Utils::getDeviceInfo wearState:" + dataManager.getWearState());
             deviceInfoJson.put("wearState", dataManager.getWearState());
+            deviceInfoJson.put("customerId", dataManager.getCustomerId() != null ? dataManager.getCustomerId() : "0");
+            deviceInfoJson.put("orgId", dataManager.getOrgId() != null ? dataManager.getOrgId() : "");
+            deviceInfoJson.put("userId", dataManager.getUserId() != null ? dataManager.getUserId() : "");
             
             deviceInfo = deviceInfoJson.toString();
             dataManager.setDeviceInfo(deviceInfo);
@@ -268,6 +271,9 @@ public class Utils {
         try {
             HiLog.info(LABEL_LOG, "Utils::getHealthInfo dataManager.getDeviceSn():" + dataManager.getDeviceSn());
             healthInfoJson.put("deviceSn", dataManager.getDeviceSn());
+            healthInfoJson.put("customerId", dataManager.getCustomerId() != null ? dataManager.getCustomerId() : "0");
+            healthInfoJson.put("orgId", dataManager.getOrgId() != null ? dataManager.getOrgId() : "");
+            healthInfoJson.put("userId", dataManager.getUserId() != null ? dataManager.getUserId() : "");
            
             
             // 获取健康数据，确保不使用0值(可能表示未采集)
@@ -365,6 +371,9 @@ public class Utils {
             
             HiLog.info(LABEL_LOG, "Utils::getHealthInfoForCommonEvent deviceSn:" + dataManager.getDeviceSn());
             healthInfoJson.put("deviceSn", dataManager.getDeviceSn());
+            healthInfoJson.put("customerId", dataManager.getCustomerId() != null ? dataManager.getCustomerId() : "0");
+            healthInfoJson.put("orgId", dataManager.getOrgId() != null ? dataManager.getOrgId() : "");
+            healthInfoJson.put("userId", dataManager.getUserId() != null ? dataManager.getUserId() : "");
             
             // 获取健康数据
             int heartRate = dataManager.getHeartRate();

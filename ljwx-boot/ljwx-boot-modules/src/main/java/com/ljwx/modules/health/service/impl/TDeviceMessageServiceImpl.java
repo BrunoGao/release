@@ -82,7 +82,7 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
 
     @Override
     public IPage<TDeviceMessageVO> listTDeviceMessagePage(PageQuery pageQuery, TDeviceMessageBO tDeviceMessageBO) {
-        System.out.println("🚀 使用V2优化查询 - userId: " + tDeviceMessageBO.getUserId() + ", departmentInfo: " + tDeviceMessageBO.getDepartmentInfo());
+        System.out.println("🚀 使用V2优化查询 - userId: " + tDeviceMessageBO.getUserId() + ", orgId: " + tDeviceMessageBO.getOrgId());
         
         // 🔥 使用V2表进行优化查询
         LambdaQueryWrapper<TDeviceMessageV2> queryWrapper = new LambdaQueryWrapper<TDeviceMessageV2>()
@@ -97,7 +97,7 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
         if (ObjectUtils.isEmpty(tDeviceMessageBO.getUserId()) || tDeviceMessageBO.getUserId().equals("all")) {
             // 处理按部门查询的逻辑
             System.out.println("📋 执行部门查询逻辑 (V2优化版)");
-            handleDepartmentQueryV2(queryWrapper, tDeviceMessageBO.getDepartmentInfo());
+            handleDepartmentQueryV2(queryWrapper, tDeviceMessageBO.getOrgId());
         } else {
             // 🔥 处理按用户ID查询的逻辑 - 直接基于userId查询
             System.out.println("👤 执行用户查询逻辑 (V2优化版)");
@@ -108,13 +108,13 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
         return processQueryResultsV2(pageQuery, queryWrapper);
     }
 
-    private void handleDepartmentQuery(LambdaQueryWrapper<TDeviceMessage> queryWrapper, String departmentInfo) {
-        if (ObjectUtils.isNotEmpty(departmentInfo)) {
+    private void handleDepartmentQuery(LambdaQueryWrapper<TDeviceMessage> queryWrapper, Long orgId) {
+        if (ObjectUtils.isNotEmpty(orgId)) {
             Set<String> allDepartmentIds = new HashSet<>();
-            Long deptId = Long.parseLong(departmentInfo);
+            Long deptId = orgId;
             
             // 获取当前部门及其所有下属部门
-            allDepartmentIds.add(departmentInfo);
+            allDepartmentIds.add(String.valueOf(orgId));
             List<SysOrgUnits> descendants = sysOrgUnitsService.listAllDescendants(Collections.singletonList(deptId));
             allDepartmentIds.addAll(
                 descendants.stream()
@@ -124,7 +124,7 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
 
             // 🔧 部门查询时排除管理员私人消息 #管理员过滤优化
             queryWrapper.and(wrapper -> {
-                wrapper.in(TDeviceMessage::getDepartmentInfo, allDepartmentIds)
+                wrapper.in(TDeviceMessage::getOrgId, allDepartmentIds)
                       .and(w -> w.isNull(TDeviceMessage::getUserId) // 部门公告（userId为空）
                                .or(subW -> subW.isNotNull(TDeviceMessage::getUserId)
                                               .notIn(TDeviceMessage::getUserId, getAdminUserIds()))); // 排除管理员用户ID
@@ -198,7 +198,7 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
                         // 匹配上级部门且userId为空的消息
                         if (!ancestorIds.isEmpty()) {
                             wrapper.or(w -> {
-                                w.in(TDeviceMessage::getDepartmentInfo, ancestorIds)
+                                w.in(TDeviceMessage::getOrgId, ancestorIds)
                                  .isNull(TDeviceMessage::getUserId);
                             });
                         }
@@ -231,9 +231,9 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
 
         // 转换ID为名称
         voPage.getRecords().forEach(record -> {
-            if (StringUtils.hasText(record.getDepartmentInfo())) {
-                String formattedDeptInfo = deptMap.get(Long.parseLong(record.getDepartmentInfo()));
-                record.setDepartmentInfo(formattedDeptInfo);
+            if (record.getOrgId() != null) {
+                String formattedDeptInfo = deptMap.get(record.getOrgId());
+                record.setDepartmentName(formattedDeptInfo);
             }
             if (StringUtils.hasText(record.getUserId())) {
                 String formattedUserId = userMap.get(Long.parseLong(record.getUserId()));
@@ -361,10 +361,10 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
     /**
      * 🔥 V2优化：处理部门查询 - 基于departmentId
      */
-    private void handleDepartmentQueryV2(LambdaQueryWrapper<TDeviceMessageV2> queryWrapper, String departmentInfo) {
-        if (ObjectUtils.isNotEmpty(departmentInfo)) {
+    private void handleDepartmentQueryV2(LambdaQueryWrapper<TDeviceMessageV2> queryWrapper, Long orgId) {
+        if (ObjectUtils.isNotEmpty(orgId)) {
             Set<Long> allDepartmentIds = new HashSet<>();
-            Long deptId = Long.parseLong(departmentInfo);
+            Long deptId = orgId;
             
             // 获取当前部门及其所有下属部门
             allDepartmentIds.add(deptId);
@@ -394,7 +394,7 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
             TDeviceMessageVO vo = new TDeviceMessageVO();
             // 🔥 V2到V1 VO的转换
             vo.setId(message.getId());
-            vo.setDepartmentInfo(String.valueOf(message.getDepartmentId()));
+            vo.setOrgId(message.getDepartmentId());
             vo.setUserId(String.valueOf(message.getUserId()));
             vo.setDeviceSn(message.getDeviceSn());
             vo.setMessage(message.getMessage());
@@ -423,14 +423,9 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
 
         // 转换ID为名称
         voPage.getRecords().forEach(record -> {
-            if (StringUtils.hasText(record.getDepartmentInfo())) {
-                try {
-                    Long deptId = Long.parseLong(record.getDepartmentInfo());
-                    String formattedDeptInfo = deptMap.get(deptId);
-                    record.setDepartmentInfo(formattedDeptInfo);
-                } catch (NumberFormatException e) {
-                    System.out.println("部门ID格式错误: " + record.getDepartmentInfo());
-                }
+            if (record.getOrgId() != null) {
+                String formattedDeptInfo = deptMap.get(record.getOrgId());
+                record.setDepartmentName(formattedDeptInfo);
             }
             if (StringUtils.hasText(record.getUserId())) {
                 try {
@@ -543,7 +538,7 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
             // 转换BO到V2实体
             TDeviceMessageV2 messageV2 = TDeviceMessageV2.builder()
                 .customerId(tDeviceMessageBO.getCustomerId())
-                .departmentId(parseDepartmentInfo(tDeviceMessageBO.getDepartmentInfo()))
+                .departmentId(tDeviceMessageBO.getOrgId())
                 .userId(parseUserId(tDeviceMessageBO.getUserId()))
                 .deviceSn(tDeviceMessageBO.getDeviceSn())
                 .message(tDeviceMessageBO.getMessage())
@@ -594,7 +589,7 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
         // 转换V2到V1实体
         TDeviceMessage message = new TDeviceMessage();
         message.setId(messageV2.getId());
-        message.setDepartmentInfo(messageV2.getDepartmentId() != null ? String.valueOf(messageV2.getDepartmentId()) : null);
+        message.setOrgId(messageV2.getDepartmentId());
         message.setUserId(messageV2.getUserId() != null ? String.valueOf(messageV2.getUserId()) : null);
         message.setDeviceSn(messageV2.getDeviceSn());
         message.setMessage(messageV2.getMessage());
@@ -615,16 +610,6 @@ public class TDeviceMessageServiceImpl extends ServiceImpl<TDeviceMessageMapper,
 
     // === 辅助方法 ===
     
-    private Long parseDepartmentInfo(String departmentInfo) {
-        if (!StringUtils.hasText(departmentInfo)) {
-            return 1L; // 默认部门
-        }
-        try {
-            return Long.parseLong(departmentInfo);
-        } catch (NumberFormatException e) {
-            return 1L; // 默认部门
-        }
-    }
     
     private Long parseUserId(String userId) {
         if (!StringUtils.hasText(userId) || "null".equals(userId)) {

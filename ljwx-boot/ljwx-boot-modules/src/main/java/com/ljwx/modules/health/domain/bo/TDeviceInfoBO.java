@@ -58,8 +58,8 @@ public class TDeviceInfoBO extends TDeviceInfo {
     private String userIdStr;
 
     /**
-     * 部门信息
+     * 组织ID
      */
-    private String departmentInfo;
+    private Long orgId;
 
 }

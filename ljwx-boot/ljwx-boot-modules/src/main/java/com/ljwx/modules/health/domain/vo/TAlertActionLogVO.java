@@ -49,9 +49,9 @@ public class TAlertActionLogVO extends BaseVO {
     private String userName;
 
     /**
-     * 部门信息
+     * 组织ID
      */
-    private String departmentInfo;
+    private Long orgId;
 
     private Long logId;
 

@@ -47,9 +47,9 @@ public class TAlertInfoBO extends TAlertInfo {
     private Long customerId;
 
     /**
-     * 部门信息
+     * 组织ID
      */
-    private String departmentInfo;
+    private Long orgId;
 
 
 }

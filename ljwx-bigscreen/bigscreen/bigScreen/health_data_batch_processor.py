@@ -481,18 +481,28 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
             #确保批处理器已启动
             self._ensure_processor_started()
             
-            #获取用户组织信息
-            print(f"🔍 查找设备对应用户信息: {device_sn}")
-            user_org_info=self._get_user_org_info(device_sn)
-            if not user_org_info:
-                print(f"❌ 未找到设备对应用户: {device_sn}")
-                logger.warning(f'未找到设备对应用户: {device_sn}')
-                return {'success':False,'reason':'user_not_found','message':'设备对应用户未找到'}
-                
-            user_id=user_org_info.user_id
-            org_id=user_org_info.org_id
-            customer_id=user_org_info.customer_id
-            print(f"✅ 用户组织信息: user_id={user_id}, org_id={org_id}, customer_id={customer_id}")
+            # 优先使用直接传递的客户信息参数
+            user_id = raw_data.get("user_id")
+            org_id = raw_data.get("org_id") 
+            customer_id = raw_data.get("customer_id")
+            
+            print(f"🔍 直接传入的客户信息: user_id={user_id}, org_id={org_id}, customer_id={customer_id}")
+            
+            # 如果没有直接传递客户信息，通过deviceSn查询获取（兼容旧版本）
+            if not user_id or not org_id or not customer_id:
+                print(f"🔍 客户信息不完整，通过deviceSn查询获取")
+                user_org_info=self._get_user_org_info(device_sn)
+                if not user_org_info:
+                    print(f"❌ 未找到设备对应用户: {device_sn}")
+                    logger.warning(f'未找到设备对应用户: {device_sn}')
+                    return {'success':False,'reason':'user_not_found','message':'设备对应用户未找到'}
+                    
+                user_id = user_id or user_org_info.user_id
+                org_id = org_id or user_org_info.org_id
+                customer_id = customer_id or user_org_info.customer_id
+                print(f"✅ 补充后的客户信息: user_id={user_id}, org_id={org_id}, customer_id={customer_id}")
+            else:
+                print(f"✅ 使用直接传递的客户信息")
             
             #获取配置字段
             config_info=self.get_health_config_fields(customer_id) if customer_id else self._get_default_config()
@@ -540,7 +550,7 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
             print(f"🔍 字段分离: fast_fields={fast_fields}")
             
             #构建主表数据(只包含配置支持的快更新字段)
-            main_data={'device_sn':device_sn,'user_id':user_id,'org_id':org_id,'timestamp':timestamp,'upload_method':raw_data.get("upload_method","wifi")}
+            main_data={'device_sn':device_sn,'user_id':user_id,'org_id':org_id,'customer_id':customer_id,'timestamp':timestamp,'upload_method':raw_data.get("upload_method","wifi")}
             print(f"🔍 初始主表数据: {main_data}")
             
             for field in fast_fields:
@@ -561,7 +571,7 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
             daily_data=None
             daily_fields_in_config=[f for f in slow_daily_fields if f in config_fields]
             if daily_fields_in_config:
-                daily_data={'device_sn':device_sn,'user_id':user_id,'org_id':org_id,'date':timestamp.date()}
+                daily_data={'device_sn':device_sn,'user_id':user_id,'org_id':org_id,'customer_id':customer_id,'date':timestamp.date()}
                 for field in daily_fields_in_config:
                     value=raw_data.get(self.field_mapping.get(field,field))
                     if value is not None:
@@ -575,7 +585,7 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
             weekly_fields_in_config=[f for f in slow_weekly_fields if f in config_fields]
             if weekly_fields_in_config:
                 week_start=self._get_week_start(timestamp)
-                weekly_data={'device_sn':device_sn,'user_id':user_id,'org_id':org_id,'week_start':week_start}
+                weekly_data={'device_sn':device_sn,'user_id':user_id,'org_id':org_id,'customer_id':customer_id,'week_start':week_start}
                 for field in weekly_fields_in_config:
                     value=raw_data.get(self.field_mapping.get(field,field))
                     if value is not None:
@@ -731,6 +741,12 @@ def optimized_upload_health_data(health_data):#优化的健康数据上传V3.1
             pass  # 忽略应用上下文不可用的错误
             
         data=health_data.get("data",{})
+        
+        # 提取顶级的客户信息参数
+        customer_id = health_data.get("customer_id")
+        org_id = health_data.get("org_id") 
+        user_id = health_data.get("user_id")
+        print(f"🔍 提取客户信息: customer_id={customer_id}, org_id={org_id}, user_id={user_id}")
         print(f"🔍 解析data字段: {json.dumps(data, ensure_ascii=False, indent=2)}")
         
         if isinstance(data,list):
@@ -753,6 +769,14 @@ def optimized_upload_health_data(health_data):#优化的健康数据上传V3.1
                             device_sn = nested_data.get('deviceSn') or nested_data.get('id')
                         elif isinstance(nested_data, list) and len(nested_data) > 0:
                             device_sn = nested_data[0].get('deviceSn') or nested_data[0].get('id')
+                    
+                    # 将客户信息添加到每个数据项中，优先使用顶级参数
+                    if customer_id is not None:
+                        item['customer_id'] = customer_id
+                    if org_id is not None:
+                        item['org_id'] = org_id
+                    if user_id is not None:
+                        item['user_id'] = user_id
                     
                     print(f"🔍 处理第{i+1}条数据: device_sn={device_sn}, 数据={json.dumps(item, ensure_ascii=False)}")
                     if device_sn:
@@ -800,6 +824,14 @@ def optimized_upload_health_data(health_data):#优化的健康数据上传V3.1
             if not device_sn:
                 print(f"❌ 设备ID为空")
                 return jsonify({"status":"error","message":"设备ID不能为空"})
+            
+            # 将客户信息添加到数据项中，优先使用顶级参数
+            if customer_id is not None:
+                data['customer_id'] = customer_id
+            if org_id is not None:
+                data['org_id'] = org_id
+            if user_id is not None:
+                data['user_id'] = user_id
             
             print(f"🔍 单条数据详情: {json.dumps(data, ensure_ascii=False, indent=2)}")
             #单条数据使用队列处理

@@ -88,7 +88,7 @@ const isAdd = computed(() => props.operateType === 'add');
 const selectedDepartments = ref<{ id: string; name: string } | null>(null);
 // 处理部门选择变化
 function handleDepartmentChange(key: string) {
-  model.departmentInfo = key; // 现在是一个字符串值
+  model.orgId = key; // 现在是一个字符串值
   // 从 options 中找到对应的完整信息
   const dept = findDepartment(props.orgUnitsTree, key);
   selectedDepartments.value = dept
@@ -113,9 +113,9 @@ function findDepartment(tree: any[], id: string): any {
 }
 
 watch(
-  () => model.departmentInfo,
+  () => model.orgId,
   async (newValue, oldValue) => {
-    console.log('operate-drawer model.departmentInfo changed from', oldValue, 'to', newValue);
+    console.log('operate-drawer model.orgId changed from', oldValue, 'to', newValue);
     if (newValue) {
       const result = await handleBindUsers(Number(newValue));
       console.log('handleBindUsers.result', result);
@@ -134,7 +134,7 @@ async function handleSubmit() {
   await validate();
   const submitData = {
     ...model,
-    departmentInfo: selectedDepartments.value ? `${selectedDepartments.value.id}:${selectedDepartments.value.name}` : ''
+    orgId: selectedDepartments.value ? selectedDepartments.value.id : ''
   };
 
   const func = isAdd.value ? fetchAddDeviceMessage : fetchUpdateDeviceMessageInfo;
@@ -153,7 +153,7 @@ async function handleSubmit() {
       <NForm ref="formRef" :model="model">
         <NFormItem :label="$t('page.health.device.message.departmentName')" path="departmentName">
           <NTreeSelect
-            v-model:value="model.departmentInfo"
+            v-model:value="model.orgId"
             size="small"
             checkable
             filterable

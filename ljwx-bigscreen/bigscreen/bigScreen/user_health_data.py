@@ -13,10 +13,283 @@ from .health_daping_analyzer import analyze_health_trends
 from .health_daping_analyzer import generate_health_score
 from collections import defaultdict
 import numpy as np
+from typing import List, Dict, Optional, Tuple
+import logging
 
 import math
 # Import the class from models.py
 # Import necessary modules and functions
+
+logger = logging.getLogger(__name__)
+
+class HealthDataService:
+    """健康数据管理统一服务封装类 - 基于userId的查询和汇总，整合现有get_all_health_data_optimized接口"""
+    
+    def __init__(self):
+        self.redis = RedisHelper()
+    
+    def get_health_data_by_common_params(self, customer_id: int = None, org_id: int = None,
+                                      user_id: int = None, start_date: str = None, 
+                                      end_date: str = None, data_type: str = None, 
+                                      latest_only: bool = False, page: int = 1, 
+                                      page_size: int = None) -> Dict:
+        """
+        基于统一参数获取健康数据 - 整合现有get_all_health_data_optimized接口
+        
+        Args:
+            customer_id: 客户ID (映射到orgId，因为现有接口使用orgId表示组织)
+            org_id: 组织ID
+            user_id: 用户ID
+            start_date: 开始日期
+            end_date: 结束日期
+            data_type: 数据类型 (暂未实现，保留扩展)
+            latest_only: 是否只获取最新数据
+            page: 页码
+            page_size: 每页大小
+            
+        Returns:
+            健康数据字典
+        """
+        try:
+            # 参数映射和优先级处理
+            # 如果有user_id，优先使用userId查询
+            if user_id:
+                result = get_all_health_data_optimized(
+                    orgId=None,
+                    userId=user_id, 
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=latest_only,
+                    page=page,
+                    pageSize=page_size
+                )
+                logger.info(f"基于userId查询健康数据: user_id={user_id}")
+                
+            elif org_id:
+                # 组织查询 - 获取组织下所有用户的健康数据
+                result = get_all_health_data_optimized(
+                    orgId=org_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=latest_only,
+                    page=page,
+                    pageSize=page_size
+                )
+                logger.info(f"基于orgId查询健康数据: org_id={org_id}")
+                
+            elif customer_id:
+                # 客户查询 - 将customer_id作为orgId处理（根据现有架构）
+                result = get_all_health_data_optimized(
+                    orgId=customer_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=latest_only,
+                    page=page,
+                    pageSize=page_size
+                )
+                logger.info(f"基于customerId查询健康数据: customer_id={customer_id}")
+                
+            else:
+                return {
+                    'success': False,
+                    'error': 'Missing required parameters: customer_id, org_id, or user_id',
+                    'data': {'healthData': [], 'total_count': 0}
+                }
+            
+            # 统一返回格式，兼容新的服务接口
+            if result.get('success', True):
+                health_data = result.get('data', {}).get('healthData', [])
+                
+                unified_result = {
+                    'success': True,
+                    'data': {
+                        'healthData': health_data,
+                        'total_count': result.get('data', {}).get('totalRecords', len(health_data)),
+                        'pagination': result.get('data', {}).get('pagination', {}),
+                        'query_params': {
+                            'customer_id': customer_id,
+                            'org_id': org_id,
+                            'user_id': user_id,
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'data_type': data_type,
+                            'latest_only': latest_only,
+                            'page': page,
+                            'page_size': page_size
+                        }
+                    },
+                    'performance': result.get('performance', {}),
+                    'from_cache': result.get('performance', {}).get('cached', False)
+                }
+                
+                return unified_result
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"健康数据查询失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'healthData': [], 'total_count': 0}
+            }
+    
+    def get_health_statistics_by_common_params(self, customer_id: int = None,
+                                             org_id: int = None, user_id: int = None,
+                                             start_date: str = None, end_date: str = None) -> Dict:
+        """基于统一参数获取健康数据统计 - 基于现有get_all_health_data_optimized接口"""
+        try:
+            cache_key = f"health_stats_v2:{customer_id}:{org_id}:{user_id}:{start_date}:{end_date}"
+            
+            # 缓存检查
+            cached = self.redis.get_data(cache_key)
+            if cached:
+                return json.loads(cached)
+            
+            # 获取健康数据 - 使用现有的优化接口
+            health_result = self.get_health_data_by_common_params(
+                customer_id, org_id, user_id, start_date, end_date, latest_only=False
+            )
+            
+            if not health_result.get('success'):
+                return health_result
+            
+            health_data = health_result['data']['healthData']
+            
+            # 计算统计数据
+            total_records = len(health_data)
+            
+            # 健康指标统计
+            metrics_stats = {}
+            if health_data:
+                metrics = ['heart_rate', 'blood_oxygen', 'temperature', 'pressure_high', 'pressure_low', 'stress']
+                for metric in metrics:
+                    values = [float(d.get(metric, 0)) for d in health_data if d.get(metric) and float(d.get(metric, 0)) > 0]
+                    if values:
+                        metrics_stats[metric] = {
+                            'avg': round(sum(values) / len(values), 2),
+                            'min': round(min(values), 2),
+                            'max': round(max(values), 2),
+                            'count': len(values)
+                        }
+                    else:
+                        metrics_stats[metric] = {'avg': 0, 'min': 0, 'max': 0, 'count': 0}
+                
+                # 活动指标统计
+                activity_metrics = ['step', 'distance', 'calorie']
+                for metric in activity_metrics:
+                    values = [float(d.get(metric, 0)) for d in health_data if d.get(metric)]
+                    if values:
+                        metrics_stats[metric] = {
+                            'total': round(sum(values), 2),
+                            'avg': round(sum(values) / len(values), 2),
+                            'count': len(values)
+                        }
+                    else:
+                        metrics_stats[metric] = {'total': 0, 'avg': 0, 'count': 0}
+            
+            # 按组织统计
+            org_stats = {}
+            for data in health_data:
+                org_name = data.get('dept_name', '未知组织')  # 使用dept_name字段
+                if org_name not in org_stats:
+                    org_stats[org_name] = {
+                        'total_records': 0,
+                        'users': set(),
+                        'devices': set(),
+                        'avg_heart_rate': 0,
+                        'avg_temperature': 0,
+                        'total_steps': 0
+                    }
+                
+                org_stats[org_name]['total_records'] += 1
+                if data.get('user_name'):
+                    org_stats[org_name]['users'].add(data.get('user_name'))
+                if data.get('device_sn'):
+                    org_stats[org_name]['devices'].add(data.get('device_sn'))
+                
+                # 累计数据用于计算平均值
+                org_stats[org_name]['avg_heart_rate'] += float(data.get('heart_rate', 0))
+                org_stats[org_name]['avg_temperature'] += float(data.get('temperature', 0))
+                org_stats[org_name]['total_steps'] += float(data.get('step', 0))
+            
+            # 计算组织统计平均值
+            for org_name in org_stats:
+                records = org_stats[org_name]['total_records']
+                if records > 0:
+                    org_stats[org_name]['avg_heart_rate'] = round(org_stats[org_name]['avg_heart_rate'] / records, 2)
+                    org_stats[org_name]['avg_temperature'] = round(org_stats[org_name]['avg_temperature'] / records, 2)
+                
+                org_stats[org_name]['user_count'] = len(org_stats[org_name]['users'])
+                org_stats[org_name]['device_count'] = len(org_stats[org_name]['devices'])
+                # 转换set为可序列化的list
+                org_stats[org_name]['users'] = list(org_stats[org_name]['users'])
+                org_stats[org_name]['devices'] = list(org_stats[org_name]['devices'])
+            
+            result = {
+                'success': True,
+                'data': {
+                    'overview': {
+                        'total_records': total_records,
+                        'metrics_stats': metrics_stats,
+                        'unique_users': len(set(d.get('user_id') for d in health_data if d.get('user_id'))),
+                        'unique_devices': len(set(d.get('device_sn') for d in health_data if d.get('device_sn')))
+                    },
+                    'org_statistics': org_stats,
+                    'query_params': {
+                        'customer_id': customer_id,
+                        'org_id': org_id,
+                        'user_id': user_id,
+                        'start_date': start_date,
+                        'end_date': end_date
+                    }
+                }
+            }
+            
+            # 缓存结果
+            self.redis.set_data(cache_key, json.dumps(result, default=str), 180)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"健康数据统计计算失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'overview': {}, 'org_statistics': {}}
+            }
+
+# 全局实例
+_health_data_service_instance = None
+
+def get_unified_health_data_service() -> HealthDataService:
+    """获取统一健康数据服务实例"""
+    global _health_data_service_instance
+    if _health_data_service_instance is None:
+        _health_data_service_instance = HealthDataService()
+    return _health_data_service_instance
+
+# 向后兼容的函数，供现有代码使用
+def get_health_data_unified(customer_id: int = None, org_id: int = None,
+                           user_id: int = None, start_date: str = None,
+                           end_date: str = None, data_type: str = None,
+                           latest_only: bool = False, page: int = 1, 
+                           page_size: int = None) -> Dict:
+    """统一的健康数据查询接口 - 整合现有get_all_health_data_optimized接口"""
+    service = get_unified_health_data_service()
+    return service.get_health_data_by_common_params(
+        customer_id, org_id, user_id, start_date, end_date, data_type, 
+        latest_only, page, page_size
+    )
+
+def get_health_statistics_unified(customer_id: int = None, org_id: int = None,
+                                 user_id: int = None, start_date: str = None,
+                                 end_date: str = None) -> Dict:
+    """统一的健康数据统计接口"""
+    service = get_unified_health_data_service()
+    return service.get_health_statistics_by_common_params(customer_id, org_id, user_id, start_date, end_date)
 
 def parse_sleep_data(sleep_data_json):
     """
@@ -1794,22 +2067,24 @@ def get_all_health_data_optimized(orgId=None, userId=None, startDate=None, endDa
             user_list = [(u[0].device_sn, u[0].user_name, u[0].id, u[1], u[2])]  # 添加部门名和部门ID
             query_org_id = u[2]
         elif orgId:
-            # 直接从orgId获取所有用户，包含部门信息（已自动过滤admin）
+            # 优化查询：直接基于orgId查询健康数据，不依赖device_sn
+            query_org_id = orgId
+            
+            # 获取组织下所有用户信息，用于构建用户映射
             from .org import fetch_users_by_orgId
             all_users = fetch_users_by_orgId(orgId)
             
-            # 获取部门信息
+            # 获取部门信息，构建用户列表（包含没有设备的用户）
             from .user import get_org_info_by_user_id
             user_list = []
             for u in all_users:
-                if u['device_sn'] and u['device_sn'] not in ['-', '']:
-                    org_info = get_org_info_by_user_id(u['id'])
-                    dept_name = org_info.name if org_info else '未知部门'
-                    dept_id = org_info.id if org_info else orgId
-                    user_list.append((u['device_sn'], u['user_name'], u['id'], dept_name, dept_id))
+                org_info = get_org_info_by_user_id(u['id'])
+                dept_name = org_info.name if org_info else '未知部门'
+                dept_id = org_info.id if org_info else orgId
+                # 修改：不再要求device_sn，直接使用user_id
+                user_list.append((u.get('device_sn', ''), u['user_name'], u['id'], dept_name, dept_id))
             
-            query_org_id = orgId
-            print(f"📊 组织 {orgId} 共找到 {len(all_users)} 用户，有效设备 {len(user_list)} 个")
+            print(f"📊 组织 {orgId} 共找到 {len(all_users)} 用户")
         else:
             return {"success": False, "message": "缺少orgId或userId参数", "data": {"healthData": [], "totalRecords": 0}}
         
@@ -1872,44 +2147,123 @@ def get_all_health_data_optimized(orgId=None, userId=None, startDate=None, endDa
         
         field_list = ', '.join(query_fields)
         
-        all_sns = [x[0] for x in user_list]
+        # 构建用户ID列表用于查询（新的查询方式）
+        all_user_ids = [x[2] for x in user_list]  # 用户ID列表
+        all_sns = [x[0] for x in user_list if x[0]]  # 兼容：保留设备SN列表，用于回退查询
         health_data_list = []
         total_count = 0
         
         print(f"🎯 动态查询字段: {query_fields}")
+        print(f"👥 查询用户ID: {all_user_ids}")
         
         # 智能选择查询策略 - 分区表优先
-        query_strategy = _determine_query_strategy(startDate, endDate, latest_only, len(all_sns))
+        query_strategy = _determine_query_strategy(startDate, endDate, latest_only, len(all_user_ids))
         print(f"📈 查询策略: {query_strategy}")
         
         # 时间范围处理
         if latest_only:
-            # 最新记录模式 - 优化查询只获取必要字段
+            # 最新记录模式 - 优先基于user_id查询，回退到device_sn
             try:
-                results = _query_latest_data_optimized(all_sns, query_fields, enabled_metrics, query_strategy)
+                # 新的查询方式：基于user_id和org_id
+                if userId:
+                    # 单用户查询
+                    results = db.session.query(UserHealthData).filter(
+                        UserHealthData.user_id == userId,
+                        UserHealthData.org_id == query_org_id
+                    ).order_by(UserHealthData.timestamp.desc()).limit(1).all()
+                elif orgId:
+                    # 组织查询 - 获取每个用户的最新记录
+                    subq = db.session.query(
+                        UserHealthData.user_id,
+                        func.max(UserHealthData.timestamp).label('max_ts')
+                    ).filter(
+                        UserHealthData.org_id == orgId,
+                        UserHealthData.user_id.in_(all_user_ids)
+                    ).group_by(UserHealthData.user_id).subquery()
+                    
+                    results = db.session.query(UserHealthData).join(
+                        subq,
+                        (UserHealthData.user_id == subq.c.user_id) &
+                        (UserHealthData.timestamp == subq.c.max_ts) &
+                        (UserHealthData.org_id == orgId)
+                    ).all()
+                else:
+                    results = []
+                
                 total_count = len(results)
+                print(f"✅ 新查询方式成功，获得 {total_count} 条记录")
                 
             except Exception as e:
-                print(f"❌ 动态查询失败，回退到ORM查询: {e}")
-                # 回退到ORM查询
-                subq = db.session.query(
-                    UserHealthData.device_sn,
-                    func.max(UserHealthData.timestamp).label('max_ts')
-                ).filter(UserHealthData.device_sn.in_(all_sns)).group_by(UserHealthData.device_sn).subquery()
-                
-                results = db.session.query(UserHealthData).join(
-                    subq,
-                    (UserHealthData.device_sn == subq.c.device_sn) &
-                    (UserHealthData.timestamp == subq.c.max_ts)
-                ).all()
-                total_count = len(results)
+                print(f"❌ 新查询方式失败，回退到device_sn查询: {e}")
+                # 回退到原有的device_sn查询
+                if all_sns:
+                    subq = db.session.query(
+                        UserHealthData.device_sn,
+                        func.max(UserHealthData.timestamp).label('max_ts')
+                    ).filter(UserHealthData.device_sn.in_(all_sns)).group_by(UserHealthData.device_sn).subquery()
+                    
+                    results = db.session.query(UserHealthData).join(
+                        subq,
+                        (UserHealthData.device_sn == subq.c.device_sn) &
+                        (UserHealthData.timestamp == subq.c.max_ts)
+                    ).all()
+                    total_count = len(results)
+                else:
+                    results = []
+                    total_count = 0
                 
         else:
-            # 时间范围查询模式 - 使用分区表策略
-            results, total_count = _query_range_data_optimized(all_sns, startDate, endDate, page, pageSize, query_fields, query_strategy)
+            # 时间范围查询模式 - 优先使用新的查询方式
+            try:
+                if userId:
+                    # 单用户查询
+                    query = db.session.query(UserHealthData).filter(
+                        UserHealthData.user_id == userId,
+                        UserHealthData.org_id == query_org_id
+                    )
+                    if startDate:
+                        query = query.filter(UserHealthData.timestamp >= startDate)
+                    if endDate:
+                        query = query.filter(UserHealthData.timestamp <= endDate)
+                    
+                    total_count = query.count()
+                    if pageSize:
+                        offset = (page - 1) * pageSize
+                        results = query.order_by(UserHealthData.timestamp.desc()).offset(offset).limit(pageSize).all()
+                    else:
+                        results = query.order_by(UserHealthData.timestamp.desc()).all()
+                        
+                elif orgId:
+                    # 组织查询
+                    query = db.session.query(UserHealthData).filter(
+                        UserHealthData.org_id == orgId,
+                        UserHealthData.user_id.in_(all_user_ids)
+                    )
+                    if startDate:
+                        query = query.filter(UserHealthData.timestamp >= startDate)
+                    if endDate:
+                        query = query.filter(UserHealthData.timestamp <= endDate)
+                    
+                    total_count = query.count()
+                    if pageSize:
+                        offset = (page - 1) * pageSize
+                        results = query.order_by(UserHealthData.timestamp.desc()).offset(offset).limit(pageSize).all()
+                    else:
+                        results = query.order_by(UserHealthData.timestamp.desc()).all()
+                else:
+                    results = []
+                    total_count = 0
+                    
+                print(f"✅ 新范围查询成功，获得 {total_count} 条记录")
+                
+            except Exception as e:
+                print(f"❌ 新范围查询失败，回退到device_sn查询: {e}")
+                # 回退到原有的查询方式
+                results, total_count = _query_range_data_optimized(all_sns, startDate, endDate, page, pageSize, query_fields, query_strategy)
         
-        # 构建设备-用户映射，包含部门信息
-        sn_to_user = {x[0]: (x[1], x[2], x[3], x[4]) for x in user_list}  # (user_name, user_id, dept_name, dept_id)
+        # 构建用户映射，包含部门信息 - 同时支持device_sn和user_id映射
+        sn_to_user = {x[0]: (x[1], x[2], x[3], x[4]) for x in user_list if x[0]}  # device_sn -> (user_name, user_id, dept_name, dept_id)
+        userid_to_user = {x[2]: (x[1], x[2], x[3], x[4]) for x in user_list}  # user_id -> (user_name, user_id, dept_name, dept_id)
         
         # 获取组织名称
         org_name = "未知组织"
@@ -1922,19 +2276,31 @@ def get_all_health_data_optimized(orgId=None, userId=None, startDate=None, endDa
         
         # 数据转换 - 根据动态配置构建响应，使用前端期望的字段名
         for r in results:
-            if not r or not hasattr(r, 'device_sn') or not r.device_sn:
+            if not r:
                 continue
-                
-            user_name, user_id, dept_name, dept_id = sn_to_user.get(r.device_sn, ('未知用户', 0, '未知部门', query_org_id or 0))
+            
+            # 优先使用user_id映射，回退到device_sn映射
+            user_name, user_id_from_map, dept_name, dept_id = None, None, None, None
+            
+            if hasattr(r, 'user_id') and r.user_id and r.user_id in userid_to_user:
+                # 使用user_id映射
+                user_name, user_id_from_map, dept_name, dept_id = userid_to_user[r.user_id]
+            elif hasattr(r, 'device_sn') and r.device_sn and r.device_sn in sn_to_user:
+                # 回退到device_sn映射
+                user_name, user_id_from_map, dept_name, dept_id = sn_to_user[r.device_sn]
+            else:
+                # 默认值
+                user_name, user_id_from_map, dept_name, dept_id = '未知用户', getattr(r, 'user_id', 0), '未知部门', query_org_id or 0
             
             # 构建基础健康数据对象 - 使用数据库字段名格式
             health_data = {
-                "deviceSn": r.device_sn or '',
+                "deviceSn": getattr(r, 'device_sn', '') or '',
                 "userName": user_name,
-                "userId": user_id,
+                "userId": user_id_from_map or getattr(r, 'user_id', 0),
                 "deptName": dept_name,           # 添加部门名
                 "orgId": dept_id,               # 添加部门ID  
                 "orgName": org_name,            # 添加组织名
+                "customerId": getattr(r, 'customer_id', None),  # 添加客户ID
                 "timestamp": r.timestamp.strftime("%Y-%m-%d %H:%M:%S") if hasattr(r, 'timestamp') and r.timestamp else None,
                 "uploadMethod": getattr(r, 'upload_method', '')
             }

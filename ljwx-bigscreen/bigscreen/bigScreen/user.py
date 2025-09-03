@@ -3,9 +3,13 @@ from .models import UserInfo, UserOrg, OrgInfo, DeviceInfo, AlertInfo, Position,
 from .redis_helper import RedisHelper
 # tenant_context removed - customerId now passed as parameter
 import json  # Import json module
+from typing import List, Dict, Optional, Tuple
+import logging
 
 import os
 from . import app  # 从 __init__.py 导入 app
+
+logger = logging.getLogger(__name__)
 
 redis = RedisHelper()
 
@@ -648,3 +652,433 @@ def get_user_info_by_deviceSn(deviceSn):
     except Exception as e:
         print(f"获取用户信息失败 deviceSn={deviceSn}: {e}")
         return None
+
+def get_all_user_data_optimized(orgId=None, userId=None, startDate=None, endDate=None, latest_only=False, page=1, pageSize=None, status=None, include_details=False):
+    """
+    统一的用户数据查询接口，支持分页和优化查询
+    
+    Args:
+        orgId: 组织ID
+        userId: 用户ID  
+        startDate: 开始日期
+        endDate: 结束日期
+        latest_only: 是否只查询最新记录
+        page: 页码
+        pageSize: 每页大小
+        status: 用户状态
+        include_details: 是否包含详细信息
+    
+    Returns:
+        dict: 包含用户数据和分页信息的字典
+    """
+    try:
+        import time
+        from datetime import datetime, timedelta
+        from typing import List, Dict, Optional, Tuple
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        start_time = time.time()
+        
+        # 参数验证和缓存键构建
+        page = max(1, int(page or 1))
+        if pageSize is not None:
+            pageSize = min(int(pageSize), 1000)
+        else:
+            pageSize = None
+        mode = 'latest' if latest_only else 'range'
+        cache_key = f"user_opt_v1:{orgId}:{userId}:{startDate}:{endDate}:{mode}:{page}:{pageSize}:{status}:{include_details}"
+        
+        # 缓存检查
+        cached = redis.get_data(cache_key)
+        if cached:
+            result = json.loads(cached)
+            result['performance'] = {'cached': True, 'response_time': round(time.time() - start_time, 3)}
+            return result
+        
+        # 构建查询条件
+        query = db.session.query(
+            UserInfo.id,
+            UserInfo.user_name,
+            UserInfo.real_name,
+            UserInfo.phone,
+            UserInfo.device_sn,
+            UserInfo.status,
+            UserInfo.avatar,
+            UserInfo.user_card_number,
+            UserInfo.working_years,
+            UserInfo.create_time,
+            UserInfo.update_time,
+            UserInfo.customer_id,
+            OrgInfo.id.label('org_id'),
+            OrgInfo.name.label('org_name')
+        ).outerjoin(
+            UserOrg, UserInfo.id == UserOrg.user_id
+        ).outerjoin(
+            OrgInfo, UserOrg.org_id == OrgInfo.id
+        ).filter(
+            UserInfo.is_deleted == False
+        )
+        
+        if userId:
+            # 单用户查询
+            from .admin_helper import is_admin_user
+            if is_admin_user(userId):
+                return {"success": True, "data": {"userData": [], "totalRecords": 0, "pagination": {"currentPage": page, "pageSize": pageSize, "totalCount": 0, "totalPages": 0}}}
+            
+            query = query.filter(UserInfo.id == userId)
+            
+        elif orgId:
+            # 组织查询 - 获取组织下所有用户
+            from .org import fetch_users_by_orgId
+            users = fetch_users_by_orgId(orgId)
+            if not users:
+                return {"success": True, "data": {"userData": [], "totalRecords": 0, "pagination": {"currentPage": page, "pageSize": pageSize, "totalCount": 0, "totalPages": 0}}}
+            
+            user_ids = [int(user['id']) for user in users]
+            query = query.filter(UserInfo.id.in_(user_ids))
+            
+        else:
+            return {"success": False, "message": "缺少orgId或userId参数", "data": {"userData": [], "totalRecords": 0}}
+        
+        # 时间范围过滤
+        if startDate:
+            query = query.filter(UserInfo.create_time >= startDate)
+        if endDate:
+            query = query.filter(UserInfo.create_time <= endDate)
+        
+        # 状态过滤
+        if status:
+            query = query.filter(UserInfo.status == status)
+        
+        # 统计总数
+        total_count = query.count()
+        
+        # 排序
+        query = query.order_by(UserInfo.create_time.desc())
+        
+        # 分页处理
+        if pageSize is not None:
+            offset = (page - 1) * pageSize
+            query = query.offset(offset).limit(pageSize)
+        
+        if latest_only and not pageSize:
+            query = query.limit(1)
+        
+        # 执行查询
+        users = query.all()
+        
+        # 格式化数据
+        user_data_list = []
+        for user in users:
+            user_dict = {
+                'id': user.id,
+                'user_name': user.user_name,
+                'real_name': user.real_name,
+                'phone': user.phone,
+                'device_sn': user.device_sn,
+                'status': user.status,
+                'avatar': user.avatar,
+                'user_card_number': user.user_card_number,
+                'working_years': user.working_years,
+                'create_time': user.create_time.strftime('%Y-%m-%d %H:%M:%S') if user.create_time else None,
+                'update_time': user.update_time.strftime('%Y-%m-%d %H:%M:%S') if user.update_time else None,
+                'customer_id': user.customer_id,
+                'org_id': user.org_id,
+                'org_name': user.org_name,
+                'dept_name': user.org_name,  # 兼容字段
+                'dept_id': user.org_id
+            }
+            
+            # 如果需要包含详细信息
+            if include_details:
+                # 获取设备信息
+                device_info = DeviceInfo.query.filter_by(serial_number=user.device_sn).first()
+                if device_info:
+                    user_dict['device_info'] = {
+                        'status': device_info.status,
+                        'charging_status': device_info.charging_status,
+                        'wearable_status': device_info.wearable_status
+                    }
+            
+            user_data_list.append(user_dict)
+        
+        # 构建分页信息
+        pagination = {
+            'currentPage': page,
+            'pageSize': pageSize,
+            'totalCount': total_count,
+            'totalPages': (total_count + pageSize - 1) // pageSize if pageSize else 1
+        }
+        
+        # 构建结果
+        result = {
+            'success': True,
+            'data': {
+                'userData': user_data_list,
+                'totalRecords': len(user_data_list),
+                'pagination': pagination
+            },
+            'performance': {
+                'cached': False,
+                'response_time': round(time.time() - start_time, 3),
+                'query_time': round(time.time() - start_time, 3)
+            }
+        }
+        
+        # 缓存结果
+        redis.set_data(cache_key, json.dumps(result, default=str), 300)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"用户查询失败: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'data': {'userData': [], 'totalRecords': 0}
+        }
+
+class UserService:
+    """用户管理统一服务封装类 - 基于userId的查询和汇总"""
+    
+    def __init__(self):
+        self.redis = redis
+    
+    def get_users_by_common_params(self, customer_id: int = None, org_id: int = None,
+                                  user_id: int = None, start_date: str = None, 
+                                  end_date: str = None, status: str = None,
+                                  page: int = 1, page_size: int = None,
+                                  latest_only: bool = False, include_details: bool = False) -> Dict:
+        """
+        基于统一参数获取用户信息 - 整合现有get_all_user_data_optimized接口
+        
+        Args:
+            customer_id: 客户ID (映射到orgId)
+            org_id: 组织ID
+            user_id: 用户ID
+            start_date: 开始日期
+            end_date: 结束日期
+            status: 用户状态
+            page: 页码
+            page_size: 每页大小
+            latest_only: 是否只查询最新记录
+            include_details: 是否包含详细信息
+            
+        Returns:
+            用户信息字典
+        """
+        try:
+            # 参数映射和优先级处理
+            if user_id:
+                result = get_all_user_data_optimized(
+                    orgId=None,
+                    userId=user_id, 
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=latest_only,
+                    page=page,
+                    pageSize=page_size,
+                    status=status,
+                    include_details=include_details
+                )
+                logger.info(f"基于userId查询用户数据: user_id={user_id}")
+                
+            elif org_id:
+                # 组织查询 - 获取组织下所有用户
+                result = get_all_user_data_optimized(
+                    orgId=org_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=latest_only,
+                    page=page,
+                    pageSize=page_size,
+                    status=status,
+                    include_details=include_details
+                )
+                logger.info(f"基于orgId查询用户数据: org_id={org_id}")
+                
+            elif customer_id:
+                # 客户查询 - 将customer_id作为orgId处理
+                result = get_all_user_data_optimized(
+                    orgId=customer_id,
+                    userId=None,
+                    startDate=start_date,
+                    endDate=end_date,
+                    latest_only=latest_only,
+                    page=page,
+                    pageSize=page_size,
+                    status=status,
+                    include_details=include_details
+                )
+                logger.info(f"基于customerId查询用户数据: customer_id={customer_id}")
+                
+            else:
+                return {
+                    'success': False,
+                    'error': 'Missing required parameters: customer_id, org_id, or user_id',
+                    'data': {'users': [], 'total_count': 0}
+                }
+            
+            # 统一返回格式，兼容新的服务接口
+            if result.get('success', True):
+                user_data = result.get('data', {}).get('userData', [])
+                
+                unified_result = {
+                    'success': True,
+                    'data': {
+                        'users': user_data,
+                        'total_count': result.get('data', {}).get('totalRecords', len(user_data)),
+                        'pagination': result.get('data', {}).get('pagination', {}),
+                        'query_params': {
+                            'customer_id': customer_id,
+                            'org_id': org_id,
+                            'user_id': user_id,
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'status': status,
+                            'page': page,
+                            'page_size': page_size,
+                            'latest_only': latest_only,
+                            'include_details': include_details
+                        }
+                    },
+                    'performance': result.get('performance', {}),
+                    'from_cache': result.get('performance', {}).get('cached', False)
+                }
+                
+                return unified_result
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"用户查询失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'users': [], 'total_count': 0}
+            }
+    
+    def get_user_statistics_by_common_params(self, customer_id: int = None,
+                                           org_id: int = None, user_id: int = None,
+                                           start_date: str = None, end_date: str = None) -> Dict:
+        """基于统一参数获取用户统计"""
+        try:
+            cache_key = f"user_stats_v2:{customer_id}:{org_id}:{user_id}:{start_date}:{end_date}"
+            
+            # 缓存检查
+            cached = self.redis.get_data(cache_key)
+            if cached:
+                return json.loads(cached)
+            
+            # 获取用户数据
+            users_result = self.get_users_by_common_params(
+                customer_id, org_id, user_id, start_date, end_date
+            )
+            
+            if not users_result.get('success'):
+                return users_result
+            
+            users = users_result['data']['users']
+            
+            # 计算统计数据
+            total_users = len(users)
+            status_stats = {'active': 0, 'inactive': 0, 'suspended': 0}
+            device_stats = {'bound': 0, 'unbound': 0}
+            org_stats = {}
+            
+            for user in users:
+                # 状态统计
+                user_status = user.get('status', 'inactive')
+                if user_status == '1':
+                    status_stats['active'] += 1
+                elif user_status == '0':
+                    status_stats['inactive'] += 1
+                else:
+                    status_stats['suspended'] += 1
+                
+                # 设备绑定统计
+                if user.get('device_sn') and user.get('device_sn') != '-':
+                    device_stats['bound'] += 1
+                else:
+                    device_stats['unbound'] += 1
+                
+                # 按组织统计
+                org_name = user.get('org_name', '未知组织')
+                if org_name not in org_stats:
+                    org_stats[org_name] = {
+                        'total': 0,
+                        'active': 0,
+                        'device_bound': 0
+                    }
+                
+                org_stats[org_name]['total'] += 1
+                if user_status == '1':
+                    org_stats[org_name]['active'] += 1
+                if user.get('device_sn') and user.get('device_sn') != '-':
+                    org_stats[org_name]['device_bound'] += 1
+            
+            result = {
+                'success': True,
+                'data': {
+                    'overview': {
+                        'total_users': total_users,
+                        'status_stats': status_stats,
+                        'device_stats': device_stats,
+                        'active_rate': round(status_stats['active'] / total_users * 100, 2) if total_users > 0 else 0,
+                        'device_bound_rate': round(device_stats['bound'] / total_users * 100, 2) if total_users > 0 else 0
+                    },
+                    'org_statistics': org_stats,
+                    'query_params': {
+                        'customer_id': customer_id,
+                        'org_id': org_id,
+                        'user_id': user_id,
+                        'start_date': start_date,
+                        'end_date': end_date
+                    }
+                }
+            }
+            
+            # 缓存结果
+            self.redis.set_data(cache_key, json.dumps(result, default=str), 180)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"用户统计计算失败: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'data': {'overview': {}, 'org_statistics': {}}
+            }
+
+# 全局实例
+_user_service_instance = None
+
+def get_unified_user_service() -> UserService:
+    """获取统一用户服务实例"""
+    global _user_service_instance
+    if _user_service_instance is None:
+        _user_service_instance = UserService()
+    return _user_service_instance
+
+# 向后兼容的函数，供现有代码使用
+def get_users_unified(customer_id: int = None, org_id: int = None,
+                     user_id: int = None, start_date: str = None,
+                     end_date: str = None, status: str = None,
+                     page: int = 1, page_size: int = None,
+                     latest_only: bool = False, include_details: bool = False) -> Dict:
+    """统一的用户查询接口 - 整合现有get_all_user_data_optimized接口"""
+    service = get_unified_user_service()
+    return service.get_users_by_common_params(
+        customer_id, org_id, user_id, start_date, end_date, status,
+        page, page_size, latest_only, include_details
+    )
+
+def get_user_statistics_unified(customer_id: int = None, org_id: int = None,
+                               user_id: int = None, start_date: str = None,
+                               end_date: str = None) -> Dict:
+    """统一的用户统计接口"""
+    service = get_unified_user_service()
+    return service.get_user_statistics_by_common_params(customer_id, org_id, user_id, start_date, end_date)

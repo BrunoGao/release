@@ -41,9 +41,9 @@ public class TAlertActionLogBO extends TAlertActionLog {
     private List<Long> ids;
 
         /**
-     * 部门信息
+     * 组织ID
      */
-    private String departmentInfo;
+    private Long orgId;
 
     /**
      * 用户ID

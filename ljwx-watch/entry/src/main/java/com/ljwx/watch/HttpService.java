@@ -673,6 +673,9 @@ public class HttpService extends Ability {
                 commonEventJson.put("eventType", commonEventType);
                 commonEventJson.put("eventValue", commonEventValue);
                 commonEventJson.put("deviceSn", dataManager.getDeviceSn());
+                commonEventJson.put("customerId", dataManager.getCustomerId() != null ? dataManager.getCustomerId() : "0");
+                commonEventJson.put("orgId", dataManager.getOrgId() != null ? dataManager.getOrgId() : "");
+                commonEventJson.put("userId", dataManager.getUserId() != null ? dataManager.getUserId() : "");
                 commonEventJson.put("latitude", dataManager.getLatitude());
                 commonEventJson.put("longitude", dataManager.getLongitude());
                 commonEventJson.put("altitude", dataManager.getAltitude());

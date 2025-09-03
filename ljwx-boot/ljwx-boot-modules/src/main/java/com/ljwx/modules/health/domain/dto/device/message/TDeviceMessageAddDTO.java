@@ -39,7 +39,7 @@ import java.time.LocalDateTime;
 @Schema(name = "TDeviceMessageAddDTO", description = " 新增 DTO 对象")
 public class TDeviceMessageAddDTO implements Serializable {
 
-    private String departmentInfo;
+    private Long orgId;
 
     private String userName;
 

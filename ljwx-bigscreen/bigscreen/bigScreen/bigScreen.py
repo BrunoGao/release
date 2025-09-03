@@ -270,13 +270,8 @@ system_logger.info('实时统计API直接路由注册成功')
 # except ImportError as e:
 #     system_logger.warning(f'实时统计API蓝图导入失败: {e}')
 
-# 注册主路由蓝图
-try:
-    from .main_routes import main_bp
-    app.register_blueprint(main_bp)
-    system_logger.info('主路由模块注册成功')
-except ImportError as e:
-    system_logger.warning(f'主路由模块导入失败: {e}')
+# 主路由模块已删除，不再需要导入
+# 主路由功能已集成到其他模块中
 
 # 注册设备绑定蓝图
 try:

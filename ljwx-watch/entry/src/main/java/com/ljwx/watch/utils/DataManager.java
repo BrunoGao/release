@@ -190,6 +190,9 @@ public class DataManager {
 
     private int licenseKey;
     private String deviceSn;
+    private String customerId;
+    private String orgId;
+    private String userId;
     private String apiAuthorization;
     private String apiId;
 
@@ -1510,6 +1513,31 @@ public class DataManager {
 
     public void setUseBinaryProtocol(boolean useBinaryProtocol) {
         this.useBinaryProtocol = useBinaryProtocol;
+    }
+
+    // Customer ID, Org ID, User ID 的 getter 和 setter 方法
+    public String getCustomerId() {
+        return customerId;
+    }
+
+    public void setCustomerId(String customerId) {
+        this.customerId = customerId;
+    }
+
+    public String getOrgId() {
+        return orgId;
+    }
+
+    public void setOrgId(String orgId) {
+        this.orgId = orgId;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
 }

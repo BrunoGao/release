@@ -45,7 +45,7 @@ async function initColumns() {
   try {
     const params: Api.Customer.HealthDataConfigSearchParams = {
       customerId,
-      departmentInfo: searchParams.departmentInfo || null,
+      orgId: searchParams.orgId || null,
       page: 1,
       pageSize: 20
     };
@@ -68,8 +68,8 @@ async function initColumns() {
           align: 'center'
         },
         {
-          key: 'departmentInfo',
-          title: $t('page.health.data.info.departmentInfo'),
+          key: 'orgName',
+          title: $t('page.health.device.info.orgName'),
           align: 'center',
           width: 200
         },
@@ -294,7 +294,7 @@ const {
     page: 1,
     pageSize: 20,
     customerId,
-    departmentInfo: null,
+    orgId: null,
     userId: null,
     startDate,
     endDate
@@ -335,7 +335,7 @@ function exportExcel() {
   // 确保包含部门信息列
   const exportColumns = [
     {
-      key: 'departmentInfo',
+      key: 'orgId',
       title: '直属部门',
       width: 120
     },
@@ -387,7 +387,7 @@ function exportExcel() {
     if (col.key === 'sleepData') return '睡眠数据(小时)';
     if (col.key === 'workOutData') return '每日运动数据(分钟)';
     if (col.key === 'timestamp') return '时间';
-    if (col.key === 'departmentInfo') return '直属部门';
+    if (col.key === 'orgId') return '直属部门';
     return col.title;
   });
 
@@ -407,7 +407,7 @@ function exportExcel() {
           const v = item[col.key];
           return typeof v === 'object' && v !== null ? (v.tooltip ?? '') : (v ?? '');
         }
-        if (col.key === 'departmentInfo') return item.departmentInfo || '-';
+        if (col.key === 'orgId') return item.orgId || '-';
         return item[col.key] ?? '-';
       });
     });
@@ -454,7 +454,7 @@ function exportExcel() {
     })
     .replace(/[/\s:]/g, '');
 
-  const department = data.value[0]?.departmentInfo || '全部';
+  const department = data.value[0]?.orgId || '全部';
   const userName = data.value[0]?.userName || '全部';
   const fileName = `健康数据_${department}_${userName}_${timestamp}.xlsx`;
 
@@ -515,7 +515,7 @@ async function handleInitOptions() {
 
 // 监听部门变化，更新员工列表
 watch(
-  () => searchParams.departmentInfo,
+  () => searchParams.orgId,
   async newValue => {
     if (newValue) {
       const result = await handleBindUsersByOrgId(String(newValue));

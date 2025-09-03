@@ -50,9 +50,14 @@ public class TAlertInfoVO extends BaseVO {
     private String userName;
 
     /**
-     * 部门信息
+     * 组织ID
      */
-    private String departmentInfo;
+    private Long orgId;
+    
+    /**
+     * 组织名称
+     */
+    private String orgName;
 
     private String alertType;
 

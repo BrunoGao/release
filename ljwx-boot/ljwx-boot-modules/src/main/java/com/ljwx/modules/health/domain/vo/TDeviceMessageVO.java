@@ -47,7 +47,7 @@ public class TDeviceMessageVO extends BaseVO {
 
     private Long id;
 
-    private String departmentInfo;
+    private Long orgId;
 
     private String userId;
 

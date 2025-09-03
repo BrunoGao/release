@@ -32,6 +32,8 @@ import com.ljwx.modules.health.domain.entity.TDeviceInfo;
 import com.ljwx.modules.health.domain.vo.TDeviceInfoVO;
 import com.ljwx.modules.health.facade.ITDeviceInfoFacade;
 import com.ljwx.modules.health.service.ITDeviceInfoService;
+import com.ljwx.modules.system.service.ISysOrgUnitsService;
+import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -52,6 +54,9 @@ public class TDeviceInfoFacadeImpl implements ITDeviceInfoFacade {
 
     @NonNull
     private ITDeviceInfoService tDeviceInfoService;
+    
+    @NonNull
+    private ISysOrgUnitsService sysOrgUnitsService;
 
     @Override
     public RPage<TDeviceInfoVO> listTDeviceInfoPage(PageQuery pageQuery, TDeviceInfoSearchDTO tDeviceInfoSearchDTO) {
@@ -59,17 +64,38 @@ public class TDeviceInfoFacadeImpl implements ITDeviceInfoFacade {
        // #确保userId正确转换为userIdStr字段
        tDeviceInfoBO.setUserIdStr(tDeviceInfoSearchDTO.getUserId());
        
-       // #处理前端参数映射: orgId -> departmentInfo
-       String departmentInfo = tDeviceInfoSearchDTO.getDepartmentInfo();
-       if (departmentInfo == null && tDeviceInfoSearchDTO.getOrgId() != null) {
-           departmentInfo = tDeviceInfoSearchDTO.getOrgId();
+       // #处理前端参数映射: orgId 字符串转Long
+       if (tDeviceInfoSearchDTO.getOrgId() != null && !tDeviceInfoSearchDTO.getOrgId().isEmpty()) {
+           try {
+               tDeviceInfoBO.setOrgId(Long.parseLong(tDeviceInfoSearchDTO.getOrgId()));
+           } catch (NumberFormatException e) {
+               tDeviceInfoBO.setOrgId(null);
+           }
        }
-       tDeviceInfoBO.setDepartmentInfo(departmentInfo);
        
        System.out.println("🔄 参数转换 - userId: " + tDeviceInfoSearchDTO.getUserId() + " -> userIdStr: " + tDeviceInfoBO.getUserIdStr());
-       System.out.println("🔄 参数转换 - orgId: " + tDeviceInfoSearchDTO.getOrgId() + ", departmentInfo: " + tDeviceInfoSearchDTO.getDepartmentInfo() + " -> " + departmentInfo);
+       System.out.println("🔄 参数转换 - orgId: " + tDeviceInfoSearchDTO.getOrgId() + " -> " + tDeviceInfoBO.getOrgId());
         IPage<TDeviceInfo> tDeviceInfoIPage = tDeviceInfoService.listTDeviceInfoPage(pageQuery, tDeviceInfoBO);
-        return RPage.build(tDeviceInfoIPage, TDeviceInfoVO::new);
+        
+        // Convert to VO with orgName mapping
+        IPage<TDeviceInfoVO> voPage = tDeviceInfoIPage.convert(entity -> {
+            TDeviceInfoVO vo = CglibUtil.convertObj(entity, TDeviceInfoVO::new);
+            // Set orgName from orgId lookup
+            if (entity.getOrgId() != null) {
+                try {
+                    SysOrgUnits orgUnit = sysOrgUnitsService.getById(entity.getOrgId());
+                    String orgName = orgUnit != null ? orgUnit.getName() : null;
+                    vo.setOrgName(orgName);
+                    System.out.println("🔄 TDeviceInfo orgId->orgName: " + entity.getOrgId() + " -> " + orgName);
+                } catch (Exception e) {
+                    vo.setOrgName(null);
+                    System.out.println("❌ TDeviceInfo orgName lookup failed for orgId: " + entity.getOrgId() + ", error: " + e.getMessage());
+                }
+            }
+            return vo;
+        });
+        
+        return RPage.build(voPage);
     }
 
     @Override

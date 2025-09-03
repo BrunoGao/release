@@ -162,8 +162,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center'
     },
     {
-      key: 'departmentInfo' as any as any,
-      title: '部门信息',
+      key: 'orgName' as any as any,
+      title: $t('page.health.device.info.orgName'),
       align: 'center',
       width: 200
     },

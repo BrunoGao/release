@@ -54,8 +54,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center'
     },
     {
-      key: 'departmentInfo',
-      title: $t('page.health.data.info.departmentInfo'),
+      key: 'orgName',
+      title: $t('page.health.device.info.orgName'),
       align: 'center',
       width: 200
     },

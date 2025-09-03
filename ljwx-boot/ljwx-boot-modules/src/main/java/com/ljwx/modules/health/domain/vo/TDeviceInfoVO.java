@@ -43,7 +43,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Schema(name = "TDeviceInfoVO", description = " VO 对象")
 public class TDeviceInfoVO extends BaseVO {
-    private String departmentInfo;
+    private Long orgId;
+    
+    private String orgName;
 
     private String userName;
 

@@ -56,9 +56,9 @@ public class TDeviceUserBO extends TDeviceUser {
     private String status;
 
             /**
-     * 部门信息
+     * 组织ID
      */
-    private String departmentInfo;
+    private Long orgId;
 
     /**
      * 用户ID

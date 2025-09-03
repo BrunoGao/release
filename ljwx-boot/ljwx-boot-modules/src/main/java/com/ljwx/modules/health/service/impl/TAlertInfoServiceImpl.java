@@ -71,11 +71,11 @@ public class TAlertInfoServiceImpl extends ServiceImpl<TAlertInfoMapper, TAlertI
                        .eq(TAlertInfo::getCustomerId, tTAlertInfoBO.getCustomerId())
             );
         }
-        if (ObjectUtils.isNotEmpty(tTAlertInfoBO.getUserId()) || ObjectUtils.isNotEmpty(tTAlertInfoBO.getDepartmentInfo())) {
+        if (ObjectUtils.isNotEmpty(tTAlertInfoBO.getUserId()) || ObjectUtils.isNotEmpty(tTAlertInfoBO.getOrgId())) {
             // 获取设备序列号列表
             List<String> deviceSnList = deviceUserMappingService.getDeviceSnList(
                 tTAlertInfoBO.getUserId() != null ? tTAlertInfoBO.getUserId().toString() : null,
-                tTAlertInfoBO.getDepartmentInfo()
+                tTAlertInfoBO.getOrgId() != null ? String.valueOf(tTAlertInfoBO.getOrgId()) : null
             );
             
             // 如果设备列表为空，直接返回空结果
@@ -104,7 +104,7 @@ public class TAlertInfoServiceImpl extends ServiceImpl<TAlertInfoMapper, TAlertI
                 IDeviceUserMappingService.UserInfo userInfo = deviceUserMap.get(record.getDeviceSn());
                 if (userInfo != null) {
                     record.setUserName(userInfo.getUserName());
-                    record.setDepartmentInfo(userInfo.getDepartmentName());
+                    // Note: departmentInfo field removed as entity only has orgId
                 }
             }
         });

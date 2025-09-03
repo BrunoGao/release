@@ -658,6 +658,52 @@ class OrgInfo(db.Model):
     is_deleted = Column(db.Boolean, default=False, nullable=True, comment='是否删除(0:否,1:是)')
     customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，0表示全局组织，顶级组织ID表示租户')
 
+class OrgClosure(db.Model):
+    """组织架构闭包表 - 用于高效层级查询"""
+    __tablename__ = 'sys_org_closure'
+    
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True, comment='主键')
+    ancestor_id = db.Column(db.BigInteger, nullable=False, comment='祖先组织ID')
+    descendant_id = db.Column(db.BigInteger, nullable=False, comment='后代组织ID')
+    depth = db.Column(db.Integer, default=0, nullable=False, comment='层级深度，0表示自己')
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID')
+    create_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=True, comment='创建时间')
+    update_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True, comment='更新时间')
+    
+    # 索引提示
+    __table_args__ = (
+        db.Index('uk_closure_ancestor_descendant', 'ancestor_id', 'descendant_id', 'customer_id', unique=True),
+        db.Index('idx_closure_ancestor', 'ancestor_id', 'customer_id'),
+        db.Index('idx_closure_descendant', 'descendant_id', 'customer_id'),
+        db.Index('idx_closure_depth', 'depth'),
+        db.Index('idx_closure_customer', 'customer_id'),
+        {'comment': '组织架构闭包表 - 用于高效层级查询'}
+    )
+
+class OrgManagerCache(db.Model):
+    """组织管理员缓存表 - 用于快速查找部门管理员"""
+    __tablename__ = 'sys_org_manager_cache'
+    
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True, comment='主键')
+    org_id = db.Column(db.BigInteger, nullable=False, comment='组织ID')
+    user_id = db.Column(db.BigInteger, nullable=False, comment='用户ID')
+    user_name = db.Column(db.String(50), nullable=False, comment='用户姓名')
+    role_type = db.Column(db.String(20), nullable=False, comment='角色类型：manager-部门经理，director-部门主管，admin-管理员')
+    org_level = db.Column(db.Integer, default=0, nullable=False, comment='组织层级')
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID')
+    is_active = db.Column(db.Boolean, default=True, nullable=True, comment='是否激活')
+    create_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=True, comment='创建时间')
+    update_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True, comment='更新时间')
+    
+    # 索引提示
+    __table_args__ = (
+        db.Index('uk_manager_org_user_role', 'org_id', 'user_id', 'role_type', 'customer_id', unique=True),
+        db.Index('idx_manager_org', 'org_id', 'customer_id'),
+        db.Index('idx_manager_user', 'user_id', 'customer_id'),
+        db.Index('idx_manager_role', 'role_type', 'customer_id'),
+        {'comment': '组织管理员缓存表 - 用于快速查找部门管理员'}
+    )
+
     __table_args__ = {'comment': '组织/部门/子部门管理'}
 
 class HealthSummaryDaily(db.Model):
