@@ -3625,3 +3625,15 @@
 2025-09-01 11:45:17,270 [WARNING] system: 监控指标模块导入失败: No module named 'prometheus_client'
 2025-09-01 11:45:17,270 [INFO] system: 当前Python路径: ['/Users/brunogao/work/codes/health/ljwx/yunxiang/ljwx-bigscreen/bigscreen', '/Users/brunogao/work/codes/health/ljwx/yunxiang/ljwx-bigscreen/bigscreen', '']
 2025-09-01 11:45:17,271 [INFO] system: 告警webhook模块初始化成功
+2025-09-04 22:09:37,640 [INFO] system: ✅ 健康系统API模块加载成功
+2025-09-04 22:09:37,642 [INFO] system: 实时统计API直接路由注册成功
+2025-09-04 22:09:37,662 [INFO] system: 设备绑定模块注册成功
+2025-09-04 22:09:37,663 [WARNING] system: 监控指标模块导入失败: No module named 'prometheus_client'
+2025-09-04 22:09:37,663 [INFO] system: 当前Python路径: ['/Users/bg/work/codes/93/93_release/ljwx-bigscreen/bigscreen', '', '/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python313.zip']
+2025-09-04 22:09:37,664 [INFO] system: 告警webhook模块初始化成功
+2025-09-04 22:25:58,282 [INFO] system: ✅ 健康系统API模块加载成功
+2025-09-04 22:25:58,283 [INFO] system: 实时统计API直接路由注册成功
+2025-09-04 22:25:58,308 [INFO] system: 设备绑定模块注册成功
+2025-09-04 22:25:58,309 [WARNING] system: 监控指标模块导入失败: No module named 'prometheus_client'
+2025-09-04 22:25:58,309 [INFO] system: 当前Python路径: ['/Users/bg/work/codes/93/93_release/ljwx-bigscreen/bigscreen', '', '/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python313.zip']
+2025-09-04 22:25:58,312 [INFO] system: 告警webhook模块初始化成功

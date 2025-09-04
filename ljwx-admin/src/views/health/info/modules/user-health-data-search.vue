@@ -28,14 +28,15 @@ function reset() {
 function search() {
   emit('search');
 }
+
 </script>
 
 <template>
-  <NCard :bordered="false" size="small" class="card-wrapper">
-    <NForm :model="model" label-placement="left" :show-feedback="false" :label-width="80">
-      <NGrid responsive="screen" item-responsive :x-gap="8" :y-gap="8" cols="1 s:1 m:5 l:5 xl:5 2xl:5">
+  <NCard :bordered="false" size="small" class="card-wrapper rounded p-4 shadow-sm">
+    <NForm :model="model" label-placement="left" :show-feedback="false" :label-width="90" class="gap-8px">
+      <NGrid responsive="screen" item-responsive :x-gap="12" :y-gap="8" cols="1 s:1 m:5 l:5 xl:5 2xl:5">
         <NGridItem span="4">
-          <NGrid responsive="screen" item-responsive :x-gap="8">
+          <NGrid responsive="screen" item-responsive :x-gap="12">
             <NFormItemGi span="24 s:8 m:12" :label="$t('page.health.device.message.departmentName')" path="orgId">
               <NTreeSelect
                 v-model:value="model.orgId"
@@ -56,7 +57,7 @@ function search() {
                 size="small"
                 clearable
                 :placeholder="$t('page.health.device.message.form.userName')"
-                :options="userOptions"
+                :options="[{ label: '全部', value: 'all' }, ...props.userOptions]"
               />
             </NFormItemGi>
             <NFormItemGi span="24 s:8 m:6" :label="$t('page.health.data.info.startDate')" path="startDate">

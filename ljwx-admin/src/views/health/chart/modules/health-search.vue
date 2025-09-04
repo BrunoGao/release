@@ -115,7 +115,7 @@ onMounted(() => {
             v-model:value="model.userId"
             size="small"
             :placeholder="$t('page.health.device.message.form.userName')"
-            :options="props.userOptions"
+            :options="[{ label: '全部', value: 'all' }, ...props.userOptions]"
           />
         </NFormItemGi>
         <NFormItemGi span="24 s:12 m:6" :label="$t('page.health.chart.dataType')" path="dataType" class="pr-24px">

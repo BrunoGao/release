@@ -150,7 +150,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     pageSize: 20,
     alertType: null,
     customerId,
-    orgId: null,
+    orgId: customerId,
     userId: null
   },
   columns: () => [

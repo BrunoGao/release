@@ -691,11 +691,13 @@ def received_messages(deviceSn=None):
 @app.route("/get_departments_by_orgId", methods=['GET'])
 def get_departments_by_orgId():
     orgId = request.args.get('orgId')
-    return fetch_departments_by_orgId(orgId)
+    customerId = request.args.get('customerId')
+    return fetch_departments_by_orgId(orgId, customerId)
 @app.route("/fetch_users", methods=['GET'])
 def fetch_users():
     orgId = request.args.get('orgId')
-    return fetch_users_by_orgId(orgId)
+    customerId = request.args.get('customerId')
+    return fetch_users_by_orgId(orgId, customerId)
 @app.route("/get_users_by_orgIdAndUserId", methods=['GET'])
 def get_users_by_orgIdAndUserId():
     orgId = request.args.get('orgId')
@@ -1200,7 +1202,8 @@ def fetch_health_data_by_id(id=None):
 def get_departments(orgId=None):
     if orgId is None:
         orgId = request.args.get('orgId')
-    return fetch_departments(orgId)
+    customerId = request.args.get('customerId')
+    return fetch_departments(orgId, customerId)
 
 @app.route('/generateAlertJson', methods=['GET'])
 def generate_alert_json(customerId=None,userId=None,severityLevel=None):

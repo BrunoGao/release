@@ -17,7 +17,7 @@ logging.basicConfig(filename='org.log', level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 def fetch_departments_by_orgId(org_id, customer_id=None):
-    """递归获取组织下的所有部门信息，包括当前组织，支持多租户隔离 - 统一优化版本"""
+    """递归获取组织下的所有部门信息，包括当前组织，支持多租户隔离 - 直接使用Legacy版本"""
     try:
         # 如果没有提供customer_id，尝试从请求获取
         if customer_id is None:
@@ -28,26 +28,10 @@ def fetch_departments_by_orgId(org_id, customer_id=None):
                 customer_id = 0
                 logger.warning("无Flask上下文，使用默认customer_id=0")
         
-        # 🔧 修复：增加统一服务可用性检查
-        org_service = get_unified_org_service()
-        if org_service is None:
-            logger.warning(f"统一组织服务不可用，回退到legacy方法")
-            return fetch_departments_by_orgId_legacy(org_id, customer_id)
-        
-        try:
-            result = org_service.get_org_tree(org_id, customer_id)
-            
-            # 🔧 修复：验证结果有效性
-            if not result or not result.get('success'):
-                logger.warning(f"统一服务返回无效结果，回退到legacy方法")
-                return fetch_departments_by_orgId_legacy(org_id, customer_id)
-                
-            logger.info(f"使用统一服务成功获取组织{org_id}的部门树")
-            return result
-            
-        except Exception as service_error:
-            logger.error(f"统一服务调用失败: {service_error}，回退到legacy方法")
-            return fetch_departments_by_orgId_legacy(org_id, customer_id)
+        # 🔧 临时修复：直接使用Legacy查询，绕过闭包表优化
+        # 闭包表优化可能存在数据同步问题或外部依赖问题
+        logger.info(f"直接使用Legacy查询绕过闭包表优化，org_id={org_id}, customer_id={customer_id}")
+        return fetch_departments_by_orgId_legacy(org_id, customer_id)
             
     except Exception as e:
         logger.error(f"Error in fetch_departments_by_orgId: {str(e)}")
@@ -423,10 +407,28 @@ def getCustomers():
         logger.error(f"Error in getCustomers: {str(e)}")
         return []
 
-def fetch_departments(orgId):
+def fetch_departments(orgId, customerId=None):
     try:
+        # 🔧 修复：如果orgId为None但有customerId，则查找该客户的根组织
+        if orgId is None and customerId:
+            # 查找customer_id对应的根组织(parent_id为空或为0的组织)
+            root_orgs = db.session.query(OrgInfo)\
+                .filter(OrgInfo.customer_id == customerId)\
+                .filter(OrgInfo.is_deleted == 0)\
+                .filter(db.or_(OrgInfo.parent_id.is_(None), OrgInfo.parent_id == 0))\
+                .all()
+            
+            if root_orgs:
+                orgId = root_orgs[0].id  # 使用第一个根组织
+                logger.info(f"自动找到customerId {customerId} 的根组织ID: {orgId}")
+            else:
+                return {
+                    'success': False,
+                    'error': f'No root organization found for customer: {customerId}'
+                }
+        
         # 直接使用递归获取的部门数据
-        response = fetch_departments_by_orgId(orgId)
+        response = fetch_departments_by_orgId(orgId, customerId)
         if not response['success']:
             return response
 

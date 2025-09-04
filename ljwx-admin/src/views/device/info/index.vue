@@ -266,7 +266,7 @@ async function handleInitOptions() {
 
 // 监听部门变化，更新员工列表
 watch(
-  () => searchParams.departmentInfo,
+  () => searchParams.orgId,
   async newValue => {
     if (newValue) {
       const result = await handleBindUsersByOrgId(String(newValue));

@@ -60,7 +60,7 @@ export async function handleBindDevice(customerId: number): Promise<number> {
 
     if (!error && Array.isArray(result)) {
       const options = [
-        { label: '所有', value: 'all' },
+  
         ...result.map(device => ({
           label: String(device || ''),
           value: String(device || '')
@@ -93,7 +93,7 @@ export async function handleBindUsers(departmentId: number): Promise<{ label: st
 
     if (result && typeof result === 'object' && result !== null) {
       const options = [
-        { label: '所有', value: 'all' },
+     
         ...Object.entries(result).map(([id, name]) => ({
           label: String(name || ''),
           value: String(id || '')
@@ -123,7 +123,7 @@ export async function handleBindUsersByOrgId(orgId: string): Promise<{ label: st
 
     if (result?.userMap && Object.keys(result.userMap).length > 0) {
       const options = [
-        { label: '所有', value: 'all' },
+  
         ...Object.entries(result.userMap).map(([id, name]) => ({
           label: String(name || ''),
           value: String(id || '')
