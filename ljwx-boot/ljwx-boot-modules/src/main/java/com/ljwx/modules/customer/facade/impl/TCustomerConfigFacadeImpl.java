@@ -131,14 +131,15 @@ public class TCustomerConfigFacadeImpl implements ITCustomerConfigFacade {
     }
     
     /**
-     * 同步租户配置到 sys_org_units 表并发布事件
+     * 同步租户配置到 sys_org_units 表，仅在CREATE操作时发布事件
      */
     private void syncToSysOrgUnits(Long customerId, String customerName, String operationType) {
         try {
             log.info("同步租户配置到sys_org_units: customerId={}, customerName={}, operation={}", 
                     customerId, customerName, operationType);
             
-            SysOrgUnits orgUnit;
+            SysOrgUnits orgUnit = null;
+            boolean shouldPublishEvent = false;
             
             if ("DELETE".equals(operationType)) {
                 // 删除操作：标记为删除
@@ -162,8 +163,9 @@ public class TCustomerConfigFacadeImpl implements ITCustomerConfigFacade {
                         .customerId(customerId)
                         .build();
                 }
-            } else {
-                // 新增或更新操作
+                shouldPublishEvent = true; // 删除操作需要发布事件
+            } else if ("CREATE".equals(operationType)) {
+                // 新增操作
                 orgUnit = sysOrgUnitsService.getById(customerId);
                 if (orgUnit == null) {
                     // 创建新的组织单元（顶级租户）
@@ -181,20 +183,29 @@ public class TCustomerConfigFacadeImpl implements ITCustomerConfigFacade {
                         .customerId(customerId)
                         .build();
                     sysOrgUnitsService.save(orgUnit);
-                } else if (customerName != null && !customerName.equals(orgUnit.getName())) {
+                    shouldPublishEvent = true; // 新增操作需要发布事件
+                }
+            } else if ("UPDATE".equals(operationType)) {
+                // 更新操作：只同步到sys_org_units，不触发OrgUnitsChangeListener
+                orgUnit = sysOrgUnitsService.getById(customerId);
+                if (orgUnit != null && customerName != null && !customerName.equals(orgUnit.getName())) {
                     // 更新组织单元名称
                     orgUnit.setName(customerName);
                     orgUnit.setDescription("租户: " + customerName);
                     orgUnit.setIsDeleted(0); // 确保不是删除状态
                     sysOrgUnitsService.updateById(orgUnit);
                 }
+                // UPDATE操作不发布事件，避免触发OrgUnitsChangeListener
+                log.info("租户信息更新完成，未发布事件避免触发监听器: customerId={}", customerId);
+                return;
             }
             
-            // 发布组织变更事件，触发 OrgUnitsChangeListener
-            SysOrgUnitsChangeEvent event = new SysOrgUnitsChangeEvent(this, orgUnit, operationType);
-            eventPublisher.publishEvent(event);
-            
-            log.info("成功发布组织变更事件: customerId={}, operation={}", customerId, operationType);
+            // 仅在需要时发布组织变更事件
+            if (shouldPublishEvent && orgUnit != null) {
+                SysOrgUnitsChangeEvent event = new SysOrgUnitsChangeEvent(this, orgUnit, operationType);
+                eventPublisher.publishEvent(event);
+                log.info("成功发布组织变更事件: customerId={}, operation={}", customerId, operationType);
+            }
             
         } catch (Exception e) {
             log.error("同步租户配置到sys_org_units失败: customerId={}, operation={}", customerId, operationType, e);
