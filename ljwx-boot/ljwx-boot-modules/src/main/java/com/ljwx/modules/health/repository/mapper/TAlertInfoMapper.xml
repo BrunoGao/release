@@ -34,7 +34,13 @@
         <result column="assigned_user_id" property="assignedUserId"/>
         <result column="id" property="id"/>
         <result column="health_id" property="healthId"/>
-        <result column="is_deleted" property="isDeleted"/>
+        <result column="user_id" property="userId"/>
+        <result column="org_id" property="orgId"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="user_name" property="userName"/>
+        <result column="level" property="level"/>
+        <result column="occur_at" property="occurAt"/>
+        <result column="is_deleted" property="deleted"/>
         <result column="create_user" property="createUser"/>
         <result column="create_user_id" property="createUserId"/>
         <result column="create_time" property="createTime"/>
@@ -59,7 +65,56 @@
         alert_timestamp,
         alert_desc,
         severity_level,
-        alert_status, assigned_user, assigned_user_id, health_id
+        alert_status, assigned_user, assigned_user_id, health_id, user_id, org_id, customer_id, level, occur_at
     </sql>
+
+    <!-- 查询告警信息并关联用户名 -->
+    <select id="listAlertInfoWithUserName" resultMap="TAlertInfoResultMap">
+        SELECT
+            a.id,
+            a.rule_id,
+            a.alert_type,
+            a.device_sn,
+            a.alert_timestamp,
+            a.alert_desc,
+            a.severity_level,
+            a.alert_status,
+            a.assigned_user,
+            a.assigned_user_id,
+            a.health_id,
+            a.user_id,
+            a.org_id,
+            a.customer_id,
+            a.level,
+            a.occur_at,
+            a.is_deleted,
+            a.create_user,
+            a.create_user_id,
+            a.create_time,
+            a.update_user,
+            a.update_user_id,
+            a.update_time,
+            u.user_name
+        FROM
+            t_alert_info a
+        LEFT JOIN sys_user u ON a.user_id = u.id
+        WHERE a.is_deleted = 0
+        <if test="bo.customerId != null and bo.customerId != 0">
+            AND (a.customer_id = 0 OR a.customer_id = #{bo.customerId})
+        </if>
+        <if test="bo.userId != null">
+            AND a.user_id = #{bo.userId}
+        </if>
+        <if test="bo.orgId != null and bo.orgId != 0">
+            AND a.org_id = #{bo.orgId}
+        </if>
+        <if test="bo.alertType != null and bo.alertType != ''">
+            AND a.alert_type = #{bo.alertType}
+        </if>
+        <if test="bo.alertStatus != null and bo.alertStatus != ''">
+            AND a.alert_status = #{bo.alertStatus}
+        </if>
+        ORDER BY a.alert_timestamp DESC
+    </select>
 
 </mapper>

@@ -31,6 +31,12 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  * @CreateTime 2024-10-27 - 23:00:41
  */
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.ljwx.modules.health.domain.bo.TAlertInfoBO;
+import org.apache.ibatis.annotations.Param;
+
 public interface TAlertInfoMapper extends BaseMapper<TAlertInfo> {
+
+    IPage<TAlertInfo> listAlertInfoWithUserName(IPage<TAlertInfo> page, @Param("bo") TAlertInfoBO tAlertInfoBO);
 
 }

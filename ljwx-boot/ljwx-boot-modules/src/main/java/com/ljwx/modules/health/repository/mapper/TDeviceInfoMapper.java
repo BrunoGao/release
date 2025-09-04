@@ -39,5 +39,5 @@ import java.util.List;
 public interface TDeviceInfoMapper extends BaseMapper<TDeviceInfo> {
 
 
-    List<TDeviceInfo> listDeviceInfoWithUserName(IPage<TDeviceInfo> page, @Param("bo") TDeviceInfoBO tDeviceInfoBO);
+    IPage<TDeviceInfo> listDeviceInfoWithUserName(IPage<TDeviceInfo> page, @Param("bo") TDeviceInfoBO tDeviceInfoBO);
 }
