@@ -32,8 +32,13 @@ import com.ljwx.modules.customer.domain.entity.TCustomerConfig;
 import com.ljwx.modules.customer.domain.vo.TCustomerConfigVO;
 import com.ljwx.modules.customer.facade.ITCustomerConfigFacade;
 import com.ljwx.modules.customer.service.ITCustomerConfigService;
+import com.ljwx.modules.system.domain.entity.SysOrgUnits;
+import com.ljwx.modules.system.event.SysOrgUnitsChangeEvent;
+import com.ljwx.modules.system.service.ISysOrgUnitsService;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,12 +51,19 @@ import org.springframework.transaction.annotation.Transactional;
  * @CreateTime 2024-12-29 - 15:33:30
  */
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TCustomerConfigFacadeImpl implements ITCustomerConfigFacade {
 
     @NonNull
     private ITCustomerConfigService tCustomerConfigService;
+    
+    @NonNull
+    private ISysOrgUnitsService sysOrgUnitsService;
+    
+    @NonNull
+    private ApplicationEventPublisher eventPublisher;
 
     @Override
     public RPage<TCustomerConfigVO> listTCustomerConfigPage(PageQuery pageQuery, TCustomerConfigSearchDTO tCustomerConfigSearchDTO) {
@@ -76,21 +88,118 @@ public class TCustomerConfigFacadeImpl implements ITCustomerConfigFacade {
             tCustomerConfigBO.setIsSupportLicense(tCustomerConfigAddDTO.getSupportLicense());
         }
         
-        return tCustomerConfigService.save(tCustomerConfigBO);
+        boolean result = tCustomerConfigService.save(tCustomerConfigBO);
+        
+        if (result && tCustomerConfigBO.getId() != null) {
+            // 同步到 sys_org_units 表
+            syncToSysOrgUnits(tCustomerConfigBO.getId(), tCustomerConfigBO.getCustomerName(), "CREATE");
+        }
+        
+        return result;
     }
 
     @Override
     @Transactional
     public boolean update(TCustomerConfigUpdateDTO tCustomerConfigUpdateDTO) {
         TCustomerConfigBO tCustomerConfigBO = CglibUtil.convertObj(tCustomerConfigUpdateDTO, TCustomerConfigBO::new);
-        return tCustomerConfigService.updateById(tCustomerConfigBO);
+        
+        // DTO中已经是isSupportLicense字段，无需特殊映射
+        
+        boolean result = tCustomerConfigService.updateById(tCustomerConfigBO);
+        
+        if (result && tCustomerConfigBO.getId() != null) {
+            // 同步到 sys_org_units 表
+            syncToSysOrgUnits(tCustomerConfigBO.getId(), tCustomerConfigBO.getCustomerName(), "UPDATE");
+        }
+        
+        return result;
     }
 
     @Override
     @Transactional
     public boolean batchDelete(TCustomerConfigDeleteDTO tCustomerConfigDeleteDTO) {
         TCustomerConfigBO tCustomerConfigBO = CglibUtil.convertObj(tCustomerConfigDeleteDTO, TCustomerConfigBO::new);
+        
+        // 在删除前先同步到 sys_org_units
+        if (tCustomerConfigBO.getIds() != null) {
+            for (Long id : tCustomerConfigBO.getIds()) {
+                syncToSysOrgUnits(id, null, "DELETE");
+            }
+        }
+        
         return tCustomerConfigService.removeBatchByIds(tCustomerConfigBO.getIds(), true);
+    }
+    
+    /**
+     * 同步租户配置到 sys_org_units 表并发布事件
+     */
+    private void syncToSysOrgUnits(Long customerId, String customerName, String operationType) {
+        try {
+            log.info("同步租户配置到sys_org_units: customerId={}, customerName={}, operation={}", 
+                    customerId, customerName, operationType);
+            
+            SysOrgUnits orgUnit;
+            
+            if ("DELETE".equals(operationType)) {
+                // 删除操作：标记为删除
+                orgUnit = sysOrgUnitsService.getById(customerId);
+                if (orgUnit != null) {
+                    orgUnit.setIsDeleted(1);
+                    sysOrgUnitsService.updateById(orgUnit);
+                } else {
+                    // 创建一个删除标记的组织单元
+                    orgUnit = SysOrgUnits.builder()
+                        .id(customerId)
+                        .parentId(0L)
+                        .name("已删除租户")
+                        .code("deleted_" + customerId)
+                        .level(1)
+                        .ancestors("0")
+                        .description("已删除的租户")
+                        .sort(999)
+                        .status("0")
+                        .isDeleted(1)
+                        .customerId(customerId)
+                        .build();
+                }
+            } else {
+                // 新增或更新操作
+                orgUnit = sysOrgUnitsService.getById(customerId);
+                if (orgUnit == null) {
+                    // 创建新的组织单元（顶级租户）
+                    orgUnit = SysOrgUnits.builder()
+                        .id(customerId)
+                        .parentId(0L) // 顶级租户的父ID为0
+                        .name(customerName)
+                        .code("tenant_" + customerId)
+                        .level(1) // 顶级租户为第一级
+                        .ancestors("0") // 祖先路径为"0"
+                        .description("租户: " + customerName)
+                        .sort(1)
+                        .status("1") // 启用状态
+                        .isDeleted(0)
+                        .customerId(customerId)
+                        .build();
+                    sysOrgUnitsService.save(orgUnit);
+                } else if (customerName != null && !customerName.equals(orgUnit.getName())) {
+                    // 更新组织单元名称
+                    orgUnit.setName(customerName);
+                    orgUnit.setDescription("租户: " + customerName);
+                    orgUnit.setIsDeleted(0); // 确保不是删除状态
+                    sysOrgUnitsService.updateById(orgUnit);
+                }
+            }
+            
+            // 发布组织变更事件，触发 OrgUnitsChangeListener
+            SysOrgUnitsChangeEvent event = new SysOrgUnitsChangeEvent(this, orgUnit, operationType);
+            eventPublisher.publishEvent(event);
+            
+            log.info("成功发布组织变更事件: customerId={}, operation={}", customerId, operationType);
+            
+        } catch (Exception e) {
+            log.error("同步租户配置到sys_org_units失败: customerId={}, operation={}", customerId, operationType, e);
+            // 不抛出异常，避免影响主业务流程
+        }
     }
 
 }
