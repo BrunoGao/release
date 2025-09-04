@@ -39,6 +39,7 @@
         <result column="update_user_id" property="updateUserId"/>
         <result column="update_time" property="updateTime"/>
         <result column="is_deleted" property="deleted"/>
+        <result column="customer_id" property="customerId"/>
     </resultMap>
 
     <!-- 通用查询结果列 -->
@@ -58,7 +59,8 @@
         status,
         weight,
         is_deleted,
-        org_id
+        org_id,
+        customer_id
     </sql>
 
 </mapper>

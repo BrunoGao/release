@@ -48,4 +48,7 @@ public class SysPositionAddDTO implements Serializable {
 
     @Schema(description = "权重")
     private BigDecimal weight;
+
+    @Schema(description = "租户ID")
+    private Long customerId;
 }

@@ -13,7 +13,7 @@ MYSQL_HOST = os.getenv('MYSQL_HOST', 'ljwx-mysql')  #统一使用ljwx-mysql
 MYSQL_PORT = int(os.getenv('MYSQL_PORT', 3306))
 MYSQL_USER = os.getenv('MYSQL_USER', 'root')
 MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', 'Ljwx2024!@#')  #正确密码
-MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'lj-06')  #正确数据库名
+MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'ljwx')  #正确数据库名
 
 # Redis configuration
 REDIS_HOST = os.getenv('REDIS_HOST', 'ljwx-redis')  #统一使用ljwx-redis

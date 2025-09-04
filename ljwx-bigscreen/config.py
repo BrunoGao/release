@@ -13,7 +13,7 @@ MYSQL_HOST = os.getenv('MYSQL_HOST', 'mysql' if IS_DOCKER else '127.0.0.1')
 MYSQL_PORT = int(os.getenv('MYSQL_PORT', 3306))
 MYSQL_USER = os.getenv('MYSQL_USER', 'root')
 MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '123456')
-MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'lj-06')
+MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'ljwx')
 
 # Redis configuration
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis' if IS_DOCKER else '127.0.0.1')
