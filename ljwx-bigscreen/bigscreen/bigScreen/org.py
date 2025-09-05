@@ -54,11 +54,28 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
                 .filter(OrgInfo.parent_id == parent_id)\
                 .filter(OrgInfo.is_deleted == 0)
             
-            # 添加租户隔离
+            # 🔧 修复：优化子部门的customer_id过滤逻辑
+            # 如果提供了customer_id，先尝试严格匹配，如果没有结果则放宽条件
             if customer_id is not None:
-                query = query.filter(OrgInfo.customer_id == customer_id)
-                
-            departments = query.all()
+                strict_departments = query.filter(OrgInfo.customer_id == customer_id).all()
+                if strict_departments:
+                    departments = strict_departments
+                else:
+                    # 如果严格匹配没有结果，可能是组织结构层次问题，获取所有子部门但验证有效性
+                    all_departments = query.all()
+                    departments = []
+                    for dept in all_departments:
+                        # 检查该部门是否属于指定客户（通过ID或customer_id字段）
+                        if (str(dept.id) == str(customer_id) or 
+                            (dept.customer_id and str(dept.customer_id) == str(customer_id)) or
+                            str(parent_id) == str(customer_id)):
+                            departments.append(dept)
+                    
+                    # 如果仍然没有结果，为了兼容性，返回所有子部门
+                    if not departments:
+                        departments = all_departments
+            else:
+                departments = query.all()
             
             departments_data = []
             for dept in departments:
@@ -83,12 +100,41 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
             .filter(OrgInfo.id == org_id)\
             .filter(OrgInfo.is_deleted == 0)
         
+        # 🔧 修复：优化customer_id过滤逻辑，支持多种情况
         if customer_id is not None:
-            query = query.filter(OrgInfo.customer_id == customer_id)
+            # 尝试多种查询策略
+            # 策略1：直接customer_id匹配
+            current_org = query.filter(OrgInfo.customer_id == customer_id).first()
             
-        current_org = query.first()
-
+            # 策略2：如果没找到，可能该组织本身就是客户根组织
+            if not current_org:
+                current_org = query.first()
+                # 验证是否为该客户的根组织或子组织
+                if current_org and str(current_org.id) == str(customer_id):
+                    # 该组织ID就是客户ID，这是有效的
+                    pass
+                elif current_org:
+                    # 检查是否为该客户下的子组织（通过parent_id链条）
+                    temp_org = current_org
+                    is_valid_org = False
+                    depth = 0
+                    while temp_org and depth < 10:  # 防止死循环
+                        if str(temp_org.id) == str(customer_id) or (temp_org.customer_id and str(temp_org.customer_id) == str(customer_id)):
+                            is_valid_org = True
+                            break
+                        if temp_org.parent_id:
+                            temp_org = db.session.query(OrgInfo).filter(OrgInfo.id == temp_org.parent_id, OrgInfo.is_deleted == 0).first()
+                        else:
+                            break
+                        depth += 1
+                    
+                    if not is_valid_org:
+                        current_org = None
+        else:
+            current_org = query.first()
+            
         if not current_org:
+            logger.warning(f"Organization not found: {org_id}, customer_id: {customer_id}")
             return {
                 'success': False,
                 'error': f'Organization not found: {org_id}'

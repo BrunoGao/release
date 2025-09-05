@@ -2976,7 +2976,7 @@
     function openMessagePanel() {
         const urlParams = new URLSearchParams(window.location.search);
         const customerId = urlParams.get('customerId') || '1';
-        createModalWindow('/message_view?customerId=' + customerId, '消息管理', '90%', '90%');
+        createModalWindow('/message_view.html?customerId=' + customerId, '消息管理', '90%', '90%');
     }
 
     // 添加消息项点击事件
@@ -7937,8 +7937,8 @@ function openMessagePanel() {
         const urlParams = new URLSearchParams(window.location.search);
         const customerId = urlParams.get('customerId') || '1';
         
-  // 打开消息详情页面
-  createModalWindow(`/message_view.html?customerId=${customerId}`);
+  // 打开消息详情页面 - 使用正确的路由路径和参数
+  createModalWindow(`/message_view.html?customerId=${customerId}`, '消息管理', '90%', '90%');
 }
 
 // 获取统计数据

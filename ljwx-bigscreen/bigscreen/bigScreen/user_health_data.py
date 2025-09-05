@@ -2276,18 +2276,27 @@ def get_all_health_data_optimized(orgId=None, userId=None, startDate=None, endDa
                 pass
         
         # 数据转换 - 根据动态配置构建响应，使用前端期望的字段名
-        # 添加最终的用户去重保护
-        seen_users = set()
+        # 添加最终的设备级别去重保护 - 优先使用device_sn进行去重，确保每个设备只有一条最新记录
+        seen_devices = set()
         unique_results = []
-        for r in results:
-            user_key = getattr(r, 'user_id', None) or getattr(r, 'device_sn', None)
-            if user_key and user_key not in seen_users:
-                seen_users.add(user_key)
-                unique_results.append(r)
-            elif not user_key:
-                unique_results.append(r)  # 保留没有用户标识的记录
         
-        print(f"🔍 去重前: {len(results)} 条记录，去重后: {len(unique_results)} 条记录")
+        # 先按时间戳降序排序，确保最新的记录优先
+        sorted_results = sorted(results, key=lambda r: (getattr(r, 'timestamp', datetime.min), getattr(r, 'id', 0)), reverse=True)
+        
+        for r in sorted_results:
+            device_key = getattr(r, 'device_sn', None)
+            user_key = getattr(r, 'user_id', None)
+            
+            # 优先使用device_sn作为去重键，如果没有则使用user_id
+            primary_key = device_key or user_key
+            
+            if primary_key and primary_key not in seen_devices:
+                seen_devices.add(primary_key)
+                unique_results.append(r)
+            elif not primary_key:
+                unique_results.append(r)  # 保留没有标识的记录
+        
+        print(f"🔍 设备级去重前: {len(results)} 条记录，去重后: {len(unique_results)} 条记录")
         results = unique_results
         
         for r in results:

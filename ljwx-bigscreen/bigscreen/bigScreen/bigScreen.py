@@ -1527,8 +1527,9 @@ def get_total_info(customer_id=None):
     def query_users():
         with app_context.app_context():
             try:
-                #调用修复后的用户查询函数
-                response = fetch_users(orgId=customer_id,userId=None)
+                #调用修复后的用户查询函数，添加customer_id参数
+                print(f"🔍 get_total_info查询用户: orgId={customer_id}, userId=None")
+                response = fetch_users(orgId=customer_id, userId=None, customer_id=customer_id)
                 
                 # 处理返回的响应格式
                 if isinstance(response, dict) and response.get('success'):
