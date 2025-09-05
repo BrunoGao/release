@@ -208,8 +208,10 @@ async function handleInitOptions() {
   fetchGetOrgUnitsTree(customerId).then(({ error, data: treeData }) => {
     if (!error && treeData) {
       orgUnitsTree.value = treeData;
-      // 初始化时获取第一个部门的员工列表
+      // 设置默认选中第一个部门
       if (treeData.length > 0) {
+        searchParams.value.orgId = treeData[0].id;
+        // 初始化时获取第一个部门的员工列表
         handleBindUsersByOrgId(treeData[0].id).then(result => {
           if (Array.isArray(result)) {
             userOptions.value = result;
