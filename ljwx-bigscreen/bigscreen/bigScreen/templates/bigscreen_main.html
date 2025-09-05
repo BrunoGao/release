@@ -1414,6 +1414,15 @@
           display: flex;
           flex-direction: column;
           flex-shrink: 0; /* 防止缩放 */
+          transition: all 0.3s ease; /* 添加过渡效果 */
+      }
+      
+      /* 消息面板悬停效果 */
+      .message-panel:hover {
+          background: rgba(0, 21, 41, 0.9);
+          border-color: rgba(0, 228, 255, 0.6);
+          box-shadow: 0 0 20px rgba(0, 228, 255, 0.3);
+          transform: translateY(-2px);
       }
 
       /* 消息面板标题 */
@@ -1858,7 +1867,7 @@
         </div>
         
         <!-- 消息面板 -->
-        <div class="message-panel">
+        <div class="message-panel" onclick="openMessagePanel()" style="cursor: pointer;">
           <div class="panel-header">
             <span>消息信息</span>
             <span class="message-count" id="messageCount">0</span>
@@ -2972,20 +2981,17 @@
         }, 500); // 延迟500ms确保DOM渲染完成
     }
 
-    // 添加消息面板点击处理函数
+    // 添加消息面板点击处理函数 - 统一版本
     function openMessagePanel() {
         const urlParams = new URLSearchParams(window.location.search);
         const customerId = urlParams.get('customerId') || '1';
         createModalWindow('/message_view.html?customerId=' + customerId, '消息管理', '90%', '90%');
     }
 
-    // 添加消息项点击事件
+    // 消息项点击事件已移至面板级别，无需单独处理
     function addMessageClickEvents() {
-        const messageItems = document.querySelectorAll('.message-item');
-        messageItems.forEach(item => {
-            item.addEventListener('click', openMessagePanel);
-            item.style.cursor = 'pointer';
-        });
+        // 整个消息面板现在都可以点击，不需要单独为消息项添加点击事件
+        console.log('消息面板点击事件已在HTML中配置');
     }
     </script>
     <script src="https://webapi.amap.com/maps?v=2.0&key=7de0c6b90cb13571ce931ca75a66c6e7"></script> 
@@ -4373,13 +4379,11 @@ function setupPanelClickEvents(customerId, data) {
         };
     }
 
-    // 3. 消息信息面板
-    const messagePanel = document.querySelector('.panel:has(#messageList)');
+    // 3. 消息信息面板 - 已在HTML中直接设置onclick，无需重复设置
+    const messagePanel = document.querySelector('.message-panel');
     if (messagePanel) {
-        messagePanel.style.cursor = 'pointer';
-        messagePanel.onclick = function() {
-            createModalWindow(`/message_view.html?customerId=${customerId}`, data.message_info || null, 'messageInfo');
-        };
+        console.log('✅ 消息面板点击事件已在HTML中配置');
+        // 面板已通过HTML onclick属性配置，无需重复设置
     }
 
     // 4. 趋势分析面板
@@ -7932,14 +7936,6 @@ function showHealthRadarDetails(radarData) {
 
 
 
-function openMessagePanel() {
-  // 获取customerId参数
-        const urlParams = new URLSearchParams(window.location.search);
-        const customerId = urlParams.get('customerId') || '1';
-        
-  // 打开消息详情页面 - 使用正确的路由路径和参数
-  createModalWindow(`/message_view.html?customerId=${customerId}`, '消息管理', '90%', '90%');
-}
 
 // 获取统计数据
 function loadStatisticsData() {
