@@ -1094,19 +1094,26 @@ def generate_health_json():
     if optimize == 'auto':
         try:
             from .org import fetch_users_by_orgId
+            print(f"🔍 检查用户数量以决定是否优化: customerId={customerId}")
             users = fetch_users_by_orgId(customerId)
             user_count = len(users) if users else 0
+            print(f"🔍 找到 {user_count} 个用户")
             if user_count > 100:
                 health_logger.info('健康JSON自动启用优化模式',extra={'customer_id':customerId,'user_count':user_count})
                 optimize = 'true'
+            else:
+                print(f"🔍 用户数量 {user_count} <= 100，使用原版本")
         except Exception as e:
+            print(f"❌ 用户数量检测失败: {e}")
             health_logger.warning('用户数量检测失败',extra={'error':str(e)})
     
     # 执行查询
     if optimize == 'true':
         # 使用优化版本，直接返回GeoJSON格式
         from .user_health_data import fetch_health_data_by_orgIdAndUserId
+        print(f"🔍 调用fetch_health_data_by_orgIdAndUserId: customerId={customerId}, userId={userId}")
         result = fetch_health_data_by_orgIdAndUserId(orgId=customerId, userId=userId)
+        print(f"🔍 查询结果: success={result.get('success')}, data_keys={list(result.get('data', {}).keys()) if result.get('data') else None}")
         health_logger.info('使用优化版本生成健康JSON',extra={'customer_id':customerId,'user_id':userId,'map_only':map_only})
         
         # 如果优化版本返回的不是GeoJSON格式，转换为GeoJSON
@@ -1181,7 +1188,9 @@ def generate_health_json():
         
     else:
         # 使用原版本
+        print(f"🔍 使用原版本生成健康JSON: customerId={customerId}, userId={userId}")
         result = user_generate_health_json(customerId,userId)
+        print(f"🔍 原版本结果类型: {type(result)}")
     
     # 缓存结果3600秒（1小时） - 与装饰器保持一致
     try:
