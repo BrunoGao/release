@@ -100,6 +100,8 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
             .filter(OrgInfo.id == org_id)\
             .filter(OrgInfo.is_deleted == 0)
         
+        logger.info(f"🔍 查询组织: org_id={org_id}, customer_id={customer_id}")
+        
         # 🔧 修复：优化customer_id过滤逻辑，支持多种情况
         if customer_id is not None:
             # 尝试多种查询策略
@@ -132,9 +134,15 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
                         current_org = None
         else:
             current_org = query.first()
+            logger.info(f"🔍 customer_id为None，直接查询结果: current_org={current_org}")
             
         if not current_org:
-            logger.warning(f"Organization not found: {org_id}, customer_id: {customer_id}")
+            logger.warning(f"❌ Organization not found: {org_id}, customer_id: {customer_id}")
+            # 添加更详细的调试信息
+            all_orgs = db.session.query(OrgInfo).filter(OrgInfo.id == org_id).all()
+            logger.info(f"🔍 所有匹配ID的组织（包括已删除）: {len(all_orgs)}")
+            for org in all_orgs:
+                logger.info(f"  - ID: {org.id}, Name: {org.name}, is_deleted: {org.is_deleted}, customer_id: {getattr(org, 'customer_id', 'N/A')}")
             return {
                 'success': False,
                 'error': f'Organization not found: {org_id}'
@@ -455,9 +463,11 @@ def getCustomers():
 
 def fetch_departments(orgId, customerId=None):
     try:
-        # 🔧 修复：如果orgId为None但有customerId，则查找该客户的根组织
+        logger.info(f"🔍 fetch_departments调用: orgId={orgId}, customerId={customerId}")
+        
+        # 🔧 修复：处理多种情况
+        # 情况1: orgId为None但有customerId，查找该客户的根组织
         if orgId is None and customerId:
-            # 查找customer_id对应的根组织(parent_id为空或为0的组织)
             root_orgs = db.session.query(OrgInfo)\
                 .filter(OrgInfo.customer_id == customerId)\
                 .filter(OrgInfo.is_deleted == 0)\
@@ -472,6 +482,30 @@ def fetch_departments(orgId, customerId=None):
                     'success': False,
                     'error': f'No root organization found for customer: {customerId}'
                 }
+        
+        # 情况2: 有orgId但没有customerId，可能orgId实际上是customerId
+        elif orgId and not customerId:
+            # 先尝试作为orgId直接查询
+            org_exists = db.session.query(OrgInfo).filter(
+                OrgInfo.id == orgId, 
+                OrgInfo.is_deleted == 0
+            ).first()
+            
+            if not org_exists:
+                logger.info(f"🔍 orgId {orgId} 不存在，尝试作为customerId查找根组织")
+                # 如果不存在，尝试将orgId作为customerId查找根组织
+                root_orgs = db.session.query(OrgInfo)\
+                    .filter(OrgInfo.customer_id == orgId)\
+                    .filter(OrgInfo.is_deleted == 0)\
+                    .filter(db.or_(OrgInfo.parent_id.is_(None), OrgInfo.parent_id == 0))\
+                    .all()
+                
+                if root_orgs:
+                    customerId = orgId  # 原来的orgId实际上是customerId
+                    orgId = root_orgs[0].id  # 使用根组织的ID
+                    logger.info(f"✅ 将 {customerId} 作为customerId，找到根组织ID: {orgId}")
+                else:
+                    logger.warning(f"❌ {orgId} 既不是有效的orgId也不是有效的customerId")
         
         # 直接使用递归获取的部门数据
         response = fetch_departments_by_orgId(orgId, customerId)
