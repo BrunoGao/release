@@ -1189,8 +1189,22 @@ def generate_health_json():
     else:
         # 使用原版本
         print(f"🔍 使用原版本生成健康JSON: customerId={customerId}, userId={userId}")
-        result = user_generate_health_json(customerId,userId)
-        print(f"🔍 原版本结果类型: {type(result)}")
+        flask_response = user_generate_health_json(customerId,userId)
+        print(f"🔍 原版本结果类型: {type(flask_response)}")
+        
+        # Flask响应是tuple (response, status_code)，需要提取数据
+        if isinstance(flask_response, tuple) and len(flask_response) == 2:
+            response_obj, status_code = flask_response
+            if hasattr(response_obj, 'get_json'):
+                result = response_obj.get_json()
+            else:
+                result = {"type": "FeatureCollection", "features": [], "error": "无法解析原版本响应"}
+        elif hasattr(flask_response, 'get_json'):
+            result = flask_response.get_json()
+        else:
+            result = {"type": "FeatureCollection", "features": [], "error": "未知的响应格式"}
+        
+        print(f"🔍 提取后的结果类型: {type(result)}")
     
     # 缓存结果3600秒（1小时） - 与装饰器保持一致
     try:
@@ -1216,6 +1230,16 @@ def generate_health_json():
             'map_only': map_only,
             'response_time': round(time.time() - start_time, 3)
         }
+        
+        # 确保所有响应都有必要的字段
+        if 'statistics' not in result_data:
+            result_data['statistics'] = {}
+        if 'deviceCount' not in result_data['statistics']:
+            # 从features数量推断设备数量
+            feature_count = len(result_data.get('features', []))
+            result_data['statistics']['deviceCount'] = feature_count
+        if 'totalRecords' not in result_data['statistics']:
+            result_data['statistics']['totalRecords'] = result_data['statistics']['deviceCount']
         
         cache_data = json.dumps(result_data, default=json_serial, ensure_ascii=False)
         # 统一缓存时间为3600秒（1小时）

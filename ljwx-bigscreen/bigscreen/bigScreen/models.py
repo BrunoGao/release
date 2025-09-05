@@ -335,11 +335,11 @@ class Position(db.Model):
 
 class UserPosition(db.Model):
     __tablename__ = 'sys_user_position'
-    __table_args__ = {'schema': 'lj-06', 'comment': '用户岗位管理'}
+    __table_args__ = {'comment': '用户岗位管理'}
 
     id = Column(BigInteger, primary_key=True, comment='主键')
-    user_id = Column(BigInteger, ForeignKey('`lj-06`.sys_user.id'), comment='用户ID')
-    position_id = Column(BigInteger, ForeignKey('`lj-06`.sys_position.id'), comment='岗位ID')
+    user_id = Column(BigInteger, ForeignKey('sys_user.id'), comment='用户ID')
+    position_id = Column(BigInteger, ForeignKey('sys_position.id'), comment='岗位ID')
     is_deleted = Column(SmallInteger, default=0, comment='是否删除(0:否,1:是)')
     create_user = Column(String(64), nullable=False, comment='创建用户')
     create_user_id = Column(BigInteger, nullable=False, comment='创建用户ID')
