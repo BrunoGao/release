@@ -2168,7 +2168,7 @@ def get_all_health_data_optimized(orgId=None, userId=None, startDate=None, endDa
                         UserHealthData.org_id == query_org_id
                     ).order_by(UserHealthData.timestamp.desc()).limit(1).all()
                 elif orgId:
-                    # 组织查询 - 获取每个用户的最新记录
+                    # 组织查询 - 获取每个用户的最新记录，添加额外的去重逻辑
                     subq = db.session.query(
                         UserHealthData.user_id,
                         func.max(UserHealthData.timestamp).label('max_ts')
@@ -2177,11 +2177,16 @@ def get_all_health_data_optimized(orgId=None, userId=None, startDate=None, endDa
                         UserHealthData.user_id.in_(all_user_ids)
                     ).group_by(UserHealthData.user_id).subquery()
                     
+                    # 添加 DISTINCT 和额外的排序来确保唯一性
                     results = db.session.query(UserHealthData).join(
                         subq,
                         (UserHealthData.user_id == subq.c.user_id) &
                         (UserHealthData.timestamp == subq.c.max_ts) &
                         (UserHealthData.org_id == orgId)
+                    ).distinct(UserHealthData.user_id).order_by(
+                        UserHealthData.user_id,
+                        UserHealthData.timestamp.desc(),
+                        UserHealthData.id.desc()  # 使用ID作为最终排序
                     ).all()
                 else:
                     results = []
@@ -2271,6 +2276,20 @@ def get_all_health_data_optimized(orgId=None, userId=None, startDate=None, endDa
                 pass
         
         # 数据转换 - 根据动态配置构建响应，使用前端期望的字段名
+        # 添加最终的用户去重保护
+        seen_users = set()
+        unique_results = []
+        for r in results:
+            user_key = getattr(r, 'user_id', None) or getattr(r, 'device_sn', None)
+            if user_key and user_key not in seen_users:
+                seen_users.add(user_key)
+                unique_results.append(r)
+            elif not user_key:
+                unique_results.append(r)  # 保留没有用户标识的记录
+        
+        print(f"🔍 去重前: {len(results)} 条记录，去重后: {len(unique_results)} 条记录")
+        results = unique_results
+        
         for r in results:
             if not r:
                 continue
