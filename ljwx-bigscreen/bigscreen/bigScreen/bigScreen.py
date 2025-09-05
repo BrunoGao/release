@@ -1189,7 +1189,7 @@ def generate_health_json():
         
         return jsonify(result_data)
     except Exception as e:
-        health_logger.warning('健康JSON缓存写入失败',extra={'error':str(e),'customer_id':customer_id})
+        health_logger.warning('健康JSON缓存写入失败',extra={'error':str(e),'customer_id':customerId})
         return result
 
 @app.route('/fetchHealthDataById', methods=['GET'])
