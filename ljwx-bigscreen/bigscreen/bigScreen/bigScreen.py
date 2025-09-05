@@ -1051,8 +1051,22 @@ def cache_result(ttl_hours=1):
 def generate_health_json():
     customerId = request.args.get('customerId')
     userId = request.args.get('userId')
-    if userId == '-1' or userId == 'all':
-        userId = None
+    
+    # 优化参数处理逻辑
+    if not customerId:
+        return jsonify({'success': False, 'error': '缺少customerId参数'}), 400
+    
+    # 处理userId参数：
+    # - 如果没有提供userId参数，则查询customerId下的所有用户
+    # - 如果提供了具体的userId，则只查询该用户
+    # - 如果userId='-1' 或 'all'，也视为查询所有用户
+    if userId in [None, '', '-1', 'all']:
+        userId = None  # 查询所有用户
+    else:
+        try:
+            userId = int(userId)  # 验证userId是有效的数字
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'userId参数必须是有效的数字'}), 400
     
     # 性能优化：检查是否启用优化模式
     optimize = request.args.get('optimize', 'auto') #支持auto/true/false
@@ -1141,17 +1155,29 @@ def generate_health_json():
                     print(f"坐标转换错误 - 设备 {data.get('deviceSn')}: {e}")
                     continue
             
-            # 构造GeoJSON响应
+            # 构造GeoJSON响应，安全地访问统计数据
             geojson_result = {
                 "type": "FeatureCollection",
                 "features": features,
                 "statistics": {
-                    "deviceCount": health_data.get('deviceCount', 0),
-                    "totalRecords": health_data.get('totalRecords', 0),
+                    "deviceCount": health_data.get('deviceCount', len(features)),
+                    "totalRecords": health_data.get('totalRecords', len(features)),
                     "optimized": True
                 }
             }
             result = geojson_result
+        else:
+            # 如果没有数据或查询失败，返回空的GeoJSON结构
+            result = {
+                "type": "FeatureCollection",
+                "features": [],
+                "statistics": {
+                    "deviceCount": 0,
+                    "totalRecords": 0,
+                    "optimized": True
+                },
+                "error": result.get('error', '查询失败') if result else '查询失败'
+            }
         
     else:
         # 使用原版本
