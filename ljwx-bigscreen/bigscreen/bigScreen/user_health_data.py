@@ -8,7 +8,7 @@ from sqlalchemy import text  # 添加text导入用于原生SQL查询
 from .alert import send_wechat_alert, generate_alerts
 import os
 from decimal import Decimal
-from .device import fetch_customer_id_by_deviceSn, get_device_user_org_info
+from .device import fetch_customer_id_by_deviceSn, fetch_user_info_by_deviceSn, get_device_user_org_info
 from .health_daping_analyzer import analyze_health_trends
 from .health_daping_analyzer import generate_health_score
 from collections import defaultdict
@@ -1851,15 +1851,11 @@ def process_single_health_data(data):
     # 如果没有直接传递用户信息，通过deviceSn查询获取（兼容旧版本）
     if not customerId or not orgId or not userId:
         print(f"🔍 客户信息不完整，通过deviceSn查询获取: customerId={customerId}, orgId={orgId}, userId={userId}")
-        device_info = fetch_customer_id_by_deviceSn(deviceSn)
-        if isinstance(device_info, dict):
-            # 使用新版本返回的字典格式
-            customerId = customerId or device_info.get('customer_id')
-            orgId = orgId or device_info.get('org_id') 
-            userId = userId or device_info.get('user_id')
-        else:
-            # 兼容旧版本返回的字符串格式
-            customerId = customerId or device_info
+        device_info = fetch_user_info_by_deviceSn(deviceSn)
+        # 使用新版本返回的字典格式
+        customerId = customerId or device_info.get('customer_id')
+        orgId = orgId or device_info.get('org_id') 
+        userId = userId or device_info.get('user_id')
         print(f"🔍 补充后的客户信息: customerId={customerId}, orgId={orgId}, userId={userId}")
 
     # 保存到数据库

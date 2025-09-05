@@ -771,15 +771,11 @@ def upload_device_info_sync(device_info):
             # 如果没有直接传递用户信息，通过deviceSn查询获取（兼容旧版本）
             if not customerId or not orgId or not userId:
                 print(f"🔍 客户信息不完整，通过deviceSn查询获取: customerId={customerId}, orgId={orgId}, userId={userId}")
-                device_info_dict = fetch_customer_id_by_deviceSn(serial_number)
-                if isinstance(device_info_dict, dict):
-                    # 使用新版本返回的字典格式
-                    customerId = customerId or device_info_dict.get('customer_id')
-                    orgId = orgId or device_info_dict.get('org_id') 
-                    userId = userId or device_info_dict.get('user_id')
-                else:
-                    # 兼容旧版本返回的字符串格式
-                    customerId = customerId or device_info_dict
+                device_info_dict = fetch_user_info_by_deviceSn(serial_number)
+                # 使用新版本返回的字典格式
+                customerId = customerId or device_info_dict.get('customer_id')
+                orgId = orgId or device_info_dict.get('org_id') 
+                userId = userId or device_info_dict.get('user_id')
                 print(f"🔍 补充后的客户信息: customerId={customerId}, orgId={orgId}, userId={userId}")
 
             print(f"✅ 准备保存设备信息: SN={serial_number}, 电池={battery_level}%, 佩戴状态={wearable_status}, 充电状态={charging_status}")
@@ -892,8 +888,8 @@ def fetch_device_info(serial_number):
     print("Device info not found")
     return None
 
-def fetch_customer_id_by_deviceSn(deviceSn):
-    """根据设备序列号获取完整的客户信息(customer_id, org_id, user_id)"""
+def fetch_user_info_by_deviceSn(deviceSn):
+    """根据设备序列号获取完整的用户信息(customer_id, org_id, user_id)"""
     try:
         result = (
             db.session.query(UserInfo, UserOrg, OrgInfo)
@@ -913,7 +909,7 @@ def fetch_customer_id_by_deviceSn(deviceSn):
             .first()
         )
         
-        print("fetch_customer_id_by_deviceSn:result:", result)
+        print("fetch_user_info_by_deviceSn:result:", result)
 
         if not result:
             return {
@@ -946,12 +942,21 @@ def fetch_customer_id_by_deviceSn(deviceSn):
         }
 
     except Exception as e:
-        print(f"Error in fetch_customer_id_by_deviceSn: {e}")
+        print(f"Error in fetch_user_info_by_deviceSn: {e}")
         return {
             'customer_id': '0',
             'org_id': None,
             'user_id': None
         }
+
+def fetch_customer_id_by_deviceSn(deviceSn):
+    """根据设备序列号获取客户ID"""
+    try:
+        user_info = fetch_user_info_by_deviceSn(deviceSn)
+        return user_info.get('customer_id', '0')
+    except Exception as e:
+        print(f"Error in fetch_customer_id_by_deviceSn: {e}")
+        return '0'
 def fetch_devices_by_orgIdAndUserId2(orgId, userId):
     print("fetch_devices_by_orgIdAndUserId:orgId:", orgId)
     print("fetch_devices_by_orgIdAndUserId:userId:", userId)

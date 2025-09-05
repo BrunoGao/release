@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, Blueprint
 from flask_cors import CORS
 import mysql.connector
 from .models import HealthDataConfig, CustomerConfig, Interface, db
-from .device import fetch_customer_id_by_deviceSn
+from .device import fetch_customer_id_by_deviceSn, fetch_user_info_by_deviceSn
 
 app = Flask(__name__)
 CORS(app)
@@ -98,7 +98,7 @@ def fetch_health_data_config(customer_id=None,deviceSn=None):
         deviceSn = request.args.get('deviceSn')  # Get deviceSn from request parameters
     
     # 获取设备的完整客户信息
-    device_info = fetch_customer_id_by_deviceSn(deviceSn)
+    device_info = fetch_user_info_by_deviceSn(deviceSn)
     customerId = device_info.get('customer_id', '0')
     orgId = device_info.get('org_id')
     userId = device_info.get('user_id')
@@ -182,7 +182,7 @@ def fetch_health_data_config_bak(customer_id=None,deviceSn=None):
         deviceSn = request.args.get('deviceSn')  # Get deviceSn from request parameters
     
     # 获取设备的完整客户信息
-    device_info = fetch_customer_id_by_deviceSn(deviceSn)
+    device_info = fetch_user_info_by_deviceSn(deviceSn)
     customerId = device_info.get('customer_id', '0')
     orgId = device_info.get('org_id')
     userId = device_info.get('user_id')
