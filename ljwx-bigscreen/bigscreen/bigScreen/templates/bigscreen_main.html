@@ -6058,16 +6058,16 @@ function showStatusDetails(statusName, statusValue) {
   let panelDisplaying = false;
   
   function showCustomMapInfo(f){
-    // 防抖：如果正在显示面板，直接返回
-    if(panelDisplaying) {
-      console.log('面板正在显示中，跳过重复调用');
+    // 检查是否已存在地图信息面板，避免重复显示
+    const existingMapInfo = document.querySelector('.custom-map-info');
+    if(existingMapInfo) {
+      console.log('地图信息面板已存在，跳过重复调用');
       return;
     }
     
     panelDisplaying = true; // 标记面板正在显示
     
-    // 移除所有可能存在的面板，避免重复显示
-    removeCustomMapInfo(); // 移除地图信息面板
+    // 移除可能存在的健康详情面板
     const existingHealthModal = document.querySelector('.health-modal-overlay');
     if(existingHealthModal) {
       existingHealthModal.remove(); // 移除健康详情面板
@@ -6597,20 +6597,14 @@ div.innerHTML=`
     }
   }
   function showHealthProfile(healthId){
-    // 防抖：如果正在显示面板，直接返回
-    if(panelDisplaying) {
-      console.log('面板正在显示中，跳过重复调用');
+    // 检查是否已存在健康详情面板，避免重复显示
+    const existingHealthModal = document.querySelector('.health-modal-overlay');
+    if(existingHealthModal) {
+      console.log('健康详情面板已存在，跳过重复调用');
       return;
     }
     
     panelDisplaying = true; // 标记面板正在显示
-    
-    // 移除所有可能存在的面板，避止重复显示
-    removeCustomMapInfo(); // 移除地图信息面板
-    const existingHealthModal = document.querySelector('.health-modal-overlay');
-    if(existingHealthModal) {
-      existingHealthModal.remove(); // 移除已存在的健康详情面板
-    }
     
     fetch(`/fetchHealthDataById?id=${healthId}`).then(r=>r.json()).then(j=>{
       if(!j.success||!j.data)return showCustomAlert('无健康数据');
@@ -6811,7 +6805,7 @@ div.innerHTML=`
       m.className = 'health-modal-overlay';
       m.innerHTML=`
         <div class="health-modal-content">
-          <div class="modal-close" onclick="removeCustomMapInfo()">
+          <div class="modal-close" onclick="closeHealthModal(event)">
             <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
               <path stroke="currentColor" stroke-width="2" d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -6993,6 +6987,23 @@ div.innerHTML=`
       
       document.body.appendChild(m);
       
+      // 添加事件处理，防止点击弹出框内容区域时事件冒泡
+      const healthContent = m.querySelector('.health-modal-content');
+      if(healthContent){
+        healthContent.addEventListener('click', function(e) {
+          e.stopPropagation();
+        });
+      }
+      
+      // 点击遮罩层关闭健康详情面板，返回告警面板
+      m.addEventListener('click', function(e) {
+        if(e.target === m){
+          e.stopPropagation();
+          e.preventDefault();
+          closeHealthModal();
+        }
+      });
+      
       // 延迟重置防抖标志，给健康面板渲染留出时间
       setTimeout(() => {
         panelDisplaying = false;
@@ -7016,7 +7027,21 @@ div.innerHTML=`
     
     // 重置面板显示状态，允许新的面板显示
     panelDisplaying = false;
-    console.log('面板已关闭，重置显示状态');
+  }
+  
+  function closeHealthModal(event){
+    // 阻止事件冒泡，防止触发地图点击事件
+    if(event && event.stopPropagation){
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    
+    // 只移除健康详情面板，不影响告警弹出框
+    const healthModal=document.querySelector('.health-modal-overlay');
+    if(healthModal)healthModal.remove();
+    
+    // 重置面板显示状态，允许新的面板显示
+    panelDisplaying = false;
   }
   
   function filterData(data){
