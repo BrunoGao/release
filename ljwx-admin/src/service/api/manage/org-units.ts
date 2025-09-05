@@ -13,42 +13,55 @@ export function fetchGetOrgUnitsPageList(params?: Api.SystemManage.OrgUnitsSearc
 
 /** get org page list using optimized API */
 export function fetchGetOrgUnitsPageListOptimized(params?: Api.SystemManage.OrgUnitsSearchParams) {
-  const { customerId, parentId, ...otherParams } = params || {};
+  const { customerId, ...otherParams } = params || {};
   
-  if (!customerId) {
+  if (customerId === undefined || customerId === null) {
     console.warn('customerId is required for optimized org API');
     return fetchGetOrgUnitsPageList(params);
   }
   
-  if (parentId === null || parentId === undefined) {
-    return request<Api.SystemManage.OrgUnitsPageList>({
-      url: `/system/org-optimized/tenants/${customerId}/top-level`,
-      method: 'GET',
-      params: otherParams
+  // 超级管理员和租户管理员都使用相同的树形API
+  if (customerId === 0) {
+    // 超级管理员：使用树形API获取所有租户的树形结构
+    console.log('🔧 Super admin: using tree API with customerId=0');
+    return request<Api.SystemManage.OrgUnitsTree[]>({
+      url: `/sys_org_units/tree?id=${customerId}&customerId=0`,
+      method: 'GET'
     }).then(response => {
+      // 保持树形结构，不展平
+      const treeData = response.data || [];
+      
+      // 为了兼容分页格式，包装成分页响应
       return {
         ...response,
         data: {
-          records: response.data || [],
+          records: treeData,
           page: 1,
-          pageSize: response.data?.length || 0,
-          total: response.data?.length || 0
+          pageSize: treeData.length,
+          total: treeData.length,
+          pages: 1
         }
       };
     });
   } else {
-    return request<Api.SystemManage.OrgUnitsPageList>({
-      url: `/system/org-optimized/orgs/${parentId}/children`,
-      method: 'GET',
-      params: { customerId, ...otherParams }
+    // 租户管理员：使用树形API获取完整树形结构
+    console.log('🔧 Tenant admin: using tree API for customerId:', customerId);
+    return request<Api.SystemManage.OrgUnitsTree[]>({
+      url: `/sys_org_units/tree?id=${customerId}&customerId=${customerId}`,
+      method: 'GET'
     }).then(response => {
+      // 保持树形结构，不展平
+      const treeData = response.data || [];
+      
+      // 为了兼容分页格式，包装成分页响应
       return {
         ...response,
         data: {
-          records: response.data || [],
+          records: treeData,
           page: 1,
-          pageSize: response.data?.length || 0,
-          total: response.data?.length || 0
+          pageSize: treeData.length,
+          total: treeData.length,
+          pages: 1
         }
       };
     });
