@@ -34,7 +34,8 @@ COPY . .
 # 设置生产环境变量确保正确的代理配置
 ENV VITE_HTTP_PROXY=Y
 ENV VITE_SERVICE_BASE_URL=/proxy-default
-ENV VITE_BIGSCREEN_URL=/proxy-default
+# ENV VITE_BIGSCREEN_URL 由部署脚本动态替换，使用易于识别的占位符
+ENV VITE_BIGSCREEN_URL=http://localhost:8001
 ENV VITE_OTHER_SERVICE_BASE_URL='{"demo": "/proxy-default"}'
 # 添加缺失的关键环境变量
 ENV VITE_SERVICE_SUCCESS_CODE=200
