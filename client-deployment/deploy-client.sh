@@ -65,6 +65,16 @@ fi
 # 加载配置文件
 . "$CONFIG_FILE"
 
+# 导出必要的环境变量供 docker-compose 使用
+export MYSQL_IMAGE_VERSION REDIS_IMAGE_VERSION LJWX_BOOT_VERSION LJWX_BIGSCREEN_VERSION LJWX_ADMIN_VERSION
+export MYSQL_EXTERNAL_PORT REDIS_EXTERNAL_PORT LJWX_BOOT_EXTERNAL_PORT LJWX_BIGSCREEN_EXTERNAL_PORT LJWX_ADMIN_EXTERNAL_PORT
+export SERVER_IP BIGSCREEN_PORT VITE_BIGSCREEN_URL
+# 导出数据库和Redis配置变量
+export MYSQL_HOST MYSQL_PORT MYSQL_USER MYSQL_PASSWORD MYSQL_DATABASE
+export REDIS_HOST REDIS_PORT REDIS_PASSWORD REDIS_DB
+# 导出应用配置变量
+export APP_PORT DEBUG IS_DOCKER
+
 echo ""
 echo "==================== 配置验证 ===================="
 # 验证配置一致性
@@ -82,6 +92,20 @@ echo "- 公司名称: $COMPANY_NAME"
 echo "- 服务器IP: $SERVER_IP"
 echo "- 大屏端口: $BIGSCREEN_PORT"
 echo "- 大屏地址: $VITE_BIGSCREEN_URL"
+echo ""
+echo "镜像版本配置:"
+echo "- MySQL镜像版本: ${MYSQL_IMAGE_VERSION:-1.2.16}"
+echo "- Redis镜像版本: ${REDIS_IMAGE_VERSION:-1.2.16}"
+echo "- Boot应用版本: ${LJWX_BOOT_VERSION:-1.3.3}"
+echo "- 大屏应用版本: ${LJWX_BIGSCREEN_VERSION:-1.3.3}"
+echo "- 管理端版本: ${LJWX_ADMIN_VERSION:-1.3.3}"
+echo ""
+echo "端口配置:"
+echo "- MySQL端口: ${MYSQL_EXTERNAL_PORT:-3306}"
+echo "- Redis端口: ${REDIS_EXTERNAL_PORT:-6379}"
+echo "- Boot应用端口: ${LJWX_BOOT_EXTERNAL_PORT:-9998}"
+echo "- 大屏应用端口: ${LJWX_BIGSCREEN_EXTERNAL_PORT:-8001}"
+echo "- 管理端端口: ${LJWX_ADMIN_EXTERNAL_PORT:-8088}"
 
 # 检查必需的定制化文件
 echo ""
@@ -240,103 +264,111 @@ else
     echo "✅ 首次部署，将创建新的Docker命名卷"
 fi
 
-if [ "$OFFLINE_MODE" = false ]; then
-    echo ""
-    echo "==================== 登录镜像仓库 ===================="
-    echo "正在登录阿里云容器镜像服务..."
+# 从配置文件读取镜像版本号
+MYSQL_IMAGE=${MYSQL_IMAGE_VERSION:-1.2.16}
+REDIS_IMAGE=${REDIS_IMAGE_VERSION:-1.2.16}
+BOOT_IMAGE=${LJWX_BOOT_VERSION:-1.3.3}
+BIGSCREEN_IMAGE=${LJWX_BIGSCREEN_VERSION:-1.3.3}
+ADMIN_IMAGE=${LJWX_ADMIN_VERSION:-1.3.3}
 
-    # 登录Docker镜像仓库
-    echo "admin123" | docker login --username=brunogao --password-stdin crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com
-    if [ $? -ne 0 ]; then
-        echo "❌ Docker登录失败，请检查用户名和密码"
-        exit 1
-    fi
-    echo "✅ Docker登录成功"
+echo ""
+echo "==================== 镜像检查与获取 ===================="
+echo "检查镜像版本配置:"
+echo "- ljwx-mysql: $MYSQL_IMAGE"
+echo "- ljwx-redis: $REDIS_IMAGE"
+echo "- ljwx-boot: $BOOT_IMAGE"
+echo "- ljwx-bigscreen: $BIGSCREEN_IMAGE"
+echo "- ljwx-admin: $ADMIN_IMAGE"
 
-    echo ""
-    echo "==================== 拉取最新镜像 ===================="
-    echo "正在拉取预构建镜像..."
+# 检查本地镜像并按需拉取
+echo ""
+echo "🔍 检查本地镜像可用性..."
+REGISTRY_PREFIX="crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx"
+MISSING_IMAGES=""
+NEED_LOGIN=false
 
-    # 从docker-compose.yml动态读取版本号
-    MYSQL_IMAGE=$(egrep '^ *image:.*ljwx-mysql:' docker-compose.yml | sed 's/.*ljwx-mysql:\([^ ]*\).*/\1/' | head -1)
-    REDIS_IMAGE=$(egrep '^ *image:.*ljwx-redis:' docker-compose.yml | sed 's/.*ljwx-redis:\([^ ]*\).*/\1/' | head -1)
-    BOOT_IMAGE=$(egrep '^ *image:.*ljwx-boot:' docker-compose.yml | sed 's/.*ljwx-boot:\([^ ]*\).*/\1/' | head -1)
-    BIGSCREEN_IMAGE=$(egrep '^ *image:.*ljwx-bigscreen:' docker-compose.yml | sed 's/.*ljwx-bigscreen:\([^ ]*\).*/\1/' | head -1)
-    ADMIN_IMAGE=$(egrep '^ *image:.*ljwx-admin:' docker-compose.yml | sed 's/.*ljwx-admin:\([^ ]*\).*/\1/' | head -1)
-
-    # 显示检测到的版本号
-    echo "检测到的镜像版本:"
-    echo "- ljwx-mysql: $MYSQL_IMAGE"
-    echo "- ljwx-redis: $REDIS_IMAGE"
-    echo "- ljwx-boot: $BOOT_IMAGE"
-    echo "- ljwx-bigscreen: $BIGSCREEN_IMAGE"
-    echo "- ljwx-admin: $ADMIN_IMAGE"
-
-    # 拉取最新镜像
-    docker pull crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-mysql:$MYSQL_IMAGE || echo "警告: 无法拉取 ljwx-mysql 镜像，将使用本地镜像"
-    docker pull crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-redis:$REDIS_IMAGE || echo "警告: 无法拉取 ljwx-redis 镜像，将使用本地镜像"
-    docker pull crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-boot:$BOOT_IMAGE || echo "警告: 无法拉取 ljwx-boot 镜像，将使用本地镜像"
-    docker pull crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-bigscreen:$BIGSCREEN_IMAGE || echo "警告: 无法拉取 ljwx-bigscreen 镜像，将使用本地镜像"
-    docker pull crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/ljwx-admin:$ADMIN_IMAGE || echo "警告: 无法拉取 ljwx-admin 镜像，将使用本地镜像"
-else
-    echo ""
-    echo "==================== 离线模式 ===================="
-    echo "🔌 使用本地镜像部署，跳过镜像下载步骤"
-    
-    # 从docker-compose.yml动态读取版本号
-    MYSQL_IMAGE=$(egrep '^ *image:.*ljwx-mysql:' docker-compose.yml | sed 's/.*ljwx-mysql:\([^ ]*\).*/\1/' | head -1)
-    REDIS_IMAGE=$(egrep '^ *image:.*ljwx-redis:' docker-compose.yml | sed 's/.*ljwx-redis:\([^ ]*\).*/\1/' | head -1)
-    BOOT_IMAGE=$(egrep '^ *image:.*ljwx-boot:' docker-compose.yml | sed 's/.*ljwx-boot:\([^ ]*\).*/\1/' | head -1)
-    BIGSCREEN_IMAGE=$(egrep '^ *image:.*ljwx-bigscreen:' docker-compose.yml | sed 's/.*ljwx-bigscreen:\([^ ]*\).*/\1/' | head -1)
-    ADMIN_IMAGE=$(egrep '^ *image:.*ljwx-admin:' docker-compose.yml | sed 's/.*ljwx-admin:\([^ ]*\).*/\1/' | head -1)
-
-    echo "将使用本地镜像版本:"
-    echo "- ljwx-mysql: $MYSQL_IMAGE"
-    echo "- ljwx-redis: $REDIS_IMAGE"
-    echo "- ljwx-boot: $BOOT_IMAGE"
-    echo "- ljwx-bigscreen: $BIGSCREEN_IMAGE"
-    echo "- ljwx-admin: $ADMIN_IMAGE"
-    
-    # 检查本地镜像是否存在
-    echo ""
-    echo "检查本地镜像可用性..."
-    MISSING_IMAGES=""
-    for image in "ljwx-mysql:$MYSQL_IMAGE" "ljwx-redis:$REDIS_IMAGE" "ljwx-boot:$BOOT_IMAGE" "ljwx-bigscreen:$BIGSCREEN_IMAGE" "ljwx-admin:$ADMIN_IMAGE"; do
-        if docker images -q "crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx/$image" | grep -q "."; then
-            echo "✅ $image - 本地镜像可用"
-        else
-            echo "⚠️  $image - 本地镜像不存在"
-      144e'e'e'e'ty'rdone
-    
-    if [ -n "$MISSING_IMAGES" ]; then
-        echo ""
-        echo "❌ 警告: 以下镜像在本地不存在:"
-        for img in $MISSING_IMAGES; do
-            echo "   - $img"
-        done
-        echo ""
-        read -p "是否继续离线部署? 缺失的镜像将导致服务启动失败 (y/N): " continue_offline
-        if [ "$continue_offline" != "y" ] && [ "$continue_offline" != "Y" ]; then
-            echo "部署已取消。请先拉取所需镜像或使用在线模式"
-            exit 1
+for service_image in "ljwx-mysql:$MYSQL_IMAGE" "ljwx-redis:$REDIS_IMAGE" "ljwx-boot:$BOOT_IMAGE" "ljwx-bigscreen:$BIGSCREEN_IMAGE" "ljwx-admin:$ADMIN_IMAGE"; do
+    FULL_IMAGE="$REGISTRY_PREFIX/$service_image"
+    if docker images -q "$FULL_IMAGE" | grep -q "."; then
+        echo "✅ $service_image - 本地镜像存在"
+    else
+        echo "⚠️  $service_image - 本地镜像不存在，需要拉取"
+        MISSING_IMAGES="$MISSING_IMAGES $service_image"
+        if [ "$OFFLINE_MODE" = false ]; then
+            NEED_LOGIN=true
         fi
     fi
+done
+
+# 如果有缺失的镜像且不是离线模式，则拉取镜像
+if [ -n "$MISSING_IMAGES" ] && [ "$OFFLINE_MODE" = false ]; then
+    echo ""
+    echo "==================== 拉取缺失镜像 ===================="
+    
+    # 需要登录时才登录
+    if [ "$NEED_LOGIN" = true ]; then
+        echo "正在登录阿里云容器镜像服务..."
+        echo "admin123" | docker login --username=brunogao --password-stdin crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com
+        if [ $? -ne 0 ]; then
+            echo "❌ Docker登录失败，请检查用户名和密码"
+            exit 1
+        fi
+        echo "✅ Docker登录成功"
+    fi
+    
+    echo "正在拉取缺失的镜像..."
+    for missing_image in $MISSING_IMAGES; do
+        echo "📦 拉取: $missing_image"
+        docker pull "$REGISTRY_PREFIX/$missing_image" || echo "❌ 警告: 无法拉取 $missing_image 镜像"
+    done
+elif [ -n "$MISSING_IMAGES" ]; then
+    # 离线模式但有缺失镜像
+    echo ""
+    echo "==================== 离线模式警告 ===================="
+    echo "🔌 离线模式下以下镜像在本地不存在:"
+    for missing_image in $MISSING_IMAGES; do
+        echo "   ❌ $missing_image"
+    done
+    echo ""
+    read -p "是否继续离线部署? 缺失的镜像将导致服务启动失败 (y/N): " continue_offline
+    if [ "$continue_offline" != "y" ] && [ "$continue_offline" != "Y" ]; then
+        echo "部署已取消。请先拉取所需镜像或使用在线模式"
+        exit 1
+    fi
+else
+    # 所有镜像都在本地存在
+    echo ""
+    echo "✅ 所有需要的镜像在本地都已存在，直接使用本地镜像"
 fi
 
 echo ""
 echo "==================== 开始部署 ===================="
 
-# 生成动态docker-compose配置
-echo "🔧 生成动态配置..."
-if [ -f "generate-docker-compose.sh" ]; then
-    chmod +x generate-docker-compose.sh
-    ./generate-docker-compose.sh "$CONFIG_FILE"
-    COMPOSE_FILE="docker-compose-generated.yml"
-    echo "✅ 动态配置已生成，使用配置文件: $CONFIG_FILE"
+# 检查是否需要数据初始化
+check_first_deployment() {
+    for volume in mysql_data redis_data ljwx_boot_data ljwx_bigscreen_data; do
+        if docker volume ls -q | grep -q "^client-deployment_${volume}$"; then
+            return 1 # 不是首次部署
+        fi
+    done
+    return 0 # 首次部署
+}
+
+# 处理数据初始化配置
+COMPOSE_FILE="docker-compose.yml"
+if check_first_deployment && [ -f "client-data.sql" ] && [ -s "client-data.sql" ]; then
+    echo "📦 首次部署: 准备数据初始化"
+    # 创建临时compose文件，添加client-data.sql挂载
+    cp docker-compose.yml docker-compose-temp.yml
+    sed -i.bak '/- \.\/backup\/mysql:\/backup\/mysql/a\
+      - ./client-data.sql:/docker-entrypoint-initdb.d/client-data.sql:ro' docker-compose-temp.yml
+    COMPOSE_FILE="docker-compose-temp.yml"
+    echo "✅ 已启用数据初始化挂载"
 else
-    echo "⚠️  警告: generate-docker-compose.sh 不存在，使用静态配置"
-    COMPOSE_FILE="docker-compose.yml"
+    echo "🔄 升级部署: 跳过数据初始化"
 fi
+
+echo "✅ 使用配置文件: $COMPOSE_FILE + 环境变量"
 
 # 停止现有服务但保留数据卷
 echo "停止现有服务(保留命名卷)..."
@@ -456,6 +488,13 @@ else
     echo "⚠️  警告: replace-bigscreen-url.sh 脚本不存在"
 fi
 
+# TODO: 定制化ljwx-admin logo
+# 需要实现：
+# 1. 检查custom-assets/目录中是否有logo文件（支持png、jpg、svg格式）
+# 2. 将客户logo文件复制到ljwx-admin容器内的正确位置
+# 3. 更新前端配置文件中的logo路径引用
+# 4. 重启ljwx-admin服务以应用logo更改
+
 # 验证挂载配置
 echo ""
 echo "🔍 验证容器挂载配置..."
@@ -510,4 +549,10 @@ echo "部署模式说明:"
 echo "- 在线模式: ./deploy-client.sh [配置文件]"
 echo "- 离线模式: ./deploy-client.sh offline 或 ./deploy-client.sh [配置文件] offline"
 echo ""
-echo "如有问题，请联系技术支持" 
+echo "如有问题，请联系技术支持"
+
+# 清理临时文件
+if [ -f "docker-compose-temp.yml" ]; then
+    rm -f docker-compose-temp.yml docker-compose-temp.yml.bak
+    echo "🧹 已清理临时配置文件"
+fi 
