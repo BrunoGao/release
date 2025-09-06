@@ -1,0 +1,24 @@
+{
+  "name": "ljwx-config",
+  "version": "2.0.1",
+  "description": "LJWX系统统一配置管理工具",
+  "main": "config-loader.js",
+  "scripts": {
+    "test": "node config-loader.js"
+  },
+  "keywords": [
+    "ljwx",
+    "config",
+    "yaml",
+    "configuration"
+  ],
+  "author": "LJWX Team",
+  "license": "MIT",
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

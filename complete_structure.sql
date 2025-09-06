@@ -1,0 +1,3389 @@
+-- MySQL dump 10.13  Distrib 9.3.0, for macos15.2 (arm64)
+--
+-- Host: localhost    Database: test
+-- ------------------------------------------------------
+-- Server version	9.3.0
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `admin_operation_logs`
+--
+
+DROP TABLE IF EXISTS `admin_operation_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `admin_operation_logs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `admin_id` int NOT NULL,
+  `operation_type` varchar(255) DEFAULT NULL,
+  `description` text,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ai_chat_history`
+--
+
+DROP TABLE IF EXISTS `ai_chat_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ai_chat_history` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `session_id` varchar(64) NOT NULL,
+  `user_id` bigint DEFAULT NULL,
+  `user_message` text NOT NULL,
+  `ai_response` text NOT NULL,
+  `model` varchar(64) DEFAULT NULL,
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `salt` varchar(6) DEFAULT NULL COMMENT 'MD5的盐值',
+  `last_login_time` datetime DEFAULT NULL COMMENT '最后登录时间',
+  `update_password_time` datetime DEFAULT NULL COMMENT '修改密码时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`),
+  KEY `idx_session_id` (`session_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_file`
+--
+
+DROP TABLE IF EXISTS `mon_file`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_file` (
+  `id` bigint NOT NULL COMMENT '主键ID',
+  `order_id` bigint DEFAULT NULL COMMENT '订单ID',
+  `order_no` varchar(60) DEFAULT NULL COMMENT '订单号码',
+  `category` varchar(10) NOT NULL COMMENT '分类1:上传 2:下载',
+  `location` varchar(1) NOT NULL COMMENT '存储位置 1:本地 2:Minio',
+  `name` varchar(60) NOT NULL COMMENT '文件名称',
+  `suffix` varchar(10) NOT NULL COMMENT '文件尾缀',
+  `path` varchar(200) NOT NULL COMMENT '文件路径',
+  `length` int NOT NULL COMMENT '文件大小',
+  `size` varchar(20) NOT NULL COMMENT '文件大小(带单位)',
+  `uuid` varchar(60) NOT NULL COMMENT '文件UUID',
+  `content_type` varchar(60) DEFAULT NULL COMMENT '文件类型',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` int DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='文件管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_logs_error`
+--
+
+DROP TABLE IF EXISTS `mon_logs_error`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_logs_error` (
+  `id` bigint NOT NULL COMMENT '主键ID',
+  `request_id` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '请求ID',
+  `ip` varchar(20) NOT NULL COMMENT 'IP',
+  `ip_addr` varchar(45) NOT NULL COMMENT 'IP所属地',
+  `user_agent` varchar(200) DEFAULT NULL COMMENT '登录代理',
+  `request_uri` varchar(100) DEFAULT NULL COMMENT '请求URI',
+  `request_method` varchar(20) DEFAULT NULL COMMENT '请求方式',
+  `content_type` varchar(100) DEFAULT NULL COMMENT '请求内容类型',
+  `operation` varchar(200) DEFAULT NULL COMMENT '接口说明',
+  `method_name` varchar(64) DEFAULT NULL COMMENT '方法名称',
+  `method_params` longtext COMMENT '请求参数',
+  `use_time` bigint DEFAULT NULL COMMENT '请求耗时',
+  `exception_message` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '异常信息',
+  `exception_class` varchar(200) DEFAULT NULL COMMENT '异常类',
+  `line` int DEFAULT NULL COMMENT '异常行号',
+  `stack_trace` longtext COMMENT '堆栈信息',
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='错误异常日志';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_logs_login`
+--
+
+DROP TABLE IF EXISTS `mon_logs_login`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_logs_login` (
+  `id` bigint NOT NULL COMMENT '主键ID',
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID',
+  `user_name` varchar(40) DEFAULT '',
+  `user_real_name` varchar(20) DEFAULT NULL COMMENT '真实姓名',
+  `ip` varchar(20) NOT NULL COMMENT 'IP',
+  `ip_addr` varchar(45) NOT NULL COMMENT 'IP所属地',
+  `user_agent` varchar(200) DEFAULT NULL COMMENT '登录代理',
+  `status` varchar(2) DEFAULT '1' COMMENT '登录状态(0:失败 1:成功)',
+  `message` varchar(200) DEFAULT NULL COMMENT '登录错误日志',
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='登录日志';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_logs_operation`
+--
+
+DROP TABLE IF EXISTS `mon_logs_operation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_logs_operation` (
+  `id` bigint NOT NULL COMMENT '主键ID',
+  `request_id` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '请求ID',
+  `ip` varchar(20) NOT NULL COMMENT 'IP',
+  `ip_addr` varchar(45) NOT NULL COMMENT 'IP所属地',
+  `user_agent` varchar(200) DEFAULT NULL COMMENT '登录代理',
+  `request_uri` varchar(100) DEFAULT NULL COMMENT '请求URI',
+  `request_method` varchar(20) DEFAULT NULL COMMENT '请求方式',
+  `content_type` varchar(100) DEFAULT NULL COMMENT '请求内容类型',
+  `operation` varchar(200) DEFAULT NULL COMMENT '接口说明',
+  `method_name` varchar(64) DEFAULT NULL COMMENT '方法名称',
+  `method_params` longtext COMMENT '请求参数',
+  `use_time` bigint DEFAULT NULL COMMENT '请求耗时',
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='操作日志';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_logs_scheduler`
+--
+
+DROP TABLE IF EXISTS `mon_logs_scheduler`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_logs_scheduler` (
+  `id` bigint NOT NULL COMMENT '主键ID',
+  `job_name` varchar(190) NOT NULL COMMENT '任务名称',
+  `job_group` varchar(190) NOT NULL COMMENT '任务组别',
+  `trigger_name` varchar(190) NOT NULL COMMENT '触发器名称',
+  `trigger_group` varchar(190) NOT NULL COMMENT '触发器组别',
+  `use_time` bigint DEFAULT NULL COMMENT '耗时',
+  `status` varchar(20) DEFAULT NULL COMMENT '状态',
+  `exception_message` varchar(500) DEFAULT NULL COMMENT '异常信息',
+  `exception_class` varchar(200) DEFAULT NULL COMMENT '异常类',
+  `line` int DEFAULT NULL COMMENT '异常行号',
+  `stack_trace` longtext COMMENT '堆栈信息',
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='调度日志';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_BLOB_TRIGGERS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_BLOB_TRIGGERS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_BLOB_TRIGGERS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `TRIGGER_NAME` varchar(190) NOT NULL,
+  `TRIGGER_GROUP` varchar(190) NOT NULL,
+  `BLOB_DATA` blob,
+  PRIMARY KEY (`SCHED_NAME`,`TRIGGER_NAME`,`TRIGGER_GROUP`),
+  KEY `SCHED_NAME` (`SCHED_NAME`,`TRIGGER_NAME`,`TRIGGER_GROUP`),
+  CONSTRAINT `mon_qrtz_BLOB_TRIGGERS_ibfk_1` FOREIGN KEY (`SCHED_NAME`, `TRIGGER_NAME`, `TRIGGER_GROUP`) REFERENCES `mon_qrtz_TRIGGERS` (`SCHED_NAME`, `TRIGGER_NAME`, `TRIGGER_GROUP`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_CALENDARS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_CALENDARS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_CALENDARS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `CALENDAR_NAME` varchar(190) NOT NULL,
+  `CALENDAR` blob NOT NULL,
+  PRIMARY KEY (`SCHED_NAME`,`CALENDAR_NAME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_CRON_TRIGGERS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_CRON_TRIGGERS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_CRON_TRIGGERS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `TRIGGER_NAME` varchar(190) NOT NULL,
+  `TRIGGER_GROUP` varchar(190) NOT NULL,
+  `CRON_EXPRESSION` varchar(120) NOT NULL,
+  `TIME_ZONE_ID` varchar(80) DEFAULT NULL,
+  PRIMARY KEY (`SCHED_NAME`,`TRIGGER_NAME`,`TRIGGER_GROUP`),
+  CONSTRAINT `mon_qrtz_CRON_TRIGGERS_ibfk_1` FOREIGN KEY (`SCHED_NAME`, `TRIGGER_NAME`, `TRIGGER_GROUP`) REFERENCES `mon_qrtz_TRIGGERS` (`SCHED_NAME`, `TRIGGER_NAME`, `TRIGGER_GROUP`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_FIRED_TRIGGERS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_FIRED_TRIGGERS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_FIRED_TRIGGERS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `ENTRY_ID` varchar(95) NOT NULL,
+  `TRIGGER_NAME` varchar(190) NOT NULL,
+  `TRIGGER_GROUP` varchar(190) NOT NULL,
+  `INSTANCE_NAME` varchar(190) NOT NULL,
+  `FIRED_TIME` bigint NOT NULL,
+  `SCHED_TIME` bigint NOT NULL,
+  `PRIORITY` int NOT NULL,
+  `STATE` varchar(16) NOT NULL,
+  `JOB_NAME` varchar(190) DEFAULT NULL,
+  `JOB_GROUP` varchar(190) DEFAULT NULL,
+  `IS_NONCONCURRENT` varchar(1) DEFAULT NULL,
+  `REQUESTS_RECOVERY` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`SCHED_NAME`,`ENTRY_ID`),
+  KEY `IDX_mon_qrtz_FT_TRIG_INST_NAME` (`SCHED_NAME`,`INSTANCE_NAME`),
+  KEY `IDX_mon_qrtz_FT_INST_JOB_REQ_RCVRY` (`SCHED_NAME`,`INSTANCE_NAME`,`REQUESTS_RECOVERY`),
+  KEY `IDX_mon_qrtz_FT_J_G` (`SCHED_NAME`,`JOB_NAME`,`JOB_GROUP`),
+  KEY `IDX_mon_qrtz_FT_JG` (`SCHED_NAME`,`JOB_GROUP`),
+  KEY `IDX_mon_qrtz_FT_T_G` (`SCHED_NAME`,`TRIGGER_NAME`,`TRIGGER_GROUP`),
+  KEY `IDX_mon_qrtz_FT_TG` (`SCHED_NAME`,`TRIGGER_GROUP`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_JOB_DETAILS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_JOB_DETAILS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_JOB_DETAILS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `JOB_NAME` varchar(190) NOT NULL,
+  `JOB_GROUP` varchar(190) NOT NULL,
+  `DESCRIPTION` varchar(250) DEFAULT NULL,
+  `JOB_CLASS_NAME` varchar(250) NOT NULL,
+  `IS_DURABLE` varchar(1) NOT NULL,
+  `IS_NONCONCURRENT` varchar(1) NOT NULL,
+  `IS_UPDATE_DATA` varchar(1) NOT NULL,
+  `REQUESTS_RECOVERY` varchar(1) NOT NULL,
+  `JOB_DATA` blob,
+  PRIMARY KEY (`SCHED_NAME`,`JOB_NAME`,`JOB_GROUP`),
+  KEY `IDX_mon_qrtz_J_REQ_RECOVERY` (`SCHED_NAME`,`REQUESTS_RECOVERY`),
+  KEY `IDX_mon_qrtz_J_GRP` (`SCHED_NAME`,`JOB_GROUP`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_LOCKS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_LOCKS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_LOCKS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `LOCK_NAME` varchar(40) NOT NULL,
+  PRIMARY KEY (`SCHED_NAME`,`LOCK_NAME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_PAUSED_TRIGGER_GRPS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_PAUSED_TRIGGER_GRPS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_PAUSED_TRIGGER_GRPS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `TRIGGER_GROUP` varchar(190) NOT NULL,
+  PRIMARY KEY (`SCHED_NAME`,`TRIGGER_GROUP`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_SCHEDULER_STATE`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_SCHEDULER_STATE`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_SCHEDULER_STATE` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `INSTANCE_NAME` varchar(190) NOT NULL,
+  `LAST_CHECKIN_TIME` bigint NOT NULL,
+  `CHECKIN_INTERVAL` bigint NOT NULL,
+  PRIMARY KEY (`SCHED_NAME`,`INSTANCE_NAME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_SIMPLE_TRIGGERS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_SIMPLE_TRIGGERS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_SIMPLE_TRIGGERS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `TRIGGER_NAME` varchar(190) NOT NULL,
+  `TRIGGER_GROUP` varchar(190) NOT NULL,
+  `REPEAT_COUNT` bigint NOT NULL,
+  `REPEAT_INTERVAL` bigint NOT NULL,
+  `TIMES_TRIGGERED` bigint NOT NULL,
+  PRIMARY KEY (`SCHED_NAME`,`TRIGGER_NAME`,`TRIGGER_GROUP`),
+  CONSTRAINT `mon_qrtz_SIMPLE_TRIGGERS_ibfk_1` FOREIGN KEY (`SCHED_NAME`, `TRIGGER_NAME`, `TRIGGER_GROUP`) REFERENCES `mon_qrtz_TRIGGERS` (`SCHED_NAME`, `TRIGGER_NAME`, `TRIGGER_GROUP`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_SIMPROP_TRIGGERS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_SIMPROP_TRIGGERS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_SIMPROP_TRIGGERS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `TRIGGER_NAME` varchar(190) NOT NULL,
+  `TRIGGER_GROUP` varchar(190) NOT NULL,
+  `STR_PROP_1` varchar(512) DEFAULT NULL,
+  `STR_PROP_2` varchar(512) DEFAULT NULL,
+  `STR_PROP_3` varchar(512) DEFAULT NULL,
+  `INT_PROP_1` int DEFAULT NULL,
+  `INT_PROP_2` int DEFAULT NULL,
+  `LONG_PROP_1` bigint DEFAULT NULL,
+  `LONG_PROP_2` bigint DEFAULT NULL,
+  `DEC_PROP_1` decimal(13,4) DEFAULT NULL,
+  `DEC_PROP_2` decimal(13,4) DEFAULT NULL,
+  `BOOL_PROP_1` varchar(1) DEFAULT NULL,
+  `BOOL_PROP_2` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`SCHED_NAME`,`TRIGGER_NAME`,`TRIGGER_GROUP`),
+  CONSTRAINT `mon_qrtz_SIMPROP_TRIGGERS_ibfk_1` FOREIGN KEY (`SCHED_NAME`, `TRIGGER_NAME`, `TRIGGER_GROUP`) REFERENCES `mon_qrtz_TRIGGERS` (`SCHED_NAME`, `TRIGGER_NAME`, `TRIGGER_GROUP`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_qrtz_TRIGGERS`
+--
+
+DROP TABLE IF EXISTS `mon_qrtz_TRIGGERS`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_qrtz_TRIGGERS` (
+  `SCHED_NAME` varchar(120) NOT NULL,
+  `TRIGGER_NAME` varchar(190) NOT NULL,
+  `TRIGGER_GROUP` varchar(190) NOT NULL,
+  `JOB_NAME` varchar(190) NOT NULL,
+  `JOB_GROUP` varchar(190) NOT NULL,
+  `DESCRIPTION` varchar(250) DEFAULT NULL,
+  `NEXT_FIRE_TIME` bigint DEFAULT NULL,
+  `PREV_FIRE_TIME` bigint DEFAULT NULL,
+  `PRIORITY` int DEFAULT NULL,
+  `TRIGGER_STATE` varchar(16) NOT NULL,
+  `TRIGGER_TYPE` varchar(8) NOT NULL,
+  `START_TIME` bigint NOT NULL,
+  `END_TIME` bigint DEFAULT NULL,
+  `CALENDAR_NAME` varchar(190) DEFAULT NULL,
+  `MISFIRE_INSTR` smallint DEFAULT NULL,
+  `JOB_DATA` blob,
+  PRIMARY KEY (`SCHED_NAME`,`TRIGGER_NAME`,`TRIGGER_GROUP`),
+  KEY `IDX_mon_qrtz_T_J` (`SCHED_NAME`,`JOB_NAME`,`JOB_GROUP`),
+  KEY `IDX_mon_qrtz_T_JG` (`SCHED_NAME`,`JOB_GROUP`),
+  KEY `IDX_mon_qrtz_T_C` (`SCHED_NAME`,`CALENDAR_NAME`),
+  KEY `IDX_mon_qrtz_T_G` (`SCHED_NAME`,`TRIGGER_GROUP`),
+  KEY `IDX_mon_qrtz_T_STATE` (`SCHED_NAME`,`TRIGGER_STATE`),
+  KEY `IDX_mon_qrtz_T_N_STATE` (`SCHED_NAME`,`TRIGGER_NAME`,`TRIGGER_GROUP`,`TRIGGER_STATE`),
+  KEY `IDX_mon_qrtz_T_N_G_STATE` (`SCHED_NAME`,`TRIGGER_GROUP`,`TRIGGER_STATE`),
+  KEY `IDX_mon_qrtz_T_NEXT_FIRE_TIME` (`SCHED_NAME`,`NEXT_FIRE_TIME`),
+  KEY `IDX_mon_qrtz_T_NFT_ST` (`SCHED_NAME`,`TRIGGER_STATE`,`NEXT_FIRE_TIME`),
+  KEY `IDX_mon_qrtz_T_NFT_MISFIRE` (`SCHED_NAME`,`MISFIRE_INSTR`,`NEXT_FIRE_TIME`),
+  KEY `IDX_mon_qrtz_T_NFT_ST_MISFIRE` (`SCHED_NAME`,`MISFIRE_INSTR`,`NEXT_FIRE_TIME`,`TRIGGER_STATE`),
+  KEY `IDX_mon_qrtz_T_NFT_ST_MISFIRE_GRP` (`SCHED_NAME`,`MISFIRE_INSTR`,`NEXT_FIRE_TIME`,`TRIGGER_GROUP`,`TRIGGER_STATE`),
+  CONSTRAINT `mon_qrtz_TRIGGERS_ibfk_1` FOREIGN KEY (`SCHED_NAME`, `JOB_NAME`, `JOB_GROUP`) REFERENCES `mon_qrtz_JOB_DETAILS` (`SCHED_NAME`, `JOB_NAME`, `JOB_GROUP`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mon_scheduler`
+--
+
+DROP TABLE IF EXISTS `mon_scheduler`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mon_scheduler` (
+  `id` bigint NOT NULL COMMENT '主键ID',
+  `job_name` varchar(190) NOT NULL COMMENT '任务名称',
+  `job_group` varchar(190) NOT NULL COMMENT '任务组别',
+  `trigger_name` varchar(190) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '触发器名称',
+  `trigger_group` varchar(190) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '触发器组别',
+  `job_data` varchar(200) DEFAULT NULL COMMENT '任务参数',
+  `trigger_data` varchar(200) DEFAULT NULL COMMENT '触发器参数',
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` int DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='调度管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_dict`
+--
+
+DROP TABLE IF EXISTS `sys_dict`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_dict` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `name` varchar(64) DEFAULT NULL COMMENT '字典名称',
+  `code` varchar(64) NOT NULL COMMENT '字典编码',
+  `type` varchar(2) DEFAULT '1' COMMENT '字典类型(1:系统字典,2:业务字典)',
+  `sort` int DEFAULT '999' COMMENT '排序值',
+  `description` varchar(500) DEFAULT NULL COMMENT '字典描述',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='数据字典管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_dict_item`
+--
+
+DROP TABLE IF EXISTS `sys_dict_item`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_dict_item` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `dict_id` bigint DEFAULT NULL COMMENT '父字典ID',
+  `dict_code` varchar(64) NOT NULL COMMENT '父字典编码',
+  `value` varchar(64) NOT NULL COMMENT '数据值',
+  `zh_cn` varchar(64) NOT NULL COMMENT '中文名称',
+  `en_us` varchar(64) DEFAULT NULL COMMENT '英文名称',
+  `type` varchar(20) DEFAULT NULL COMMENT '类型(前端渲染类型)',
+  `sort` int DEFAULT '999' COMMENT '排序值',
+  `description` varchar(500) DEFAULT NULL COMMENT '字典描述',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='数据字典子项管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_menu`
+--
+
+DROP TABLE IF EXISTS `sys_menu`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_menu` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `parent_id` bigint DEFAULT NULL COMMENT '父菜单ID',
+  `type` varchar(20) NOT NULL COMMENT '菜单类型 1:目录 2:菜单',
+  `name` varchar(50) NOT NULL COMMENT '菜单名称',
+  `i18n_key` varchar(100) NOT NULL COMMENT '多语言标题',
+  `route_name` varchar(50) NOT NULL COMMENT '路由名称',
+  `route_path` varchar(255) NOT NULL COMMENT '菜单路径',
+  `icon` varchar(50) DEFAULT NULL COMMENT '菜单图标',
+  `icon_type` varchar(2) DEFAULT NULL COMMENT '图标类型 1:iconify icon 2:local icon',
+  `component` varchar(60) DEFAULT NULL COMMENT '路由组件',
+  `keep_alive` varchar(2) DEFAULT '1' COMMENT '缓存页面(Y:是,N:否)',
+  `hide` varchar(2) DEFAULT '0' COMMENT '是否隐藏(Y:是,N:否)',
+  `href` varchar(64) DEFAULT NULL COMMENT '外部链接',
+  `sort` int DEFAULT '999' COMMENT '排序值',
+  `multi_tab` varchar(2) DEFAULT NULL COMMENT '支持多标签(Y:是,N:否)',
+  `fixed_index_in_tab` int DEFAULT NULL COMMENT '固定在页签中的序号',
+  `iframe_url` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '内链URL',
+  `query` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' COMMENT '路由查询参数',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `customer_id` bigint DEFAULT '0' COMMENT '租户ID(0:全局菜单)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`),
+  KEY `idx_sys_menu_customer_id` (`customer_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='菜单管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_notice`
+--
+
+DROP TABLE IF EXISTS `sys_notice`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_notice` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `category` varchar(2) NOT NULL COMMENT '分类 1:通知 2:公告',
+  `title` varchar(200) DEFAULT NULL COMMENT '标题',
+  `content` varchar(500) NOT NULL COMMENT '内容',
+  `release_time` datetime NOT NULL COMMENT '发布时间',
+  `remark` varchar(255) DEFAULT NULL COMMENT '备注',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知公告';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_org_closure`
+--
+
+DROP TABLE IF EXISTS `sys_org_closure`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_org_closure` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `ancestor_id` bigint NOT NULL COMMENT '祖先节点ID',
+  `descendant_id` bigint NOT NULL COMMENT '后代节点ID',
+  `depth` int NOT NULL DEFAULT '0' COMMENT '层级深度(0表示自己到自己)',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID(0表示系统级别)',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_closure_ancestor_descendant` (`ancestor_id`,`descendant_id`,`customer_id`),
+  KEY `idx_closure_ancestor` (`ancestor_id`,`customer_id`),
+  KEY `idx_closure_descendant` (`descendant_id`,`customer_id`),
+  KEY `idx_closure_depth` (`depth`),
+  KEY `idx_closure_customer` (`customer_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=62 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='组织架构闭包关系表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_org_manager_cache`
+--
+
+DROP TABLE IF EXISTS `sys_org_manager_cache`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_org_manager_cache` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `org_id` bigint NOT NULL COMMENT '组织ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `user_name` varchar(50) NOT NULL COMMENT '用户名',
+  `role_type` varchar(20) NOT NULL COMMENT '角色类型(manager:管理员,supervisor:主管)',
+  `org_level` int NOT NULL DEFAULT '0' COMMENT '组织层级',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID',
+  `is_active` tinyint DEFAULT '1' COMMENT '是否有效(1有效0无效)',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_manager_org_user_role` (`org_id`,`user_id`,`role_type`,`customer_id`),
+  KEY `idx_manager_org` (`org_id`,`customer_id`),
+  KEY `idx_manager_user` (`user_id`,`customer_id`),
+  KEY `idx_manager_role` (`role_type`,`customer_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='组织管理员关系缓存表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_org_units`
+--
+
+DROP TABLE IF EXISTS `sys_org_units`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_org_units` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `parent_id` bigint DEFAULT NULL COMMENT '父组织/部门/子部门ID',
+  `name` varchar(200) NOT NULL COMMENT '组织/部门/子部门名称',
+  `code` varchar(100) DEFAULT NULL COMMENT '组织/部门/子部门编码',
+  `abbr` varchar(50) DEFAULT NULL COMMENT '组织/部门/子部门名称简写',
+  `level` int NOT NULL DEFAULT '0' COMMENT '组织/部门/子部门层级',
+  `ancestors` varchar(500) NOT NULL COMMENT '祖先节点',
+  `description` varchar(500) DEFAULT NULL COMMENT '组织/部门/子部门描述',
+  `sort` int DEFAULT '999' COMMENT '排序值',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，0表示全局组织，顶级组织ID表示租户',
+  PRIMARY KEY (`id`),
+  KEY `idx_sys_org_customer_id` (`customer_id`),
+  KEY `idx_sys_org_customer_parent` (`customer_id`,`parent_id`),
+  KEY `idx_sys_org_customer_level` (`customer_id`,`level`),
+  KEY `idx_sys_org_ancestors` (`ancestors`),
+  KEY `idx_sys_org_customer_status` (`customer_id`,`status`,`is_deleted`)
+) ENGINE=InnoDB AUTO_INCREMENT=1963853752253108227 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='组织/部门/子部门管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_permission`
+--
+
+DROP TABLE IF EXISTS `sys_permission`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_permission` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `menu_id` bigint DEFAULT NULL COMMENT '菜单ID',
+  `menu_name` varchar(50) NOT NULL COMMENT '菜单名称',
+  `name` varchar(50) NOT NULL COMMENT '权限(按钮)名称',
+  `resource` varchar(500) NOT NULL COMMENT '权限资源',
+  `description` varchar(255) DEFAULT NULL COMMENT '描述',
+  `sort` int DEFAULT NULL COMMENT '排序',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `customer_id` bigint DEFAULT '0' COMMENT '租户ID(0:全局权限)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`),
+  KEY `idx_sys_permission_customer_id` (`customer_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='权限(按钮)管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_position`
+--
+
+DROP TABLE IF EXISTS `sys_position`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_position` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `name` varchar(200) NOT NULL COMMENT '岗位名称',
+  `code` varchar(100) DEFAULT NULL COMMENT '岗位编码',
+  `abbr` varchar(50) DEFAULT NULL COMMENT '岗位名称简写',
+  `description` varchar(500) DEFAULT NULL COMMENT '岗位描述',
+  `sort` int DEFAULT '999' COMMENT '排序值',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  `org_id` bigint DEFAULT NULL,
+  `risk_level` varchar(20) DEFAULT 'normal' COMMENT '岗位风险等级（normal: 普通, medium: 中风险, high: 高风险）',
+  `weight` decimal(5,2) DEFAULT '0.15' COMMENT '健康评分按岗位权重',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID (0表示全局岗位，所有租户可见)',
+  PRIMARY KEY (`id`),
+  KEY `idx_sys_position_customer_id` (`customer_id`),
+  KEY `idx_sys_position_customer_org` (`customer_id`,`org_id`),
+  KEY `idx_sys_position_customer_status` (`customer_id`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='岗位管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role`
+--
+
+DROP TABLE IF EXISTS `sys_role`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_role` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `parent_id` bigint DEFAULT '0' COMMENT '父主键',
+  `role_name` varchar(50) NOT NULL COMMENT '角色名称',
+  `role_code` varchar(50) NOT NULL COMMENT '角色编码',
+  `description` varchar(255) DEFAULT NULL COMMENT '描述',
+  `sort` int NOT NULL DEFAULT '999' COMMENT '排序',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_admin` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否为管理员角色（0普通角色，1管理员角色）',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，0表示全局角色，所有租户可见',
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_sys_role_customer_id` (`customer_id`),
+  KEY `idx_sys_role_customer_status` (`customer_id`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='角色管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role_menu`
+--
+
+DROP TABLE IF EXISTS `sys_role_menu`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_role_menu` (
+  `id` bigint NOT NULL,
+  `role_id` bigint NOT NULL COMMENT '角色ID',
+  `menu_id` bigint NOT NULL COMMENT '菜单ID',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='角色菜单管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_role_permission`
+--
+
+DROP TABLE IF EXISTS `sys_role_permission`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_role_permission` (
+  `id` bigint NOT NULL,
+  `role_id` bigint NOT NULL COMMENT '角色ID',
+  `permission_id` bigint NOT NULL COMMENT '权限ID',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='角色权限管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_test`
+--
+
+DROP TABLE IF EXISTS `sys_test`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_test` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `menu_id` bigint DEFAULT NULL COMMENT '菜单ID',
+  `menu_name` varchar(50) NOT NULL COMMENT '菜单名称',
+  `name` varchar(50) NOT NULL COMMENT '权限(按钮)名称',
+  `resource` varchar(500) NOT NULL COMMENT '权限资源',
+  `description` varchar(255) DEFAULT NULL COMMENT '描述',
+  `sort` int DEFAULT NULL COMMENT '排序',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  `is_query` char(1) DEFAULT '1' COMMENT '是否查询',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='测试代码生成表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user`
+--
+
+DROP TABLE IF EXISTS `sys_user`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_user` (
+  `id` bigint NOT NULL COMMENT '主键ID',
+  `user_name` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '用户名称',
+  `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '密码',
+  `nick_name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '昵称',
+  `real_name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '真实姓名',
+  `avatar` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '头像',
+  `email` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '邮箱',
+  `phone` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '手机',
+  `gender` varchar(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '0' COMMENT '性别 0保密 1男 2女',
+  `create_user` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `salt` varchar(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT 'MD5的盐值',
+  `last_login_time` datetime DEFAULT NULL COMMENT '最后登录时间',
+  `update_password_time` datetime DEFAULT NULL COMMENT '修改密码时间',
+  `status` varchar(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  `device_sn` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `customer_id` bigint NOT NULL DEFAULT '0',
+  `user_card_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `working_years` int unsigned DEFAULT '0' COMMENT '工龄（年）',
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `idx_sys_user_customer_id` (`customer_id`),
+  KEY `idx_sys_user_customer_status` (`customer_id`,`status`),
+  KEY `idx_sys_user_customer_deleted` (`customer_id`,`is_deleted`),
+  KEY `idx_sys_user_device_sn` (`device_sn`),
+  KEY `idx_sys_user_phone` (`phone`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user_org`
+--
+
+DROP TABLE IF EXISTS `sys_user_org`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_user_org` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID',
+  `org_id` bigint DEFAULT NULL COMMENT '组织/部门/子部门ID',
+  `principal` varchar(2) DEFAULT '0' COMMENT '组织/部门/子部门负责人(0:否,1:是)',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自组织或用户',
+  PRIMARY KEY (`id`),
+  KEY `idx_sys_user_org_customer_user` (`customer_id`,`user_id`),
+  KEY `idx_sys_user_org_customer_org` (`customer_id`,`org_id`),
+  KEY `idx_sys_user_org_user_id` (`user_id`),
+  KEY `idx_sys_user_org_org_id` (`org_id`),
+  KEY `idx_sys_user_org_principal` (`user_id`,`principal`),
+  KEY `idx_sys_user_org_composite` (`customer_id`,`user_id`,`org_id`,`is_deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户组织/部门/子部门管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user_position`
+--
+
+DROP TABLE IF EXISTS `sys_user_position`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_user_position` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID',
+  `position_id` bigint DEFAULT NULL COMMENT '岗位ID',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自用户所属租户',
+  PRIMARY KEY (`id`),
+  KEY `idx_sys_user_position_customer` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户岗位管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_user_role`
+--
+
+DROP TABLE IF EXISTS `sys_user_role`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_user_role` (
+  `id` bigint NOT NULL,
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `role_id` bigint NOT NULL COMMENT '角色ID',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` varchar(2) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`),
+  KEY `idx_sys_user_role_customer` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户角色管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_alert_action_log`
+--
+
+DROP TABLE IF EXISTS `t_alert_action_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_alert_action_log` (
+  `log_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `id` int DEFAULT NULL,
+  `alert_id` bigint unsigned NOT NULL,
+  `action` varchar(255) NOT NULL,
+  `action_timestamp` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `action_user` varchar(255) DEFAULT NULL,
+  `action_user_id` bigint DEFAULT NULL,
+  `details` text,
+  `is_deleted` tinyint(1) DEFAULT '0',
+  `create_user` varchar(255) DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `handled_via` varchar(50) DEFAULT NULL COMMENT '处理途径（如微信、消息等）',
+  `result` varchar(50) DEFAULT NULL COMMENT '处理结果（如成功、失败等）',
+  `notification_type` varchar(20) DEFAULT NULL COMMENT '通知类型:wechat/message/both',
+  `retry_attempt` int DEFAULT '0' COMMENT '重试次数',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自告警所属租户',
+  `channel` varchar(32) DEFAULT NULL COMMENT '通知渠道：wechat|message|email|screen_popup|webhook',
+  `actor` varchar(64) DEFAULT NULL COMMENT '操作执行者：system|user|role',
+  `context` json DEFAULT NULL COMMENT '操作上下文：请求/响应/错误码/外部回执',
+  `action_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作发生时间',
+  `execution_time_ms` int DEFAULT NULL COMMENT '操作执行耗时(毫秒)',
+  PRIMARY KEY (`log_id`),
+  KEY `fk_alert_id` (`alert_id`),
+  KEY `idx_logs_alert_time` (`alert_id`,`action_at` DESC),
+  KEY `idx_logs_action_result` (`action`,`result`,`action_at` DESC),
+  KEY `idx_logs_channel_time` (`channel`,`action_at` DESC),
+  KEY `idx_logs_customer_action` (`customer_id`,`action`,`action_at` DESC),
+  CONSTRAINT `fk_alert_id` FOREIGN KEY (`alert_id`) REFERENCES `t_alert_info` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_alert_config_cache`
+--
+
+DROP TABLE IF EXISTS `t_alert_config_cache`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_alert_config_cache` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `customer_id` bigint NOT NULL COMMENT '租户ID',
+  `config_key` varchar(128) NOT NULL COMMENT '配置键',
+  `config_value` json NOT NULL COMMENT '配置值',
+  `cache_expires_at` datetime NOT NULL COMMENT '缓存过期时间',
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_cache_customer_key` (`customer_id`,`config_key`),
+  KEY `idx_cache_expires` (`cache_expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='告警配置缓存表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_alert_event_queue`
+--
+
+DROP TABLE IF EXISTS `t_alert_event_queue`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_alert_event_queue` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` varchar(128) NOT NULL COMMENT '事件唯一标识',
+  `customer_id` bigint NOT NULL COMMENT '租户ID',
+  `event_data` json NOT NULL COMMENT '标准化事件数据',
+  `status` varchar(16) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING|PROCESSING|PROCESSED|FAILED',
+  `retry_count` int NOT NULL DEFAULT '0' COMMENT '重试次数',
+  `max_retries` int NOT NULL DEFAULT '3' COMMENT '最大重试次数',
+  `next_retry_at` datetime DEFAULT NULL COMMENT '下次重试时间',
+  `processed_at` datetime DEFAULT NULL COMMENT '处理完成时间',
+  `error_message` text COMMENT '错误信息',
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_queue_event_id` (`event_id`),
+  KEY `idx_queue_status_retry` (`status`,`next_retry_at`),
+  KEY `idx_queue_customer_time` (`customer_id`,`create_time`),
+  KEY `idx_queue_processing` (`status`,`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='告警事件队列表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_alert_info`
+--
+
+DROP TABLE IF EXISTS `t_alert_info`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_alert_info` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `rule_id` bigint NOT NULL,
+  `alert_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `device_sn` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `alert_timestamp` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `alert_desc` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `severity_level` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'medium',
+  `alert_status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT 'pending',
+  `assigned_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `assigned_user_id` bigint DEFAULT NULL,
+  `is_deleted` tinyint(1) DEFAULT '0',
+  `create_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `longitude` decimal(12,8) DEFAULT '22.54036796' COMMENT '经度',
+  `latitude` decimal(12,8) DEFAULT '114.01508952' COMMENT '纬度',
+  `altitude` decimal(10,2) DEFAULT '0.00' COMMENT '海拔',
+  `health_id` bigint DEFAULT NULL,
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID',
+  `org_id` bigint DEFAULT NULL COMMENT '组织ID',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，0表示全局告警，其他值表示特定租户告警',
+  `responded_time` timestamp NULL DEFAULT NULL COMMENT '响应时间',
+  `response_duration` int unsigned DEFAULT NULL COMMENT '响应耗时（秒）',
+  `source` varchar(16) NOT NULL DEFAULT 'server' COMMENT '告警来源：watch|server',
+  `event_type` varchar(64) DEFAULT NULL COMMENT '事件类型',
+  `metric` varchar(64) DEFAULT NULL COMMENT '体征指标名称',
+  `value` double DEFAULT NULL COMMENT '指标数值',
+  `unit` varchar(16) DEFAULT NULL COMMENT '数值单位',
+  `level` varchar(16) NOT NULL DEFAULT 'minor' COMMENT '告警级别：info|minor|major|critical',
+  `status` varchar(24) NOT NULL DEFAULT 'NEW' COMMENT '告警状态：NEW|NOTIFIED|ACKED|ESCALATED|RESOLVED|CLOSED|AWAITING_REVIEW|ERROR',
+  `dedup_key` varchar(128) DEFAULT NULL COMMENT '去重键，用于同类告警去重',
+  `throttle_until` datetime DEFAULT NULL COMMENT '抑制窗口截止时间',
+  `occur_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '告警发生时间',
+  `recover_at` datetime DEFAULT NULL COMMENT '告警恢复时间',
+  `assigned_to` varchar(64) DEFAULT NULL COMMENT '指派责任人/组',
+  `extend` json DEFAULT NULL COMMENT '扩展数据字段',
+  PRIMARY KEY (`id`),
+  KEY `idx_device_sn` (`device_sn`),
+  KEY `idx_alert_type` (`alert_type`),
+  KEY `idx_rule_id` (`rule_id`),
+  KEY `idx_alert_info_health_user` (`health_id`,`user_id`),
+  KEY `idx_alert_info_tenant_status` (`customer_id`,`alert_status`),
+  KEY `idx_alert_org_id` (`org_id`),
+  KEY `idx_alert_user_id` (`user_id`),
+  KEY `idx_alert_org_user` (`org_id`,`user_id`),
+  KEY `idx_alert_customer_user` (`customer_id`,`user_id`),
+  KEY `idx_alerts_status_level` (`status`,`level`,`occur_at` DESC),
+  KEY `idx_alerts_user_time` (`user_id`,`occur_at` DESC,`is_deleted`),
+  KEY `idx_alerts_metric_time` (`metric`,`occur_at` DESC,`is_deleted`),
+  KEY `idx_alerts_customer_status` (`customer_id`,`status`,`occur_at` DESC),
+  KEY `idx_alerts_dedup` (`dedup_key`,`throttle_until`),
+  KEY `idx_alerts_org_status` (`org_id`,`status`,`level`,`occur_at` DESC)
+) ENGINE=InnoDB AUTO_INCREMENT=1921075162350948827 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_alert_notification_config`
+--
+
+DROP TABLE IF EXISTS `t_alert_notification_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_alert_notification_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `customer_id` bigint NOT NULL COMMENT '租户ID',
+  `channel` varchar(32) NOT NULL COMMENT '通知渠道',
+  `config` json NOT NULL COMMENT '渠道配置参数',
+  `is_enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用',
+  `priority` int NOT NULL DEFAULT '0' COMMENT '优先级，数字越小优先级越高',
+  `rate_limit_per_minute` int DEFAULT NULL COMMENT '每分钟发送限制',
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_notification_customer_channel` (`customer_id`,`channel`,`is_deleted`),
+  KEY `idx_notification_enabled` (`is_enabled`,`priority`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='告警通知渠道配置表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_alert_rules`
+--
+
+DROP TABLE IF EXISTS `t_alert_rules`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_alert_rules` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `rule_type` varchar(50) NOT NULL DEFAULT 'metric' COMMENT 'metric|custom|fallback',
+  `physical_sign` varchar(50) DEFAULT NULL,
+  `threshold_min` decimal(10,2) DEFAULT NULL,
+  `threshold_max` decimal(10,2) DEFAULT NULL,
+  `deviation_percentage` decimal(5,2) DEFAULT NULL,
+  `trend_duration` int DEFAULT NULL,
+  `parameters` json DEFAULT NULL,
+  `trigger_condition` text,
+  `alert_message` text,
+  `severity_level` varchar(16) DEFAULT 'minor' COMMENT '向后兼容字段，建议使用level',
+  `is_deleted` tinyint(1) DEFAULT '0',
+  `create_user` varchar(255) DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `notification_type` varchar(50) DEFAULT 'message' COMMENT '通知类型:wechat/message/both',
+  `customer_id` bigint DEFAULT '0',
+  `metric` varchar(64) DEFAULT NULL COMMENT '体征指标名称，rule_type=metric时必填',
+  `event_type` varchar(64) DEFAULT NULL COMMENT '自定义事件类型，rule_type=custom时必填',
+  `dsl` json DEFAULT NULL COMMENT '规则DSL配置(条件/去重/抑制/升级/自恢复)',
+  `level` varchar(16) NOT NULL DEFAULT 'minor' COMMENT '告警级别：info|minor|major|critical',
+  `notify` json DEFAULT NULL COMMENT '通知通道数组：wechat|message|email|screen_popup|webhook',
+  `is_enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '规则是否启用',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_rule_type_physical_sign_severity_customer` (`rule_type`,`physical_sign`,`severity_level`,`customer_id`),
+  KEY `idx_rules_metric` (`metric`,`is_enabled`,`is_deleted`),
+  KEY `idx_rules_event_type` (`event_type`,`is_enabled`,`is_deleted`),
+  KEY `idx_rules_level` (`level`,`is_enabled`,`is_deleted`),
+  KEY `idx_rules_customer_enabled` (`customer_id`,`is_enabled`,`is_deleted`)
+) ENGINE=InnoDB AUTO_INCREMENT=1963764274528374786 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_alert_statistics`
+--
+
+DROP TABLE IF EXISTS `t_alert_statistics`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_alert_statistics` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `customer_id` bigint NOT NULL COMMENT '租户ID',
+  `org_id` bigint DEFAULT NULL COMMENT '组织ID',
+  `stat_date` date NOT NULL COMMENT '统计日期',
+  `level` varchar(16) NOT NULL COMMENT '告警级别',
+  `total_count` int NOT NULL DEFAULT '0' COMMENT '总告警数',
+  `acked_count` int NOT NULL DEFAULT '0' COMMENT '已确认数',
+  `resolved_count` int NOT NULL DEFAULT '0' COMMENT '已解决数',
+  `escalated_count` int NOT NULL DEFAULT '0' COMMENT '升级数',
+  `avg_response_time_seconds` int DEFAULT NULL COMMENT '平均响应时间(秒)',
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_stats_unique` (`customer_id`,`org_id`,`stat_date`,`level`),
+  KEY `idx_stats_customer_date` (`customer_id`,`stat_date`),
+  KEY `idx_stats_org_date` (`org_id`,`stat_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='告警统计汇总表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_alert_types`
+--
+
+DROP TABLE IF EXISTS `t_alert_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_alert_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `alert_type` varchar(255) NOT NULL,
+  `status` enum('enable','disable') NOT NULL DEFAULT 'enable',
+  `description` text,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_customer_config`
+--
+
+DROP TABLE IF EXISTS `t_customer_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_customer_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID',
+  `customer_name` varchar(255) NOT NULL DEFAULT '' COMMENT '客户名称',
+  `description` text,
+  `upload_method` enum('wifi','bluetooth') DEFAULT 'wifi',
+  `license_key` int NOT NULL,
+  `is_support_license` tinyint(1) NOT NULL,
+  `is_deleted` tinyint(1) DEFAULT '0',
+  `create_user` varchar(255) DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `os_version` varchar(200) DEFAULT NULL,
+  `org_id` mediumtext,
+  `enable_resume` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否支持断点续传',
+  `upload_retry_count` int NOT NULL DEFAULT '3' COMMENT 'HTTP 上传失败重试次数',
+  `cache_max_count` int NOT NULL DEFAULT '100' COMMENT '缓存最大记录数（条）',
+  `upload_retry_interval` int NOT NULL DEFAULT '5' COMMENT 'HTTP 上传失败重试时间',
+  `logo_url` varchar(500) DEFAULT NULL COMMENT '客户自定义logo地址',
+  `logo_file_name` varchar(200) DEFAULT NULL COMMENT 'logo文件名',
+  `logo_upload_time` datetime DEFAULT NULL COMMENT 'logo上传时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_customer_config_customer_id` (`customer_id`),
+  KEY `idx_customer_config_logo` (`logo_url`)
+) ENGINE=InnoDB AUTO_INCREMENT=1963764273836314627 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_bind_request`
+--
+
+DROP TABLE IF EXISTS `t_device_bind_request`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_bind_request` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `device_sn` varchar(100) NOT NULL COMMENT '设备序列号',
+  `user_id` bigint NOT NULL COMMENT '申请用户ID',
+  `org_id` bigint NOT NULL COMMENT '申请组织ID',
+  `status` enum('PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'PENDING' COMMENT '申请状态',
+  `apply_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
+  `approve_time` datetime DEFAULT NULL COMMENT '审批时间',
+  `approver_id` bigint DEFAULT NULL COMMENT '审批人ID',
+  `comment` varchar(255) DEFAULT NULL COMMENT '审批备注',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否删除',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自申请用户的租户信息',
+  PRIMARY KEY (`id`),
+  KEY `idx_device_sn` (`device_sn`),
+  KEY `idx_user_status` (`user_id`,`status`),
+  KEY `idx_apply_time` (`apply_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='设备绑定申请表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_config`
+--
+
+DROP TABLE IF EXISTS `t_device_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_config` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `SPO2_MEASURE_PERIOD` int NOT NULL,
+  `STRESS_MEASURE_PERIOD` int NOT NULL,
+  `BODY_TEMPERATURE_MEASURE_PERIOD` int NOT NULL,
+  `HEART_RATE_WARNING_HIGH` int NOT NULL,
+  `HEART_RATE_WARNING_LOW` int NOT NULL,
+  `SPO2_WARNING` int NOT NULL,
+  `STRESS_WARNING` int NOT NULL,
+  `BODY_TEMPERATURE_HIGH_WARNING` float NOT NULL,
+  `BODY_TEMPERATURE_LOW_WARNING` float NOT NULL,
+  `HTTPURL` varchar(255) DEFAULT 'http://14.153.203.230:7007/',
+  `LOGO` varchar(255) DEFAULT '灵境万象',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_info`
+--
+
+DROP TABLE IF EXISTS `t_device_info`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_info` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `system_software_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `wifi_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `bluetooth_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `ip_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `network_access_mode` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `serial_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `device_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `imei` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `battery_level` int DEFAULT NULL,
+  `model` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `status` enum('INACTIVE','ACTIVE') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `wearable_status` enum('WORN','NOT_WORN') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `charging_status` enum('NOT_CHARGING','CHARGING') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `is_deleted` tinyint(1) DEFAULT '0',
+  `create_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT NULL,
+  `update_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT NULL,
+  `timestamp` datetime NOT NULL,
+  `voltage` int DEFAULT NULL,
+  `user_id` bigint DEFAULT NULL COMMENT '绑定用户ID',
+  `org_id` bigint DEFAULT NULL COMMENT '绑定组织ID',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，0表示全局设备，其他值表示特定租户设备',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `serial_number` (`serial_number`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_org_id` (`org_id`),
+  KEY `idx_serial_number` (`serial_number`),
+  KEY `idx_device_customer_serial` (`customer_id`,`serial_number`),
+  KEY `idx_device_customer_status` (`customer_id`,`status`)
+) ENGINE=InnoDB AUTO_INCREMENT=36940 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_info_history`
+--
+
+DROP TABLE IF EXISTS `t_device_info_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_info_history` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `serial_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '设备唯一编号',
+  `timestamp` datetime NOT NULL COMMENT '采集时间',
+  `system_software_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '系统版本',
+  `battery_level` int DEFAULT NULL COMMENT '电量',
+  `wearable_status` enum('WORN','NOT_WORN') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '佩戴状态',
+  `charging_status` enum('NOT_CHARGING','CHARGING') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '充电状态',
+  `voltage` int DEFAULT NULL COMMENT '电压',
+  `ip_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT 'IP地址',
+  `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  `create_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  `network_access_mode` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `status` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `user_id` bigint DEFAULT NULL COMMENT '绑定用户ID',
+  `org_id` bigint DEFAULT NULL COMMENT '绑定组织ID',
+  `customer_id` bigint DEFAULT NULL COMMENT '绑定租户ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_sn_time` (`serial_number`,`timestamp`)
+) ENGINE=InnoDB AUTO_INCREMENT=35687 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_info_history_archive`
+--
+
+DROP TABLE IF EXISTS `t_device_info_history_archive`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_info_history_archive` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `serial_number` varchar(255) NOT NULL,
+  `timestamp` datetime NOT NULL,
+  `system_software_version` varchar(255) DEFAULT NULL,
+  `battery_level` int DEFAULT NULL,
+  `wearable_status` enum('WORN','NOT_WORN') DEFAULT NULL,
+  `charging_status` enum('NOT_CHARGING','CHARGING') DEFAULT NULL,
+  `voltage` int DEFAULT NULL,
+  `ip_address` varchar(255) DEFAULT NULL,
+  `is_deleted` tinyint(1) DEFAULT '0',
+  `archive_date` date NOT NULL COMMENT '归档日期',
+  `archive_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '归档时间',
+  PRIMARY KEY (`id`,`archive_date`),
+  KEY `idx_archive_sn_date` (`serial_number`,`archive_date`),
+  KEY `idx_archive_date` (`archive_date`)
+) ENGINE=InnoDB AUTO_INCREMENT=9977 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='设备历史数据归档表'
+/*!50100 PARTITION BY RANGE (year(`archive_date`))
+(PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+ PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB,
+ PARTITION p2026 VALUES LESS THAN (2027) ENGINE = InnoDB,
+ PARTITION p_future VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_message`
+--
+
+DROP TABLE IF EXISTS `t_device_message`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_message` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `org_id` bigint DEFAULT NULL,
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID',
+  `device_sn` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `message` text NOT NULL,
+  `message_type` varchar(50) NOT NULL,
+  `sender_type` varchar(50) NOT NULL,
+  `receiver_type` varchar(50) NOT NULL,
+  `message_status` varchar(50) NOT NULL DEFAULT 'pending',
+  `sent_time` timestamp NULL DEFAULT NULL,
+  `received_time` timestamp NULL DEFAULT NULL,
+  `create_user` varchar(255) DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT NULL,
+  `update_user` varchar(255) DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT NULL,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `responded_number` int DEFAULT '0',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自设备所属租户',
+  PRIMARY KEY (`id`),
+  KEY `idx_device_message_health` (`device_sn`,`create_time`),
+  KEY `idx_message_user_deleted` (`user_id`,`is_deleted`),
+  KEY `idx_message_org_deleted` (`org_id`,`is_deleted`),
+  KEY `idx_message_status_type` (`message_status`,`message_type`),
+  KEY `idx_message_org_user_deleted` (`org_id`,`user_id`,`is_deleted`),
+  KEY `idx_user_time_temp` (`user_id`,`create_time` DESC,`is_deleted`) COMMENT '用户消息按时间查询 - 核心索引',
+  KEY `idx_user_status_temp` (`user_id`,`message_status`,`is_deleted`) COMMENT '用户消息状态查询索引',
+  KEY `idx_user_type_time_temp` (`user_id`,`message_type`,`create_time` DESC) COMMENT '用户按类型查询消息索引',
+  KEY `idx_customer_user_time_temp` (`customer_id`,`user_id`,`create_time` DESC,`is_deleted`) COMMENT '多租户用户消息查询索引',
+  KEY `idx_status_priority_time_temp` (`message_status`,`create_time` DESC,`is_deleted`) COMMENT '消息状态管理索引',
+  KEY `idx_user_time_opt` (`user_id`,`create_time` DESC,`is_deleted`) COMMENT '用户消息按时间查询 - 核心索引',
+  KEY `idx_user_status_opt` (`user_id`,`message_status`,`is_deleted`) COMMENT '用户消息状态查询索引',
+  KEY `idx_user_type_time_opt` (`user_id`,`message_type`,`create_time` DESC) COMMENT '用户按类型查询消息索引',
+  KEY `idx_customer_user_time_opt` (`customer_id`,`user_id`,`create_time` DESC,`is_deleted`) COMMENT '多租户用户消息查询索引'
+) ENGINE=InnoDB AUTO_INCREMENT=1937767532697178143 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_message_archive_v2`
+--
+
+DROP TABLE IF EXISTS `t_device_message_archive_v2`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_message_archive_v2` (
+  `id` bigint NOT NULL COMMENT '原消息ID',
+  `customer_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `message` mediumtext NOT NULL COMMENT '压缩存储消息内容',
+  `message_type` varchar(20) NOT NULL,
+  `message_status` varchar(20) NOT NULL,
+  `create_time` datetime(3) NOT NULL COMMENT '原创建时间',
+  `acknowledged_time` datetime(3) DEFAULT NULL COMMENT '原确认时间',
+  `archive_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '归档时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_archive_customer_user` (`customer_id`,`user_id`),
+  KEY `idx_archive_time` (`archive_time`),
+  KEY `idx_original_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8 COMMENT='消息归档表V2-压缩存储';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_message_backup`
+--
+
+DROP TABLE IF EXISTS `t_device_message_backup`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_message_backup` (
+  `id` bigint NOT NULL DEFAULT '0',
+  `org_id` varchar(200) DEFAULT NULL,
+  `user_id` varchar(50) DEFAULT NULL,
+  `device_sn` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `message` text NOT NULL,
+  `message_type` varchar(50) NOT NULL,
+  `sender_type` varchar(50) NOT NULL,
+  `receiver_type` varchar(50) NOT NULL,
+  `message_status` varchar(50) NOT NULL DEFAULT 'pending',
+  `sent_time` timestamp NULL DEFAULT NULL,
+  `received_time` timestamp NULL DEFAULT NULL,
+  `create_user` varchar(255) DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT NULL,
+  `update_user` varchar(255) DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT NULL,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `responded_number` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_message_detail`
+--
+
+DROP TABLE IF EXISTS `t_device_message_detail`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_message_detail` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `message_id` varchar(255) NOT NULL,
+  `device_sn` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `message_type` varchar(50) NOT NULL,
+  `sender_type` varchar(50) NOT NULL,
+  `receiver_type` varchar(50) NOT NULL,
+  `message_status` varchar(50) NOT NULL DEFAULT 'responded',
+  `sent_time` timestamp NULL DEFAULT NULL,
+  `received_time` timestamp NULL DEFAULT NULL,
+  `create_user` varchar(255) DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT NULL,
+  `update_user` varchar(255) DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT NULL,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自消息所属租户',
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID - 核心关联字段',
+  `org_id` bigint DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_detail_user_message_opt` (`user_id`,`message_id`) COMMENT '用户消息详情关联索引',
+  KEY `idx_user_response_time_opt` (`user_id`,`create_time` DESC,`is_deleted`) COMMENT '用户响应时间查询索引',
+  KEY `idx_message_delivery_opt` (`message_id`,`is_deleted`) COMMENT '消息详情查询索引',
+  KEY `idx_customer_user_detail_opt` (`customer_id`,`user_id`,`is_deleted`) COMMENT '多租户用户详情索引'
+) ENGINE=InnoDB AUTO_INCREMENT=61 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_message_detail_v2`
+--
+
+DROP TABLE IF EXISTS `t_device_message_detail_v2`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_message_detail_v2` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `message_id` bigint NOT NULL COMMENT '主消息ID',
+  `customer_id` bigint NOT NULL COMMENT '租户ID（继承）',
+  `user_id` bigint NOT NULL COMMENT '响应用户ID - 主关联字段',
+  `device_sn` varchar(64) DEFAULT NULL COMMENT '响应设备序列号（冗余）',
+  `response_message` text COMMENT '响应消息内容',
+  `response_type` enum('acknowledged','rejected','ignored','timeout') NOT NULL DEFAULT 'acknowledged' COMMENT '响应类型',
+  `response_time` datetime(3) DEFAULT NULL COMMENT '响应时间',
+  `delivery_status` enum('pending','delivered','failed','retry') NOT NULL DEFAULT 'pending',
+  `delivery_attempt_count` tinyint NOT NULL DEFAULT '0' COMMENT '传递尝试次数',
+  `last_delivery_time` datetime(3) DEFAULT NULL COMMENT '最后传递时间',
+  `delivery_error` varchar(500) DEFAULT NULL COMMENT '传递错误信息',
+  `client_info` json DEFAULT NULL COMMENT '客户端信息',
+  `response_location` json DEFAULT NULL COMMENT '响应位置信息',
+  `create_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `update_time` datetime(3) DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(3),
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_message_user_v2` (`message_id`,`user_id`),
+  KEY `idx_user_response_time_v2` (`user_id`,`response_time` DESC),
+  KEY `idx_user_message_status_v2` (`user_id`,`delivery_status`,`response_type`),
+  KEY `idx_message_delivery_v2` (`message_id`,`delivery_status`),
+  KEY `idx_customer_user_v2` (`customer_id`,`user_id`),
+  KEY `idx_retry_pending_v2` (`delivery_status`,`delivery_attempt_count`,`last_delivery_time`),
+  CONSTRAINT `fk_detail_message_v2` FOREIGN KEY (`message_id`) REFERENCES `t_device_message_v2` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='消息详情表V2 - 基于userId直接关联';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_message_v2`
+--
+
+DROP TABLE IF EXISTS `t_device_message_v2`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_message_v2` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `customer_id` bigint NOT NULL COMMENT '租户ID',
+  `department_id` bigint NOT NULL COMMENT '部门ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID - 主要关联字段',
+  `device_sn` varchar(64) DEFAULT NULL COMMENT '设备序列号 - 冗余字段，仅用于设备管理',
+  `message` text NOT NULL COMMENT '消息内容',
+  `message_type` enum('task','job','announcement','notification','alert','emergency') NOT NULL COMMENT '消息类型',
+  `sender_type` enum('system','user','device','admin') NOT NULL COMMENT '发送者类型',
+  `receiver_type` enum('user','department','broadcast') NOT NULL COMMENT '接收者类型',
+  `priority_level` tinyint NOT NULL DEFAULT '3' COMMENT '优先级(1-5)',
+  `message_status` enum('pending','delivered','acknowledged','failed','expired') NOT NULL DEFAULT 'pending',
+  `sent_time` datetime(3) DEFAULT NULL COMMENT '发送时间',
+  `received_time` datetime(3) DEFAULT NULL COMMENT '接收时间',
+  `acknowledged_time` datetime(3) DEFAULT NULL COMMENT '确认时间',
+  `expired_time` datetime(3) DEFAULT NULL COMMENT '过期时间',
+  `target_user_count` int NOT NULL DEFAULT '1' COMMENT '目标用户数（单发=1，群发>1）',
+  `acknowledged_count` int NOT NULL DEFAULT '0' COMMENT '已确认用户数',
+  `create_user_id` bigint DEFAULT NULL COMMENT '创建用户ID',
+  `create_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `update_time` datetime(3) DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(3),
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `version` int NOT NULL DEFAULT '1' COMMENT '乐观锁版本号',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_time_v2` (`user_id`,`create_time` DESC,`is_deleted`),
+  KEY `idx_user_status_v2` (`user_id`,`message_status`,`is_deleted`),
+  KEY `idx_user_type_time_v2` (`user_id`,`message_type`,`create_time` DESC),
+  KEY `idx_customer_user_time_v2` (`customer_id`,`user_id`,`create_time` DESC),
+  KEY `idx_customer_dept_time_v2` (`customer_id`,`department_id`,`create_time` DESC),
+  KEY `idx_status_priority_time_v2` (`message_status`,`priority_level`,`create_time` DESC),
+  KEY `idx_expired_cleanup_v2` (`expired_time`,`is_deleted`),
+  KEY `idx_device_time_v2` (`device_sn`,`create_time` DESC)
+) ENGINE=InnoDB AUTO_INCREMENT=1937767532697178141 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='设备消息表V2 - 基于userId直接关联';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_device_user`
+--
+
+DROP TABLE IF EXISTS `t_device_user`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_device_user` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `device_sn` varchar(200) NOT NULL COMMENT '设备ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `user_name` varchar(50) DEFAULT NULL,
+  `operate_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '绑定时间',
+  `status` enum('BIND','UNBIND') DEFAULT 'BIND' COMMENT '绑定状态 (BIND:绑定, UNBIND:解绑)',
+  `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除 (0:否,1:是)',
+  `create_user` varchar(255) DEFAULT NULL COMMENT '创建用户',
+  `create_user_id` bigint DEFAULT NULL COMMENT '创建用户ID',
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_user` varchar(255) DEFAULT NULL COMMENT '最后修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '最后修改用户ID',
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自用户的租户信息',
+  PRIMARY KEY (`id`),
+  KEY `fk_user_id` (`user_id`),
+  KEY `idx_device_user_device_sn` (`device_sn`) COMMENT '设备序列号索引，用于根据设备查找用户',
+  KEY `idx_device_user_customer_user` (`customer_id`,`user_id`) COMMENT '租户-用户复合索引，支持多租户用户查询',
+  KEY `idx_device_user_customer_device` (`customer_id`,`device_sn`) COMMENT '租户-设备复合索引，支持多租户设备查询'
+) ENGINE=InnoDB AUTO_INCREMENT=1963764413053652994 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='设备与用户关联表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_devices`
+--
+
+DROP TABLE IF EXISTS `t_devices`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_devices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `serialNumber` varchar(50) NOT NULL,
+  `model` varchar(50) DEFAULT NULL,
+  `firmwareVersion` varchar(50) DEFAULT NULL,
+  `appVersion` varchar(50) DEFAULT NULL,
+  `status` varchar(20) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `apiLevel` double DEFAULT NULL,
+  `batteryLevel` int DEFAULT NULL COMMENT '电池电量，百分比',
+  `chargingStatus` varchar(20) DEFAULT NULL COMMENT '充电状态，例如：充电中、未充电、充满电',
+  `lastChargedTime` timestamp NULL DEFAULT (now()) COMMENT '最后充电时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `serial_number` (`serialNumber`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_event_alarm_queue`
+--
+
+DROP TABLE IF EXISTS `t_event_alarm_queue`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_event_alarm_queue` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `event_type` varchar(100) NOT NULL COMMENT '事件类型',
+  `device_sn` varchar(50) NOT NULL COMMENT '设备序列号',
+  `event_value` varchar(500) DEFAULT NULL COMMENT '事件值',
+  `event_data` json DEFAULT NULL COMMENT '完整事件数据(JSON格式)',
+  `processing_status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '处理状态:pending/processing/completed/failed',
+  `retry_count` int NOT NULL DEFAULT '0' COMMENT '已重试次数',
+  `error_message` text COMMENT '错误信息',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `process_time` datetime DEFAULT NULL COMMENT '开始处理时间',
+  `complete_time` datetime DEFAULT NULL COMMENT '完成时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_status_time` (`processing_status`,`create_time`),
+  KEY `idx_device_time` (`device_sn`,`create_time`)
+) ENGINE=InnoDB AUTO_INCREMENT=180 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='事件告警处理队列';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_fence_points`
+--
+
+DROP TABLE IF EXISTS `t_fence_points`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_fence_points` (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '路径点唯一标识',
+  `fence_id` int NOT NULL COMMENT '所属围栏ID',
+  `lng` double NOT NULL COMMENT '经度',
+  `lat` double NOT NULL COMMENT '纬度',
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`),
+  KEY `fence_id` (`fence_id`),
+  CONSTRAINT `t_fence_points_ibfk_1` FOREIGN KEY (`fence_id`) REFERENCES `t_fences` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='围栏路径点表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_fences`
+--
+
+DROP TABLE IF EXISTS `t_fences`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_fences` (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '围栏唯一标识',
+  `name` varchar(255) NOT NULL COMMENT '围栏名称',
+  `description` text COMMENT '围栏描述',
+  `status` enum('active','inactive') DEFAULT 'active' COMMENT '围栏状态',
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='围栏信息表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_geofence`
+--
+
+DROP TABLE IF EXISTS `t_geofence`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_geofence` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL COMMENT '电子围栏名称',
+  `area` polygon NOT NULL COMMENT '围栏区域',
+  `description` text COMMENT '围栏描述',
+  `status` enum('active','inactive') DEFAULT 'active' COMMENT '围栏状态',
+  `create_user` varchar(40) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(40) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_health_anomaly`
+--
+
+DROP TABLE IF EXISTS `t_health_anomaly`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_health_anomaly` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `device_sn` varchar(50) DEFAULT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  `feature_name` varchar(50) DEFAULT NULL,
+  `value` float DEFAULT NULL,
+  `anomaly_type` varchar(10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_health_baseline`
+--
+
+DROP TABLE IF EXISTS `t_health_baseline`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_health_baseline` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `device_sn` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '设备序列号',
+  `user_id` bigint DEFAULT '0' COMMENT '用户ID',
+  `org_id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '1' COMMENT '组织ID',
+  `feature_name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '特征名称',
+  `baseline_date` date NOT NULL COMMENT '基线日期',
+  `mean_value` decimal(10,2) DEFAULT '0.00' COMMENT '平均值',
+  `std_value` decimal(10,2) DEFAULT '0.00' COMMENT '标准差',
+  `min_value` decimal(10,2) DEFAULT '0.00' COMMENT '最小值',
+  `max_value` decimal(10,2) DEFAULT '0.00' COMMENT '最大值',
+  `sample_count` int DEFAULT '0' COMMENT '样本数量',
+  `is_current` tinyint DEFAULT '1' COMMENT '是否当前有效',
+  `baseline_time` date DEFAULT NULL COMMENT '基线生成时间',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自用户所属租户',
+  `baseline_type` varchar(20) DEFAULT 'personal' COMMENT '基线类型：personal|population|position',
+  `age_group` varchar(20) DEFAULT NULL COMMENT '年龄组',
+  `gender` varchar(10) DEFAULT NULL COMMENT '性别',
+  `position_risk_level` varchar(20) DEFAULT NULL COMMENT '职位风险等级',
+  `seasonal_factor` decimal(5,4) DEFAULT '1.0000' COMMENT '季节调整因子',
+  `confidence_level` decimal(5,4) DEFAULT '0.9500' COMMENT '置信水平',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_baseline_device_feature_date` (`device_sn`,`feature_name`,`baseline_date`),
+  KEY `idx_baseline_org_feature_date` (`org_id`,`feature_name`,`baseline_date`),
+  KEY `idx_baseline_date_feature` (`baseline_date`,`feature_name`),
+  KEY `idx_baseline_type_date` (`baseline_type`,`baseline_date`,`is_current`),
+  KEY `idx_baseline_user_feature` (`user_id`,`feature_name`,`baseline_date`)
+) ENGINE=InnoDB AUTO_INCREMENT=566 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='健康基线表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_health_data_config`
+--
+
+DROP TABLE IF EXISTS `t_health_data_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_health_data_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `customer_id` bigint NOT NULL,
+  `data_type` varchar(50) NOT NULL,
+  `frequency_interval` int DEFAULT NULL,
+  `is_realtime` tinyint(1) DEFAULT '1',
+  `is_enabled` tinyint(1) DEFAULT '1',
+  `is_default` tinyint(1) DEFAULT '0',
+  `warning_high` decimal(5,1) DEFAULT NULL,
+  `warning_low` decimal(5,1) DEFAULT NULL,
+  `warning_cnt` int DEFAULT NULL,
+  `is_deleted` tinyint(1) DEFAULT '0',
+  `create_user` varchar(255) DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `weight` decimal(5,4) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1963764274385768451 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_health_metric_config`
+--
+
+DROP TABLE IF EXISTS `t_health_metric_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_health_metric_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `org_id` bigint DEFAULT NULL COMMENT '组织ID，NULL 表示全局通用配置',
+  `metric_code` varchar(50) NOT NULL COMMENT '指标编码，如 heart_rate, blood_oxygen',
+  `metric_name` varchar(100) NOT NULL COMMENT '指标名称，如 心率, 血氧',
+  `data_type` varchar(20) NOT NULL COMMENT '数据类型，如 INT, DOUBLE, JSON',
+  `unit` varchar(20) DEFAULT NULL COMMENT '单位，如 bpm, %, 次, 小时',
+  `weight` decimal(5,4) NOT NULL DEFAULT '0.0000' COMMENT '指标权重，取值范围 0.0000–1.0000',
+  `sort_order` int NOT NULL DEFAULT '0' COMMENT '前端展示排序',
+  `is_enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用(1=启用,0=停用)',
+  `create_user_id` bigint DEFAULT NULL COMMENT '创建人ID',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_user_id` bigint DEFAULT NULL COMMENT '最后修改人ID',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_org_metric` (`org_id`,`metric_code`),
+  KEY `idx_org` (`org_id`),
+  KEY `idx_enabled` (`is_enabled`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='健康体征指标配置表：存储所有指标的编码、名称、数据类型、单位及权重';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_health_recommendation_track`
+--
+
+DROP TABLE IF EXISTS `t_health_recommendation_track`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_health_recommendation_track` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `customer_id` bigint NOT NULL,
+  `recommendation_id` varchar(64) NOT NULL,
+  `recommendation_type` varchar(50) NOT NULL,
+  `title` varchar(200) NOT NULL,
+  `description` text,
+  `recommended_actions` json DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'pending',
+  `start_date` date DEFAULT NULL,
+  `target_completion_date` date DEFAULT NULL,
+  `actual_completion_date` date DEFAULT NULL,
+  `effectiveness_score` decimal(5,2) DEFAULT NULL,
+  `user_feedback` text,
+  `health_improvement_metrics` json DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_status` (`user_id`,`status`,`is_deleted`),
+  KEY `idx_customer_type` (`customer_id`,`recommendation_type`),
+  KEY `idx_completion_date` (`target_completion_date`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='健康建议执行跟踪表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_health_score`
+--
+
+DROP TABLE IF EXISTS `t_health_score`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_health_score` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `device_sn` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '设备序列号',
+  `user_id` bigint DEFAULT '0' COMMENT '用户ID',
+  `org_id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '1' COMMENT '组织ID',
+  `feature_name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '特征名称',
+  `avg_value` decimal(10,2) DEFAULT '0.00' COMMENT '当日平均值',
+  `z_score` decimal(10,4) DEFAULT '0.0000' COMMENT 'Z分数',
+  `score_value` decimal(5,2) DEFAULT '0.00' COMMENT '评分值(0-100)',
+  `penalty_value` decimal(5,2) DEFAULT '0.00' COMMENT '惩罚分值',
+  `baseline_time` date DEFAULT NULL COMMENT '基线时间',
+  `score_date` date NOT NULL COMMENT '评分日期',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自用户所属租户',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_score_device_feature_date` (`device_sn`,`feature_name`,`score_date`),
+  KEY `idx_score_org_feature_date` (`org_id`,`feature_name`,`score_date`),
+  KEY `idx_score_date_feature` (`score_date`,`feature_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=31944 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='健康评分表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_health_summary_daily`
+--
+
+DROP TABLE IF EXISTS `t_health_summary_daily`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_health_summary_daily` (
+  `summary_id` bigint NOT NULL AUTO_INCREMENT COMMENT '汇总记录主键',
+  `device_sn` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '设备序列号',
+  `summary_date` date NOT NULL COMMENT '汇总日期',
+  `health_score` decimal(5,2) NOT NULL COMMENT '综合健康得分（0–100）',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `heart_rate_score` decimal(5,2) DEFAULT NULL COMMENT '心率得分',
+  `blood_oxygen_score` decimal(5,2) DEFAULT NULL COMMENT '血氧得分',
+  `temperature_score` decimal(5,2) DEFAULT NULL COMMENT '体温得分',
+  `blood_pressure_score` decimal(5,2) DEFAULT NULL COMMENT '血压得分',
+  `stress_score` decimal(5,2) DEFAULT NULL COMMENT '压力得分',
+  `sleep_data_score` decimal(5,2) DEFAULT NULL COMMENT '睡眠得分',
+  `step_score` decimal(5,2) DEFAULT NULL COMMENT '步数得分',
+  `distance_score` decimal(5,2) DEFAULT NULL COMMENT '距离得分',
+  `calorie_score` decimal(5,2) DEFAULT NULL COMMENT '卡路里得分',
+  PRIMARY KEY (`summary_id`),
+  UNIQUE KEY `uk_device_date` (`device_sn`,`summary_date`),
+  KEY `idx_summary_date` (`summary_date`),
+  KEY `idx_device_sn` (`device_sn`)
+) ENGINE=InnoDB AUTO_INCREMENT=176 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='每日设备健康汇总表：按设备+日期存储综合健康分';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_health_task_log`
+--
+
+DROP TABLE IF EXISTS `t_health_task_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_health_task_log` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `task_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '任务名称',
+  `task_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '任务类型',
+  `start_time` datetime NOT NULL COMMENT '开始时间',
+  `end_time` datetime DEFAULT NULL COMMENT '结束时间',
+  `status` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '执行状态',
+  `processed_count` int DEFAULT '0' COMMENT '处理记录数',
+  `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '错误信息',
+  `feature_name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '特征名称',
+  `target_date` date DEFAULT NULL COMMENT '目标日期',
+  `execution_time_ms` bigint DEFAULT '0' COMMENT '执行时间(毫秒)',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_task_log_name_time` (`task_name`,`start_time`),
+  KEY `idx_task_log_status_time` (`status`,`start_time`)
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='健康任务日志表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_interface`
+--
+
+DROP TABLE IF EXISTS `t_interface`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_interface` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `url` varchar(200) NOT NULL,
+  `call_interval` int NOT NULL,
+  `method` enum('upload','fetch') NOT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `is_enabled` tinyint(1) DEFAULT NULL,
+  `customer_id` bigint DEFAULT NULL,
+  `api_id` varchar(50) DEFAULT NULL,
+  `api_auth` varchar(200) DEFAULT NULL,
+  `is_deleted` tinyint(1) DEFAULT '0',
+  `create_user` varchar(255) DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1963764274272522243 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_message_distribution`
+--
+
+DROP TABLE IF EXISTS `t_message_distribution`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_message_distribution` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `message_id` bigint NOT NULL,
+  `customer_id` bigint NOT NULL,
+  `distribution_batch_id` varchar(64) NOT NULL COMMENT '分发批次ID',
+  `target_type` enum('user','department','device','broadcast') NOT NULL,
+  `target_id` varchar(64) NOT NULL COMMENT '目标ID',
+  `channel_type` enum('websocket','wechat','sms','email','push') NOT NULL,
+  `distribution_status` enum('pending','processing','success','failed','timeout') NOT NULL DEFAULT 'pending',
+  `attempt_count` tinyint NOT NULL DEFAULT '1',
+  `last_attempt_time` datetime(3) NOT NULL,
+  `success_time` datetime(3) DEFAULT NULL,
+  `error_message` varchar(500) DEFAULT NULL,
+  `create_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `idx_message_batch` (`message_id`,`distribution_batch_id`),
+  KEY `idx_customer_status_time` (`customer_id`,`distribution_status`,`create_time` DESC),
+  KEY `idx_target_channel` (`target_type`,`target_id`,`channel_type`),
+  KEY `idx_retry_pending` (`distribution_status`,`attempt_count`,`last_attempt_time`),
+  CONSTRAINT `fk_distribution_message` FOREIGN KEY (`message_id`) REFERENCES `t_device_message_v2` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='消息分发记录表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_org_health_baseline`
+--
+
+DROP TABLE IF EXISTS `t_org_health_baseline`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_org_health_baseline` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `org_id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '组织ID',
+  `feature_name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '特征名称',
+  `baseline_date` date NOT NULL COMMENT '基线日期',
+  `mean_value` decimal(10,2) DEFAULT '0.00' COMMENT '平均值',
+  `std_value` decimal(10,2) DEFAULT '0.00' COMMENT '标准差',
+  `min_value` decimal(10,2) DEFAULT '0.00' COMMENT '最小值',
+  `max_value` decimal(10,2) DEFAULT '0.00' COMMENT '最大值',
+  `user_count` int DEFAULT '0' COMMENT '用户数量',
+  `sample_count` int DEFAULT '0' COMMENT '样本总数',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自组织所属租户',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_org_baseline_org_feature_date` (`org_id`,`feature_name`,`baseline_date`),
+  KEY `idx_org_baseline_date_feature` (`baseline_date`,`feature_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=106 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='组织健康基线表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_org_health_score`
+--
+
+DROP TABLE IF EXISTS `t_org_health_score`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_org_health_score` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `org_id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '组织ID',
+  `feature_name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '特征名称',
+  `score_date` date NOT NULL COMMENT '评分日期',
+  `mean_score` decimal(5,2) DEFAULT '0.00' COMMENT '平均评分',
+  `std_score` decimal(5,2) DEFAULT '0.00' COMMENT '评分标准差',
+  `min_score` decimal(5,2) DEFAULT '0.00' COMMENT '最低评分',
+  `max_score` decimal(5,2) DEFAULT '0.00' COMMENT '最高评分',
+  `user_count` int DEFAULT '0' COMMENT '参与评分用户数',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，继承自组织所属租户',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_org_score_org_feature_date` (`org_id`,`feature_name`,`score_date`),
+  KEY `idx_org_score_date_feature` (`score_date`,`feature_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='组织健康评分表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_performance_baseline`
+--
+
+DROP TABLE IF EXISTS `t_performance_baseline`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_performance_baseline` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `optimization_phase` varchar(50) NOT NULL,
+  `query_type` varchar(50) NOT NULL,
+  `query_description` varchar(200) NOT NULL,
+  `execution_time_before_ms` bigint DEFAULT NULL,
+  `execution_time_after_ms` bigint DEFAULT NULL,
+  `improvement_factor` decimal(10,2) DEFAULT NULL,
+  `test_time` datetime NOT NULL,
+  `notes` text,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='性能优化基线记录表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_scheduled_tasks`
+--
+
+DROP TABLE IF EXISTS `t_scheduled_tasks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_scheduled_tasks` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `task_name` varchar(100) NOT NULL,
+  `task_type` enum('ARCHIVE','CLEANUP','STATS') NOT NULL,
+  `schedule_expression` varchar(50) NOT NULL COMMENT 'Cron表达式',
+  `last_execution` timestamp NULL DEFAULT NULL,
+  `next_execution` timestamp NULL DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_task_name` (`task_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_sys_config`
+--
+
+DROP TABLE IF EXISTS `t_sys_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_sys_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `param_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '系统内置: Y N ',
+  `param_key` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'key',
+  `param_value` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'value',
+  `param_name` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'name',
+  `status` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT '0' COMMENT '状态   0：禁用   1：启用',
+  `remark` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '备注',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `modify_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
+  `valid` int DEFAULT '1' COMMENT '有效状态：0->无效；1->有效',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `param_key_idx` (`param_key`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci COMMENT='系统配置信息表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_sys_operation_log`
+--
+
+DROP TABLE IF EXISTS `t_sys_operation_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_sys_operation_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `business_type` tinyint NOT NULL COMMENT '类型（0=其它,1=新增,2=修改,3=删除,4=授权,5=导出,6=导入,7=强退,8=生成代码,9=清空数据）',
+  `method` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT '' COMMENT '方法名称',
+  `request_method` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT '' COMMENT '请求方式',
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '描述',
+  `req_ip` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT '' COMMENT '请求IP',
+  `req_param` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '请求信息',
+  `resp` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '响应信息',
+  `error_msg` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT '' COMMENT '错误消息',
+  `create_id` bigint DEFAULT NULL COMMENT '创建者ID',
+  `create_by` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '创建者名称',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_id` bigint DEFAULT NULL COMMENT '修改者ID',
+  `update_by` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '修改者名称',
+  `update_time` datetime DEFAULT NULL COMMENT '更新时间',
+  `is_deleted` tinyint DEFAULT NULL COMMENT '是否已删除：0->未删除；1->已删除',
+  `delete_time` datetime DEFAULT NULL COMMENT '删除时间',
+  `oper_name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '操作人',
+  `oper_location` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '操作地点',
+  `status` tinyint DEFAULT NULL COMMENT '状态 1-可用，2-禁用',
+  PRIMARY KEY (`id`),
+  KEY `t_sys_operation_log_id_idx` (`id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=399 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统操作日志';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_sys_resource`
+--
+
+DROP TABLE IF EXISTS `t_sys_resource`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_sys_resource` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `parent_id` int NOT NULL COMMENT '父节点id',
+  `ui_path` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '唯一标识路径',
+  `menu_type` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '1：菜单路由；2：资源（按钮）3: 基础资源',
+  `status` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '状态；1:可用，2:禁用',
+  `menu_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '名称',
+  `route_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '路由名称',
+  `route_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '菜单路由为path，其他为唯一标识',
+  `component` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `meta` varchar(455) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '元数据',
+  `weight` int DEFAULT NULL COMMENT '权重顺序',
+  `create_id` bigint NOT NULL COMMENT '创建者ID',
+  `create_by` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '创建者名称',
+  `update_id` bigint NOT NULL COMMENT '修改者ID',
+  `update_by` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '修改者名称',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NOT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_deleted` tinyint NOT NULL DEFAULT '0' COMMENT '是否已删除：0->未删除；1->已删除',
+  `delete_time` datetime DEFAULT NULL COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  KEY `t_sys_resource_ui_path_IDX` (`ui_path`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=151 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资源表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_sys_role`
+--
+
+DROP TABLE IF EXISTS `t_sys_role`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_sys_role` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `role_name` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `role_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '角色code',
+  `status` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '状态；1:可用，2:禁用',
+  `role_desc` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `type` tinyint NOT NULL COMMENT '类型：1:公共角色；2:特殊角色',
+  `create_id` bigint NOT NULL COMMENT '创建者ID',
+  `create_by` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '创建者名称',
+  `update_id` bigint NOT NULL COMMENT '修改者ID',
+  `update_by` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '修改者名称',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NOT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_deleted` tinyint NOT NULL DEFAULT '0' COMMENT '是否已删除：0->未删除；1->已删除',
+  `delete_time` datetime DEFAULT NULL COMMENT '删除时间',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='角色表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_sys_role_resource`
+--
+
+DROP TABLE IF EXISTS `t_sys_role_resource`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_sys_role_resource` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `role_id` bigint NOT NULL,
+  `resource_id` bigint NOT NULL,
+  `create_id` bigint unsigned DEFAULT NULL,
+  `create_by` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `update_id` bigint DEFAULT NULL,
+  `update_by` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `create_time` datetime DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  `is_deleted` tinyint NOT NULL DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=718 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='角色资源关联表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_sys_user`
+--
+
+DROP TABLE IF EXISTS `t_sys_user`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_sys_user` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `device_sn` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT '设备序列号',
+  `user_name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT '用户名',
+  `password` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT '密码',
+  `status` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT '状态；1:可用，2:禁用',
+  `otp_secret` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `user_gender` varchar(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '性别',
+  `user_phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '电话',
+  `user_email` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT '电子邮箱',
+  `last_login_time` datetime DEFAULT NULL,
+  `last_login_ip` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `create_id` bigint DEFAULT NULL,
+  `create_by` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `create_time` datetime DEFAULT NULL,
+  `update_id` bigint DEFAULT NULL,
+  `update_by` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  `is_deleted` tinyint DEFAULT NULL,
+  `delete_time` datetime DEFAULT NULL,
+  `customer_id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=20241105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci COMMENT='用户表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_sys_user_role`
+--
+
+DROP TABLE IF EXISTS `t_sys_user_role`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_sys_user_role` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'Id',
+  `user_id` bigint NOT NULL COMMENT '用户id',
+  `role_id` bigint NOT NULL COMMENT '角色id',
+  `creator_id` bigint unsigned DEFAULT NULL,
+  `creator_by` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `update_id` bigint unsigned DEFAULT NULL,
+  `update_by` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `create_time` datetime NOT NULL,
+  `update_time` datetime DEFAULT NULL,
+  `is_deleted` tinyint NOT NULL DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=58 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户角色关联表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_system_event_process_log`
+--
+
+DROP TABLE IF EXISTS `t_system_event_process_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_system_event_process_log` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint DEFAULT NULL COMMENT '事件队列ID',
+  `alert_id` bigint DEFAULT NULL COMMENT '告警ID',
+  `device_sn` varchar(50) NOT NULL COMMENT '设备序列号',
+  `event_type` varchar(100) NOT NULL COMMENT '事件类型',
+  `rule_id` bigint DEFAULT NULL COMMENT '规则ID',
+  `process_status` varchar(20) NOT NULL COMMENT '处理状态:processing/completed/failed',
+  `notification_type` varchar(20) DEFAULT NULL COMMENT '通知类型:wechat/message/both',
+  `message_count` int DEFAULT NULL COMMENT '消息推送数量',
+  `wechat_status` varchar(20) DEFAULT NULL COMMENT '微信推送状态:success/failed/skipped',
+  `process_duration` int DEFAULT NULL COMMENT '处理耗时(毫秒)',
+  `error_message` text COMMENT '错误信息',
+  `process_details` json DEFAULT NULL COMMENT '处理详情',
+  `create_time` datetime NOT NULL,
+  `complete_time` datetime DEFAULT NULL COMMENT '完成时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_device_event_time` (`device_sn`,`event_type`,`create_time`),
+  KEY `idx_process_status_time` (`process_status`,`create_time`)
+) ENGINE=InnoDB AUTO_INCREMENT=461 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='系统事件告警处理日志表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_system_event_rule`
+--
+
+DROP TABLE IF EXISTS `t_system_event_rule`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_system_event_rule` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `event_type` varchar(100) NOT NULL COMMENT '完整事件类型(如com.tdtech.ohos.health.action.SOS_EVENT)',
+  `rule_type` varchar(50) NOT NULL COMMENT '规则类型(简化,如SOS_EVENT)',
+  `severity_level` varchar(20) NOT NULL DEFAULT 'medium' COMMENT '告警级别:critical/high/medium/low',
+  `alert_message` varchar(500) NOT NULL COMMENT '告警消息模板',
+  `is_emergency` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否紧急事件(触发微信推送)',
+  `notification_type` varchar(20) NOT NULL DEFAULT 'message' COMMENT '通知类型:wechat/message/both',
+  `retry_count` int NOT NULL DEFAULT '3' COMMENT '失败重试次数',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用规则',
+  `tenant_id` bigint NOT NULL DEFAULT '1' COMMENT '租户ID',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_rule_tenant` (`rule_type`,`tenant_id`),
+  KEY `idx_event_type` (`event_type`),
+  KEY `idx_is_emergency` (`is_emergency`)
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='系统事件规则配置表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_system_event_rules`
+--
+
+DROP TABLE IF EXISTS `t_system_event_rules`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_system_event_rules` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `rule_name` varchar(100) NOT NULL COMMENT '规则名称',
+  `event_type` varchar(50) NOT NULL COMMENT '事件类型',
+  `trigger_condition` text COMMENT '触发条件',
+  `alert_message` text NOT NULL COMMENT '告警消息',
+  `notification_type` varchar(50) DEFAULT NULL COMMENT '通知类型',
+  `severity_level` varchar(50) DEFAULT NULL COMMENT '严重程度',
+  `is_enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
+  `is_deleted` tinyint(1) DEFAULT NULL COMMENT '是否删除',
+  `create_user` varchar(255) DEFAULT NULL COMMENT '创建用户',
+  `create_user_id` bigint DEFAULT NULL COMMENT '创建用户ID',
+  `create_time` timestamp NULL DEFAULT NULL COMMENT '创建时间',
+  `update_user` varchar(255) DEFAULT NULL COMMENT '更新用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '更新用户ID',
+  `update_time` timestamp NULL DEFAULT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_system_logs`
+--
+
+DROP TABLE IF EXISTS `t_system_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_system_logs` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `log_level` varchar(20) NOT NULL COMMENT '日志级别',
+  `log_message` text NOT NULL COMMENT '日志消息',
+  `log_source` varchar(100) DEFAULT NULL COMMENT '日志来源',
+  `user_id` bigint DEFAULT NULL COMMENT '用户ID',
+  `device_sn` varchar(50) DEFAULT NULL COMMENT '设备序列号',
+  `ip_address` varchar(50) DEFAULT NULL COMMENT 'IP地址',
+  `user_agent` varchar(500) DEFAULT NULL COMMENT '用户代理',
+  `request_data` json DEFAULT NULL COMMENT '请求数据',
+  `response_data` json DEFAULT NULL COMMENT '响应数据',
+  `execution_time` float DEFAULT NULL COMMENT '执行时间(毫秒)',
+  `create_time` timestamp NULL DEFAULT NULL COMMENT '创建时间',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_user_alerts`
+--
+
+DROP TABLE IF EXISTS `t_user_alerts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_alerts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `userName` varchar(255) DEFAULT NULL,
+  `phoneNumber` varchar(20) DEFAULT NULL,
+  `alertType` varchar(100) DEFAULT NULL,
+  `latitude` float DEFAULT NULL,
+  `longitude` float DEFAULT NULL,
+  `timestamp` timestamp NULL DEFAULT NULL,
+  `severityLevel` enum('Low','Medium','High','Critical') DEFAULT 'Medium' COMMENT '告警严重级别',
+  `deviceSn` varchar(50) DEFAULT NULL COMMENT '设备序列号',
+  `customerId` int DEFAULT NULL,
+  `alertStatus` enum('pending','responded','closed') DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_user_devices`
+--
+
+DROP TABLE IF EXISTS `t_user_devices`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_devices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `userId` bigint unsigned NOT NULL,
+  `deviceId` bigint unsigned NOT NULL,
+  `assigned` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_id` (`userId`,`deviceId`),
+  KEY `t_user_devices_ibfk_2` (`deviceId`),
+  CONSTRAINT `t_user_devices_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `t_sys_user` (`id`),
+  CONSTRAINT `t_user_devices_ibfk_2` FOREIGN KEY (`deviceId`) REFERENCES `t_devices` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_user_health_data`
+--
+
+DROP TABLE IF EXISTS `t_user_health_data`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_health_data` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `phone_number` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `heart_rate` int DEFAULT NULL,
+  `pressure_high` int DEFAULT NULL,
+  `pressure_low` int DEFAULT NULL,
+  `blood_oxygen` int DEFAULT NULL,
+  `stress` int DEFAULT NULL,
+  `temperature` double(5,2) DEFAULT NULL,
+  `step` int DEFAULT NULL,
+  `timestamp` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'heguang',
+  `latitude` decimal(10,6) DEFAULT NULL,
+  `longitude` decimal(10,6) DEFAULT NULL,
+  `altitude` double DEFAULT NULL,
+  `device_sn` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `distance` double DEFAULT NULL,
+  `calorie` double DEFAULT NULL,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `create_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `upload_method` enum('wifi','bluetooth','common_event') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'wifi',
+  `user_id` bigint DEFAULT NULL,
+  `org_id` bigint DEFAULT NULL,
+  `sleep` double DEFAULT NULL,
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，0表示全局数据，其他值表示特定租户',
+  PRIMARY KEY (`id`),
+  KEY `idx_timestamp` (`timestamp`),
+  KEY `idx_device_sn` (`device_sn`),
+  KEY `idx_health_customer_device_time` (`customer_id`,`device_sn`,`timestamp`),
+  KEY `idx_health_customer_user_time` (`customer_id`,`user_id`,`timestamp`),
+  KEY `idx_health_customer_status` (`customer_id`,`is_deleted`),
+  KEY `idx_health_cover_basic` (`customer_id`,`user_id`,`timestamp`,`heart_rate`,`pressure_high`,`pressure_low`,`blood_oxygen`)
+) ENGINE=InnoDB AUTO_INCREMENT=1962515783315398658 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_user_health_data1`
+--
+
+DROP TABLE IF EXISTS `t_user_health_data1`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_health_data1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `phone_number` varchar(20) DEFAULT NULL,
+  `heart_rate` int DEFAULT NULL,
+  `pressure_high` int DEFAULT NULL,
+  `pressure_low` int DEFAULT NULL,
+  `blood_oxygen` int DEFAULT NULL,
+  `temperature` decimal(5,2) DEFAULT NULL,
+  `step` int DEFAULT NULL,
+  `timestamp` datetime DEFAULT NULL,
+  `user_name` varchar(255) NOT NULL,
+  `latitude` float DEFAULT NULL,
+  `longitude` float DEFAULT NULL,
+  `altitude` float DEFAULT NULL,
+  `device_sn` varchar(255) NOT NULL,
+  `distance` float DEFAULT NULL,
+  `calorie` float DEFAULT NULL,
+  `sleep_data` varchar(2000) DEFAULT NULL,
+  `exercise_daily_data` varchar(2000) DEFAULT NULL,
+  `exercise_week_data` varchar(2000) DEFAULT NULL,
+  `scientific_sleep_data` varchar(2000) DEFAULT NULL,
+  `is_deleted` tinyint(1) DEFAULT NULL,
+  `create_user` varchar(255) DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` datetime DEFAULT NULL,
+  `update_user` varchar(255) DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_user_health_data_202506`
+--
+
+DROP TABLE IF EXISTS `t_user_health_data_202506`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_health_data_202506` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `phone_number` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `heart_rate` int DEFAULT NULL,
+  `pressure_high` int DEFAULT NULL,
+  `pressure_low` int DEFAULT NULL,
+  `blood_oxygen` int DEFAULT NULL,
+  `stress` int DEFAULT NULL,
+  `temperature` double(5,2) DEFAULT NULL,
+  `step` int DEFAULT NULL,
+  `timestamp` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'heguang',
+  `latitude` decimal(10,6) DEFAULT NULL,
+  `longitude` decimal(10,6) DEFAULT NULL,
+  `altitude` double DEFAULT NULL,
+  `device_sn` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `distance` double DEFAULT NULL,
+  `calorie` double DEFAULT NULL,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `create_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `upload_method` enum('wifi','bluetooth') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'wifi' COMMENT '数据上传方式（wifi 或 bluetooth）',
+  `user_id` bigint DEFAULT NULL,
+  `org_id` bigint DEFAULT NULL,
+  `sleep` double DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_timestamp` (`timestamp`),
+  KEY `idx_device_sn` (`device_sn`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_user_health_data_202508`
+--
+
+DROP TABLE IF EXISTS `t_user_health_data_202508`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_health_data_202508` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `phone_number` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `heart_rate` int DEFAULT NULL,
+  `pressure_high` int DEFAULT NULL,
+  `pressure_low` int DEFAULT NULL,
+  `blood_oxygen` int DEFAULT NULL,
+  `stress` int DEFAULT NULL,
+  `temperature` double(5,2) DEFAULT NULL,
+  `step` int DEFAULT NULL,
+  `timestamp` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'heguang',
+  `latitude` decimal(10,6) DEFAULT NULL,
+  `longitude` decimal(10,6) DEFAULT NULL,
+  `altitude` double DEFAULT NULL,
+  `device_sn` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `distance` double DEFAULT NULL,
+  `calorie` double DEFAULT NULL,
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `create_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `create_user_id` bigint DEFAULT NULL,
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_user` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `update_user_id` bigint DEFAULT NULL,
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `upload_method` enum('wifi','bluetooth','common_event') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'wifi',
+  `user_id` bigint DEFAULT NULL,
+  `org_id` bigint DEFAULT NULL,
+  `sleep` double DEFAULT NULL,
+  `customer_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID，0表示全局数据，其他值表示特定租户',
+  PRIMARY KEY (`id`),
+  KEY `idx_timestamp` (`timestamp`),
+  KEY `idx_device_sn` (`device_sn`),
+  KEY `idx_health_customer_device_time` (`customer_id`,`device_sn`,`timestamp`),
+  KEY `idx_health_customer_user_time` (`customer_id`,`user_id`,`timestamp`),
+  KEY `idx_health_customer_status` (`customer_id`,`is_deleted`),
+  KEY `idx_health_cover_basic` (`customer_id`,`user_id`,`timestamp`,`heart_rate`,`pressure_high`,`pressure_low`,`blood_oxygen`),
+  KEY `idx_202508_device_time` (`device_sn`,`timestamp`),
+  KEY `idx_202508_org_time` (`org_id`,`timestamp`),
+  KEY `idx_202508_create_time` (`create_time`)
+) ENGINE=InnoDB AUTO_INCREMENT=1008970 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='健康数据归档表_202508';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_user_health_data_daily`
+--
+
+DROP TABLE IF EXISTS `t_user_health_data_daily`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_health_data_daily` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `device_sn` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `user_id` bigint DEFAULT NULL,
+  `org_id` bigint DEFAULT NULL,
+  `date` date NOT NULL,
+  `sleep_data` json DEFAULT NULL COMMENT '睡眠数据(每日更新)',
+  `exercise_daily_data` json DEFAULT NULL COMMENT '每日运动数据',
+  `workout_data` json DEFAULT NULL COMMENT '锻炼数据',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `scientific_sleep_data` json DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_device_date` (`device_sn`,`date`),
+  KEY `idx_date` (`date`),
+  KEY `idx_device_sn` (`device_sn`)
+) ENGINE=InnoDB AUTO_INCREMENT=232 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='每日更新健康数据表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Temporary view structure for view `t_user_health_data_partitioned`
+--
+
+DROP TABLE IF EXISTS `t_user_health_data_partitioned`;
+/*!50001 DROP VIEW IF EXISTS `t_user_health_data_partitioned`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `t_user_health_data_partitioned` AS SELECT 
+ 1 AS `id`,
+ 1 AS `phone_number`,
+ 1 AS `heart_rate`,
+ 1 AS `pressure_high`,
+ 1 AS `pressure_low`,
+ 1 AS `blood_oxygen`,
+ 1 AS `stress`,
+ 1 AS `temperature`,
+ 1 AS `step`,
+ 1 AS `timestamp`,
+ 1 AS `user_name`,
+ 1 AS `latitude`,
+ 1 AS `longitude`,
+ 1 AS `altitude`,
+ 1 AS `device_sn`,
+ 1 AS `distance`,
+ 1 AS `calorie`,
+ 1 AS `is_deleted`,
+ 1 AS `create_user`,
+ 1 AS `create_user_id`,
+ 1 AS `create_time`,
+ 1 AS `update_user`,
+ 1 AS `update_user_id`,
+ 1 AS `update_time`,
+ 1 AS `upload_method`,
+ 1 AS `user_id`,
+ 1 AS `org_id`,
+ 1 AS `sleep`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Table structure for table `t_user_health_data_weekly`
+--
+
+DROP TABLE IF EXISTS `t_user_health_data_weekly`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_health_data_weekly` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `device_sn` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `user_id` bigint DEFAULT NULL,
+  `org_id` bigint DEFAULT NULL,
+  `week_start` date NOT NULL COMMENT '周开始日期(周一)',
+  `exercise_week_data` json DEFAULT NULL COMMENT '每周运动数据',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_device_week` (`device_sn`,`week_start`),
+  KEY `idx_device_sn` (`device_sn`),
+  KEY `idx_week_start` (`week_start`)
+) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='每周更新健康数据表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_user_health_profile`
+--
+
+DROP TABLE IF EXISTS `t_user_health_profile`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_health_profile` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `customer_id` bigint NOT NULL,
+  `profile_date` date NOT NULL,
+  `overall_health_score` decimal(5,2) DEFAULT '0.00',
+  `health_level` varchar(20) DEFAULT 'fair',
+  `physiological_score` decimal(5,2) DEFAULT '0.00',
+  `behavioral_score` decimal(5,2) DEFAULT '0.00',
+  `risk_factor_score` decimal(5,2) DEFAULT '0.00',
+  `cardiovascular_score` decimal(5,2) DEFAULT '0.00',
+  `respiratory_score` decimal(5,2) DEFAULT '0.00',
+  `metabolic_score` decimal(5,2) DEFAULT '0.00',
+  `psychological_score` decimal(5,2) DEFAULT '0.00',
+  `activity_consistency_score` decimal(5,2) DEFAULT '0.00',
+  `sleep_quality_score` decimal(5,2) DEFAULT '0.00',
+  `health_engagement_score` decimal(5,2) DEFAULT '0.00',
+  `current_risk_level` varchar(20) DEFAULT 'medium',
+  `predicted_risk_score` decimal(5,2) DEFAULT '0.00',
+  `detailed_analysis` json DEFAULT NULL COMMENT '详细分析数据',
+  `trend_analysis` json DEFAULT NULL COMMENT '趋势分析数据',
+  `recommendations` json DEFAULT NULL COMMENT '个性化建议',
+  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` tinyint(1) DEFAULT '0',
+  `version` int DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_user_profile_date` (`user_id`,`profile_date`,`is_deleted`),
+  KEY `idx_customer_date` (`customer_id`,`profile_date`),
+  KEY `idx_health_level` (`health_level`,`profile_date`),
+  KEY `idx_risk_level` (`current_risk_level`,`profile_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户健康画像主表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_user_message_summary`
+--
+
+DROP TABLE IF EXISTS `t_user_message_summary`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_user_message_summary` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `customer_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `message_template_id` bigint NOT NULL COMMENT '消息模板ID（群发消息的模板）',
+  `personal_message_id` bigint NOT NULL COMMENT '个人消息ID（实际发给用户的消息）',
+  `message_type` enum('task','job','announcement','notification','alert','emergency') NOT NULL,
+  `send_time` datetime(3) NOT NULL COMMENT '发送时间',
+  `status` enum('pending','delivered','acknowledged','expired') NOT NULL DEFAULT 'pending',
+  `acknowledged_time` datetime(3) DEFAULT NULL,
+  `create_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `update_time` datetime(3) DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_template` (`user_id`,`message_template_id`),
+  KEY `idx_user_status_time` (`user_id`,`status`,`send_time` DESC),
+  KEY `idx_template_status` (`message_template_id`,`status`),
+  KEY `idx_customer_user_time` (`customer_id`,`user_id`,`send_time` DESC),
+  KEY `fk_summary_message` (`personal_message_id`),
+  CONSTRAINT `fk_summary_message` FOREIGN KEY (`personal_message_id`) REFERENCES `t_device_message_v2` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户消息汇总表-群发消息管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_wechat_alarm_config`
+--
+
+DROP TABLE IF EXISTS `t_wechat_alarm_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_wechat_alarm_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `customer_id` bigint NOT NULL,
+  `type` varchar(20) NOT NULL COMMENT '微信类型: enterprise(企业微信)/official(公众号)',
+  `corp_id` varchar(100) DEFAULT NULL COMMENT '企业微信企业ID',
+  `agent_id` varchar(50) DEFAULT NULL COMMENT '企业微信应用AgentID',
+  `secret` varchar(100) DEFAULT NULL COMMENT '企业微信应用Secret',
+  `appid` varchar(100) DEFAULT NULL COMMENT '微信公众号AppID',
+  `appsecret` varchar(100) DEFAULT NULL COMMENT '微信公众号AppSecret',
+  `template_id` varchar(100) DEFAULT NULL COMMENT '微信模板消息ID',
+  `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用告警',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_tenant_type` (`customer_id`,`type`)
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='微信告警配置表(支持企业微信和公众号)';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_worker_health_anomaly`
+--
+
+DROP TABLE IF EXISTS `t_worker_health_anomaly`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_worker_health_anomaly` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `device_sn` varchar(50) NOT NULL,
+  `timestamp` datetime NOT NULL,
+  `feature_name` varchar(50) NOT NULL,
+  `value` decimal(10,2) DEFAULT NULL,
+  `anomaly_type` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `t_worker_health_baseline`
+--
+
+DROP TABLE IF EXISTS `t_worker_health_baseline`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t_worker_health_baseline` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `device_sn` varchar(100) NOT NULL,
+  `time_period` varchar(50) NOT NULL,
+  `feature_name` varchar(50) NOT NULL,
+  `mean_value` decimal(10,2) DEFAULT NULL,
+  `std_value` decimal(10,2) DEFAULT NULL,
+  `min_value` decimal(10,2) DEFAULT NULL,
+  `max_value` decimal(10,2) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=106 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tDeviceConfig`
+--
+
+DROP TABLE IF EXISTS `tDeviceConfig`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tDeviceConfig` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `spo2MeasurePeriod` int NOT NULL,
+  `stressMeasurePeriod` int NOT NULL,
+  `bodyTemperatureMeasurePeriod` int NOT NULL,
+  `heartRateWarningHigh` int NOT NULL,
+  `heartRateWarningLow` int NOT NULL,
+  `spo2Warning` int NOT NULL,
+  `stressWarning` int NOT NULL,
+  `bodyTemperatureHighWarning` float NOT NULL,
+  `bodyTemperatureLowWarning` float NOT NULL,
+  `httpUrl` varchar(255) DEFAULT 'http://14.153.203.230:7007/',
+  `logo` varchar(255) DEFAULT '灵境万象',
+  `uiType` varchar(255) NOT NULL DEFAULT 'wifi',
+  `bodyTemperatureWarningCnt` int DEFAULT '5',
+  `heartWarningCnt` int DEFAULT '5',
+  `heartRateMeasurePeriod` int DEFAULT '5000',
+  `spo2WarningCnt` int DEFAULT '5',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tool_generator_table`
+--
+
+DROP TABLE IF EXISTS `tool_generator_table`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tool_generator_table` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `table_name` varchar(64) NOT NULL COMMENT '表名称',
+  `table_comment` varchar(64) NOT NULL COMMENT '表描述',
+  `table_prefix` varchar(20) DEFAULT NULL COMMENT '表前缀',
+  `parent_package` varchar(64) NOT NULL COMMENT '生成父包名',
+  `module_name` varchar(64) NOT NULL COMMENT '生成模块名',
+  `parent_menu_id` bigint NOT NULL COMMENT '父级菜单ID',
+  `author` varchar(64) DEFAULT NULL COMMENT '生成作者',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` char(1) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='代码生成表管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tool_generator_table_column`
+--
+
+DROP TABLE IF EXISTS `tool_generator_table_column`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tool_generator_table_column` (
+  `id` bigint NOT NULL COMMENT '主键',
+  `table_id` bigint NOT NULL COMMENT '生成关联表ID',
+  `table_name` varchar(64) NOT NULL COMMENT '生成关联表名称',
+  `column_name` varchar(64) NOT NULL COMMENT '表列名称',
+  `property_name` varchar(50) DEFAULT NULL COMMENT '属性名称',
+  `column_comment` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '字段描述',
+  `data_type` varchar(40) DEFAULT NULL COMMENT '字段数据类型',
+  `java_type` varchar(40) DEFAULT NULL COMMENT 'JAVA 字段类型',
+  `typescript_type` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT 'TypeScript 字段类型',
+  `ordinal_position` int NOT NULL COMMENT '表列位置',
+  `is_i18n` char(1) DEFAULT '0' COMMENT '是否多语言(0:否,1:是)',
+  `is_required` char(1) DEFAULT '0' COMMENT '必填(0:否,1:是)',
+  `is_list` char(1) DEFAULT '0' COMMENT '列表(0:否,1:是)',
+  `is_search` char(1) DEFAULT '0' COMMENT '查询(0:否,1:是)',
+  `search_type` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '查询类型(大于,小于等)',
+  `is_added` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '0' COMMENT '新增(0:否,1:是)',
+  `is_edit` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '0' COMMENT '编辑更新(0:否,1:是)',
+  `dict_code` varchar(64) DEFAULT NULL COMMENT '关联字典代码',
+  `render_type` varchar(20) DEFAULT NULL COMMENT '渲染类型(select,radio)',
+  `create_user` varchar(64) NOT NULL COMMENT '创建用户',
+  `create_user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_user` varchar(64) DEFAULT NULL COMMENT '修改用户',
+  `update_user_id` bigint DEFAULT NULL COMMENT '修改用户ID',
+  `update_time` datetime DEFAULT NULL COMMENT '修改时间',
+  `status` char(1) DEFAULT '1' COMMENT '是否启用(0:禁用,1:启用)',
+  `is_deleted` tinyint unsigned DEFAULT '0' COMMENT '是否删除(0:否,1:是)',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='代码生成表字段列管理';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Temporary view structure for view `v_alert_rule_usage`
+--
+
+DROP TABLE IF EXISTS `v_alert_rule_usage`;
+/*!50001 DROP VIEW IF EXISTS `v_alert_rule_usage`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_alert_rule_usage` AS SELECT 
+ 1 AS `rule_type`,
+ 1 AS `severity_level`,
+ 1 AS `is_emergency`,
+ 1 AS `alert_count`,
+ 1 AS `device_count`,
+ 1 AS `response_rate`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_event_alarm_stats`
+--
+
+DROP TABLE IF EXISTS `v_event_alarm_stats`;
+/*!50001 DROP VIEW IF EXISTS `v_event_alarm_stats`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_event_alarm_stats` AS SELECT 
+ 1 AS `stat_date`,
+ 1 AS `processing_status`,
+ 1 AS `event_count`,
+ 1 AS `device_count`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_message_indexes`
+--
+
+DROP TABLE IF EXISTS `v_message_indexes`;
+/*!50001 DROP VIEW IF EXISTS `v_message_indexes`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_message_indexes` AS SELECT 
+ 1 AS `TABLE_NAME`,
+ 1 AS `INDEX_NAME`,
+ 1 AS `index_columns`,
+ 1 AS `INDEX_COMMENT`,
+ 1 AS `index_category`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_message_type_stats_v2`
+--
+
+DROP TABLE IF EXISTS `v_message_type_stats_v2`;
+/*!50001 DROP VIEW IF EXISTS `v_message_type_stats_v2`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_message_type_stats_v2` AS SELECT 
+ 1 AS `customer_id`,
+ 1 AS `message_type`,
+ 1 AS `message_count`,
+ 1 AS `acknowledged_count`,
+ 1 AS `avg_priority`,
+ 1 AS `latest_message_time`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_org_hierarchy_info`
+--
+
+DROP TABLE IF EXISTS `v_org_hierarchy_info`;
+/*!50001 DROP VIEW IF EXISTS `v_org_hierarchy_info`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_org_hierarchy_info` AS SELECT 
+ 1 AS `org_id`,
+ 1 AS `org_name`,
+ 1 AS `org_code`,
+ 1 AS `org_level`,
+ 1 AS `customer_id`,
+ 1 AS `direct_children_count`,
+ 1 AS `total_children_count`,
+ 1 AS `manager_count`,
+ 1 AS `supervisor_count`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_table_comparison`
+--
+
+DROP TABLE IF EXISTS `v_table_comparison`;
+/*!50001 DROP VIEW IF EXISTS `v_table_comparison`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_table_comparison` AS SELECT 
+ 1 AS `table_version`,
+ 1 AS `table_name`,
+ 1 AS `row_count`,
+ 1 AS `size_mb`,
+ 1 AS `index_size_mb`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_user_message_performance`
+--
+
+DROP TABLE IF EXISTS `v_user_message_performance`;
+/*!50001 DROP VIEW IF EXISTS `v_user_message_performance`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_user_message_performance` AS SELECT 
+ 1 AS `user_id`,
+ 1 AS `user_name`,
+ 1 AS `org_id`,
+ 1 AS `org_name`,
+ 1 AS `total_messages`,
+ 1 AS `pending_count`,
+ 1 AS `delivered_count`,
+ 1 AS `acknowledged_count`,
+ 1 AS `acknowledge_rate`,
+ 1 AS `avg_response_time_seconds`,
+ 1 AS `first_message_time`,
+ 1 AS `last_message_time`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_user_message_performance_v2`
+--
+
+DROP TABLE IF EXISTS `v_user_message_performance_v2`;
+/*!50001 DROP VIEW IF EXISTS `v_user_message_performance_v2`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_user_message_performance_v2` AS SELECT 
+ 1 AS `user_id`,
+ 1 AS `customer_id`,
+ 1 AS `total_messages`,
+ 1 AS `pending_count`,
+ 1 AS `delivered_count`,
+ 1 AS `acknowledged_count`,
+ 1 AS `acknowledge_rate`,
+ 1 AS `avg_response_time_seconds`,
+ 1 AS `first_message_time`,
+ 1 AS `last_message_time`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_user_message_stats`
+--
+
+DROP TABLE IF EXISTS `v_user_message_stats`;
+/*!50001 DROP VIEW IF EXISTS `v_user_message_stats`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_user_message_stats` AS SELECT 
+ 1 AS `user_id`,
+ 1 AS `total_messages`,
+ 1 AS `pending_count`,
+ 1 AS `delivered_count`,
+ 1 AS `acknowledged_count`,
+ 1 AS `last_message_time`,
+ 1 AS `first_message_time`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Final view structure for view `t_user_health_data_partitioned`
+--
+
+/*!50001 DROP VIEW IF EXISTS `t_user_health_data_partitioned`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `t_user_health_data_partitioned` AS select `t_user_health_data`.`id` AS `id`,`t_user_health_data`.`phone_number` AS `phone_number`,`t_user_health_data`.`heart_rate` AS `heart_rate`,`t_user_health_data`.`pressure_high` AS `pressure_high`,`t_user_health_data`.`pressure_low` AS `pressure_low`,`t_user_health_data`.`blood_oxygen` AS `blood_oxygen`,`t_user_health_data`.`stress` AS `stress`,`t_user_health_data`.`temperature` AS `temperature`,`t_user_health_data`.`step` AS `step`,`t_user_health_data`.`timestamp` AS `timestamp`,`t_user_health_data`.`user_name` AS `user_name`,`t_user_health_data`.`latitude` AS `latitude`,`t_user_health_data`.`longitude` AS `longitude`,`t_user_health_data`.`altitude` AS `altitude`,`t_user_health_data`.`device_sn` AS `device_sn`,`t_user_health_data`.`distance` AS `distance`,`t_user_health_data`.`calorie` AS `calorie`,`t_user_health_data`.`is_deleted` AS `is_deleted`,`t_user_health_data`.`create_user` AS `create_user`,`t_user_health_data`.`create_user_id` AS `create_user_id`,`t_user_health_data`.`create_time` AS `create_time`,`t_user_health_data`.`update_user` AS `update_user`,`t_user_health_data`.`update_user_id` AS `update_user_id`,`t_user_health_data`.`update_time` AS `update_time`,`t_user_health_data`.`upload_method` AS `upload_method`,`t_user_health_data`.`user_id` AS `user_id`,`t_user_health_data`.`org_id` AS `org_id`,`t_user_health_data`.`sleep` AS `sleep` from `t_user_health_data` union all select `t_user_health_data_202506`.`id` AS `id`,`t_user_health_data_202506`.`phone_number` AS `phone_number`,`t_user_health_data_202506`.`heart_rate` AS `heart_rate`,`t_user_health_data_202506`.`pressure_high` AS `pressure_high`,`t_user_health_data_202506`.`pressure_low` AS `pressure_low`,`t_user_health_data_202506`.`blood_oxygen` AS `blood_oxygen`,`t_user_health_data_202506`.`stress` AS `stress`,`t_user_health_data_202506`.`temperature` AS `temperature`,`t_user_health_data_202506`.`step` AS `step`,`t_user_health_data_202506`.`timestamp` AS `timestamp`,`t_user_health_data_202506`.`user_name` AS `user_name`,`t_user_health_data_202506`.`latitude` AS `latitude`,`t_user_health_data_202506`.`longitude` AS `longitude`,`t_user_health_data_202506`.`altitude` AS `altitude`,`t_user_health_data_202506`.`device_sn` AS `device_sn`,`t_user_health_data_202506`.`distance` AS `distance`,`t_user_health_data_202506`.`calorie` AS `calorie`,`t_user_health_data_202506`.`is_deleted` AS `is_deleted`,`t_user_health_data_202506`.`create_user` AS `create_user`,`t_user_health_data_202506`.`create_user_id` AS `create_user_id`,`t_user_health_data_202506`.`create_time` AS `create_time`,`t_user_health_data_202506`.`update_user` AS `update_user`,`t_user_health_data_202506`.`update_user_id` AS `update_user_id`,`t_user_health_data_202506`.`update_time` AS `update_time`,`t_user_health_data_202506`.`upload_method` AS `upload_method`,`t_user_health_data_202506`.`user_id` AS `user_id`,`t_user_health_data_202506`.`org_id` AS `org_id`,`t_user_health_data_202506`.`sleep` AS `sleep` from `t_user_health_data_202506` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_alert_rule_usage`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_alert_rule_usage`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_unicode_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_alert_rule_usage` AS select `r`.`rule_type` AS `rule_type`,`r`.`severity_level` AS `severity_level`,`r`.`is_emergency` AS `is_emergency`,count(`a`.`id`) AS `alert_count`,count(distinct `a`.`device_sn`) AS `device_count`,avg((case when (`a`.`alert_status` = 'responded') then 1 else 0 end)) AS `response_rate` from (`t_system_event_rule` `r` left join `t_alert_info` `a` on(((convert(`r`.`rule_type` using utf8mb4) collate utf8mb4_general_ci) = (convert(`a`.`alert_type` using utf8mb4) collate utf8mb4_general_ci)))) where (`r`.`is_active` = 1) group by `r`.`id`,`r`.`rule_type`,`r`.`severity_level`,`r`.`is_emergency` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_event_alarm_stats`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_event_alarm_stats`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_event_alarm_stats` AS select cast(`t_event_alarm_queue`.`create_time` as date) AS `stat_date`,`t_event_alarm_queue`.`processing_status` AS `processing_status`,count(0) AS `event_count`,count(distinct `t_event_alarm_queue`.`device_sn`) AS `device_count` from `t_event_alarm_queue` group by cast(`t_event_alarm_queue`.`create_time` as date),`t_event_alarm_queue`.`processing_status` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_message_indexes`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_message_indexes`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_message_indexes` AS select `information_schema`.`statistics`.`TABLE_NAME` AS `TABLE_NAME`,`information_schema`.`statistics`.`INDEX_NAME` AS `INDEX_NAME`,group_concat(`information_schema`.`statistics`.`COLUMN_NAME` order by `information_schema`.`statistics`.`SEQ_IN_INDEX` ASC separator ',') AS `index_columns`,`information_schema`.`statistics`.`INDEX_COMMENT` AS `INDEX_COMMENT`,(case when (`information_schema`.`statistics`.`INDEX_NAME` like '%opt%') then 'PHASE1_OPTIMIZED' when (`information_schema`.`statistics`.`INDEX_NAME` like '%temp%') then 'TEMPORARY' else 'ORIGINAL' end) AS `index_category` from `information_schema`.`STATISTICS` where ((`information_schema`.`statistics`.`TABLE_SCHEMA` = database()) and (`information_schema`.`statistics`.`TABLE_NAME` in ('t_device_message','t_device_message_detail'))) group by `information_schema`.`statistics`.`TABLE_NAME`,`information_schema`.`statistics`.`INDEX_NAME`,`information_schema`.`statistics`.`INDEX_COMMENT` order by `information_schema`.`statistics`.`TABLE_NAME`,`information_schema`.`statistics`.`INDEX_NAME` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_message_type_stats_v2`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_message_type_stats_v2`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_message_type_stats_v2` AS select `t_device_message_v2`.`customer_id` AS `customer_id`,`t_device_message_v2`.`message_type` AS `message_type`,count(0) AS `message_count`,count((case when (`t_device_message_v2`.`message_status` = 'acknowledged') then 1 end)) AS `acknowledged_count`,avg(`t_device_message_v2`.`priority_level`) AS `avg_priority`,max(`t_device_message_v2`.`create_time`) AS `latest_message_time` from `t_device_message_v2` where ((`t_device_message_v2`.`is_deleted` = 0) and (`t_device_message_v2`.`create_time` >= (now() - interval 30 day))) group by `t_device_message_v2`.`customer_id`,`t_device_message_v2`.`message_type` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_org_hierarchy_info`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_org_hierarchy_info`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_org_hierarchy_info` AS select `org`.`id` AS `org_id`,`org`.`name` AS `org_name`,`org`.`code` AS `org_code`,`org`.`level` AS `org_level`,`org`.`customer_id` AS `customer_id`,(select count(0) from (`sys_org_closure` `c2` join `sys_org_units` `child` on((`c2`.`descendant_id` = `child`.`id`))) where ((`c2`.`ancestor_id` = `org`.`id`) and (`c2`.`depth` = 1) and (`child`.`is_deleted` = 0))) AS `direct_children_count`,(select count(0) from (`sys_org_closure` `c3` join `sys_org_units` `child` on((`c3`.`descendant_id` = `child`.`id`))) where ((`c3`.`ancestor_id` = `org`.`id`) and (`c3`.`depth` > 0) and (`child`.`is_deleted` = 0))) AS `total_children_count`,(select count(0) from `sys_org_manager_cache` `mc` where ((`mc`.`org_id` = `org`.`id`) and (`mc`.`role_type` = 'manager') and (`mc`.`is_active` = 1))) AS `manager_count`,(select count(0) from `sys_org_manager_cache` `mc` where ((`mc`.`org_id` = `org`.`id`) and (`mc`.`role_type` = 'supervisor') and (`mc`.`is_active` = 1))) AS `supervisor_count` from `sys_org_units` `org` where (`org`.`is_deleted` = 0) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_table_comparison`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_table_comparison`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_table_comparison` AS select 'ORIGINAL' AS `table_version`,'t_device_message' AS `table_name`,`information_schema`.`tables`.`TABLE_ROWS` AS `row_count`,round((((`information_schema`.`tables`.`DATA_LENGTH` + `information_schema`.`tables`.`INDEX_LENGTH`) / 1024) / 1024),2) AS `size_mb`,round(((`information_schema`.`tables`.`INDEX_LENGTH` / 1024) / 1024),2) AS `index_size_mb` from `information_schema`.`TABLES` where ((`information_schema`.`tables`.`TABLE_SCHEMA` = database()) and (`information_schema`.`tables`.`TABLE_NAME` = 't_device_message')) union all select 'OPTIMIZED_V2' AS `table_version`,'t_device_message_v2' AS `table_name`,`information_schema`.`tables`.`TABLE_ROWS` AS `row_count`,round((((`information_schema`.`tables`.`DATA_LENGTH` + `information_schema`.`tables`.`INDEX_LENGTH`) / 1024) / 1024),2) AS `size_mb`,round(((`information_schema`.`tables`.`INDEX_LENGTH` / 1024) / 1024),2) AS `index_size_mb` from `information_schema`.`TABLES` where ((`information_schema`.`tables`.`TABLE_SCHEMA` = database()) and (`information_schema`.`tables`.`TABLE_NAME` = 't_device_message_v2')) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_user_message_performance`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_user_message_performance`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_user_message_performance` AS select `u`.`id` AS `user_id`,`u`.`user_name` AS `user_name`,`uo`.`org_id` AS `org_id`,`o`.`name` AS `org_name`,count(`m`.`id`) AS `total_messages`,count((case when (`m`.`message_status` = 'pending') then 1 end)) AS `pending_count`,count((case when (`m`.`message_status` = 'delivered') then 1 end)) AS `delivered_count`,count((case when (`m`.`message_status` = 'acknowledged') then 1 end)) AS `acknowledged_count`,round(((count((case when (`m`.`message_status` = 'acknowledged') then 1 end)) * 100.0) / nullif(count((case when (`m`.`message_status` in ('delivered','acknowledged')) then 1 end)),0)),2) AS `acknowledge_rate`,avg(timestampdiff(SECOND,`m`.`sent_time`,`m`.`acknowledged_time`)) AS `avg_response_time_seconds`,min(`m`.`create_time`) AS `first_message_time`,max(`m`.`create_time`) AS `last_message_time` from (((`sys_user` `u` left join `sys_user_org` `uo` on(((`uo`.`user_id` = `u`.`id`) and (`uo`.`is_deleted` = 0)))) left join `sys_org_units` `o` on(((`uo`.`org_id` = `o`.`id`) and (`o`.`is_deleted` = 0)))) left join `t_device_message_v2` `m` on(((`m`.`user_id` = `u`.`id`) and (`m`.`is_deleted` = 0)))) where (`u`.`is_deleted` = 0) group by `u`.`id`,`u`.`user_name`,`uo`.`org_id`,`o`.`name` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_user_message_performance_v2`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_user_message_performance_v2`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_user_message_performance_v2` AS select `m`.`user_id` AS `user_id`,`m`.`customer_id` AS `customer_id`,count(0) AS `total_messages`,count((case when (`m`.`message_status` = 'pending') then 1 end)) AS `pending_count`,count((case when (`m`.`message_status` = 'delivered') then 1 end)) AS `delivered_count`,count((case when (`m`.`message_status` = 'acknowledged') then 1 end)) AS `acknowledged_count`,round(((count((case when (`m`.`message_status` = 'acknowledged') then 1 end)) * 100.0) / nullif(count((case when (`m`.`message_status` in ('delivered','acknowledged')) then 1 end)),0)),2) AS `acknowledge_rate`,avg(timestampdiff(SECOND,`m`.`sent_time`,`m`.`acknowledged_time`)) AS `avg_response_time_seconds`,min(`m`.`create_time`) AS `first_message_time`,max(`m`.`create_time`) AS `last_message_time` from `t_device_message_v2` `m` where (`m`.`is_deleted` = 0) group by `m`.`user_id`,`m`.`customer_id` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `v_user_message_stats`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_user_message_stats`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_user_message_stats` AS select `m`.`user_id` AS `user_id`,count(0) AS `total_messages`,count((case when (`m`.`message_status` = 'pending') then 1 end)) AS `pending_count`,count((case when (`m`.`message_status` = 'delivered') then 1 end)) AS `delivered_count`,count((case when (`m`.`message_status` = 'acknowledged') then 1 end)) AS `acknowledged_count`,max(`m`.`create_time`) AS `last_message_time`,min(`m`.`create_time`) AS `first_message_time` from `t_device_message` `m` where ((`m`.`user_id` is not null) and (`m`.`is_deleted` = 0)) group by `m`.`user_id` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2025-09-06 21:39:15

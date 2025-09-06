@@ -26,8 +26,6 @@ export function useRouterPush(inSetup = true) {
   async function routerPushByKey(key: RouteKey, options?: RouterPushOptions) {
     const { query, params } = options || {};
 
-    console.log('[Router] routerPushByKey called with key:', key, 'options:', options);
-
     const routeLocation: RouteLocationRaw = {
       name: key
     };
@@ -40,18 +38,7 @@ export function useRouterPush(inSetup = true) {
       routeLocation.params = params;
     }
 
-    console.log('[Router] Final route location:', routeLocation);
-    const availableRoutes = router.getRoutes().map(r => ({ name: r.name, path: r.path }));
-    console.log('[Router] Available routes:', availableRoutes);
-    
-    try {
-      const result = await routerPush(routeLocation);
-      console.log('[Router] routerPush result:', result);
-      return result;
-    } catch (error) {
-      console.error('[Router] routerPush error:', error);
-      throw error;
-    }
+    return routerPush(routeLocation);
   }
 
   function routerPushByKeyWithMetaQuery(key: RouteKey) {
@@ -86,10 +73,7 @@ export function useRouterPush(inSetup = true) {
   }
 
   async function toHome() {
-    console.log('[Router] toHome called, pushing to root');
-    const result = await routerPushByKey('root');
-    console.log('[Router] toHome routerPushByKey result:', result);
-    return result;
+    return routerPushByKey('root');
   }
 
   /**
@@ -135,17 +119,14 @@ export function useRouterPush(inSetup = true) {
   async function redirectFromLogin(needRedirect = true) {
     const redirect = route.value.query?.redirect as string;
 
-    console.log('[Router] redirectFromLogin called');
-    console.log('[Router] needRedirect:', needRedirect);
-    console.log('[Router] redirect query:', redirect);
-    console.log('[Router] current route:', route.value);
+    console.log('[redirectFromLogin] needRedirect:', needRedirect, 'redirect:', redirect);
 
     if (needRedirect && redirect) {
-      console.log('[Router] Using redirect URL:', redirect);
-      routerPush(redirect);
+      console.log('[redirectFromLogin] Redirecting to:', redirect);
+      await routerPush(redirect);
     } else {
-      console.log('[Router] Going to home');
-      toHome();
+      console.log('[redirectFromLogin] Going to home');
+      await toHome();
     }
   }
 

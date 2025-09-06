@@ -1,140 +1,152 @@
+# LJWX系统 Docker Compose 配置
+# 使用 ljwx.env 文件中的配置
+
 version: '3.8'
-
-services:
-  ljwx-mysql:
-    image: ${REGISTRY}/ljwx-mysql:${LJWX_VERSION}
-    container_name: ljwx-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      TZ: ${TZ}
-    ports:
-      - "${MYSQL_PORT}:3306"
-    volumes:
-      - ./data/mysql:/var/lib/mysql
-      - ./config/mysql/my.cnf:/etc/mysql/conf.d/custom.cnf
-      - ./logs/mysql:/var/log/mysql
-    networks:
-      - ljwx-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      timeout: 20s
-      retries: 10
-
-  ljwx-redis:
-    image: ${REGISTRY}/ljwx-redis:${LJWX_VERSION}
-    container_name: ljwx-redis
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ}
-    ports:
-      - "${REDIS_PORT}:6379"
-    volumes:
-      - ./data/redis:/data
-      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
-    networks:
-      - ljwx-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      timeout: 5s
-      retries: 5
-
-  ljwx-boot:
-    image: ${REGISTRY}/ljwx-boot:${LJWX_VERSION}
-    container_name: ljwx-boot
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ}
-      SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:mysql://ljwx-mysql:3306/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      SPRING_REDIS_HOST: ljwx-redis
-      SPRING_REDIS_PORT: 6379
-      SPRING_REDIS_DATABASE: 0
-      SPRING_DATA_REDIS_HOST: ljwx-redis
-      SPRING_DATA_REDIS_PORT: 6379
-      REDIS_HOST: ljwx-redis
-      REDIS_PORT: 6379
-    ports:
-      - "${LJWX_BOOT_PORT}:9998"
-    volumes:
-      - ./logs/ljwx-boot:/app/logs
-    depends_on:
-      - ljwx-mysql
-      - ljwx-redis
-    networks:
-      - ljwx-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9998/actuator/health"]
-      timeout: 30s
-      retries: 10
-      interval: 30s
-      start_period: 60s
-
-  ljwx-bigscreen:
-    image: ${REGISTRY}/ljwx-bigscreen:${LJWX_VERSION}
-    container_name: ljwx-bigscreen
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ}
-      MYSQL_HOST: ljwx-mysql
-      MYSQL_PORT: 3306
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      REDIS_HOST: ljwx-redis
-      REDIS_PORT: 6379
-      BOOT_API_URL: http://ljwx-boot:9998
-    ports:
-      - "${LJWX_BIGSCREEN_PORT}:8001"
-    volumes:
-      - ./logs/ljwx-bigscreen:/app/logs
-    depends_on:
-      - ljwx-mysql
-      - ljwx-redis
-      - ljwx-boot
-    networks:
-      - ljwx-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      timeout: 10s
-      retries: 5
-
-  ljwx-admin:
-    image: ${REGISTRY}/ljwx-admin:${LJWX_VERSION}
-    container_name: ljwx-admin
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ}
-      BACKEND_URL: http://ljwx-boot:9998
-      BIGSCREEN_URL: http://ljwx-bigscreen:8001
-    ports:
-      - "${LJWX_ADMIN_PORT}:80"
-    volumes:
-      - ./logs/nginx:/var/log/nginx
-    depends_on:
-      - ljwx-boot
-      - ljwx-bigscreen
-    networks:
-      - ljwx-network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
-      timeout: 10s
-      retries: 3
 
 networks:
   ljwx-network:
     driver: bridge
     ipam:
-      driver: default
       config:
         - subnet: 172.20.0.0/16
 
-volumes:
-  mysql_data:
-  redis_data:
+services:
+  # MySQL数据库
+  ljwx-mysql:
+    image: ${REGISTRY}/ljwx-mysql:${MYSQL_VERSION}
+    container_name: ljwx-mysql
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./config/mysql/my.cnf:/etc/mysql/conf.d/ljwx.cnf
+      - ./logs/mysql:/var/log/mysql
+    networks:
+      ljwx-network:
+        ipv4_address: 172.20.0.2
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD}"]
+      timeout: 10s
+      retries: 3
+      interval: 30s
+      start_period: 30s
+
+  # Redis缓存
+  ljwx-redis:
+    image: ${REGISTRY}/ljwx-redis:${REDIS_VERSION}
+    container_name: ljwx-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:6379"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data/redis:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      ljwx-network:
+        ipv4_address: 172.20.0.3
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 10s
+      retries: 3
+      interval: 30s
+
+  # Spring Boot后端服务
+  ljwx-boot:
+    image: ${REGISTRY}/ljwx-boot:${BOOT_VERSION}
+    container_name: ljwx-boot
+    restart: unless-stopped
+    ports:
+      - "${BOOT_PORT}:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8082
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_PORT=${MYSQL_PORT}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USERNAME=${MYSQL_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./logs/ljwx-boot:/app/logs
+    networks:
+      ljwx-network:
+        ipv4_address: 172.20.0.4
+    depends_on:
+      - ljwx-mysql
+      - ljwx-redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      timeout: 10s
+      retries: 3
+      interval: 30s
+      start_period: 60s
+
+  # Python大屏服务
+  ljwx-bigscreen:
+    image: ${REGISTRY}/ljwx-bigscreen:${BIGSCREEN_VERSION}
+    container_name: ljwx-bigscreen
+    restart: unless-stopped
+    ports:
+      - "${BIGSCREEN_PORT}:8001"
+    environment:
+      - FLASK_ENV=production
+      - SERVER_PORT=8001
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_PORT=${MYSQL_PORT}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USERNAME=${MYSQL_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./logs/ljwx-bigscreen:/app/logs
+    networks:
+      ljwx-network:
+        ipv4_address: 172.20.0.5
+    depends_on:
+      - ljwx-mysql
+      - ljwx-redis
+      - ljwx-boot
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      timeout: 10s
+      retries: 3
+      interval: 30s
+      start_period: 60s
+
+  # Vue.js前端管理界面
+  ljwx-admin:
+    image: ${REGISTRY}/ljwx-admin:${ADMIN_VERSION}
+    container_name: ljwx-admin
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT}:8080"
+    environment:
+      - NODE_ENV=production
+      - VUE_APP_API_URL=http://ljwx-boot:8082/api
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      ljwx-network:
+        ipv4_address: 172.20.0.6
+    depends_on:
+      - ljwx-boot
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      timeout: 10s
+      retries: 3
+      interval: 30s
+      start_period: 30s

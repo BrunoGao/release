@@ -136,7 +136,8 @@ export async function fetchBatchImportUsersDirect(file: File, orgIds: string) {
     console.log(key, value, typeof value);
   }
 
-  const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
+  // 修复：在生产环境中也应该使用代理前缀（如果配置了VITE_HTTP_PROXY=Y）
+  const isHttpProxy = import.meta.env.VITE_HTTP_PROXY === 'Y';
   const { baseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
   const token = localStg.get('token') || '';
   const authorization = token ? `Bearer ${token}` : '';

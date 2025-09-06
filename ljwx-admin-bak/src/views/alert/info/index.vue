@@ -1,0 +1,671 @@
+<script setup lang="tsx">
+import { h, onMounted, ref, shallowRef, watch, watchEffect } from 'vue';
+import { NButton, NPopconfirm, NTooltip } from 'naive-ui';
+import { Icon } from '@iconify/vue';
+import SvgIcon from '@/components/custom/svg-icon.vue';
+import type { Ref } from 'vue';
+import { useAppStore } from '@/store/modules/app';
+import { useAuth } from '@/hooks/business/auth';
+import { useAuthStore } from '@/store/modules/auth';
+import { useTable, useTableOperate } from '@/hooks/common/table';
+import { $t } from '@/locales';
+import { transDeleteParams } from '@/utils/common';
+import { fetchDeleteAlertInfo, fetchGetAlertInfoList, fetchGetOrgUnitsTree, fetchGetUserHealthDataById } from '@/service/api';
+import { useDict } from '@/hooks/business/dict';
+import { formatDate } from '@/utils/date';
+import { handleBindUsersByOrgId } from '@/utils/deviceUtils';
+import AlerinfoSearch from './modules/alerinfo-search.vue';
+import AlerinfoOperateDrawer from './modules/alerinfo-operate-drawer.vue';
+defineOptions({
+  name: 'TAlertInfoPage'
+});
+
+const operateType = ref<NaiveUI.TableOperateType>('add');
+
+const appStore = useAppStore();
+const authStore = useAuthStore();
+const { hasAuth } = useAuth();
+
+const { dictTag } = useDict();
+
+// 告警类型中英文映射
+const alertTypeMap = {
+  'Heartrate Low': '心率过低',
+  'Heartrate High': '心率过高',
+  'Blood Pressure Low': '血压过低',
+  'Blood Pressure High': '血压过高',
+  'Temperature Low': '体温过低',
+  'Temperature High': '体温过高',
+  'Blood Oxygen Low': '血氧过低',
+  'Blood Oxygen High': '血氧过高',
+  'Stress High': '压力过高',
+  'Step Low': '步数不足',
+  'Location Alert': '位置告警',
+  'Device Offline': '设备离线',
+  'Data Abnormal': '数据异常'
+};
+
+// 告警状态中英文映射
+const alertStatusMap = {
+  pending: '待处理',
+  processing: '处理中',
+  responded: '已处理',
+  resolved: '已解决',
+  closed: '已关闭'
+};
+
+// 严重级别中英文映射
+const severityLevelMap = {
+  low: '低',
+  medium: '中',
+  high: '高',
+  critical: '紧急'
+};
+
+// 获取告警类型标签颜色
+const getAlertTypeColor = (type: string) => {
+  const colorMap: Record<string, string> = {
+    'Heartrate Low': '#ff4d4f',
+    'Heartrate High': '#ff7875',
+    'Blood Pressure Low': '#faad14',
+    'Blood Pressure High': '#fa8c16',
+    'Temperature Low': '#1890ff',
+    'Temperature High': '#ff4d4f',
+    'Blood Oxygen Low': '#722ed1',
+    'Blood Oxygen High': '#9254de',
+    'Stress High': '#f5222d',
+    'Step Low': '#52c41a',
+    'Location Alert': '#13c2c2',
+    'Device Offline': '#666',
+    'Data Abnormal': '#fa541c'
+  };
+  return colorMap[type] || '#666';
+};
+
+// 增强的字典标签函数，支持告警类型、状态、严重级别中文映射
+const enhancedDictTag = (code: string, value: string | null) => {
+  if (!value) return null;
+
+  if (code === 'alert_type' && alertTypeMap[value as keyof typeof alertTypeMap]) {
+    const chineseValue = alertTypeMap[value as keyof typeof alertTypeMap];
+    const color = getAlertTypeColor(value);
+    return (
+      <span
+        style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}
+      >
+        {chineseValue}
+      </span>
+    );
+  }
+
+  if (code === 'alert_status' && alertStatusMap[value as keyof typeof alertStatusMap]) {
+    const chineseValue = alertStatusMap[value as keyof typeof alertStatusMap];
+    const statusColors: Record<string, string> = {
+      pending: '#faad14',
+      processing: '#1890ff',
+      responded: '#52c41a',
+      resolved: '#52c41a',
+      closed: '#666'
+    };
+    const color = statusColors[value] || '#666';
+    return (
+      <span
+        style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}
+      >
+        {chineseValue}
+      </span>
+    );
+  }
+
+  if (code === 'severity_level' && severityLevelMap[value as keyof typeof severityLevelMap]) {
+    const chineseValue = severityLevelMap[value as keyof typeof severityLevelMap];
+    const levelColors: Record<string, string> = {
+      low: '#52c41a',
+      medium: '#faad14',
+      high: '#fa8c16',
+      critical: '#ff4d4f'
+    };
+    const color = levelColors[value] || '#666';
+    return (
+      <span
+        style={`padding: 4px 8px; background-color: ${color}15; border: 1px solid ${color}40; border-radius: 6px; font-size: 12px; color: ${color}; font-weight: 500;`}
+      >
+        {chineseValue}
+      </span>
+    );
+  }
+
+  // 否则使用原来的字典标签
+  return dictTag(code, value);
+};
+
+const editingData: Ref<Api.Health.AlertInfo | null> = ref(null);
+
+const customerId = authStore.userInfo?.customerId;
+
+const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams } = useTable({
+  apiFn: fetchGetAlertInfoList,
+  apiParams: {
+    page: 1,
+    pageSize: 20,
+    alertType: null,
+    customerId,
+    orgId: customerId,
+    userId: null
+  },
+  columns: () => [
+    { type: 'selection', width: 40, align: 'center' },
+    {
+      key: 'index' as any as any,
+      title: $t('common.index'),
+      width: 64,
+      align: 'center'
+    },
+    {
+      key: 'orgName' as any as any,
+      title: $t('page.health.device.info.orgName'),
+      align: 'center',
+      width: 200
+    },
+    {
+      key: 'userName' as any,
+      title: '用户名称',
+      align: 'center',
+      width: 200,
+      render: (row: any) => row.userName || row.userId || '未知用户'
+    },
+    {
+      key: 'alertType' as any as any,
+      title: $t('page.health.alert.info.alertType'),
+      align: 'center',
+      minWidth: 100,
+      render: row => enhancedDictTag('alert_type', row.alertType)
+    },
+
+    {
+      key: 'alertStatus' as any as any,
+      title: $t('page.health.alert.info.alertStatus'),
+      align: 'center',
+      minWidth: 100,
+      render: row => enhancedDictTag('alert_status', row.alertStatus)
+    },
+    {
+      key: 'alertDesc' as any as any,
+      title: $t('page.health.alert.info.alertDesc'),
+      align: 'center',
+      minWidth: 100
+    },
+    {
+      key: 'healthId' as any as any,
+      title: $t('page.health.alert.info.healthId'),
+      align: 'center',
+      minWidth: 100,
+      render: (row: any) => {
+        const healthInfo = ref<any>(null);
+        const fetchLoading = ref(false);
+        const fetchError = ref<string | null>(null);
+
+        const loadHealthData = async (id: string) => {
+          fetchLoading.value = true;
+          fetchError.value = null;
+          try {
+            const { data: responseData, error } = await fetchGetUserHealthDataById(id); // #修复类型
+            if (!error && responseData) {
+              healthInfo.value = responseData;
+            } else {
+              fetchError.value = '数据获取失败';
+            }
+          } catch (err: any) {
+            fetchError.value = err?.message || '网络错误';
+          } finally {
+            fetchLoading.value = false;
+          }
+        };
+
+        watchEffect(() => {
+          if (row.healthId) {
+            loadHealthData(String(row.healthId));
+          }
+        });
+
+        const formatValue = (value: any, unit = '') => {
+          // #优化格式化函数
+          if (value === null || value === undefined) return '无数据';
+          if (value === 0) return `0${unit}`; // #0值也要显示
+          return `${value}${unit}`;
+        };
+
+        const renderHealthInfo = () => {
+          if (fetchLoading.value) return <div style="color: #1890ff; padding: 12px;">⏳ 数据加载中...</div>;
+          if (fetchError.value) return <div style="color: #ff4d4f; padding: 12px;">❌ {fetchError.value}</div>;
+          if (!healthInfo.value) return <div style="color: #666; padding: 12px;">📋 暂无数据</div>;
+
+          const d = healthInfo.value;
+          return (
+            <div style="max-width: 380px; padding: 16px; font-size: 14px; line-height: 1.8; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0;">
+              <div style="margin-bottom: 12px; font-size: 15px; font-weight: 600; color: #1e293b; text-align: center; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0;">
+                🏥 健康数据详情
+              </div>
+
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #ef4444;">
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>💓 心率:</strong>
+                </span>
+                <span style="color: #ef4444; font-weight: 700; font-size: 15px;">{formatValue(d.heartRate, ' bpm')}</span>
+              </div>
+
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #22c55e;">
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>🩸 血压:</strong>
+                </span>
+                <span style="color: #22c55e; font-weight: 700; font-size: 15px;">
+                  {formatValue(d.pressureHigh)}/{formatValue(d.pressureLow)} mmHg
+                </span>
+              </div>
+
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #f59e0b;">
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>🌡️ 体温:</strong>
+                </span>
+                <span style="color: #f59e0b; font-weight: 700; font-size: 15px;">{formatValue(d.temperature, '°C')}</span>
+              </div>
+
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>🫁 血氧:</strong>
+                </span>
+                <span style="color: #8b5cf6; font-weight: 700; font-size: 15px;">{formatValue(d.bloodOxygen, '%')}</span>
+              </div>
+
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #f97316;">
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>😰 压力:</strong>
+                </span>
+                <span style="color: #f97316; font-weight: 700; font-size: 15px;">{formatValue(d.stress)}</span>
+              </div>
+
+              <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 8px; border-left: 4px solid #06b6d4;">
+                <span style="color: #374151; font-weight: 600;">
+                  <strong>👟 步数:</strong>
+                </span>
+                <span style="color: #06b6d4; font-weight: 700; font-size: 15px;">{formatValue(d.step)}</span>
+              </div>
+
+              <div style="margin-bottom: 10px; padding: 10px 12px; background: rgba(255,255,255,0.9); border-radius: 8px; border-top: 2px solid #64748b;">
+                <div style="font-size: 13px; color: #475569; margin-bottom: 6px; font-weight: 600;">
+                  <strong>📍 位置信息:</strong>
+                </div>
+                <div style="font-size: 12px; color: #64748b; line-height: 1.4;">
+                  {d.latitude && d.longitude ? `${d.latitude.toFixed(6)}°, ${d.longitude.toFixed(6)}°` : '无位置数据'}
+                  {d.altitude > 0 ? ` (海拔${d.altitude}m)` : ''}
+                </div>
+              </div>
+
+              <div style="font-size: 12px; color: #64748b; text-align: center; padding: 8px 12px; background: rgba(255,255,255,0.9); border-radius: 8px; font-weight: 500;">
+                📅 {d.timestamp ? new Date(d.timestamp).toLocaleString('zh-CN') : '时间未知'}
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <NTooltip 
+            placement="right" 
+            keepAliveOnHover 
+            trigger="hover" 
+            showArrow={false}
+            contentStyle={{ 
+              padding: '0', 
+              background: 'transparent',
+              border: 'none',
+              boxShadow: 'none' 
+            }}
+          >
+            {{
+              trigger: () => (
+                <span style="cursor: pointer; color: #1890ff; text-decoration: underline; font-weight: 500; padding: 2px 4px; border-radius: 3px; background: #f0f8ff;">
+                  {String(row.healthId)}
+                </span>
+              ),
+              default: () => renderHealthInfo()
+            }}
+          </NTooltip>
+        );
+      }
+    },
+    {
+      key: 'severityLevel' as any as any,
+      title: $t('page.health.alert.info.severityLevel'),
+      align: 'center',
+      minWidth: 100,
+      render: row => enhancedDictTag('severity_level', row.severityLevel)
+    },
+    {
+      key: 'alertTimestamp' as any as any,
+      title: $t('page.health.alert.info.alertTimestamp'),
+      align: 'center',
+      minWidth: 100,
+      render: row => formatDate(row.alertTimestamp, 'YYYY-MM-DD HH:mm:ss')
+    },
+    {
+      key: 'operate' as any as any,
+      title: $t('common.operate'),
+      align: 'center',
+      width: 200,
+      minWidth: 200,
+      render: row => (
+        <div class="flex-center gap-8px">
+          {hasAuth('t:alert:info:update') && (
+            <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
+              {$t('common.edit')}
+            </NButton>
+          )}
+          <NButton 
+            type="warning" 
+            secondary 
+            size="small" 
+            class="permission-btn process-permission-btn"
+            onClick={() => handleAlertInfo(row.id)}
+            renderIcon={() => <SvgIcon icon="material-symbols:auto-fix-high" class="text-14px" />}
+          >
+            {$t('page.health.alert.info.dealAlert')}
+          </NButton>
+          {hasAuth('t:alert:info:delete') && (
+            <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
+              {{
+                default: () => $t('common.confirmDelete'),
+                trigger: () => (
+                  <NButton type="error" quaternary size="small">
+                    {$t('common.delete')}
+                  </NButton>
+                )
+              }}
+            </NPopconfirm>
+          )}
+        </div>
+      )
+    }
+  ]
+});
+function handleAlertInfo(id: string) {
+  const bigscreenUrl = import.meta.env.VITE_BIGSCREEN_URL || 'http://localhost:5002';
+  fetch(`${bigscreenUrl}/dealAlert?alertId=${id}`)
+    .then(response => {
+      if (response.ok) {
+        location.reload();
+      } else {
+        console.error('Failed to process alert');
+      }
+    })
+    .catch(error => {
+      console.error('Error processing alert:', error);
+    });
+}
+
+const { drawerVisible, openDrawer, checkedRowKeys, onDeleted, onBatchDeleted } = useTableOperate(data, getData);
+
+async function handleBatchProcessAlert() {
+  if (checkedRowKeys.value.length < 2) {
+    window.$message?.warning('请选择至少两条告警记录进行批量处理');
+    return;
+  }
+
+  // 检查选中告警的状态
+  const selectedAlerts = data.value.filter(item => checkedRowKeys.value.includes(item.id));
+  const respondedAlerts = selectedAlerts.filter(item => item.alertStatus === 'responded');
+
+  // 如果有已响应的告警，提示用户
+  if (respondedAlerts.length > 0) {
+    const message = `选中的告警中有 ${respondedAlerts.length} 条已经处理过，是否继续批量处理？`;
+    const confirmed = await new Promise(resolve => {
+      window.$dialog?.warning({
+        title: '确认批量处理',
+        content: message,
+        positiveText: '继续处理',
+        negativeText: '取消',
+        onPositiveClick: () => resolve(true),
+        onNegativeClick: () => resolve(false)
+      });
+    });
+
+    if (!confirmed) {
+      return;
+    }
+  }
+
+  const bigscreenUrl = import.meta.env.VITE_BIGSCREEN_URL || 'http://localhost:5001';
+
+  try {
+    const response = await fetch(`${bigscreenUrl}/batchDealAlert`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        alertIds: checkedRowKeys.value
+      })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
+        let message = `批量处理成功：${result.successCount}条`;
+        if (result.failedCount > 0) {
+          message += `，失败${result.failedCount}条`;
+        }
+        if (respondedAlerts.length > 0) {
+          message += `（其中${respondedAlerts.length}条已处理过）`;
+        }
+        window.$message?.success(message);
+        await getData();
+      } else {
+        window.$message?.error(result.message || '批量处理失败');
+      }
+    } else {
+      window.$message?.error('批量处理请求失败');
+    }
+  } catch {
+    window.$message?.error('批量处理出现错误');
+  }
+}
+
+function handleAdd() {
+  operateType.value = 'add';
+  openDrawer();
+}
+
+function edit(item: Api.Health.AlertInfo) {
+  operateType.value = 'edit';
+  editingData.value = { ...item };
+  openDrawer();
+}
+
+
+async function handleDelete(id: string) {
+  // request
+  const { error, data: result } = await fetchDeleteAlertInfo(transDeleteParams([id]));
+  if (!error && result) {
+    await onDeleted();
+  }
+}
+
+async function handleBatchDelete() {
+  // request
+  const { error, data: result } = await fetchDeleteAlertInfo(transDeleteParams(checkedRowKeys.value));
+  if (!error && result) {
+    await onBatchDeleted();
+  }
+}
+
+type OrgUnitsTree = Api.SystemManage.OrgUnitsTree;
+
+/** org units tree data */
+const orgUnitsTree = shallowRef<OrgUnitsTree[]>([]);
+const userOptions = ref<{ label: string; value: string }[]>([]);
+
+async function handleInitOptions() {
+  fetchGetOrgUnitsTree(customerId).then(({ error, data: treeData }) => {
+    if (!error && treeData) {
+      orgUnitsTree.value = treeData;
+      // 设置默认选中第一个部门
+      if (treeData.length > 0) {
+        searchParams.orgId = treeData[0].id;
+        // 初始化时获取第一个部门的员工列表
+        handleBindUsersByOrgId(treeData[0].id).then(result => {
+          if (Array.isArray(result)) {
+            userOptions.value = result;
+          }
+        });
+      }
+    }
+  });
+}
+
+// 监听部门变化，更新员工列表
+watch(
+  () => searchParams.orgId,
+  async newValue => {
+    if (newValue) {
+      const result = await handleBindUsersByOrgId(String(newValue));
+      if (Array.isArray(result)) {
+        userOptions.value = result;
+      }
+    }
+  }
+);
+onMounted(() => {
+  handleInitOptions();
+});
+</script>
+
+<template>
+  <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
+    <AlerinfoSearch
+      v-model:model="searchParams"
+      :org-units-tree="orgUnitsTree"
+      :user-options="userOptions"
+      @reset="resetSearchParams"
+      @search="getDataByPage"
+    />
+    <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
+      <TableHeaderOperation
+        v-model:columns="columnChecks"
+        :checked-row-keys="checkedRowKeys"
+        :loading="loading"
+        add-auth="t:alert:info:add"
+        delete-auth="t:alert:info:delete"
+        @add="handleAdd"
+        @delete="handleBatchDelete"
+        @refresh="getData"
+      >
+        <template #suffix>
+          <NButton
+            v-if="checkedRowKeys.length > 0"
+            type="warning"
+            secondary
+            size="small"
+            class="permission-btn batch-process-btn"
+            :render-icon="() => h(SvgIcon, { icon: 'material-symbols:auto-fix-high', class: 'text-14px' })"
+            @click="handleBatchProcessAlert"
+          >
+            批量处理 ({{ checkedRowKeys.length }})
+          </NButton>
+        </template>
+      </TableHeaderOperation>
+      <NDataTable
+        v-model:checked-row-keys="checkedRowKeys"
+        remote
+        striped
+        size="small"
+        class="sm:h-full"
+        :data="data"
+        :scroll-x="962"
+        :columns="columns"
+        :flex-height="!appStore.isMobile"
+        :loading="loading"
+        :single-line="false"
+        :row-key="(row: any) => row.id"
+        :pagination="mobilePagination"
+      />
+      <AlerinfoOperateDrawer
+        v-model:visible="drawerVisible"
+        :operate-type="operateType"
+        :row-data="editingData"
+        :org-units-tree="orgUnitsTree"
+        :user-options="userOptions"
+        @submitted="getDataByPage"
+      />
+    </NCard>
+  </div>
+</template>
+
+<style scoped>
+/* 彻底去除 NTooltip 的黑色边框 */
+:deep(.n-tooltip__content) {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+:deep(.n-tooltip) {
+  border: none !important;
+  outline: none !important;
+}
+
+:deep(.n-tooltip .n-tooltip__content) {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+/* 企业级权限按钮样式 */
+:deep(.permission-btn) {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-width: 100px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+
+:deep(.process-permission-btn) {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: 1px solid #f59e0b;
+  color: white;
+}
+
+:deep(.process-permission-btn:hover) {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+:deep(.batch-process-btn) {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: 1px solid #f59e0b;
+  color: white;
+  font-weight: 600;
+}
+
+:deep(.batch-process-btn:hover) {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.4);
+}
+
+:deep(.permission-btn .n-button__icon) {
+  margin-right: 6px;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gap-8px {
+  gap: 8px;
+}
+</style>

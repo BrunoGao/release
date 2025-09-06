@@ -1,36 +1,41 @@
 #!/bin/sh
+# ljwx-admin 运行时配置脚本
 
-# LJWX Admin Docker 入口脚本
+echo "启动ljwx-admin..."
 
-echo "🚀 启动 LJWX Admin 前端服务..."
+# 设置默认的后端服务地址（如果环境变量未设置）
+LJWX_BOOT_HOST=${LJWX_BOOT_HOST:-"ljwx-boot"}
+LJWX_BOOT_PORT=${LJWX_BOOT_PORT:-"9998"}
+LJWX_BIGSCREEN_HOST=${LJWX_BIGSCREEN_HOST:-"ljwx-bigscreen"}
+LJWX_BIGSCREEN_PORT=${LJWX_BIGSCREEN_PORT:-"8001"}
 
-# 设置默认环境变量
-export SERVER_NAME=${SERVER_NAME:-localhost}
-export BACKEND_URL=${BACKEND_URL:-http://ljwx-boot:9998}
-export BIGSCREEN_URL=${BIGSCREEN_URL:-http://ljwx-bigscreen:5000}
+# 缓存控制环境变量（默认为开发模式，禁用JS/CSS缓存）
+ENABLE_STATIC_CACHE=${ENABLE_STATIC_CACHE:-"false"}
 
-# 输出配置信息
-echo "📋 服务配置:"
-echo "   SERVER_NAME: $SERVER_NAME"
-echo "   BACKEND_URL: $BACKEND_URL" 
-echo "   BIGSCREEN_URL: $BIGSCREEN_URL"
+echo "后端服务配置："
+echo "  Boot服务: ${LJWX_BOOT_HOST}:${LJWX_BOOT_PORT}"
+echo "  Bigscreen服务: ${LJWX_BIGSCREEN_HOST}:${LJWX_BIGSCREEN_PORT}"
+echo "  静态资源缓存: ${ENABLE_STATIC_CACHE}"
 
-# 检查 dist 目录
-if [ ! -d "/usr/share/nginx/html" ] || [ -z "$(ls -A /usr/share/nginx/html)" ]; then
-    echo "❌ 错误: 前端资源目录为空或不存在"
-    echo "   请确保已正确构建前端应用"
-    exit 1
+# 动态替换nginx配置中的upstream地址
+sed -i "s/ljwx-boot:9998/${LJWX_BOOT_HOST}:${LJWX_BOOT_PORT}/g" /etc/nginx/nginx.conf
+sed -i "s/ljwx-bigscreen:8001/${LJWX_BIGSCREEN_HOST}:${LJWX_BIGSCREEN_PORT}/g" /etc/nginx/nginx.conf
+
+# 根据环境变量动态配置JS/CSS缓存策略
+if [ "$ENABLE_STATIC_CACHE" = "true" ]; then
+    echo "启用生产模式缓存..."
+    # 生产环境：启用JS/CSS长期缓存
+    sed -i '/# JS\/CSS文件禁用缓存/,/}$/{
+        s/add_header Cache-Control "no-cache, no-store, must-revalidate";/expires 1y;\n            add_header Cache-Control "public, immutable";/
+        /add_header Pragma "no-cache";/d
+        /add_header Expires "0";/d
+    }' /etc/nginx/nginx.conf
+else 
+    echo "使用开发模式缓存（禁用JS/CSS缓存）..."
+    # 开发/测试环境：禁用JS/CSS缓存（默认配置）
 fi
 
-echo "✅ 前端资源检查通过"
+echo "nginx配置已更新"
 
-# 创建健康检查文件
-echo "healthy" > /usr/share/nginx/html/health
-
-# 显示前端资源文件（调试用）
-echo "📁 前端资源文件:"
-find /usr/share/nginx/html -type f -name "*.html" -o -name "*.js" -o -name "*.css" | head -5
-
-# 启动 Nginx
-echo "🌐 启动 Nginx 服务器..."
-exec nginx -g 'daemon off;'
+# 启动nginx
+exec nginx -g "daemon off;"

@@ -22,8 +22,15 @@ COPY data.sql /docker-entrypoint-initdb.d/01-init-data.sql
 # 复制自定义MySQL配置
 COPY docker/mysql/my.cnf /etc/mysql/conf.d/ljwx.cnf
 
+# 创建自定义入口脚本
+COPY docker/mysql/custom-entrypoint.sh /usr/local/bin/custom-entrypoint.sh
+RUN chmod +x /usr/local/bin/custom-entrypoint.sh
+
 # 设置时区
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 强制初始化环境变量（默认关闭，如需要可在启动时设置）
+ENV MYSQL_FORCE_INIT=0
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
@@ -32,6 +39,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 # 暴露端口
 EXPOSE 3306
 
-# 使用官方入口点
-ENTRYPOINT ["docker-entrypoint.sh"]
+# 使用自定义入口点
+ENTRYPOINT ["custom-entrypoint.sh"]
 CMD ["mysqld"]

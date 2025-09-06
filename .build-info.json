@@ -1,0 +1,31 @@
+{
+  "build": {
+    "timestamp": "2025-09-06T10:59:29Z",
+    "version": "main-ed86233-dirty",
+    "platforms": "linux/amd64",
+    "mode": "local",
+    "push_to_registry": false
+  },
+  "git": {
+    "commit": {
+      "full": "ed862339f38c70f4182e984524a7ac99b7b5454f",
+      "short": "ed86233",
+      "message": "commit to github",
+      "author": "BrunoGao",
+      "date": "2025-09-06 15:29:18 +0800",
+      "url": "https://github.com/BrunoGao/release/commit/ed862339f38c70f4182e984524a7ac99b7b5454f"
+    },
+    "branch": "main",
+    "tag": "null",
+    "describe": "ed86233-dirty",
+    "dirty": "true"
+  },
+  "repository": {
+    "github": "BrunoGao/release",
+    "github_url": "https://github.com/BrunoGao/release"
+  },
+  "registry": {
+    "url": "crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx",
+    "images": []
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "system": {
+    "name": "ljwx-system",
+    "version": "2.0.1",
+    "environment": "production"
+  },
+  "database": {
+    "mysql": {
+      "host": "ljwx-mysql",
+      "port": 3306,
+      "database": "test",
+      "username": "ljwx",
+      "password": "123456",
+      "charset": "utf8mb4",
+      "pool_size": 10,
+      "max_overflow": 20,
+      "pool_timeout": 30,
+      "pool_recycle": 3600
+    },
+    "redis": {
+      "host": "ljwx-redis",
+      "port": 6379,
+      "password": "",
+      "db": 0,
+      "max_connections": 50
+    }
+  },
+  "services": {
+    "ljwx-admin": {
+      "port": 8080,
+      "api_prefix": "/api"
+    },
+    "ljwx-bigscreen": {
+      "port": 8001,
+      "api_prefix": "/api"
+    },
+    "ljwx-boot": {
+      "port": 8082,
+      "api_prefix": "/api"
+    },
+    "ljwx-mysql": {
+      "port": 3306
+    },
+    "ljwx-redis": {
+      "port": 6379
+    }
+  },
+  "images": {
+    "registry": "crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx",
+    "ljwx-mysql": "2.0.1",
+    "ljwx-redis": "2.0.1",
+    "ljwx-admin": "2.0.1",
+    "ljwx-bigscreen": "2.0.1",
+    "ljwx-boot": "2.0.1",
+    "grafana": "1.2.6",
+    "prometheus": "1.2.6",
+    "loki": "1.2.6",
+    "promtail": "1.2.6",
+    "alertmanager": "1.2.6"
+  },
+  "network": {
+    "name": "client_ljwx-network",
+    "driver": "bridge",
+    "subnet": "172.20.0.0/16"
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "max_file_size": "100MB",
+    "backup_count": 10,
+    "log_path": "/app/logs"
+  },
+  "security": {
+    "jwt_secret": "ljwx-jwt-secret-key-2024",
+    "jwt_expiration": 86400,
+    "cors_origins": [
+      "http://localhost:3000",
+      "http://localhost:8080",
+      "http://192.168.1.83:8080"
+    ]
+  },
+  "monitoring": {
+    "enable_metrics": true,
+    "metrics_port": 9090,
+    "health_check_interval": 30
+  },
+  "alert": {
+    "enabled": true,
+    "webhook_url": "http://ljwx-bigscreen:8001/alert/webhook",
+    "retry_count": 3,
+    "retry_interval": 60
+  },
+  "business": {
+    "health_data": {
+      "batch_size": 1000,
+      "process_interval": 300,
+      "anomaly_threshold": 0.8
+    },
+    "device_message": {
+      "queue_size": 10000,
+      "process_workers": 4,
+      "retention_days": 90
+    }
+  }
+}

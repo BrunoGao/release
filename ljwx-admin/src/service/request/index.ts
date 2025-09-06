@@ -17,6 +17,7 @@ const EXCLUDE_CUSTOMER_ID_URLS = [
   '/logout'           // 登出
 ];
 
+// 修复：在生产环境中也应该使用代理前缀（如果配置了VITE_HTTP_PROXY=Y）
 const isHttpProxy = import.meta.env.VITE_HTTP_PROXY === 'Y';
 const { baseURL, otherBaseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
 

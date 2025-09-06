@@ -37,7 +37,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     name: null,
     status: null,
     orgId: customerId,
-    customerId: customerId
+    // 非admin用户只查看自己租户的岗位
+    customerId: isAdmin.value ? null : customerId
   },
   columns: () => [
     {

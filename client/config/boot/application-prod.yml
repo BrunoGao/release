@@ -1,0 +1,63 @@
+# ljwx-boot生产环境配置文件
+# 由generate-config.sh自动生成
+
+server:
+  port: 8082
+  servlet:
+    context-path: /api
+
+spring:
+  profiles:
+    active: prod
+  
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://ljwx-mysql:3306/test?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: ljwx
+    password: 123456
+    
+    hikari:
+      pool-name: ljwx-boot-pool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  redis:
+    host: ljwx-redis
+    port: 6379
+    database: 0
+    timeout: 5000
+    jedis:
+      pool:
+        max-active: 50
+        max-wait: 3000
+        max-idle: 20
+        min-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.ljwx: INFO
+  file:
+    name: /app/logs/ljwx-boot.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# 管理端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

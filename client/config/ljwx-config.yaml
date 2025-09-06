@@ -1,0 +1,113 @@
+# LJWX 系统统一配置文件
+# 所有服务都从此文件读取配置信息
+
+# 系统基础信息
+system:
+  name: "ljwx-system"
+  version: "2.0.1"
+  environment: "production"
+
+# 数据库配置
+database:
+  mysql:
+    host: "ljwx-mysql"
+    port: 3306
+    database: "test"
+    username: "ljwx"
+    password: "123456"
+    charset: "utf8mb4"
+    pool_size: 10
+    max_overflow: 20
+    pool_timeout: 30
+    pool_recycle: 3600
+  
+  redis:
+    host: "ljwx-redis"
+    port: 6379
+    password: ""
+    db: 0
+    max_connections: 50
+
+# 服务端口配置
+services:
+  ljwx-admin:
+    port: 8080
+    api_prefix: "/api"
+  
+  ljwx-bigscreen:
+    port: 8001
+    api_prefix: "/api"
+  
+  ljwx-boot:
+    port: 8082
+    api_prefix: "/api"
+  
+  ljwx-mysql:
+    port: 3306
+  
+  ljwx-redis:
+    port: 6379
+
+# Docker镜像版本配置
+images:
+  registry: "crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com/ljwx"
+  ljwx-mysql: "2.0.1"
+  ljwx-redis: "2.0.1"
+  ljwx-admin: "2.0.1"
+  ljwx-bigscreen: "2.0.1"
+  ljwx-boot: "2.0.1"
+  grafana: "1.2.6"
+  prometheus: "1.2.6"
+  loki: "1.2.6"
+  promtail: "1.2.6"
+  alertmanager: "1.2.6"
+
+# 网络配置
+network:
+  name: "client_ljwx-network"
+  driver: "bridge"
+  subnet: "172.20.0.0/16"
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  max_file_size: "100MB"
+  backup_count: 10
+  log_path: "/app/logs"
+
+# 安全配置
+security:
+  jwt_secret: "ljwx-jwt-secret-key-2024"
+  jwt_expiration: 86400  # 24 hours
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+    - "http://192.168.1.83:8080"
+
+# 监控配置
+monitoring:
+  enable_metrics: true
+  metrics_port: 9090
+  health_check_interval: 30
+
+# 告警配置
+alert:
+  enabled: true
+  webhook_url: "http://ljwx-bigscreen:8001/alert/webhook"
+  retry_count: 3
+  retry_interval: 60
+
+# 业务配置
+business:
+  # 健康数据处理配置
+  health_data:
+    batch_size: 1000
+    process_interval: 300  # 5 minutes
+    anomaly_threshold: 0.8
+  
+  # 设备消息配置
+  device_message:
+    queue_size: 10000
+    process_workers: 4
+    retention_days: 90

@@ -58,10 +58,10 @@ function createDefaultModel(): Model {
     description: '',
     sort: 1,
     status: '1',
-    orgId: props.customerId,
+    orgId: Number(props.customerId),
     weight: 1.0,
-    // 所有岗位都关联到当前租户
-    customerId: props.customerId
+    // 非admin用户创建的岗位自动关联到当前租户
+    customerId: props.isAdmin ? null : Number(props.customerId)
   };
 }
 console.log('orgId', model.orgId);
@@ -89,25 +89,8 @@ function closeDrawer() {
 
 async function handleSubmit() {
   await validate();
-  
-  // 新增时不发送id字段，编辑时需要id
-  const submitData = isEdit.value ? model : { ...model };
-  if (!isEdit.value) {
-    delete (submitData as any).id;
-  }
-  
-  // 确保ID字段为字符串格式，避免精度丢失
-  if (submitData.orgId) {
-    submitData.orgId = String(submitData.orgId);
-  }
-  if (submitData.customerId) {
-    submitData.customerId = String(submitData.customerId);
-  }
-  
-  console.log('提交数据:', JSON.stringify(submitData, null, 2));
-  
   const func = isEdit.value ? fetchUpdatePosition : fetchAddPosition;
-  const { error, data } = await func(submitData);
+  const { error, data } = await func(model);
   if (!error && data) {
     window.$message?.success(isEdit.value ? $t('common.updateSuccess') : $t('common.addSuccess'));
     closeDrawer();

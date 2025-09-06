@@ -32,19 +32,32 @@ BUILDER_NAME="multiarch-builder"
 LOCAL_BUILD=${LOCAL_BUILD:-false}  # 默认多架构构建
 PUSH_TO_REGISTRY=${PUSH_TO_REGISTRY:-true}  # 默认推送到阿里云
 
-# 环境变量优先级最高，覆盖配置文件设置
-if [ -n "$LOCAL_BUILD_OVERRIDE" ]; then
-    LOCAL_BUILD="$LOCAL_BUILD_OVERRIDE"
-fi
-if [ -n "$PUSH_TO_REGISTRY_OVERRIDE" ]; then
-    PUSH_TO_REGISTRY="$PUSH_TO_REGISTRY_OVERRIDE"  
-fi
-if [ -n "$PLATFORMS_OVERRIDE" ]; then
-    PLATFORMS="$PLATFORMS_OVERRIDE"
-fi
-
-# 设置代理（网络优化）
-
+# 设置阿里云Docker镜像加速
+setup_aliyun_mirror() {
+    echo "🚀 配置Docker镜像加速（包含xuanyuan.run镜像源）..."
+    
+    # 配置Docker daemon.json以使用阿里云镜像加速器
+    local daemon_config='
+    {
+        "registry-mirrors": [
+            "https://syxpn3chjq4bgj.xuanyuan.run",
+            "https://mirror.baidubce.com",
+            "https://dockerhub.azk8s.cn",
+            "https://registry.cn-hangzhou.aliyuncs.com",
+            "https://docker.mirrors.ustc.edu.cn"
+        ],
+        "insecure-registries": [
+            "crpi-yilnm6upy4pmbp67.cn-shenzhen.personal.cr.aliyuncs.com",
+            "syxpn3chjq4bgj.xuanyuan.run"
+        ]
+    }'
+    
+    # 在Dockerfile中使用阿里云源镜像
+    export DOCKER_BUILDKIT=1
+    export BUILDKIT_PROGRESS=plain
+    
+    echo "✅ Docker镜像加速配置完成，优先使用xuanyuan.run镜像源"
+}
 
 # 生成数据库升级脚本 - 已移除，请使用专门的数据库升级脚本
 
@@ -61,8 +74,6 @@ login_aliyun() {
             echo "❌ 阿里云登录失败，请检查凭据"
             exit 1
         fi
-    elif [ "$PUSH_TO_REGISTRY" = "false" ]; then
-        echo "🚫 跳过镜像仓库登录（仅本地构建模式）"
     fi
 }
 
@@ -86,6 +97,11 @@ if [ $# -eq 0 ]; then
     echo "   $0 loki                   # 构建定制化Loki"
     echo "   $0 promtail               # 构建定制化Promtail"
     echo "   $0 alertmanager           # 构建定制化AlertManager"
+    echo ""
+    echo "🚀 缓存管理:"
+    echo "   $0 cache-pull             # 预拉取所有基础镜像到本地缓存"
+    echo "   $0 cache-clean            # 清理构建缓存"
+    echo "   $0 cache-prune            # 清理未使用的镜像和缓存"
     echo ""
     echo "🎯 构建模式:"
     echo "   LOCAL_BUILD=false         # 多架构构建(默认)"
@@ -182,25 +198,25 @@ build_app_image() {
             ;;
         "boot")
             echo "🔨 使用多阶段容器构建 Spring Boot JAR 包..."
-            echo "💡 在容器内构建确保跨平台兼容性"
+            echo "💡 在容器内构建确保跨平台兼容性，使用阿里云Maven镜像加速"
             if [ "$LOCAL_BUILD" = "true" ] && [ "$PLATFORMS" = "linux/amd64" ]; then
-                docker build -t $tag -t $latest_tag . -f ljwx-boot/ljwx-boot-admin/Dockerfile.prod
+                docker build --build-arg MAVEN_OPTS="-XX:+UseG1GC -Xmx1g" -t $tag -t $latest_tag . -f ljwx-boot/ljwx-boot-admin/Dockerfile.prod
             else
-                docker $build_args -t $tag -t $latest_tag . -f ljwx-boot/ljwx-boot-admin/Dockerfile.prod
+                docker $build_args --build-arg MAVEN_OPTS="-XX:+UseG1GC -Xmx1g" -t $tag -t $latest_tag . -f ljwx-boot/ljwx-boot-admin/Dockerfile.prod
             fi
             ;;
         "bigscreen")
-            # 更新了使用Python 3.12
+            echo "🔨 使用多阶段容器构建 Python FastAPI 应用..."
+            echo "💡 在容器内构建确保跨平台兼容性，使用阿里云Python镜像和pip源加速"
             if [ "$LOCAL_BUILD" = "true" ] && [ "$PLATFORMS" = "linux/amd64" ]; then
-                docker build -t $tag -t $latest_tag ljwx-bigscreen/bigscreen/ -f ljwx-bigscreen/bigscreen/Dockerfile.prod
+                docker build --build-arg PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ -t $tag -t $latest_tag ljwx-bigscreen/bigscreen/ -f ljwx-bigscreen/bigscreen/Dockerfile.prod
             else
-                docker $build_args -t $tag -t $latest_tag ljwx-bigscreen/bigscreen/ -f ljwx-bigscreen/bigscreen/Dockerfile.prod
+                docker $build_args --build-arg PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ -t $tag -t $latest_tag ljwx-bigscreen/bigscreen/ -f ljwx-bigscreen/bigscreen/Dockerfile.prod
             fi
             ;;
         "admin")
-            # 使用容器内构建前端资源
-            echo "🔨 使用多阶段容器构建前端应用..."
-            echo "💡 在容器内构建确保跨平台兼容性和环境一致性"
+            echo "🔨 使用多阶段容器构建前端静态资源镜像..."
+            echo "💡 在容器内构建确保跨平台兼容性，使用阿里云npm镜像加速"
             if [ "$LOCAL_BUILD" = "true" ] && [ "$PLATFORMS" = "linux/amd64" ]; then
                 docker build -t $tag -t $latest_tag ljwx-admin/ -f ljwx-admin/Dockerfile.prod
             else
@@ -319,6 +335,61 @@ build_all() {
     build_all_monitoring
 }
 
+# 缓存管理函数
+cache_pull() {
+    echo "🚀 预拉取所有基础镜像到本地缓存..."
+    
+    local base_images=(
+        # Admin 前端镜像
+        "node:18-alpine"
+        "nginx:alpine"
+        
+        # Boot 后端镜像
+        "eclipse-temurin:21-jdk-alpine"
+        "eclipse-temurin:21-jre-alpine"
+        
+        # Bigscreen Python镜像
+        "python:3.12-slim"
+        
+        # 数据库和缓存镜像
+        "mysql:8.0"
+        "redis:7-alpine"
+        
+        # 监控组件基础镜像
+        "grafana/grafana:9.5.0"
+        "prom/prometheus:v2.40.0"
+        "grafana/loki:2.9.0" 
+        "grafana/promtail:2.9.0"
+        "prom/alertmanager:latest"
+    )
+    
+    for image in "${base_images[@]}"; do
+        echo "📥 拉取基础镜像: $image"
+        if timeout 120 docker pull "$image"; then
+            echo "✅ $image 拉取成功"
+        else
+            echo "⚠️  $image 拉取超时或失败，跳过"
+        fi
+        echo ""
+    done
+    
+    echo "✅ 基础镜像缓存完成!"
+}
+
+cache_clean() {
+    echo "🧹 清理构建缓存..."
+    docker builder prune -f
+    echo "✅ 构建缓存清理完成!"
+}
+
+cache_prune() {
+    echo "🗑️  清理未使用的镜像和缓存..."
+    docker system prune -f
+    docker image prune -f
+    docker builder prune -f
+    echo "✅ 系统清理完成!"
+}
+
 # 显示构建总结
 show_summary() {
     echo ""
@@ -368,6 +439,9 @@ show_summary() {
 
 # 主程序
 main() {
+    # 设置阿里云镜像加速
+    setup_aliyun_mirror
+    
     # 登录阿里云(如果需要推送)
     login_aliyun
     
@@ -383,6 +457,18 @@ main() {
             ;;
         "monitoring")
             build_all_monitoring
+            ;;
+        "cache-pull")
+            cache_pull
+            return 0
+            ;;
+        "cache-clean")
+            cache_clean
+            return 0
+            ;;
+        "cache-prune")
+            cache_prune
+            return 0
             ;;
         "mysql"|"redis"|"boot"|"bigscreen"|"admin")
             for image in "$@"; do
