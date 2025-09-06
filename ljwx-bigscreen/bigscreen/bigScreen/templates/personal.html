@@ -5,32 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能穿戴个人健康大屏 v1.3.5</title>
     
-    <!-- 依赖引入 -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js" onerror="loadEChartsBackup()"></script>
+    <!-- 依赖引入 - 使用本地文件 -->
+    <script src="/static/js/jquery-3.6.0.min.js"></script>
+    <script src="/static/js/echarts-5.4.0.min.js"></script>
     
     <script>
-        // ECharts备用CDN加载
-        function loadEChartsBackup() {
-            console.log('⚠️ 主要ECharts CDN加载失败，尝试备用CDN...');
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/echarts@5.4.0/dist/echarts.min.js';
-            script.onerror = function() {
-                console.error('❌ 备用ECharts CDN也加载失败');
-                // 可以在这里加载本地ECharts文件
-                loadLocalECharts();
-            };
-            document.head.appendChild(script);
+        // 检查依赖是否加载成功
+        if (typeof $ === 'undefined') {
+            console.error('❌ jQuery本地文件加载失败');
         }
-        
-        function loadLocalECharts() {
-            console.log('🔄 尝试加载本地ECharts...');
-            const script = document.createElement('script');
-            script.src = '/static/js/echarts.min.js';
-            script.onerror = function() {
-                console.error('❌ 本地ECharts文件不存在，将使用降级图表');
-            };
-            document.head.appendChild(script);
+        if (typeof echarts === 'undefined') {
+            console.error('❌ ECharts本地文件加载失败');
         }
     </script>
     
