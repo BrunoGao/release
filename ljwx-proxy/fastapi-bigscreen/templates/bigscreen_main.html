@@ -2060,7 +2060,7 @@
                 const endDate = formatDate(today);
                 
                 // 调用接口获取健康评分数据
-                fetch(`/api/health/score/comprehensive`, {
+                fetch(`/api/v1/health/scores/comprehensive`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3345,7 +3345,7 @@
 
 
   function handleAlert(alertId) {
-    fetch(`./dealAlert?alertId=${alertId}`)
+    fetch(`/api/v1/alerts/deal?alertId=${alertId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -3699,7 +3699,7 @@ function getPastDateStr(daysAgo) {
       const startDate = formatDate(yesterday);
       const endDate = formatDate(today);
       
-      fetch(`/api/health/score/comprehensive`, {
+      fetch(`/api/v1/health/scores/comprehensive`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3969,7 +3969,7 @@ function getPastDateStr(daysAgo) {
     
     const endDate = getPastDateStr(0), startDate = getPastDateStr(6);
     
-    fetch(`/health_data/chart/baseline?orgId=${orgId}&startDate=${startDate}&endDate=${endDate}`)
+    fetch(`/api/v1/health/baseline/chart?orgId=${orgId}&startDate=${startDate}&endDate=${endDate}`)
       .then(r=>r.json())
       .then(result=>{
         console.log('健康数据接口返回:', result);
@@ -3993,7 +3993,7 @@ function getPastDateStr(daysAgo) {
   function generateBaselineAndRetry(orgId, startDate, endDate) {
     console.log('正在生成baseline数据...');
     
-    fetch('/api/baseline/generate', {
+    fetch('/api/v1/health/baseline/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target_date: endDate })
@@ -4004,7 +4004,7 @@ function getPastDateStr(daysAgo) {
       
       if (generateResult.success) {
         // 生成成功后重新获取数据
-        return fetch(`/health_data/chart/baseline?orgId=${orgId}&startDate=${startDate}&endDate=${endDate}`);
+        return fetch(`/api/v1/health/baseline/chart?orgId=${orgId}&startDate=${startDate}&endDate=${endDate}`);
       } else {
         throw new Error('baseline生成失败: ' + generateResult.error);
       }
@@ -4269,7 +4269,7 @@ function refreshData() {
     updateRealtimeStats(customerId); // 更新实时统计数据
     //loadMessages(); // 加载消息数据
 
-    fetch(`/get_total_info?customer_id=${customerId}`)
+    fetch(`/api/v1/organizations/statistics?customer_id=${customerId}`)
         .then(response => response.json())
         .then(result => {
             if (result.success) {
@@ -4546,7 +4546,7 @@ function createModalWindow(url, data, dataType) {
     const departmentMap = new Map();
     
     // 获取部门数据并填充选择框
-    fetch(`/get_departments?orgId={{ customerId }}`)
+    fetch(`/api/v1/departments?orgId={{ customerId }}`)
         .then(response => response.json())
         .then(response => {
             if (response.success && response.data) {
@@ -4585,7 +4585,7 @@ function createModalWindow(url, data, dataType) {
         userSelect.innerHTML = '<option value="">选择用户</option>';
         
         if (selectedDeptId) {
-            fetch(`/fetch_users?orgId=${selectedDeptId}`)
+            fetch(`/api/v1/users?orgId=${selectedDeptId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data) {
@@ -5930,7 +5930,7 @@ function showStatusDetails(statusName, statusValue) {
 
                 // 获取该部门的用户数据并添加到全局数组
                 try {
-                    const response = await fetch(`/fetch_users?orgId=${dept.id}`);
+                    const response = await fetch(`/api/v1/users?orgId=${dept.id}`);
                     const users = await response.json();
                     if (users) {
                         users.forEach(user => {
@@ -6599,7 +6599,7 @@ div.innerHTML=`
       existingHealthModal.remove(); // 移除已存在的健康详情面板
     }
     
-    fetch(`/fetchHealthDataById?id=${healthId}`).then(r=>r.json()).then(j=>{
+    fetch(`/api/v1/health/data/${healthId}`).then(r=>r.json()).then(j=>{
       if(!j.success||!j.data)return showCustomAlert('无健康数据');
       const d=j.data,g=(...k)=>k.map(x=>d[x]).find(x=>x!==undefined&&x!==null&&x!=='')||'-';
       let sleepStr=g('sleepData','scientificSleepData'),sleep='-';
@@ -7096,7 +7096,7 @@ div.innerHTML=`
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const customerId = urlParams.get('customerId') || '1';
-            const scoreResponse = await fetch(`/api/health/score/comprehensive`, {
+            const scoreResponse = await fetch(`/api/v1/health/scores/comprehensive`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -7955,7 +7955,7 @@ function loadStatisticsData() {
   }
   
     // 获取统计概览数据
-    fetch(`/api/statistics/overview?orgId=${customerId}&date=${today}`)
+    fetch(`/api/v1/statistics/overview?orgId=${customerId}&date=${today}`)
     .then(response => response.json())
     .then(result => {
       if (result.success) {
@@ -8012,7 +8012,7 @@ function loadStatisticsData() {
         updateSystemStatus(mockSummary);
         
         // 使用实时统计API获取真实的增长率数据
-        fetch(`/api/realtime_stats?customerId=${customerId}&date=${today}`)
+        fetch(`/api/v1/statistics/realtime?customerId=${customerId}&date=${today}`)
           .then(response => response.json())
           .then(statsResult => {
             if (statsResult.success) {
@@ -8206,7 +8206,7 @@ function showStatsErrorState() {
 
 // 已弃用：降级版本函数（不再使用）
 function updateRealtimeStatsLegacy(customerId) {
-  fetch(`/get_total_info?customer_id=${customerId}`)
+  fetch(`/api/v1/organizations/statistics?customer_id=${customerId}`)
     .then(response => response.json())
     .then(result => {
       if (result.success) {
@@ -8589,7 +8589,7 @@ function initOverviewChart() {
     function acknowledgeAlert() {
       if (currentAlert) {
         // 发送确认请求到后端 (可选)
-        fetch('/acknowledge_alert', {
+        fetch('/api/v1/alerts/acknowledge', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

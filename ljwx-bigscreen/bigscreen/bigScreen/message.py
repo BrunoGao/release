@@ -1061,7 +1061,7 @@ def fetch_messages_by_orgIdAndUserId(orgId, userId=None, messageType=None):
             DeviceMessage.message_status,
             DeviceMessage.sent_time,
             DeviceMessage.received_time,
-            DeviceMessage.department_info,
+            DeviceMessage.org_id,  # 修改: department_info -> org_id
             DeviceMessage.sender_type,
             DeviceMessage.receiver_type,
             UserInfo.id.label('user_id'),
@@ -1117,67 +1117,52 @@ def fetch_messages_by_orgIdAndUserId(orgId, userId=None, messageType=None):
             personal_messages = base_query.filter(DeviceMessage.user_id == userId).all()
             #print(f"DEBUG: 用户个人消息数量: {len(personal_messages)}")
             
-            # 2. 获取用户所在组织及其所有上级组织的ID
-            org_info = OrgInfo.query.filter_by(id=org_id).first()
-            #print(f"DEBUG: org_info 查询结果: {org_info}")
-            if not org_info:
-                #print(f"DEBUG: 组织 {org_id} 不存在，尝试查询所有消息")
-                # 如果组织不存在，直接查询所有相关消息
-                announcement_messages = base_query.filter(
-                    DeviceMessage.user_id == None
-                ).all()
-            else:
-                ancestor_org_ids = [int(id) for id in org_info.ancestors.split(',') if id != '0'] if org_info.ancestors else []
-                ancestor_org_ids.append(org_id)
-                #print(f"DEBUG: ancestor_org_ids: {ancestor_org_ids}")
-                
-                # 3. 获取这些组织的公告消息
-                announcement_messages = base_query.filter(
-                    DeviceMessage.department_info.in_(ancestor_org_ids),
-                    DeviceMessage.user_id == None
-                ).all()
+            # 2. 🔧 修复: 简化用户组织消息查询，直接基于org_id查询
+            print(f"🔍 查询用户组织org_id={org_id}的公告消息")
             
-            #print(f"DEBUG: 公告消息数量: {len(announcement_messages)}")
+            # 直接查询用户所在组织的公告消息
+            announcement_messages = base_query.filter(
+                DeviceMessage.org_id == str(org_id),  # 直接匹配org_id
+                DeviceMessage.user_id == None  # 公告消息没有user_id
+            ).all()
+            
+            print(f"📊 用户组织公告消息: {len(announcement_messages)} 条")
 
         else:
             # 如果只提供了orgId
             if not orgId:
                 raise Exception("Either userId or orgId must be provided")
 
-            # 1. 获取组织及其所有上级组织的ID
-            org_info = OrgInfo.query.filter_by(id=orgId).first()
-            if not org_info:
-                raise Exception("Organization not found")
+            # 🔧 修复: 简化消息查询逻辑，直接基于orgId查询，不依赖ancestors字段
+            print(f"🔍 直接查询orgId={orgId}的消息")
             
-            ancestor_org_ids = [int(id) for id in org_info.ancestors.split(',') if id != '0'] if org_info.ancestors else []
-            #print("ancestor_org_ids:", ancestor_org_ids)
-            ancestor_org_ids.append(int(orgId))
-
-            # 2. 获取下属组织ID（包括所有子部门）
-            departments_response = fetch_departments_by_orgId(orgId)
-            #print("departments_response:", departments_response)
-            
-            subordinate_org_ids = []
-            if departments_response['success'] and departments_response['data']:
-                # 递归提取所有部门ID
-                subordinate_org_ids = extract_department_ids(departments_response['data'])
-            
-            #print("subordinate_org_ids:", subordinate_org_ids)
-            all_org_ids = list(set(ancestor_org_ids + subordinate_org_ids))
-            #print("all_org_ids:", all_org_ids)
-
-            # 3. 获取所有相关消息
-            # 3.1 获取所有公告消息（包括上级组织的公告）
-            announcement_messages = base_query.filter(
-                DeviceMessage.department_info.in_([str(id) for id in all_org_ids]),
-                DeviceMessage.user_id == None
+            # 1. 直接查询指定orgId的消息（公告和个人消息）
+            all_messages = base_query.filter(
+                DeviceMessage.org_id == str(orgId)  # 直接匹配org_id
             ).all()
-
-            # 3.2 获取下属组织所有用户的个人消息
-            personal_messages = base_query.filter(
-                DeviceMessage.department_info.in_([str(id) for id in subordinate_org_ids]),
-                DeviceMessage.user_id != None
-            ).all()
+            
+            print(f"📊 查询到 {len(all_messages)} 条消息，orgId={orgId}")
+            
+            # 2. 获取子部门消息（如果需要包含子部门）
+            try:
+                departments_response = fetch_departments_by_orgId(orgId)
+                subordinate_org_ids = []
+                if departments_response.get('success') and departments_response.get('data'):
+                    subordinate_org_ids = extract_department_ids(departments_response['data'])
+                    if subordinate_org_ids:
+                        sub_messages = base_query.filter(
+                            DeviceMessage.org_id.in_([str(id) for id in subordinate_org_ids])
+                        ).all()
+                        all_messages.extend(sub_messages)
+                        print(f"📊 包含子部门消息，总计 {len(all_messages)} 条")
+            except Exception as e:
+                print(f"⚠️ 获取子部门消息失败: {e}")
+            
+            # 3. 分离公告消息和个人消息
+            announcement_messages = [msg for msg in all_messages if not msg.user_id]
+            personal_messages = [msg for msg in all_messages if msg.user_id]
+            
+            print(f"📊 公告消息: {len(announcement_messages)} 条，个人消息: {len(personal_messages)} 条")
 
         # 处理消息并添加到结果列表
         def process_messages(messages, is_public=False):
@@ -1197,7 +1182,7 @@ def fetch_messages_by_orgIdAndUserId(orgId, userId=None, messageType=None):
                             # 如果存在，则更新received_time
                             status = '2'
                     seen_message_ids.add(msg.id)
-                    dept_id = str(msg.department_info)
+                    dept_id = str(msg.org_id)  # 修改: department_info -> org_id
                     dept_name = OrgInfo.query.filter_by(id=dept_id).first()
                     message_dict = {
                         'department_name': dept_name.name if dept_name else 'Unknown Department',

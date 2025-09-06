@@ -32,6 +32,17 @@ BUILDER_NAME="multiarch-builder"
 LOCAL_BUILD=${LOCAL_BUILD:-false}  # 默认多架构构建
 PUSH_TO_REGISTRY=${PUSH_TO_REGISTRY:-true}  # 默认推送到阿里云
 
+# 环境变量优先级最高，覆盖配置文件设置
+if [ -n "$LOCAL_BUILD_OVERRIDE" ]; then
+    LOCAL_BUILD="$LOCAL_BUILD_OVERRIDE"
+fi
+if [ -n "$PUSH_TO_REGISTRY_OVERRIDE" ]; then
+    PUSH_TO_REGISTRY="$PUSH_TO_REGISTRY_OVERRIDE"  
+fi
+if [ -n "$PLATFORMS_OVERRIDE" ]; then
+    PLATFORMS="$PLATFORMS_OVERRIDE"
+fi
+
 # 设置代理（网络优化）
 
 
@@ -50,6 +61,8 @@ login_aliyun() {
             echo "❌ 阿里云登录失败，请检查凭据"
             exit 1
         fi
+    elif [ "$PUSH_TO_REGISTRY" = "false" ]; then
+        echo "🚫 跳过镜像仓库登录（仅本地构建模式）"
     fi
 }
 
@@ -185,28 +198,9 @@ build_app_image() {
             fi
             ;;
         "admin")
-            # 预构建前端资源
-            echo "🔨 预构建前端资源..."
-            if [ ! -d "ljwx-admin/dist" ]; then
-                echo "⚠️ 未找到预构建的dist目录，正在执行前端构建..."
-                cd ljwx-admin
-                if command -v pnpm >/dev/null 2>&1; then
-                    echo "使用 pnpm 构建..."
-                    pnpm install --frozen-lockfile
-                    pnpm run build
-                elif command -v npm >/dev/null 2>&1; then
-                    echo "使用 npm 构建..."
-                    npm install
-                    npm run build
-                else
-                    echo "❌ 未找到 pnpm 或 npm，请安装 Node.js 和包管理器"
-                    exit 1
-                fi
-                cd ..
-                echo "✅ 前端构建完成"
-            else
-                echo "✅ 找到预构建的dist目录"
-            fi
+            # 使用容器内构建前端资源
+            echo "🔨 使用多阶段容器构建前端应用..."
+            echo "💡 在容器内构建确保跨平台兼容性和环境一致性"
             if [ "$LOCAL_BUILD" = "true" ] && [ "$PLATFORMS" = "linux/amd64" ]; then
                 docker build -t $tag -t $latest_tag ljwx-admin/ -f ljwx-admin/Dockerfile.prod
             else

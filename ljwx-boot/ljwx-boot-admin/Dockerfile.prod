@@ -22,10 +22,14 @@ RUN mkdir -p /root/.m2 && \
     echo '  </mirrors>' >> /root/.m2/settings.xml && \
     echo '</settings>' >> /root/.m2/settings.xml
 
-# 复制源代码
+# 复制源代码 - 包括starter依赖
+COPY ljwx-boot-starter/ ../ljwx-boot-starter/
 COPY ljwx-boot/ ./
 
-# 构建JAR包
+# 先构建starter模块依赖
+RUN cd ../ljwx-boot-starter && mvn clean install -DskipTests -B
+
+# 构建主应用JAR包
 RUN mvn clean package -DskipTests -B
 
 # 第二阶段：运行时镜像

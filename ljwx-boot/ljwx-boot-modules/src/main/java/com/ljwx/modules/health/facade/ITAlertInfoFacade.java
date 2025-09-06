@@ -89,4 +89,20 @@ public interface ITAlertInfoFacade {
      */
     boolean batchDelete(TAlertInfoDeleteDTO tAlertInfoDeleteDTO);
 
+    /**
+     * 处理告警
+     *
+     * @param alertId 告警ID
+     * @return {@link Boolean} 结果
+     */
+    boolean dealAlert(Long alertId);
+
+    /**
+     * 批量处理告警
+     *
+     * @param alertIds 告警ID列表
+     * @return {@link String} 处理结果
+     */
+    String batchDealAlert(java.util.List<Long> alertIds);
+
 }

@@ -4559,7 +4559,7 @@ function createModalWindow(url, data, dataType) {
     const departmentMap = new Map();
     
     // 获取部门数据并填充选择框
-    fetch(`/get_departments?orgId={{ customerId }}`)
+    fetch(`/get_departments?orgId={{ customerId }}&customerId={{ customerId }}`)
         .then(response => response.json())
         .then(response => {
             if (response.success && response.data) {
@@ -5884,7 +5884,7 @@ function showStatusDetails(statusName, statusValue) {
   $(document).ready(function() {
     // 获取部门数据
     $.ajax({
-        url: `/get_departments?orgId={{ customerId }}`,
+        url: `/get_departments?orgId={{ customerId }}&customerId={{ customerId }}`,
         method: 'GET',
         success: function(response) {
             console.log('response', response);

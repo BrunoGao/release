@@ -69,7 +69,7 @@ class DeviceMessage(db.Model):
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     device_sn = db.Column(db.String(255), nullable=False)
     message = db.Column(db.Text, nullable=False)   
-    department_info = db.Column(db.String(50), nullable=True)
+    org_id = db.Column(db.String(50), nullable=True)  # 修改: department_info -> org_id
     user_id = db.Column(db.String(50), nullable=True)
     customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，继承自设备所属租户')
     message_type = db.Column(db.String(50), nullable=False)

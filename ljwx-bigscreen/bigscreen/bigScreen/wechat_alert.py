@@ -49,7 +49,7 @@ class WeChatAlert:
             print(f"❌ 获取微信AccessToken异常: {e}")
             return None
     
-    def send_alert(self, alert_type, device_sn, alert_desc, severity_level, user_name, department_info):
+    def send_alert(self, alert_type, device_sn, alert_desc, severity_level, user_name, org_name):  # 修改: department_info -> org_name
         """发送微信告警 #发送微信告警消息"""
         if not self.enabled:
             print("⚠️ 微信告警未启用")
@@ -98,7 +98,7 @@ class WeChatAlert:
                         "color": "#000000"
                     },
                     "remark": {
-                        "value": f"\n设备: {device_sn}\n部门: {department_info}\n详情: {alert_desc}",
+                        "value": f"\n设备: {device_sn}\n部门: {org_name}\n详情: {alert_desc}",  # 修改: department_info -> org_name
                         "color": "#666666"
                     }
                 }

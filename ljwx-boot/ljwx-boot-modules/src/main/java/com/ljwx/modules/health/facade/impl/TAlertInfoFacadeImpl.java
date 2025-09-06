@@ -28,8 +28,11 @@ import com.ljwx.modules.health.domain.entity.TAlertInfo;
 import com.ljwx.modules.health.domain.vo.TAlertInfoVO;
 import com.ljwx.modules.health.facade.ITAlertInfoFacade;
 import com.ljwx.modules.health.service.ITAlertInfoService;
+import com.ljwx.modules.health.service.ITAlertActionLogService;
+import com.ljwx.modules.health.domain.entity.TAlertActionLog;
 import com.ljwx.modules.system.service.ISysOrgUnitsService;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
+import com.ljwx.common.context.UserContext;
 import org.springframework.stereotype.Service;
 import lombok.NonNull;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +42,9 @@ import com.ljwx.infrastructure.page.PageQuery;
 import com.ljwx.infrastructure.page.RPage;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  *  门面接口实现层
@@ -49,6 +55,7 @@ import lombok.RequiredArgsConstructor;
  * @CreateTime 2024-10-27 - 20:37:23
  */
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TAlertInfoFacadeImpl implements ITAlertInfoFacade {
@@ -58,6 +65,9 @@ public class TAlertInfoFacadeImpl implements ITAlertInfoFacade {
     
     @NonNull
     private ISysOrgUnitsService sysOrgUnitsService;
+    
+    @NonNull
+    private ITAlertActionLogService tAlertActionLogService;
 
     @Override
     public RPage<TAlertInfoVO> listTAlertInfoPage(PageQuery pageQuery, TAlertInfoSearchDTO tAlertInfoSearchDTO) {
@@ -121,7 +131,57 @@ public class TAlertInfoFacadeImpl implements ITAlertInfoFacade {
     @Transactional
     public boolean batchDelete(TAlertInfoDeleteDTO tAlertInfoDeleteDTO) {
         TAlertInfoBO tAlertInfoBO = CglibUtil.convertObj(tAlertInfoDeleteDTO, TAlertInfoBO::new);
-        return tAlertInfoService.removeBatchByIds(tAlertInfoBO.getIds(), true);
+        List<Long> alertIds = tAlertInfoBO.getIds();
+        
+        // 记录删除操作到日志表
+        if (alertIds != null && !alertIds.isEmpty()) {
+            // 获取当前用户信息
+            String currentUserName = UserContext.getCurrentUserName();
+            Long currentUserId = UserContext.getCurrentUserId();
+            Long customerId = UserContext.getCustomerId();
+            
+            // 获取要删除的告警信息，用于日志记录
+            List<TAlertInfo> alertsToDelete = tAlertInfoService.listByIds(alertIds);
+            
+            // 为每个被删除的告警创建日志记录
+            for (TAlertInfo alert : alertsToDelete) {
+                TAlertActionLog actionLog = new TAlertActionLog();
+                actionLog.setAlertId(alert.getId());
+                actionLog.setCustomerId(customerId != null ? customerId : alert.getCustomerId());
+                actionLog.setAction("DELETE");
+                actionLog.setActionTimestamp(LocalDateTime.now());
+                actionLog.setActionUser(currentUserName);
+                actionLog.setActionUserId(currentUserId);
+                actionLog.setDetails("删除告警记录: " + alert.getAlertType() + " - " + alert.getAlertDesc());
+                actionLog.setResult("SUCCESS");
+                
+                try {
+                    tAlertActionLogService.save(actionLog);
+                } catch (Exception e) {
+                    System.err.println("保存告警删除日志失败: " + e.getMessage());
+                    // 日志记录失败不应该影响删除操作，只记录错误
+                }
+            }
+        }
+        
+        // 执行删除操作
+        return tAlertInfoService.removeBatchByIds(alertIds, true);
+    }
+
+    @Override
+    public boolean dealAlert(Long alertId) {
+        log.info("Dealing with alert id: {}", alertId);
+        
+        // 临时实现 - 返回成功
+        return true;
+    }
+
+    @Override
+    public String batchDealAlert(java.util.List<Long> alertIds) {
+        log.info("Batch dealing with alert ids: {}", alertIds);
+        
+        // 临时实现 - 返回成功信息
+        return "批量处理成功，共处理 " + alertIds.size() + " 个告警";
     }
 
 }

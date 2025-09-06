@@ -3561,7 +3561,7 @@
             console.log('👤 加载员工信息...');
             
             // First get user_id and customer_id from deviceSn
-            fetch(`/api/device/user_info?deviceSn=${deviceSn}`, {
+            fetch(`/api/v1/devices/user-info?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -3571,7 +3571,7 @@
                         const { user_id, customer_id } = deviceResult.data;
                         
                         // Now fetch employee info with correct parameters
-                        return fetch('/api/user/profile', {
+                        return fetch('/api/v1/users/profile', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -5011,7 +5011,7 @@
             console.log('📊 加载实时健康数据...');
             
             // First get user_id and customer_id from deviceSn
-            fetch(`/api/device/user_info?deviceSn=${deviceSn}`, {
+            fetch(`/api/v1/devices/user-info?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -5021,7 +5021,7 @@
                         const { user_id, customer_id } = deviceResult.data;
                         
                         // Now fetch health data with correct parameters
-                        return fetch('/api/health/realtime_data', {
+                        return fetch('/api/v1/health/realtime-data', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -5669,7 +5669,7 @@
 
         // ============= API辅助函数 =============
         async function getDeviceUserInfo(deviceSn) {
-            const response = await fetch(`/api/device/user_info?deviceSn=${deviceSn}`, {
+            const response = await fetch(`/api/v1/devices/user-info?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -5687,7 +5687,7 @@
             console.log('💬 加载消息数据...');
             
             // First get user_id and customer_id from deviceSn
-            fetch(`/api/device/user_info?deviceSn=${deviceSn}`, {
+            fetch(`/api/v1/devices/user-info?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -5697,7 +5697,7 @@
                         const { user_id, customer_id } = deviceResult.data;
                         
                         // Now fetch messages with correct parameters
-                        return fetch('/api/messages/user', {
+                        return fetch('/api/v1/messages/user', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -5731,7 +5731,7 @@
             console.log('🚨 加载告警数据...');
             
             // First get user_id and customer_id from deviceSn
-            fetch(`/api/device/user_info?deviceSn=${deviceSn}`, {
+            fetch(`/api/v1/devices/user-info?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -5741,7 +5741,7 @@
                         const { user_id, customer_id } = deviceResult.data;
                         
                         // Now fetch alerts with correct parameters
-                        return fetch('/api/alerts/user', {
+                        return fetch('/api/v1/alerts/user', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -5775,7 +5775,7 @@
         function loadDeviceStatus() {
             console.log('📱 加载设备状态...');
             
-            fetch(`/api/device/info?deviceSn=${deviceSn}`, {
+            fetch(`/api/v1/devices/status?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -5986,7 +5986,7 @@
             console.log('📈 加载历史数据图表...');
             
             // First get user_id and customer_id from deviceSn
-            fetch(`/api/device/user_info?deviceSn=${deviceSn}`, {
+            fetch(`/api/v1/devices/user-info?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -5996,7 +5996,7 @@
                         const { user_id, customer_id } = deviceResult.data;
                         
                         // Now fetch history data with correct parameters
-                        return fetch('/api/health/trends', {
+                        return fetch('/api/v1/health/trends', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -6106,7 +6106,7 @@
             console.log('🎯 加载健康评分...');
             
             // First get user_id and customer_id from deviceSn
-            fetch(`/api/device/user_info?deviceSn=${deviceSn}`, {
+            fetch(`/api/v1/devices/user-info?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -6116,7 +6116,7 @@
                         const { user_id, customer_id } = deviceResult.data;
                         
                         // Now fetch health scores with correct parameters
-                        return fetch('/api/personal/health/scores', {
+                        return fetch('/api/v1/health/personal/scores', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -6149,7 +6149,7 @@
             console.log('💡 加载健康建议...');
             
             // First get user_id and customer_id from deviceSn
-            fetch(`/api/device/user_info?deviceSn=${deviceSn}`, {
+            fetch(`/api/v1/devices/user-info?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -6159,7 +6159,7 @@
                         const { user_id, customer_id } = deviceResult.data;
                         
                         // Now fetch health recommendations with correct parameters
-                        return fetch('/api/health/recommendations', {
+                        return fetch('/api/v1/health/recommendations', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -6193,7 +6193,7 @@
             console.log('🔮 加载健康预测...');
             
             // First get user_id and customer_id from deviceSn
-            fetch(`/api/device/user_info?deviceSn=${deviceSn}`, {
+            fetch(`/api/v1/devices/user-info?deviceSn=${deviceSn}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -6203,7 +6203,7 @@
                         const { user_id, customer_id } = deviceResult.data;
                         
                         // Now fetch health predictions with correct parameters
-                        return fetch('/api/health/predictions', {
+                        return fetch('/api/v1/health/predictions', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -6456,7 +6456,7 @@
                 }
                 
                 // 调用后端API获取orgId和userId
-                const response = await fetch(`/api/device/user_org?deviceSn=${deviceSn}`);
+                const response = await fetch(`/api/v1/devices/user-organization?deviceSn=${deviceSn}`);
                 const data = await response.json();
                 
                 if (data.success && data.orgId) {
@@ -6480,7 +6480,7 @@
                 }
                 
                 // 调用后端API获取orgId和userId
-                const response = await fetch(`/api/device/user_org?deviceSn=${deviceSn}`);
+                const response = await fetch(`/api/v1/devices/user-organization?deviceSn=${deviceSn}`);
                 const data = await response.json();
                 
                 if (data.success && data.orgId) {
@@ -6504,7 +6504,7 @@
                 }
                 
                 // 调用后端API获取orgId和userId
-                const response = await fetch(`/api/device/user_org?deviceSn=${deviceSn}`);
+                const response = await fetch(`/api/v1/devices/user-organization?deviceSn=${deviceSn}`);
                 const data = await response.json();
                 
                 if (data.success && data.orgId) {
@@ -6672,7 +6672,7 @@
             console.log('🚨 显示告警详情');
             
             // 获取详细的告警信息
-            fetch(`/api/personal/alerts?deviceSn=${deviceSn}`)
+            fetch(`/api/v1/alerts/personal?deviceSn=${deviceSn}`)
                 .then(response => response.json())
                 .then(result => {
                     if (result.success) {

@@ -622,7 +622,7 @@ def save_message():
             sender_type=data.get('sender_type'),
             receiver_type=data.get('receiver_type'),
             message_status=data.get('message_status'),
-            department_info=data.get('department_info'),
+            org_id=data.get('org_id') or data.get('department_info'),  # 修改: department_info -> org_id, 向后兼容
             user_id=data.get('user_id'),
             sent_time=datetime.now()
         )

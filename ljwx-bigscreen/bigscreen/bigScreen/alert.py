@@ -1538,7 +1538,7 @@ def _insert_device_messages_enhanced(device_sn, alert_type, severity_level, user
         user_message = DeviceMessage(
             device_sn=device_sn,
             message=message_content,
-            department_info=str(org_id),
+            org_id=str(org_id),  # 修改: department_info -> org_id
             user_id=str(user_id),
             message_type='warning',
             sender_type='system', 
@@ -1561,7 +1561,7 @@ def _insert_device_messages_enhanced(device_sn, alert_type, severity_level, user
                     principal_message = DeviceMessage(
                         device_sn=device_sn,
                         message=message_content + f"（设备用户：{user_name}）",
-                        department_info=str(org_id),
+                        org_id=str(org_id),  # 修改: department_info -> org_id
                         user_id=str(principal_user_id),
                         message_type='warning',
                         sender_type='system',
@@ -1579,7 +1579,7 @@ def _insert_device_messages_enhanced(device_sn, alert_type, severity_level, user
                     principal_message = DeviceMessage(
                         device_sn=device_sn,
                         message=message_content + f"（设备用户：{user_name}）",
-                        department_info=str(org_id),
+                        org_id=str(org_id),  # 修改: department_info -> org_id
                         user_id=str(principal.user_id),
                         message_type='warning',
                         sender_type='system',
@@ -1604,7 +1604,7 @@ def _insert_device_messages_enhanced(device_sn, alert_type, severity_level, user
                         tenant_message = DeviceMessage(
                             device_sn=device_sn,
                             message=message_content + f"（设备用户：{user_name}，部门：{current_org.name}）",
-                            department_info=str(current_org.parent_id),
+                            org_id=str(current_org.parent_id),  # 修改: department_info -> org_id
                             user_id=str(parent_principal_data['user_id']),
                             message_type='warning',
                             sender_type='system',
@@ -1666,7 +1666,7 @@ def _insert_device_messages(device_sn, alert_type, severity_level, user_name):
             message = DeviceMessage(
                 device_sn=device_sn,
                 message=message_content,
-                department_info=str(org_id),
+                org_id=str(org_id),  # 修改: department_info -> org_id
                 user_id=str(user_id),
                 message_type='warning',
                 sender_type='system',
@@ -1681,7 +1681,7 @@ def _insert_device_messages(device_sn, alert_type, severity_level, user_name):
             user_message = DeviceMessage(
                 device_sn=device_sn,
                 message=message_content,
-                department_info=str(org_id),
+                org_id=str(org_id),  # 修改: department_info -> org_id
                 user_id=str(user_id),
                 message_type='warning',
                 sender_type='system', 
@@ -1696,7 +1696,7 @@ def _insert_device_messages(device_sn, alert_type, severity_level, user_name):
                 principal_message = DeviceMessage(
                     device_sn=device_sn,
                     message=message_content + f"（设备用户：{user_name}）",
-                    department_info=str(org_id),
+                    org_id=str(org_id),  # 修改: department_info -> org_id
                     user_id=str(principal_id),
                     message_type='warning',
                     sender_type='system',

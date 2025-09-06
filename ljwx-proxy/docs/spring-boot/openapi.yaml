@@ -1,0 +1,870 @@
+openapi: 3.0.3
+info:
+  title: LJWX Health Monitoring API v1
+  description: |
+    智能健康监测系统API接口文档 v1.0.0
+    
+    ## 概述
+    
+    本API提供健康数据监测、设备管理、用户管理、告警系统等功能的标准化接口。
+    
+    ## 认证
+    
+    目前API不需要认证（开发环境），生产环境将支持以下认证方式：
+    - Bearer Token
+    - API Key
+    
+    ## 响应格式
+    
+    所有API遵循统一的响应格式：
+    
+    ```json
+    {
+      "code": 200,
+      "message": "success",
+      "data": {},
+      "timestamp": "2024-01-01T12:00:00Z"
+    }
+    ```
+    
+    ## 错误码
+    
+    | 状态码 | 错误码 | 描述 |
+    |-------|-------|------|
+    | 200 | 200 | 请求成功 |
+    | 400 | 400 | 请求参数错误 |
+    | 404 | 404 | 资源不存在 |
+    | 500 | 500 | 服务器内部错误 |
+    
+  version: 1.0.0
+  contact:
+    name: LJWX Team
+    email: support@ljwx.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+    
+servers:
+  - url: http://localhost:8080/api/v1
+    description: 开发环境
+  - url: https://api.ljwx.com/api/v1
+    description: 生产环境
+
+tags:
+  - name: Health
+    description: 健康数据相关接口
+  - name: Device
+    description: 设备管理相关接口
+  - name: User
+    description: 用户管理相关接口
+  - name: Organization
+    description: 组织管理相关接口
+  - name: Statistics
+    description: 统计分析相关接口
+  - name: Alert
+    description: 告警管理相关接口
+  - name: Message
+    description: 消息管理相关接口
+
+paths:
+  /health/scores/comprehensive:
+    get:
+      tags: [Health]
+      summary: 获取健康综合评分
+      description: 获取指定用户或组织的健康综合评分
+      parameters:
+        - name: userId
+          in: query
+          description: 用户ID
+          required: false
+          schema:
+            type: string
+            example: "123"
+        - name: orgId
+          in: query
+          description: 组织ID
+          required: false
+          schema:
+            type: string
+            example: "456"
+        - name: date
+          in: query
+          description: 日期
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2024-01-01"
+      responses:
+        '200':
+          description: 成功获取健康评分
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+                
+  /health/realtime-data:
+    get:
+      tags: [Health]
+      summary: 获取实时健康数据
+      description: 获取用户的实时健康监测数据
+      parameters:
+        - name: userId
+          in: query
+          description: 用户ID
+          required: false
+          schema:
+            type: string
+        - name: deviceSn
+          in: query
+          description: 设备序列号
+          required: false
+          schema:
+            type: string
+            example: "CRFTQ23409001890"
+      responses:
+        '200':
+          description: 成功获取实时健康数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RealtimeHealthData'
+                        
+  /health/trends:
+    get:
+      tags: [Health]
+      summary: 获取健康趋势数据
+      description: 获取用户健康数据的历史趋势
+      parameters:
+        - name: userId
+          in: query
+          description: 用户ID
+          required: true
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          description: 开始日期
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: 结束日期
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 成功获取健康趋势数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HealthTrend'
+
+  /health/baseline/chart:
+    get:
+      tags: [Health]
+      summary: 获取基线数据图表
+      parameters:
+        - name: orgId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 成功获取基线数据图表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /health/baseline/generate:
+    post:
+      tags: [Health]
+      summary: 生成基线数据
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaselineGenerateRequest'
+      responses:
+        '200':
+          description: 成功生成基线数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /health/data/{id}:
+    get:
+      tags: [Health]
+      summary: 根据ID获取健康数据
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取健康数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /health/personal/scores:
+    get:
+      tags: [Health]
+      summary: 获取个人健康评分
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 成功获取个人健康评分
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /health/recommendations:
+    get:
+      tags: [Health]
+      summary: 获取健康建议
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取健康建议
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HealthRecommendation'
+
+  /health/predictions:
+    get:
+      tags: [Health]
+      summary: 获取健康预测
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取健康预测
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /devices/user-info:
+    get:
+      tags: [Device]
+      summary: 获取设备用户信息
+      parameters:
+        - name: deviceSn
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "CRFTQ23409001890"
+      responses:
+        '200':
+          description: 成功获取设备用户信息
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DeviceUserInfo'
+
+  /devices/status:
+    get:
+      tags: [Device]
+      summary: 获取设备状态信息
+      parameters:
+        - name: deviceSn
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取设备状态信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /devices/user-organization:
+    get:
+      tags: [Device]
+      summary: 获取设备用户组织信息
+      parameters:
+        - name: deviceSn
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取设备用户组织信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /users/profile:
+    get:
+      tags: [User]
+      summary: 获取用户资料
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取用户资料
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+
+  /users:
+    get:
+      tags: [User]
+      summary: 获取用户列表
+      parameters:
+        - name: orgId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取用户列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+
+  /organizations/statistics:
+    get:
+      tags: [Organization]
+      summary: 获取组织统计信息
+      parameters:
+        - name: customer_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取组织统计信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /departments:
+    get:
+      tags: [Organization]
+      summary: 获取部门列表
+      parameters:
+        - name: orgId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取部门列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Department'
+
+  /statistics/overview:
+    get:
+      tags: [Statistics]
+      summary: 获取统计概览
+      parameters:
+        - name: orgId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 成功获取统计概览
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /statistics/realtime:
+    get:
+      tags: [Statistics]
+      summary: 获取实时统计数据
+      parameters:
+        - name: customerId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 成功获取实时统计数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /alerts/user:
+    get:
+      tags: [Alert]
+      summary: 获取用户告警
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取用户告警
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Alert'
+
+  /alerts/personal:
+    get:
+      tags: [Alert]
+      summary: 获取个人告警
+      parameters:
+        - name: deviceSn
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取个人告警
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Alert'
+
+  /alerts/acknowledge:
+    post:
+      tags: [Alert]
+      summary: 确认告警
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertAcknowledgeRequest'
+      responses:
+        '200':
+          description: 成功确认告警
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /alerts/deal:
+    post:
+      tags: [Alert]
+      summary: 处理告警
+      parameters:
+        - name: alertId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功处理告警
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /messages/user:
+    get:
+      tags: [Message]
+      summary: 获取用户消息
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取用户消息
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Message'
+
+components:
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 响应状态码
+          example: 200
+        message:
+          type: string
+          description: 响应消息
+          example: "success"
+        data:
+          type: object
+          description: 响应数据
+        timestamp:
+          type: string
+          format: date-time
+          description: 响应时间戳
+          example: "2024-01-01T12:00:00Z"
+      required:
+        - code
+        - message
+        - timestamp
+
+    RealtimeHealthData:
+      type: object
+      properties:
+        heartRate:
+          type: integer
+          description: 心率
+          example: 75
+        bloodPressure:
+          type: string
+          description: 血压
+          example: "120/80"
+        temperature:
+          type: number
+          format: float
+          description: 体温
+          example: 36.5
+        oxygenLevel:
+          type: integer
+          description: 血氧饱和度
+          example: 98
+        timestamp:
+          type: string
+          format: date-time
+          description: 数据时间戳
+
+    HealthTrend:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: 日期
+        value:
+          type: number
+          description: 数值
+        type:
+          type: string
+          description: 数据类型
+          enum: [heart_rate, blood_pressure, temperature, oxygen_level]
+
+    HealthRecommendation:
+      type: object
+      properties:
+        type:
+          type: string
+          description: 建议类型
+          example: "exercise"
+        title:
+          type: string
+          description: 建议标题
+          example: "增加有氧运动"
+        description:
+          type: string
+          description: 建议描述
+          example: "建议每周进行3-4次有氧运动，每次30分钟"
+        priority:
+          type: string
+          description: 优先级
+          enum: [low, medium, high]
+          example: "high"
+
+    DeviceUserInfo:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: 用户ID
+          example: "123"
+        userName:
+          type: string
+          description: 用户姓名
+          example: "张三"
+        deviceSn:
+          type: string
+          description: 设备序列号
+          example: "CRFTQ23409001890"
+        bindTime:
+          type: string
+          format: date-time
+          description: 绑定时间
+
+    UserProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: 用户ID
+        userName:
+          type: string
+          description: 用户姓名
+        age:
+          type: integer
+          description: 年龄
+        gender:
+          type: string
+          description: 性别
+          enum: [male, female]
+        height:
+          type: integer
+          description: 身高(cm)
+        weight:
+          type: number
+          description: 体重(kg)
+        avatar:
+          type: string
+          description: 头像URL
+
+    User:
+      type: object
+      properties:
+        userId:
+          type: string
+        userName:
+          type: string
+        email:
+          type: string
+        orgId:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+
+    Department:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 部门ID
+        name:
+          type: string
+          description: 部门名称
+        parentId:
+          type: string
+          description: 父部门ID
+        orgId:
+          type: string
+          description: 组织ID
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 告警ID
+        type:
+          type: string
+          description: 告警类型
+          example: "HEART_RATE_HIGH"
+        level:
+          type: string
+          description: 告警级别
+          enum: [info, warning, error, critical]
+        message:
+          type: string
+          description: 告警消息
+        timestamp:
+          type: string
+          format: date-time
+          description: 告警时间
+        status:
+          type: string
+          description: 告警状态
+          enum: [active, acknowledged, resolved]
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 消息ID
+        userId:
+          type: string
+          description: 用户ID
+        title:
+          type: string
+          description: 消息标题
+        content:
+          type: string
+          description: 消息内容
+        type:
+          type: string
+          description: 消息类型
+          enum: [info, warning, notification]
+        timestamp:
+          type: string
+          format: date-time
+          description: 消息时间
+        status:
+          type: string
+          description: 消息状态
+          enum: [unread, read]
+
+    BaselineGenerateRequest:
+      type: object
+      properties:
+        orgId:
+          type: string
+          description: 组织ID
+        dateRange:
+          type: object
+          properties:
+            startDate:
+              type: string
+              format: date
+            endDate:
+              type: string
+              format: date
+
+    AlertAcknowledgeRequest:
+      type: object
+      properties:
+        alertId:
+          type: string
+          description: 告警ID
+        userId:
+          type: string
+          description: 用户ID
+        comment:
+          type: string
+          description: 备注信息
+      required:
+        - alertId
+        - userId

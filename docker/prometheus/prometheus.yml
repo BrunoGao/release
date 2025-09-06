@@ -1,0 +1,38 @@
+# LJWX Prometheus 配置文件
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ljwx-monitor'
+
+rule_files:
+  - "rules/*.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - ljwx-alertmanager:9093
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'ljwx-boot'
+    static_configs:
+      - targets: ['ljwx-boot:8081']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'ljwx-bigscreen'
+    static_configs:
+      - targets: ['ljwx-bigscreen:5000']
+
+  - job_name: 'ljwx-mysql'
+    static_configs:
+      - targets: ['ljwx-mysql:3306']
+
+  - job_name: 'ljwx-redis'
+    static_configs:
+      - targets: ['ljwx-redis:6379']

@@ -1,0 +1,35 @@
+# LJWX Promtail 配置文件
+
+server:
+  http_listen_port: 9080
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://ljwx-loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: containers
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: containerlogs
+          __path__: /var/log/containers/*log
+
+  - job_name: ljwx-boot
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: ljwx-boot
+          __path__: /var/log/ljwx/boot/*.log
+
+  - job_name: ljwx-bigscreen
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: ljwx-bigscreen
+          __path__: /var/log/ljwx/bigscreen/*.log

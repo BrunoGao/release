@@ -17,7 +17,7 @@ logging.basicConfig(filename='org.log', level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 def fetch_departments_by_orgId(org_id, customer_id=None):
-    """递归获取组织下的所有部门信息，包括当前组织，支持多租户隔离 - 直接使用Legacy版本"""
+    """递归获取组织下的所有部门信息，包括当前组织，支持多租户隔离"""
     try:
         # 如果没有提供customer_id，尝试从请求获取
         if customer_id is None:
@@ -28,31 +28,12 @@ def fetch_departments_by_orgId(org_id, customer_id=None):
                 customer_id = 0
                 logger.warning("无Flask上下文，使用默认customer_id=0")
         
-        # 🔧 临时修复：直接使用Legacy查询，绕过闭包表优化
-        # 闭包表优化可能存在数据同步问题或外部依赖问题
-        logger.info(f"直接使用Legacy查询绕过闭包表优化，org_id={org_id}, customer_id={customer_id}")
-        return fetch_departments_by_orgId_legacy(org_id, customer_id)
-            
-    except Exception as e:
-        logger.error(f"Error in fetch_departments_by_orgId: {str(e)}")
-        # 🔧 修复：最终回退到legacy方法
-        return fetch_departments_by_orgId_legacy(org_id, customer_id)
-
-def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
-    """原始递归查询方式 - 作为回退方案"""
-    try:
-        if customer_id is None:
-            try:
-                customer_id = request.args.get('customerId', 0, type=int)
-            except RuntimeError:
-                # 在没有Flask上下文时，使用默认值0
-                customer_id = 0
-                logger.warning("无Flask上下文，使用默认customer_id=0")
-            
+        logger.info(f"查询组织部门: org_id={org_id}, customer_id={customer_id}")
+        
         def get_child_departments(parent_id, customer_id=None):
             query = db.session.query(OrgInfo)\
                 .filter(OrgInfo.parent_id == parent_id)\
-                .filter(OrgInfo.is_deleted == 0)
+                .filter(OrgInfo.is_deleted.is_(False))
             
             # 🔧 修复：优化子部门的customer_id过滤逻辑
             # 如果提供了customer_id，先尝试严格匹配，如果没有结果则放宽条件
@@ -98,7 +79,7 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
         # 先获取当前组织的信息，支持租户隔离
         query = db.session.query(OrgInfo)\
             .filter(OrgInfo.id == org_id)\
-            .filter(OrgInfo.is_deleted == 0)
+            .filter(OrgInfo.is_deleted.is_(False))
         
         logger.info(f"🔍 查询组织: org_id={org_id}, customer_id={customer_id}")
         
@@ -125,7 +106,7 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
                             is_valid_org = True
                             break
                         if temp_org.parent_id:
-                            temp_org = db.session.query(OrgInfo).filter(OrgInfo.id == temp_org.parent_id, OrgInfo.is_deleted == 0).first()
+                            temp_org = db.session.query(OrgInfo).filter(OrgInfo.id == temp_org.parent_id, OrgInfo.is_deleted.is_(False)).first()
                         else:
                             break
                         depth += 1
@@ -163,11 +144,12 @@ def fetch_departments_by_orgId_legacy(org_id, customer_id=None):
         }
             
     except Exception as e:
-        logger.error(f"Error in fetch_departments_by_orgId_legacy: {str(e)}")
+        logger.error(f"Error in fetch_departments_by_orgId: {str(e)}")
         return {
             'success': False,
             'error': str(e)
         }
+
 
 
 def fetch_users_by_orgId(org_id, customer_id=None):
@@ -358,7 +340,7 @@ def fetch_users_with_descendants(org_id, customer_id=None):
         
         # 查询所有可能的子组织
         descendant_orgs = db.session.query(OrgInfo.id).filter(
-            OrgInfo.is_deleted == 0,
+            OrgInfo.is_deleted.is_(False),
             db.or_(
                 OrgInfo.id == org_id,
                 OrgInfo.parent_id == org_id,
@@ -440,7 +422,7 @@ def getCustomers():
     try:
         customers = db.session.query(OrgInfo)\
             .filter(OrgInfo.parent_id == 0)\
-            .filter(OrgInfo.is_deleted == 0)\
+            .filter(OrgInfo.is_deleted.is_(False))\
             .all()
 
         customer_list = []
@@ -470,7 +452,7 @@ def fetch_departments(orgId, customerId=None):
         if orgId is None and customerId:
             root_orgs = db.session.query(OrgInfo)\
                 .filter(OrgInfo.customer_id == customerId)\
-                .filter(OrgInfo.is_deleted == 0)\
+                .filter(OrgInfo.is_deleted.is_(False))\
                 .filter(db.or_(OrgInfo.parent_id.is_(None), OrgInfo.parent_id == 0))\
                 .all()
             
@@ -483,29 +465,74 @@ def fetch_departments(orgId, customerId=None):
                     'error': f'No root organization found for customer: {customerId}'
                 }
         
-        # 情况2: 有orgId但没有customerId，可能orgId实际上是customerId
+        # 情况2: 有orgId但没有customerId，需要检查orgId的真实含义
         elif orgId and not customerId:
             # 先尝试作为orgId直接查询
             org_exists = db.session.query(OrgInfo).filter(
                 OrgInfo.id == orgId, 
-                OrgInfo.is_deleted == 0
+                OrgInfo.is_deleted.is_(False)
             ).first()
             
-            if not org_exists:
-                logger.info(f"🔍 orgId {orgId} 不存在，尝试作为customerId查找根组织")
-                # 如果不存在，尝试将orgId作为customerId查找根组织
+            if org_exists:
+                # 找到了组织，但需要设置正确的customerId
+                customerId = org_exists.customer_id
+                logger.info(f"✅ 直接找到组织: {orgId}, 设置customerId={customerId}")
+            else:
+                logger.info(f"🔍 orgId {orgId} 不存在，尝试多种映射策略")
+                
+                # 策略1: 尝试将orgId作为customerId查找根组织
                 root_orgs = db.session.query(OrgInfo)\
                     .filter(OrgInfo.customer_id == orgId)\
-                    .filter(OrgInfo.is_deleted == 0)\
+                    .filter(OrgInfo.is_deleted.is_(False))\
                     .filter(db.or_(OrgInfo.parent_id.is_(None), OrgInfo.parent_id == 0))\
                     .all()
                 
                 if root_orgs:
                     customerId = orgId  # 原来的orgId实际上是customerId
                     orgId = root_orgs[0].id  # 使用根组织的ID
-                    logger.info(f"✅ 将 {customerId} 作为customerId，找到根组织ID: {orgId}")
+                    logger.info(f"✅ 策略1成功: 将 {customerId} 作为customerId，找到根组织ID: {orgId}")
                 else:
-                    logger.warning(f"❌ {orgId} 既不是有效的orgId也不是有效的customerId")
+                    # 策略2: 检查是否存在某个租户组织，其ID本身就是租户ID（可能是租户顶级组织）
+                    tenant_org = db.session.query(OrgInfo).filter(
+                        OrgInfo.id == orgId
+                    ).first()  # 不加is_deleted过滤，因为可能状态字段不同
+                    
+                    if tenant_org:
+                        logger.info(f"✅ 策略2成功: {orgId} 是有效的组织ID，name={tenant_org.name}, is_deleted={tenant_org.is_deleted}")
+                        customerId = tenant_org.customer_id if hasattr(tenant_org, 'customer_id') else orgId
+                        # 如果找到的是租户本身，直接使用它
+                        if tenant_org.is_deleted is False or tenant_org.is_deleted == 0:
+                            # 组织可用，直接使用
+                            pass
+                        else:
+                            logger.info(f"⚠️ 组织{orgId}已被删除，但仍然尝试使用")
+                    else:
+                        # 策略3: 查找是否有组织的customer_id字段等于这个ID（反向查找）
+                        orgs_with_customer = db.session.query(OrgInfo)\
+                            .filter(OrgInfo.customer_id == orgId)\
+                            .filter(OrgInfo.is_deleted.is_(False))\
+                            .all()
+                        
+                        if orgs_with_customer:
+                            # 找到第一个根组织（parent_id为0或None）
+                            root_org = None
+                            for org in orgs_with_customer:
+                                if not org.parent_id or org.parent_id == 0:
+                                    root_org = org
+                                    break
+                            
+                            if not root_org:
+                                root_org = orgs_with_customer[0]  # 如果没有根组织，使用第一个
+                            
+                            customerId = orgId
+                            orgId = root_org.id
+                            logger.info(f"✅ 策略3成功: 找到customer_id={customerId}的组织，使用orgId={orgId}")
+                        else:
+                            logger.warning(f"❌ 所有策略都失败: {orgId} 既不是有效的orgId也不是有效的customerId")
+                            return {
+                                'success': False,
+                                'error': f'Organization not found for ID: {orgId}. Please check if this ID exists in sys_org_units table.'
+                            }
         
         # 直接使用递归获取的部门数据
         response = fetch_departments_by_orgId(orgId, customerId)

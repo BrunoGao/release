@@ -10,10 +10,13 @@ export function createServiceConfig(env: Env.ImportMeta) {
 
   let other = {} as Record<App.Service.OtherBaseURLKey, string>;
   try {
-    other = json5.parse(VITE_OTHER_SERVICE_BASE_URL);
+    // If VITE_OTHER_SERVICE_BASE_URL is empty or undefined, use empty object
+    const otherServiceBaseUrl = VITE_OTHER_SERVICE_BASE_URL || '{}';
+    other = json5.parse(otherServiceBaseUrl);
   } catch {
     // eslint-disable-next-line no-console
-    console.error('VITE_OTHER_SERVICE_BASE_URL is not a valid json5 string');
+    console.error('VITE_OTHER_SERVICE_BASE_URL is not a valid json5 string:', VITE_OTHER_SERVICE_BASE_URL);
+    other = {};
   }
 
   const httpConfig: App.Service.SimpleServiceConfig = {

@@ -90,4 +90,18 @@ public class TAlertInfoController {
         return Result.status(tAlertInfoFacade.batchDelete(tAlertInfoDeleteDTO));
     }
 
+    @PostMapping("/deal")
+    @SaCheckPermission("t:alert:info:deal")
+    @Operation(operationId = "6", summary = "一键处理告警")
+    public Result<Boolean> dealAlert(@Parameter(description = "告警ID") @RequestParam Long alertId) {
+        return Result.status(tAlertInfoFacade.dealAlert(alertId));
+    }
+
+    @PostMapping("/deal/batch")
+    @SaCheckPermission("t:alert:info:deal")
+    @Operation(operationId = "7", summary = "批量处理告警")
+    public Result<String> batchDealAlert(@Parameter(description = "告警ID列表") @RequestBody TAlertInfoDeleteDTO alertIds) {
+        return Result.data(tAlertInfoFacade.batchDealAlert(alertIds.getIds()));
+    }
+
 }
