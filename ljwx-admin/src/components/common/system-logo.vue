@@ -9,8 +9,36 @@ const authStore = useAuthStore();
 const customLogoUrl = ref<string>('');
 const useCustomLogo = ref(false);
 
-// 获取当前用户的自定义logo
-async function fetchCustomLogo() {
+// 检查部署时注入的自定义logo配置
+function checkDeploymentCustomLogo() {
+  try {
+    // 检查全局配置对象
+    const logoConfig = (window as any).CUSTOM_LOGO_CONFIG;
+    if (logoConfig && logoConfig.enabled && logoConfig.logoUrl) {
+      console.log('检测到部署时的自定义logo配置:', logoConfig);
+      
+      // 验证logo文件是否可访问
+      const img = new Image();
+      img.onload = () => {
+        customLogoUrl.value = logoConfig.logoUrl + '?t=' + (logoConfig.timestamp || Date.now());
+        useCustomLogo.value = true;
+        console.log('部署自定义logo加载成功:', customLogoUrl.value);
+      };
+      img.onerror = () => {
+        console.warn('部署自定义logo文件无法访问，尝试其他方式');
+        fetchCustomLogoFromAPI();
+      };
+      img.src = logoConfig.logoUrl + '?t=' + (logoConfig.timestamp || Date.now());
+      return true;
+    }
+  } catch (error) {
+    console.log('未检测到部署自定义logo配置，使用默认方式');
+  }
+  return false;
+}
+
+// 从API获取当前用户的自定义logo（原有逻辑）
+async function fetchCustomLogoFromAPI() {
   try {
     const customerId = authStore.userInfo?.customerId;
     
@@ -38,8 +66,23 @@ async function fetchCustomLogo() {
   }
 }
 
+// 获取自定义logo的主函数
+async function fetchCustomLogo() {
+  // 优先检查部署时的自定义logo配置
+  if (!checkDeploymentCustomLogo()) {
+    // 如果没有部署配置，则使用API方式
+    await fetchCustomLogoFromAPI();
+  }
+}
+
 onMounted(() => {
   fetchCustomLogo();
+  
+  // 监听logo配置更新事件（支持动态更新）
+  window.addEventListener('customLogoConfigUpdated', () => {
+    console.log('收到logo配置更新事件');
+    fetchCustomLogo();
+  });
 });
 </script>
 

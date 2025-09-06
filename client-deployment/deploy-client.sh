@@ -488,12 +488,20 @@ else
     echo "⚠️  警告: replace-bigscreen-url.sh 脚本不存在"
 fi
 
-# TODO: 定制化ljwx-admin logo
-# 需要实现：
-# 1. 检查custom-assets/目录中是否有logo文件（支持png、jpg、svg格式）
-# 2. 将客户logo文件复制到ljwx-admin容器内的正确位置
-# 3. 更新前端配置文件中的logo路径引用
-# 4. 重启ljwx-admin服务以应用logo更改
+# 定制化ljwx-admin logo
+echo "🎨 检查自定义logo配置..."
+if [ "$VITE_CUSTOM_LOGO" = "true" ]; then
+    echo "✅ 自定义logo功能已启用"
+    if [ -f "customize-admin-logo.sh" ]; then
+        echo "🔄 应用自定义logo..."
+        ./customize-admin-logo.sh "$CONFIG_FILE"
+        echo "✅ 自定义logo配置完成"
+    else
+        echo "⚠️  警告: customize-admin-logo.sh 脚本不存在"
+    fi
+else
+    echo "ℹ️  自定义logo功能未启用，使用默认logo"
+fi
 
 # 验证挂载配置
 echo ""
