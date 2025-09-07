@@ -29,7 +29,10 @@ declare namespace Api {
     type OrgUnitsPageList = Common.PaginatingQueryRecord<OrgUnits>;
 
     /** OrgUnits search params */
-    type OrgUnitsSearchParams = CommonType.RecordNullable<Pick<Api.SystemManage.OrgUnits, 'name' | 'status' | 'id'> & Api.Common.CommonSearchParams>;
+    type OrgUnitsSearchParams = CommonType.RecordNullable<Pick<Api.SystemManage.OrgUnits, 'name' | 'status' | 'id'> & Api.Common.CommonSearchParams & {
+      /** customer id for tenant filtering */
+      customerId?: UnionKey.StrNum;
+    }>;
 
     /** OrgUnits edit model */
     type OrgUnitsEdit = Pick<
