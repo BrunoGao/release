@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { NButton, NPopconfirm, NUpload, NModal, NCard, NTag, NDescriptions, NDescriptionsItem, NAlert, NCollapse, NCollapseItem, NList, NListItem, NIcon, NSpace, type UploadFileInfo } from 'naive-ui';
 import type { Ref } from 'vue';
-import { ref, h } from 'vue';
+import { ref, h, computed } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAuth } from '@/hooks/business/auth';
@@ -24,6 +24,11 @@ const appStore = useAppStore();
 const authStore = useAuthStore();
 const customerId = authStore.userInfo?.customerId;
 const { hasAuth } = useAuth();
+
+// 检查是否为管理员用户
+const isAdmin = computed(() => {
+  return authStore.userInfo?.userName === 'admin';
+});
 
 const { dictTag } = useDict();
 
@@ -114,7 +119,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       render: row => {
         const buttons = [];
         
-        if (hasAuth('t:customer:config:update')) {
+        // 编辑按钮 - 只有admin可见
+        if (hasAuth('t:customer:config:update') && isAdmin.value) {
           buttons.push(
             h(NButton, {
               type: 'primary',
@@ -125,7 +131,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           );
         }
         
-        if (hasAuth('t:customer:config:license:status')) {
+        // 许可证按钮 - 只有admin可见
+        if (hasAuth('t:customer:config:license:status') && isAdmin.value) {
           buttons.push(
             h(NButton, {
               type: 'info',
@@ -136,7 +143,16 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           );
         }
         
-        if (hasAuth('t:customer:config:delete')) {
+        // 如果不是admin，显示提示信息
+        if (!isAdmin.value && buttons.length === 0) {
+          buttons.push(
+            h('span', { 
+              class: 'text-gray-400 text-xs px-2 py-1' 
+            }, '仅管理员可操作')
+          );
+        }
+        
+        if (hasAuth('t:customer:config:delete') && isAdmin.value) {
           buttons.push(
             h(NPopconfirm, {
               onPositiveClick: () => handleDelete(row.id)
@@ -160,17 +176,29 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
 const { drawerVisible, openDrawer, checkedRowKeys, onDeleted, onBatchDeleted } = useTableOperate(data, getData);
 
 function handleAdd() {
+  if (!isAdmin.value) {
+    window.$message?.warning('只有管理员才能添加租户配置');
+    return;
+  }
   operateType.value = 'add';
   openDrawer();
 }
 
 function edit(item: Api.Customer.CustomerConfig) {
+  if (!isAdmin.value) {
+    window.$message?.warning('只有管理员才能编辑租户配置');
+    return;
+  }
   operateType.value = 'edit';
   editingData.value = { ...item };
   openDrawer();
 }
 
 async function handleDelete(id: string) {
+  if (!isAdmin.value) {
+    window.$message?.warning('只有管理员才能删除租户配置');
+    return;
+  }
   // request
   const { error, data: result } = await fetchDeleteCustomerConfig(transDeleteParams([id]));
   if (!error && result) {
@@ -179,6 +207,10 @@ async function handleDelete(id: string) {
 }
 
 async function handleBatchDelete() {
+  if (!isAdmin.value) {
+    window.$message?.warning('只有管理员才能批量删除租户配置');
+    return;
+  }
   // request
   const { error, data: result } = await fetchDeleteCustomerConfig(transDeleteParams(checkedRowKeys.value));
   if (!error && result) {
@@ -212,6 +244,10 @@ const licenseUploading = ref(false);
 const manualExpanded = ref<string[]>([]);
 
 async function viewLicense(customer: Api.Customer.CustomerConfig) {
+  if (!isAdmin.value) {
+    window.$message?.warning('只有管理员才能查看许可证信息');
+    return;
+  }
   try {
     const { error, data } = await request<any>({
       url: `/t_customer_config/license/status/${customer.id}`,
@@ -230,6 +266,11 @@ async function viewLicense(customer: Api.Customer.CustomerConfig) {
 }
 
 async function uploadLicense(options: { file: UploadFileInfo }) {
+  if (!isAdmin.value) {
+    window.$message?.warning('只有管理员才能上传许可证');
+    return false;
+  }
+  
   licenseUploading.value = true;
   
   try {
@@ -445,8 +486,8 @@ function formatDateTime(dateTime: string | null): string {
         v-model:columns="columnChecks"
         :checked-row-keys="checkedRowKeys"
         :loading="loading"
-        add-auth="t:customer:config:add"
-        delete-auth="t:customer:config:delete"
+:add-auth="isAdmin ? 't:customer:config:add' : ''"
+        :delete-auth="isAdmin ? 't:customer:config:delete' : ''"
         @add="handleAdd"
         @delete="handleBatchDelete"
         @refresh="getData"
@@ -541,16 +582,17 @@ function formatDateTime(dateTime: string | null): string {
               :show-file-list="true"
               accept=".lic"
               :max="1"
-              :disabled="licenseUploading"
+              :disabled="licenseUploading || !isAdmin"
             >
-              <NButton :loading="licenseUploading" type="primary" size="small">
-                {{ licenseUploading ? '上传中...' : '选择许可证文件' }}
+              <NButton :loading="licenseUploading" :disabled="!isAdmin" type="primary" size="small">
+                {{ licenseUploading ? '上传中...' : (isAdmin ? '选择许可证文件' : '仅管理员可操作') }}
               </NButton>
             </NUpload>
             <div class="text-sm text-gray-500">
               <p>• 支持 .lic 格式的许可证文件</p>
               <p>• 上传新许可证后将自动重新验证</p>
               <p>• 建议在更新前备份当前配置</p>
+              <p v-if="!isAdmin" class="text-orange-600">⚠️ 许可证上传功能仅限管理员使用</p>
             </div>
           </div>
         </NCard>
