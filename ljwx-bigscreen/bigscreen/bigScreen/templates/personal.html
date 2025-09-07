@@ -7370,22 +7370,6 @@
                 recommendations: ['继续保持良好习惯', '关注睡眠质量', '适度增加运动量']
             });
         }
-            
-            // 更新健康建议
-            const adviceContainer = document.getElementById('healthAdviceList');
-            if (adviceContainer && profileData.healthAdvice && profileData.healthAdvice.length > 0) {
-                adviceContainer.innerHTML = profileData.healthAdvice
-                    .slice(0, 3) // 只显示前3条建议
-                    .map(advice => `<div class="advice-item">${advice}</div>`)
-                    .join('');
-            }
-            
-            // 更新状态
-            const profileStatus = document.getElementById('profileStatus');
-            if (profileStatus) {
-                profileStatus.textContent = `${profileData.dataPoints}个数据点 | ${profileData.analysisPeriod}`;
-            }
-        }
 
         function updateHealthProfileFallback() {
             // 使用模拟数据
@@ -8778,7 +8762,7 @@
         // 在初始化后增强图表
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
-                enhanceMainChart();
+                applyProfessionalTrendEffects();
             }, 2000); // 等待图表初始化完成后再增强
         });
     </script>
