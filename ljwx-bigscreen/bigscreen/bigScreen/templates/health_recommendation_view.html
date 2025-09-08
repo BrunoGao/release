@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健康建议分析</title>
+    <script src="{{ url_for('static', filename='libs/echarts.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='libs/jquery.min.js') }}"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 30%, #2c5364 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 动画效果 */
+        @keyframes recommendGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(34,197,94,0.4); }
+            50% { box-shadow: 0 0 50px rgba(34,197,94,0.6); }
+        }
+
+        @keyframes slideInLeft {
+            from { transform: translateX(-30px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes urgentPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(239,68,68,0.4); transform: scale(1); }
+            50% { box-shadow: 0 0 40px rgba(239,68,68,0.6); transform: scale(1.02); }
+        }
+
+        @keyframes normalPulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(59,130,246,0.4); }
+            50% { box-shadow: 0 0 25px rgba(59,130,246,0.6); }
+        }
+
+        @keyframes tipFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        /* 头部导航 */
+        .header {
+            background: rgba(15,32,39,0.95);
+            padding: 20px;
+            border-bottom: 2px solid rgba(34,197,94,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            text-align: center;
+            color: #22c55e;
+            font-size: 28px;
+            text-shadow: 0 0 10px rgba(34,197,94,0.8);
+        }
+
+        .nav-buttons {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, rgba(34,197,94,0.2), rgba(16,185,129,0.4));
+            border: 2px solid rgba(34,197,94,0.4);
+            border-radius: 12px;
+            color: #22c55e;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 5px rgba(34,197,94,0.5);
+        }
+
+        .nav-btn:hover {
+            background: linear-gradient(135deg, rgba(34,197,94,0.4), rgba(16,185,129,0.6));
+            box-shadow: 0 0 20px rgba(34,197,94,0.6);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.active {
+            background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(16,185,129,0.5));
+            border-color: rgba(34,197,94,0.6);
+            color: #10b981;
+        }
+
+        /* 主容器 */
+        .container {
+            padding: 30px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* 建议分类 */
+        .recommendation-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .category-card {
+            background: linear-gradient(135deg, rgba(15,32,39,0.9), rgba(32,58,67,0.95));
+            border-radius: 20px;
+            padding: 25px;
+            border: 2px solid rgba(34,197,94,0.3);
+            animation: slideInLeft 0.6s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(34,197,94,0.1), transparent);
+            transition: left 0.8s ease;
+        }
+
+        .category-card:hover::before {
+            left: 100%;
+        }
+
+        .category-icon {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 2;
+            animation: tipFloat 3s infinite ease-in-out;
+        }
+
+        .category-title {
+            font-size: 18px;
+            color: #10b981;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: 600;
+            position: relative;
+            z-index: 2;
+        }
+
+        .category-count {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            color: #22c55e;
+            position: relative;
+            z-index: 2;
+        }
+
+        .category-desc {
+            font-size: 14px;
+            color: #6ee7b7;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* 建议列表 */
+        .recommendations-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .recommendations-container {
+            background: linear-gradient(135deg, rgba(15,32,39,0.9), rgba(32,58,67,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(34,197,94,0.3);
+            animation: slideInLeft 0.8s ease-out;
+        }
+
+        .recommendations-title {
+            font-size: 20px;
+            color: #22c55e;
+            margin-bottom: 25px;
+            text-align: center;
+            text-shadow: 0 0 8px rgba(34,197,94,0.6);
+        }
+
+        .recommendation-item {
+            background: rgba(34,197,94,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid rgba(34,197,94,0.6);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .recommendation-item:hover {
+            background: rgba(34,197,94,0.15);
+            transform: translateX(5px);
+        }
+
+        .recommendation-item.urgent {
+            border-left-color: #ef4444;
+            background: rgba(239,68,68,0.1);
+            animation: urgentPulse 2s infinite;
+        }
+
+        .recommendation-item.normal {
+            border-left-color: #3b82f6;
+            background: rgba(59,130,246,0.1);
+            animation: normalPulse 3s infinite;
+        }
+
+        .recommendation-priority {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-high {
+            background: rgba(239,68,68,0.8);
+            color: #fff;
+        }
+
+        .priority-medium {
+            background: rgba(251,191,36,0.8);
+            color: #fff;
+        }
+
+        .priority-low {
+            background: rgba(59,130,246,0.8);
+            color: #fff;
+        }
+
+        .recommendation-title {
+            font-size: 16px;
+            color: #10b981;
+            margin-bottom: 10px;
+            font-weight: 600;
+            padding-right: 60px;
+        }
+
+        .recommendation-content {
+            font-size: 14px;
+            color: #a7f3d0;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .recommendation-action {
+            font-size: 13px;
+            color: #6ee7b7;
+            font-style: italic;
+            border-top: 1px solid rgba(34,197,94,0.2);
+            padding-top: 8px;
+        }
+
+        /* 统计图表 */
+        .stats-section {
+            background: linear-gradient(135deg, rgba(15,32,39,0.9), rgba(32,58,67,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(34,197,94,0.3);
+            margin-bottom: 40px;
+        }
+
+        .stats-title {
+            font-size: 24px;
+            color: #22c55e;
+            margin-bottom: 25px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(34,197,94,0.8);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+
+        .chart {
+            height: 300px;
+            width: 100%;
+        }
+
+        /* 执行计划 */
+        .action-plan {
+            background: linear-gradient(135deg, rgba(15,32,39,0.9), rgba(32,58,67,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(34,197,94,0.3);
+        }
+
+        .plan-title {
+            font-size: 22px;
+            color: #22c55e;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 8px rgba(34,197,94,0.6);
+        }
+
+        .plan-timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline-line {
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #22c55e, #10b981);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            background: rgba(34,197,94,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-left: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -35px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 3px solid rgba(15,32,39,1);
+            box-shadow: 0 0 10px rgba(34,197,94,0.6);
+        }
+
+        .timeline-date {
+            font-size: 14px;
+            color: #6ee7b7;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .timeline-title {
+            font-size: 16px;
+            color: #10b981;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .timeline-content {
+            font-size: 14px;
+            color: #a7f3d0;
+            line-height: 1.5;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .recommendations-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .recommendation-categories {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部导航 -->
+    <div class="header">
+        <h1>💡 健康建议分析系统</h1>
+        <div class="nav-buttons">
+            <a href="/" class="nav-btn">🏠 主面板</a>
+            <a href="/health_score_view" class="nav-btn">📊 健康评分</a>
+            <a href="/health_prediction_view" class="nav-btn">🔮 健康预测</a>
+            <a href="/health_recommendation_view" class="nav-btn active">💡 健康建议</a>
+            <a href="/health_profile_view" class="nav-btn">👤 健康画像</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 建议分类概览 -->
+        <div class="recommendation-categories">
+            <div class="category-card">
+                <div class="category-icon">🚨</div>
+                <div class="category-title">紧急建议</div>
+                <div class="category-count">3</div>
+                <div class="category-desc">需要立即关注的健康问题</div>
+            </div>
+            
+            <div class="category-card">
+                <div class="category-icon">⚕️</div>
+                <div class="category-title">医疗建议</div>
+                <div class="category-count">5</div>
+                <div class="category-desc">专业医疗指导建议</div>
+            </div>
+            
+            <div class="category-card">
+                <div class="category-icon">🏃‍♂️</div>
+                <div class="category-title">运动建议</div>
+                <div class="category-count">4</div>
+                <div class="category-desc">运动健身相关建议</div>
+            </div>
+            
+            <div class="category-card">
+                <div class="category-icon">🥗</div>
+                <div class="category-title">营养建议</div>
+                <div class="category-count">6</div>
+                <div class="category-desc">饮食营养改善建议</div>
+            </div>
+            
+            <div class="category-card">
+                <div class="category-icon">😴</div>
+                <div class="category-title">睡眠建议</div>
+                <div class="category-count">2</div>
+                <div class="category-desc">睡眠质量优化建议</div>
+            </div>
+            
+            <div class="category-card">
+                <div class="category-icon">🧘‍♀️</div>
+                <div class="category-title">心理建议</div>
+                <div class="category-count">3</div>
+                <div class="category-desc">心理健康调节建议</div>
+            </div>
+        </div>
+
+        <!-- 建议列表 -->
+        <div class="recommendations-section">
+            <div class="recommendations-container">
+                <div class="recommendations-title">🚨 紧急健康建议</div>
+                
+                <div class="recommendation-item urgent">
+                    <div class="recommendation-priority priority-high">高</div>
+                    <div class="recommendation-title">血压异常警告</div>
+                    <div class="recommendation-content">
+                        您的血压读数连续3天超过正常范围（收缩压>140mmHg），存在高血压风险。这可能增加心血管疾病的发生概率。
+                    </div>
+                    <div class="recommendation-action">
+                        建议行动：立即就医检查，避免剧烈运动，减少钠盐摄入
+                    </div>
+                </div>
+                
+                <div class="recommendation-item urgent">
+                    <div class="recommendation-priority priority-high">高</div>
+                    <div class="recommendation-title">心率不齐提醒</div>
+                    <div class="recommendation-content">
+                        检测到您的静息心率频繁出现不规律，昨日记录显示心率变异性异常。
+                    </div>
+                    <div class="recommendation-action">
+                        建议行动：进行心电图检查，避免咖啡因摄入，保持充足睡眠
+                    </div>
+                </div>
+                
+                <div class="recommendation-item urgent">
+                    <div class="recommendation-priority priority-medium">中</div>
+                    <div class="recommendation-title">睡眠质量严重下降</div>
+                    <div class="recommendation-content">
+                        最近一周平均睡眠时间不足5小时，深度睡眠比例仅为12%，远低于健康标准。
+                    </div>
+                    <div class="recommendation-action">
+                        建议行动：建立规律作息，睡前1小时避免电子设备，考虑就诊睡眠科
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recommendations-container">
+                <div class="recommendations-title">⚕️ 医疗健康建议</div>
+                
+                <div class="recommendation-item normal">
+                    <div class="recommendation-priority priority-medium">中</div>
+                    <div class="recommendation-title">定期体检提醒</div>
+                    <div class="recommendation-content">
+                        距离上次全面体检已经14个月，建议进行年度健康检查，特别关注血脂、血糖和肝功能指标。
+                    </div>
+                    <div class="recommendation-action">
+                        建议行动：预约体检，包含心电图、胸片、腹部彩超等项目
+                    </div>
+                </div>
+                
+                <div class="recommendation-item normal">
+                    <div class="recommendation-priority priority-low">低</div>
+                    <div class="recommendation-title">维生素D补充</div>
+                    <div class="recommendation-content">
+                        根据您的室内工作性质和日照时间分析，可能存在维生素D缺乏风险。
+                    </div>
+                    <div class="recommendation-action">
+                        建议行动：增加户外活动时间，考虑适量补充维生素D
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recommendations-container">
+                <div class="recommendations-title">🏃‍♂️ 运动健身建议</div>
+                
+                <div class="recommendation-item normal">
+                    <div class="recommendation-priority priority-medium">中</div>
+                    <div class="recommendation-title">有氧运动不足</div>
+                    <div class="recommendation-content">
+                        本周平均步数仅为4200步/天，有氧运动时间不足30分钟/周，远低于WHO推荐标准。
+                    </div>
+                    <div class="recommendation-action">
+                        建议行动：每天至少8000步，每周进行3次30分钟有氧运动
+                    </div>
+                </div>
+                
+                <div class="recommendation-item normal">
+                    <div class="recommendation-priority priority-low">低</div>
+                    <div class="recommendation-title">力量训练建议</div>
+                    <div class="recommendation-content">
+                        缺乏力量训练，肌肉量可能在下降。适当的力量训练有助于提高基础代谢和骨密度。
+                    </div>
+                    <div class="recommendation-action">
+                        建议行动：每周2-3次力量训练，可以从自重训练开始
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recommendations-container">
+                <div class="recommendations-title">🥗 营养膳食建议</div>
+                
+                <div class="recommendation-item normal">
+                    <div class="recommendation-priority priority-medium">中</div>
+                    <div class="recommendation-title">膳食纤维摄入不足</div>
+                    <div class="recommendation-content">
+                        日常饮食中蔬菜水果摄入量偏低，膳食纤维不足可能影响肠道健康和血糖控制。
+                    </div>
+                    <div class="recommendation-action">
+                        建议行动：每天摄入500g蔬菜、200g水果，增加全谷物摄入
+                    </div>
+                </div>
+                
+                <div class="recommendation-item normal">
+                    <div class="recommendation-priority priority-medium">中</div>
+                    <div class="recommendation-title">水分摄入不足</div>
+                    <div class="recommendation-content">
+                        每日饮水量约1200ml，低于推荐的1500-2000ml，可能影响新陈代谢和肾脏功能。
+                    </div>
+                    <div class="recommendation-action">
+                        建议行动：增加饮水量，特别是运动前后和起床时
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 统计分析 -->
+        <div class="stats-section">
+            <div class="stats-title">📈 建议执行统计分析</div>
+            <div class="stats-grid">
+                <div class="chart" id="priorityChart"></div>
+                <div class="chart" id="categoryChart"></div>
+                <div class="chart" id="complianceChart"></div>
+            </div>
+        </div>
+
+        <!-- 执行计划 -->
+        <div class="action-plan">
+            <div class="plan-title">📅 个性化健康改善计划</div>
+            <div class="plan-timeline">
+                <div class="timeline-line"></div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-date">第1周</div>
+                    <div class="timeline-title">紧急问题处理</div>
+                    <div class="timeline-content">
+                        优先处理血压异常和心率不齐问题，预约医生检查，开始血压监测，调整作息时间。
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-date">第2-4周</div>
+                    <div class="timeline-title">生活方式调整</div>
+                    <div class="timeline-content">
+                        建立规律的运动计划，每周3次有氧运动；调整饮食结构，增加蔬菜水果摄入；改善睡眠习惯。
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-date">第1-2个月</div>
+                    <div class="timeline-title">习惯养成期</div>
+                    <div class="timeline-content">
+                        巩固健康习惯，监测关键指标改善情况；增加力量训练；考虑营养补充品；定期自我评估。
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-date">第3个月</div>
+                    <div class="timeline-title">效果评估</div>
+                    <div class="timeline-content">
+                        进行全面健康评估，对比改善效果；调整个人健康计划；制定长期维护策略。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化所有图表
+        document.addEventListener('DOMContentLoaded', function() {
+            initPriorityChart();
+            initCategoryChart();
+            initComplianceChart();
+        });
+
+        // 优先级分布图
+        function initPriorityChart() {
+            const chart = echarts.init(document.getElementById('priorityChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                title: {
+                    text: '建议优先级分布',
+                    left: 'center',
+                    textStyle: { color: '#22c55e', fontSize: 16 }
+                },
+                tooltip: { trigger: 'item' },
+                legend: {
+                    bottom: 0,
+                    textStyle: { color: '#6ee7b7' }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: [
+                        { value: 5, name: '高优先级', itemStyle: { color: '#ef4444' } },
+                        { value: 8, name: '中优先级', itemStyle: { color: '#fbbf24' } },
+                        { value: 10, name: '低优先级', itemStyle: { color: '#3b82f6' } }
+                    ],
+                    label: {
+                        show: true,
+                        color: '#fff',
+                        formatter: '{b}\n{d}%'
+                    }
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 分类分布图
+        function initCategoryChart() {
+            const chart = echarts.init(document.getElementById('categoryChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                title: {
+                    text: '建议分类统计',
+                    left: 'center',
+                    textStyle: { color: '#22c55e', fontSize: 16 }
+                },
+                tooltip: { trigger: 'axis' },
+                xAxis: {
+                    type: 'category',
+                    data: ['紧急', '医疗', '运动', '营养', '睡眠', '心理'],
+                    axisLabel: { color: '#6ee7b7' }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#6ee7b7' }
+                },
+                series: [{
+                    type: 'bar',
+                    data: [3, 5, 4, 6, 2, 3],
+                    itemStyle: {
+                        color: function(params) {
+                            const colors = ['#ef4444', '#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'];
+                            return colors[params.dataIndex];
+                        }
+                    },
+                    barWidth: '60%'
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 执行率统计
+        function initComplianceChart() {
+            const chart = echarts.init(document.getElementById('complianceChart'));
+            
+            // 生成最近30天的执行率数据
+            const dates = [];
+            const complianceRates = [];
+            
+            for(let i = 29; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toLocaleDateString());
+                // 模拟执行率数据，显示逐步改善趋势
+                complianceRates.push(Math.min(100, 45 + (29-i) * 1.5 + Math.random() * 10));
+            }
+            
+            const option = {
+                backgroundColor: 'transparent',
+                title: {
+                    text: '建议执行率趋势',
+                    left: 'center',
+                    textStyle: { color: '#22c55e', fontSize: 16 }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(15,32,39,0.9)',
+                    borderColor: '#22c55e',
+                    textStyle: { color: '#fff' }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLabel: { 
+                        color: '#6ee7b7',
+                        rotate: 45,
+                        interval: 4
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100,
+                    axisLabel: { 
+                        color: '#6ee7b7',
+                        formatter: '{value}%'
+                    }
+                },
+                series: [{
+                    name: '执行率',
+                    type: 'line',
+                    data: complianceRates,
+                    itemStyle: { color: '#22c55e' },
+                    lineStyle: { width: 3 },
+                    smooth: true,
+                    areaStyle: { 
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: 'rgba(34,197,94,0.3)' },
+                                { offset: 1, color: 'rgba(34,197,94,0.1)' }
+                            ]
+                        }
+                    }
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 窗口大小改变时重新调整图表
+        window.addEventListener('resize', function() {
+            setTimeout(() => {
+                echarts.getInstanceByDom(document.getElementById('priorityChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('categoryChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('complianceChart'))?.resize();
+            }, 100);
+        });
+    </script>
+</body>
+</html>

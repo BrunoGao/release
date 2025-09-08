@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健康评分分析</title>
+    <script src="{{ url_for('static', filename='libs/echarts.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='libs/jquery.min.js') }}"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: linear-gradient(135deg, #0a1830 0%, #1e3c72 50%, #2a5298 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 动画效果 */
+        @keyframes scoreGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(0,228,255,0.4); }
+            50% { box-shadow: 0 0 50px rgba(0,228,255,0.6); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes pulseGreen {
+            0%, 100% { box-shadow: 0 0 20px rgba(0,255,136,0.4); }
+            50% { box-shadow: 0 0 40px rgba(0,255,136,0.6); }
+        }
+
+        @keyframes pulseYellow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255,193,0,0.4); }
+            50% { box-shadow: 0 0 40px rgba(255,193,0,0.6); }
+        }
+
+        @keyframes pulseRed {
+            0%, 100% { box-shadow: 0 0 20px rgba(255,68,68,0.4); }
+            50% { box-shadow: 0 0 40px rgba(255,68,68,0.6); }
+        }
+
+        /* 头部导航 */
+        .header {
+            background: rgba(10,24,48,0.95);
+            padding: 20px;
+            border-bottom: 2px solid rgba(0,228,255,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            text-align: center;
+            color: #00e4ff;
+            font-size: 28px;
+            text-shadow: 0 0 10px rgba(0,228,255,0.8);
+        }
+
+        .nav-buttons {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, rgba(0,228,255,0.2), rgba(0,180,255,0.4));
+            border: 2px solid rgba(0,228,255,0.4);
+            border-radius: 12px;
+            color: #00e4ff;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 5px rgba(0,228,255,0.5);
+        }
+
+        .nav-btn:hover {
+            background: linear-gradient(135deg, rgba(0,228,255,0.4), rgba(0,180,255,0.6));
+            box-shadow: 0 0 20px rgba(0,228,255,0.6);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.active {
+            background: linear-gradient(135deg, rgba(0,255,136,0.3), rgba(0,200,100,0.5));
+            border-color: rgba(0,255,136,0.6);
+            color: #00ff88;
+        }
+
+        /* 主容器 */
+        .container {
+            padding: 30px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* 评分概览区域 */
+        .score-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .score-card {
+            background: linear-gradient(135deg, rgba(10,24,48,0.9), rgba(15,35,65,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(0,228,255,0.3);
+            animation: slideIn 0.6s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .score-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,228,255,0.1), transparent);
+            transition: left 0.8s ease;
+        }
+
+        .score-card:hover::before {
+            left: 100%;
+        }
+
+        .score-number {
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .score-excellent { color: #00ff88; animation: pulseGreen 2s infinite; }
+        .score-good { color: #00e4ff; animation: scoreGlow 2s infinite; }
+        .score-warning { color: #ffc107; animation: pulseYellow 2s infinite; }
+        .score-danger { color: #ff4444; animation: pulseRed 2s infinite; }
+
+        .score-title {
+            text-align: center;
+            font-size: 16px;
+            color: #7ecfff;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .score-detail {
+            text-align: center;
+            font-size: 14px;
+            color: #a0cfff;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* 图表区域 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .chart-container {
+            background: linear-gradient(135deg, rgba(10,24,48,0.9), rgba(15,35,65,0.95));
+            border-radius: 20px;
+            padding: 25px;
+            border: 2px solid rgba(0,228,255,0.3);
+            animation: slideIn 0.8s ease-out;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            color: #00e4ff;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 8px rgba(0,228,255,0.6);
+        }
+
+        .chart {
+            height: 350px;
+            width: 100%;
+        }
+
+        /* 趋势分析区域 */
+        .trend-section {
+            background: linear-gradient(135deg, rgba(10,24,48,0.9), rgba(15,35,65,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(0,228,255,0.3);
+            margin-bottom: 30px;
+        }
+
+        .trend-title {
+            font-size: 24px;
+            color: #00e4ff;
+            margin-bottom: 25px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0,228,255,0.8);
+        }
+
+        .trend-chart {
+            height: 400px;
+            width: 100%;
+        }
+
+        /* 详细分析表格 */
+        .analysis-table-container {
+            background: linear-gradient(135deg, rgba(10,24,48,0.9), rgba(15,35,65,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(0,228,255,0.3);
+        }
+
+        .analysis-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .analysis-table th,
+        .analysis-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid rgba(0,228,255,0.2);
+        }
+
+        .analysis-table th {
+            background: rgba(0,228,255,0.1);
+            color: #00e4ff;
+            font-weight: 600;
+            text-shadow: 0 0 5px rgba(0,228,255,0.5);
+        }
+
+        .analysis-table td {
+            color: #a0cfff;
+        }
+
+        .analysis-table tr:hover {
+            background: rgba(0,228,255,0.05);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .score-overview {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 18px;
+            color: #00e4ff;
+        }
+
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #00e4ff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部导航 -->
+    <div class="header">
+        <h1>💙 健康评分分析系统</h1>
+        <div class="nav-buttons">
+            <a href="/" class="nav-btn">🏠 主面板</a>
+            <a href="/health_score_view" class="nav-btn active">📊 健康评分</a>
+            <a href="/health_prediction_view" class="nav-btn">🔮 健康预测</a>
+            <a href="/health_recommendation_view" class="nav-btn">💡 健康建议</a>
+            <a href="/health_profile_view" class="nav-btn">👤 健康画像</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 评分概览 -->
+        <div class="score-overview">
+            <div class="score-card">
+                <div class="score-title">综合健康评分</div>
+                <div class="score-number score-excellent" id="overallScore">85</div>
+                <div class="score-detail">基于多维度健康指标综合评估</div>
+            </div>
+            
+            <div class="score-card">
+                <div class="score-title">心血管评分</div>
+                <div class="score-number score-good" id="cardiovascularScore">78</div>
+                <div class="score-detail">心率、血压、血氧综合评估</div>
+            </div>
+            
+            <div class="score-card">
+                <div class="score-title">运动健康评分</div>
+                <div class="score-number score-warning" id="exerciseScore">72</div>
+                <div class="score-detail">步数、距离、卡路里消耗</div>
+            </div>
+            
+            <div class="score-card">
+                <div class="score-title">睡眠质量评分</div>
+                <div class="score-number score-good" id="sleepScore">80</div>
+                <div class="score-detail">睡眠时长、深度、规律性</div>
+            </div>
+        </div>
+
+        <!-- 图表分析 -->
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-title">🎯 各维度评分雷达图</div>
+                <div class="chart" id="radarChart"></div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-title">📈 健康评分分布</div>
+                <div class="chart" id="distributionChart"></div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-title">🏆 评分排名对比</div>
+                <div class="chart" id="rankingChart"></div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-title">⚖️ 评分权重分析</div>
+                <div class="chart" id="weightChart"></div>
+            </div>
+        </div>
+
+        <!-- 趋势分析 -->
+        <div class="trend-section">
+            <div class="trend-title">📊 健康评分趋势分析</div>
+            <div class="trend-chart" id="trendChart"></div>
+        </div>
+
+        <!-- 详细分析表格 -->
+        <div class="analysis-table-container">
+            <div class="chart-title">📋 详细评分分析</div>
+            <table class="analysis-table">
+                <thead>
+                    <tr>
+                        <th>健康指标</th>
+                        <th>当前值</th>
+                        <th>参考范围</th>
+                        <th>单项评分</th>
+                        <th>权重</th>
+                        <th>贡献度</th>
+                        <th>健康状态</th>
+                    </tr>
+                </thead>
+                <tbody id="analysisTableBody">
+                    <!-- 动态填充数据 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 初始化所有图表
+        document.addEventListener('DOMContentLoaded', function() {
+            initRadarChart();
+            initDistributionChart();
+            initRankingChart();
+            initWeightChart();
+            initTrendChart();
+            loadAnalysisData();
+        });
+
+        // 雷达图
+        function initRadarChart() {
+            const chart = echarts.init(document.getElementById('radarChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                radar: {
+                    indicator: [
+                        { name: '心率', max: 100 },
+                        { name: '血压', max: 100 },
+                        { name: '血氧', max: 100 },
+                        { name: '体温', max: 100 },
+                        { name: '睡眠', max: 100 },
+                        { name: '运动', max: 100 },
+                        { name: '压力', max: 100 }
+                    ],
+                    radius: '70%',
+                    axisName: {
+                        color: '#00e4ff',
+                        fontSize: 14
+                    },
+                    splitLine: {
+                        lineStyle: { color: 'rgba(0,228,255,0.3)' }
+                    },
+                    splitArea: {
+                        areaStyle: {
+                            color: ['rgba(0,228,255,0.05)', 'rgba(0,228,255,0.1)']
+                        }
+                    }
+                },
+                series: [{
+                    type: 'radar',
+                    data: [{
+                        value: [85, 78, 92, 88, 80, 72, 75],
+                        name: '当前评分',
+                        areaStyle: {
+                            color: 'rgba(0,228,255,0.2)'
+                        },
+                        lineStyle: {
+                            color: '#00e4ff',
+                            width: 3
+                        },
+                        itemStyle: {
+                            color: '#00ff88'
+                        }
+                    }]
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 评分分布图
+        function initDistributionChart() {
+            const chart = echarts.init(document.getElementById('distributionChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'axis' },
+                xAxis: {
+                    type: 'category',
+                    data: ['优秀\n(90+)', '良好\n(80-89)', '一般\n(70-79)', '偏低\n(60-69)', '较差\n(<60)'],
+                    axisLabel: { color: '#7ecfff' }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#7ecfff' }
+                },
+                series: [{
+                    type: 'bar',
+                    data: [25, 45, 20, 8, 2],
+                    itemStyle: {
+                        color: function(params) {
+                            const colors = ['#00ff88', '#00e4ff', '#ffc107', '#ff8c00', '#ff4444'];
+                            return colors[params.dataIndex];
+                        }
+                    },
+                    barWidth: '60%'
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 排名对比图
+        function initRankingChart() {
+            const chart = echarts.init(document.getElementById('rankingChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'axis' },
+                legend: {
+                    textStyle: { color: '#7ecfff' }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['同龄组', '同性别', '同部门', '全体用户'],
+                    axisLabel: { color: '#7ecfff' }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#7ecfff' }
+                },
+                series: [{
+                    name: '您的排名',
+                    type: 'bar',
+                    data: [15, 12, 8, 25],
+                    itemStyle: { color: '#00ff88' }
+                }, {
+                    name: '平均排名',
+                    type: 'bar',
+                    data: [50, 50, 25, 100],
+                    itemStyle: { color: '#7ecfff' }
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 权重分析图
+        function initWeightChart() {
+            const chart = echarts.init(document.getElementById('weightChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'item' },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    textStyle: { color: '#7ecfff' }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: [
+                        { value: 20, name: '心率 (20%)' },
+                        { value: 18, name: '血氧 (18%)' },
+                        { value: 15, name: '体温 (15%)' },
+                        { value: 12, name: '压力 (12%)' },
+                        { value: 12, name: '血压 (12%)' },
+                        { value: 8, name: '睡眠 (8%)' },
+                        { value: 15, name: '其他 (15%)' }
+                    ],
+                    itemStyle: {
+                        color: function(params) {
+                            const colors = ['#ff4444', '#00e4ff', '#ffc107', '#ff8c00', '#00ff88', '#9c27b0', '#607d8b'];
+                            return colors[params.dataIndex];
+                        }
+                    },
+                    label: {
+                        color: '#fff'
+                    }
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 趋势分析图
+        function initTrendChart() {
+            const chart = echarts.init(document.getElementById('trendChart'));
+            
+            // 生成最近30天的数据
+            const dates = [];
+            const overallScores = [];
+            const cardiovascularScores = [];
+            const exerciseScores = [];
+            const sleepScores = [];
+            
+            for(let i = 29; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toLocaleDateString());
+                
+                // 模拟数据，实际应该从API获取
+                overallScores.push(Math.floor(Math.random() * 20) + 75);
+                cardiovascularScores.push(Math.floor(Math.random() * 25) + 70);
+                exerciseScores.push(Math.floor(Math.random() * 30) + 60);
+                sleepScores.push(Math.floor(Math.random() * 25) + 70);
+            }
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(10,24,48,0.9)',
+                    borderColor: '#00e4ff',
+                    textStyle: { color: '#fff' }
+                },
+                legend: {
+                    textStyle: { color: '#7ecfff' }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLabel: { color: '#7ecfff', rotate: 45 }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 50,
+                    max: 100,
+                    axisLabel: { color: '#7ecfff' }
+                },
+                series: [
+                    {
+                        name: '综合评分',
+                        type: 'line',
+                        data: overallScores,
+                        itemStyle: { color: '#00ff88' },
+                        lineStyle: { width: 3 },
+                        smooth: true
+                    },
+                    {
+                        name: '心血管',
+                        type: 'line',
+                        data: cardiovascularScores,
+                        itemStyle: { color: '#00e4ff' },
+                        lineStyle: { width: 2 },
+                        smooth: true
+                    },
+                    {
+                        name: '运动',
+                        type: 'line',
+                        data: exerciseScores,
+                        itemStyle: { color: '#ffc107' },
+                        lineStyle: { width: 2 },
+                        smooth: true
+                    },
+                    {
+                        name: '睡眠',
+                        type: 'line',
+                        data: sleepScores,
+                        itemStyle: { color: '#ff8c00' },
+                        lineStyle: { width: 2 },
+                        smooth: true
+                    }
+                ]
+            };
+            chart.setOption(option);
+        }
+
+        // 加载详细分析数据
+        function loadAnalysisData() {
+            const tableBody = document.getElementById('analysisTableBody');
+            
+            const analysisData = [
+                { indicator: '心率', current: '72 bpm', reference: '60-100 bpm', score: 85, weight: '20%', contribution: 17.0, status: '优秀' },
+                { indicator: '收缩压', current: '118 mmHg', reference: '90-140 mmHg', score: 80, weight: '6%', contribution: 4.8, status: '良好' },
+                { indicator: '舒张压', current: '78 mmHg', reference: '60-90 mmHg', score: 82, weight: '6%', contribution: 4.9, status: '良好' },
+                { indicator: '血氧', current: '98%', reference: '≥95%', score: 92, weight: '18%', contribution: 16.6, status: '优秀' },
+                { indicator: '体温', current: '36.5°C', reference: '36.1-37.2°C', score: 88, weight: '15%', contribution: 13.2, status: '优秀' },
+                { indicator: '步数', current: '8,500步', reference: '≥8,000步', score: 75, weight: '4%', contribution: 3.0, status: '良好' },
+                { indicator: '睡眠时长', current: '7.2小时', reference: '7-9小时', score: 85, weight: '8%', contribution: 6.8, status: '优秀' },
+                { indicator: '压力指数', current: '35', reference: '<50', score: 75, weight: '12%', contribution: 9.0, status: '良好' }
+            ];
+            
+            analysisData.forEach(item => {
+                const row = document.createElement('tr');
+                const statusClass = item.score >= 90 ? 'score-excellent' : 
+                                  item.score >= 80 ? 'score-good' :
+                                  item.score >= 70 ? 'score-warning' : 'score-danger';
+                
+                row.innerHTML = `
+                    <td><strong>${item.indicator}</strong></td>
+                    <td>${item.current}</td>
+                    <td>${item.reference}</td>
+                    <td><span class="${statusClass}">${item.score}</span></td>
+                    <td>${item.weight}</td>
+                    <td>${item.contribution.toFixed(1)}</td>
+                    <td><span class="${statusClass}">${item.status}</span></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // 窗口大小改变时重新调整图表
+        window.addEventListener('resize', function() {
+            setTimeout(() => {
+                echarts.getInstanceByDom(document.getElementById('radarChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('distributionChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('rankingChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('weightChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('trendChart'))?.resize();
+            }, 100);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健康预测分析</title>
+    <script src="{{ url_for('static', filename='libs/echarts.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='libs/jquery.min.js') }}"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: linear-gradient(135deg, #1a0e3d 0%, #2d1b69 50%, #4a2c85 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 动画效果 */
+        @keyframes predictionGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(147,51,234,0.4); }
+            50% { box-shadow: 0 0 50px rgba(147,51,234,0.6); }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes riskPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(239,68,68,0.4); }
+            50% { box-shadow: 0 0 40px rgba(239,68,68,0.6); }
+        }
+
+        @keyframes healthPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(34,197,94,0.4); }
+            50% { box-shadow: 0 0 40px rgba(34,197,94,0.6); }
+        }
+
+        @keyframes warningPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(251,191,36,0.4); }
+            50% { box-shadow: 0 0 40px rgba(251,191,36,0.6); }
+        }
+
+        /* 头部导航 */
+        .header {
+            background: rgba(26,14,61,0.95);
+            padding: 20px;
+            border-bottom: 2px solid rgba(147,51,234,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            text-align: center;
+            color: #9333ea;
+            font-size: 28px;
+            text-shadow: 0 0 10px rgba(147,51,234,0.8);
+        }
+
+        .nav-buttons {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, rgba(147,51,234,0.2), rgba(109,40,217,0.4));
+            border: 2px solid rgba(147,51,234,0.4);
+            border-radius: 12px;
+            color: #9333ea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 5px rgba(147,51,234,0.5);
+        }
+
+        .nav-btn:hover {
+            background: linear-gradient(135deg, rgba(147,51,234,0.4), rgba(109,40,217,0.6));
+            box-shadow: 0 0 20px rgba(147,51,234,0.6);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.active {
+            background: linear-gradient(135deg, rgba(168,85,247,0.3), rgba(147,51,234,0.5));
+            border-color: rgba(168,85,247,0.6);
+            color: #a855f7;
+        }
+
+        /* 主容器 */
+        .container {
+            padding: 30px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* 预测概览 */
+        .prediction-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .prediction-card {
+            background: linear-gradient(135deg, rgba(26,14,61,0.9), rgba(45,27,105,0.95));
+            border-radius: 20px;
+            padding: 25px;
+            border: 2px solid rgba(147,51,234,0.3);
+            animation: slideUp 0.6s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .prediction-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(147,51,234,0.1), transparent);
+            transition: left 0.8s ease;
+        }
+
+        .prediction-card:hover::before {
+            left: 100%;
+        }
+
+        .prediction-icon {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .prediction-title {
+            font-size: 16px;
+            color: #c084fc;
+            text-align: center;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .prediction-value {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .prediction-desc {
+            font-size: 14px;
+            color: #a78bfa;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .risk-low { color: #22c55e; animation: healthPulse 2s infinite; }
+        .risk-medium { color: #fbbf24; animation: warningPulse 2s infinite; }
+        .risk-high { color: #ef4444; animation: riskPulse 2s infinite; }
+
+        /* 预测模型区域 */
+        .model-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .model-container {
+            background: linear-gradient(135deg, rgba(26,14,61,0.9), rgba(45,27,105,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(147,51,234,0.3);
+            animation: slideUp 0.8s ease-out;
+        }
+
+        .model-title {
+            font-size: 20px;
+            color: #9333ea;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 8px rgba(147,51,234,0.6);
+        }
+
+        .chart {
+            height: 350px;
+            width: 100%;
+        }
+
+        /* 时间线预测 */
+        .timeline-section {
+            background: linear-gradient(135deg, rgba(26,14,61,0.9), rgba(45,27,105,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(147,51,234,0.3);
+            margin-bottom: 40px;
+        }
+
+        .timeline-title {
+            font-size: 24px;
+            color: #9333ea;
+            margin-bottom: 25px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(147,51,234,0.8);
+        }
+
+        .timeline-chart {
+            height: 450px;
+            width: 100%;
+        }
+
+        /* 风险因子分析 */
+        .risk-factors {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .risk-factor {
+            background: linear-gradient(135deg, rgba(26,14,61,0.8), rgba(45,27,105,0.9));
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid rgba(147,51,234,0.2);
+            text-align: center;
+        }
+
+        .risk-factor-name {
+            font-size: 16px;
+            color: #c084fc;
+            margin-bottom: 10px;
+        }
+
+        .risk-factor-level {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .risk-factor-desc {
+            font-size: 12px;
+            color: #a78bfa;
+        }
+
+        /* 预测报告 */
+        .prediction-report {
+            background: linear-gradient(135deg, rgba(26,14,61,0.9), rgba(45,27,105,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(147,51,234,0.3);
+        }
+
+        .report-title {
+            font-size: 22px;
+            color: #9333ea;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 8px rgba(147,51,234,0.6);
+        }
+
+        .report-item {
+            background: rgba(147,51,234,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid rgba(147,51,234,0.6);
+        }
+
+        .report-item-title {
+            font-size: 16px;
+            color: #a855f7;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .report-item-content {
+            font-size: 14px;
+            color: #c9b3ff;
+            line-height: 1.6;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .model-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .prediction-overview {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部导航 -->
+    <div class="header">
+        <h1>🔮 健康预测分析系统</h1>
+        <div class="nav-buttons">
+            <a href="/" class="nav-btn">🏠 主面板</a>
+            <a href="/health_score_view" class="nav-btn">📊 健康评分</a>
+            <a href="/health_prediction_view" class="nav-btn active">🔮 健康预测</a>
+            <a href="/health_recommendation_view" class="nav-btn">💡 健康建议</a>
+            <a href="/health_profile_view" class="nav-btn">👤 健康画像</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 预测概览 -->
+        <div class="prediction-overview">
+            <div class="prediction-card">
+                <div class="prediction-icon">❤️</div>
+                <div class="prediction-title">心血管疾病风险</div>
+                <div class="prediction-value risk-low">15%</div>
+                <div class="prediction-desc">未来5年发病概率较低</div>
+            </div>
+            
+            <div class="prediction-card">
+                <div class="prediction-icon">🩸</div>
+                <div class="prediction-title">糖尿病风险</div>
+                <div class="prediction-value risk-medium">35%</div>
+                <div class="prediction-desc">需要注意饮食控制</div>
+            </div>
+            
+            <div class="prediction-card">
+                <div class="prediction-icon">💪</div>
+                <div class="prediction-title">肌肉骨骼风险</div>
+                <div class="prediction-value risk-low">20%</div>
+                <div class="prediction-desc">运动量充足，风险较低</div>
+            </div>
+            
+            <div class="prediction-card">
+                <div class="prediction-icon">🧠</div>
+                <div class="prediction-title">精神健康风险</div>
+                <div class="prediction-value risk-high">65%</div>
+                <div class="prediction-desc">建议关注压力管理</div>
+            </div>
+        </div>
+
+        <!-- 预测模型 -->
+        <div class="model-section">
+            <div class="model-container">
+                <div class="model-title">🎯 健康风险评估模型</div>
+                <div class="chart" id="riskModelChart"></div>
+            </div>
+            
+            <div class="model-container">
+                <div class="model-title">📈 健康趋势预测</div>
+                <div class="chart" id="trendPredictionChart"></div>
+            </div>
+        </div>
+
+        <!-- 时间线预测 -->
+        <div class="timeline-section">
+            <div class="timeline-title">⏰ 健康状态时间线预测</div>
+            <div class="timeline-chart" id="timelineChart"></div>
+        </div>
+
+        <!-- 风险因子分析 -->
+        <div class="risk-factors">
+            <div class="risk-factor">
+                <div class="risk-factor-name">年龄因子</div>
+                <div class="risk-factor-level risk-medium">中等</div>
+                <div class="risk-factor-desc">35岁，处于健康关键期</div>
+            </div>
+            
+            <div class="risk-factor">
+                <div class="risk-factor-name">遗传因子</div>
+                <div class="risk-factor-level risk-low">较低</div>
+                <div class="risk-factor-desc">家族史风险较小</div>
+            </div>
+            
+            <div class="risk-factor">
+                <div class="risk-factor-name">生活方式</div>
+                <div class="risk-factor-level risk-medium">中等</div>
+                <div class="risk-factor-desc">运动不足，饮食偏重</div>
+            </div>
+            
+            <div class="risk-factor">
+                <div class="risk-factor-name">环境因子</div>
+                <div class="risk-factor-level risk-high">较高</div>
+                <div class="risk-factor-desc">工作压力大，空气质量一般</div>
+            </div>
+            
+            <div class="risk-factor">
+                <div class="risk-factor-name">慢性疾病</div>
+                <div class="risk-factor-level risk-low">较低</div>
+                <div class="risk-factor-desc">暂无慢性疾病史</div>
+            </div>
+            
+            <div class="risk-factor">
+                <div class="risk-factor-name">心理状态</div>
+                <div class="risk-factor-level risk-high">较高</div>
+                <div class="risk-factor-desc">焦虑指数偏高</div>
+            </div>
+        </div>
+
+        <!-- 预测报告 -->
+        <div class="prediction-report">
+            <div class="report-title">📋 个性化健康预测报告</div>
+            
+            <div class="report-item">
+                <div class="report-item-title">🎯 短期预测（1-3个月）</div>
+                <div class="report-item-content">
+                    基于当前健康数据，预计您的整体健康状况将保持稳定。心率和血压指标良好，但需要关注睡眠质量的轻微下降趋势。建议增加有氧运动，每周至少3次。
+                </div>
+            </div>
+            
+            <div class="report-item">
+                <div class="report-item-title">📊 中期预测（6-12个月）</div>
+                <div class="report-item-content">
+                    如果维持当前生活方式，预计体重可能增加2-3kg，血脂水平有上升趋势。建议调整饮食结构，减少高热量食物摄入，增加膳食纤维。定期体检频率建议提升至每季度一次。
+                </div>
+            </div>
+            
+            <div class="report-item">
+                <div class="report-item-title">🔮 长期预测（3-5年）</div>
+                <div class="report-item-content">
+                    长期来看，心血管疾病风险较低（15%），但糖尿病风险需要重点关注（35%）。建议建立长期健康管理计划，包括定期健康筛查、专业营养指导和心理健康咨询。
+                </div>
+            </div>
+            
+            <div class="report-item">
+                <div class="report-item-title">⚠️ 重点关注项</div>
+                <div class="report-item-content">
+                    1. 精神健康：当前压力水平较高，需要积极的压力管理策略<br>
+                    2. 代谢健康：糖化血红蛋白有上升趋势，建议控制碳水化合物摄入<br>
+                    3. 睡眠质量：深度睡眠时间不足，影响整体恢复能力
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化所有图表
+        document.addEventListener('DOMContentLoaded', function() {
+            initRiskModelChart();
+            initTrendPredictionChart();
+            initTimelineChart();
+        });
+
+        // 风险评估模型图表
+        function initRiskModelChart() {
+            const chart = echarts.init(document.getElementById('riskModelChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'item' },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    textStyle: { color: '#c084fc' }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['50%', '80%'],
+                    center: ['60%', '50%'],
+                    data: [
+                        { value: 15, name: '心血管风险 (15%)', itemStyle: { color: '#22c55e' } },
+                        { value: 35, name: '糖尿病风险 (35%)', itemStyle: { color: '#fbbf24' } },
+                        { value: 20, name: '肌肉骨骼风险 (20%)', itemStyle: { color: '#06b6d4' } },
+                        { value: 65, name: '精神健康风险 (65%)', itemStyle: { color: '#ef4444' } },
+                        { value: 25, name: '其他风险 (25%)', itemStyle: { color: '#8b5cf6' } }
+                    ],
+                    label: {
+                        show: true,
+                        color: '#fff',
+                        formatter: '{b}\n{d}%'
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 趋势预测图表
+        function initTrendPredictionChart() {
+            const chart = echarts.init(document.getElementById('trendPredictionChart'));
+            
+            // 生成未来6个月的预测数据
+            const months = ['当前', '1个月后', '2个月后', '3个月后', '6个月后', '1年后'];
+            const healthScore = [85, 84, 82, 80, 78, 75];
+            const riskLevel = [20, 22, 25, 28, 32, 35];
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(26,14,61,0.9)',
+                    borderColor: '#9333ea',
+                    textStyle: { color: '#fff' }
+                },
+                legend: {
+                    textStyle: { color: '#c084fc' }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: months,
+                    axisLabel: { color: '#c084fc' }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '健康评分',
+                        position: 'left',
+                        axisLabel: { color: '#c084fc' },
+                        nameTextStyle: { color: '#c084fc' }
+                    },
+                    {
+                        type: 'value',
+                        name: '风险指数',
+                        position: 'right',
+                        axisLabel: { color: '#c084fc' },
+                        nameTextStyle: { color: '#c084fc' }
+                    }
+                ],
+                series: [
+                    {
+                        name: '健康评分预测',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: healthScore,
+                        itemStyle: { color: '#22c55e' },
+                        lineStyle: { width: 3 },
+                        smooth: true,
+                        areaStyle: { color: 'rgba(34,197,94,0.1)' }
+                    },
+                    {
+                        name: '综合风险指数',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: riskLevel,
+                        itemStyle: { color: '#ef4444' },
+                        lineStyle: { width: 3, type: 'dashed' },
+                        smooth: true
+                    }
+                ]
+            };
+            chart.setOption(option);
+        }
+
+        // 时间线预测图表
+        function initTimelineChart() {
+            const chart = echarts.init(document.getElementById('timelineChart'));
+            
+            // 生成更长时间跨度的数据
+            const dates = [];
+            const cardiovascular = [];
+            const diabetes = [];
+            const mental = [];
+            
+            for(let i = 0; i <= 60; i += 6) { // 5年，每6个月一个点
+                if(i === 0) {
+                    dates.push('当前');
+                } else if(i < 12) {
+                    dates.push(`${i}个月后`);
+                } else {
+                    dates.push(`${i/12}年后`);
+                }
+                
+                // 模拟疾病风险随时间的变化
+                cardiovascular.push(15 + i * 0.5 + Math.random() * 5);
+                diabetes.push(35 + i * 0.8 + Math.random() * 8);
+                mental.push(65 - i * 0.3 + Math.random() * 10);
+            }
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(26,14,61,0.9)',
+                    borderColor: '#9333ea',
+                    textStyle: { color: '#fff' }
+                },
+                legend: {
+                    textStyle: { color: '#c084fc' }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLabel: { 
+                        color: '#c084fc',
+                        rotate: 45,
+                        interval: 1
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100,
+                    axisLabel: { 
+                        color: '#c084fc',
+                        formatter: '{value}%'
+                    }
+                },
+                series: [
+                    {
+                        name: '心血管疾病风险',
+                        type: 'line',
+                        data: cardiovascular,
+                        itemStyle: { color: '#ef4444' },
+                        lineStyle: { width: 3 },
+                        smooth: true,
+                        areaStyle: { 
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(239,68,68,0.3)' },
+                                    { offset: 1, color: 'rgba(239,68,68,0.1)' }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        name: '糖尿病风险',
+                        type: 'line',
+                        data: diabetes,
+                        itemStyle: { color: '#fbbf24' },
+                        lineStyle: { width: 3 },
+                        smooth: true,
+                        areaStyle: { 
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(251,191,36,0.3)' },
+                                    { offset: 1, color: 'rgba(251,191,36,0.1)' }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        name: '精神健康风险',
+                        type: 'line',
+                        data: mental,
+                        itemStyle: { color: '#8b5cf6' },
+                        lineStyle: { width: 3 },
+                        smooth: true,
+                        areaStyle: { 
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(139,92,246,0.3)' },
+                                    { offset: 1, color: 'rgba(139,92,246,0.1)' }
+                                ]
+                            }
+                        }
+                    }
+                ]
+            };
+            chart.setOption(option);
+        }
+
+        // 窗口大小改变时重新调整图表
+        window.addEventListener('resize', function() {
+            setTimeout(() => {
+                echarts.getInstanceByDom(document.getElementById('riskModelChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('trendPredictionChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('timelineChart'))?.resize();
+            }, 100);
+        });
+    </script>
+</body>
+</html>

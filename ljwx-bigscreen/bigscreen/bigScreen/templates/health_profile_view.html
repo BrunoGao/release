@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健康画像分析</title>
+    <script src="{{ url_for('static', filename='libs/echarts.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='libs/jquery.min.js') }}"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 动画效果 */
+        @keyframes profileGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(102,126,234,0.4); }
+            50% { box-shadow: 0 0 50px rgba(102,126,234,0.6); }
+        }
+
+        @keyframes slideInUp {
+            from { transform: translateY(40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes avatarBreathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes statsPulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(118,75,162,0.4); }
+            50% { box-shadow: 0 0 25px rgba(118,75,162,0.6); }
+        }
+
+        @keyframes tagFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+
+        /* 头部导航 */
+        .header {
+            background: rgba(102,126,234,0.95);
+            padding: 20px;
+            border-bottom: 2px solid rgba(118,75,162,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            text-align: center;
+            color: #f093fb;
+            font-size: 28px;
+            text-shadow: 0 0 10px rgba(240,147,251,0.8);
+        }
+
+        .nav-buttons {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, rgba(118,75,162,0.2), rgba(240,147,251,0.4));
+            border: 2px solid rgba(118,75,162,0.4);
+            border-radius: 12px;
+            color: #f093fb;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 5px rgba(240,147,251,0.5);
+        }
+
+        .nav-btn:hover {
+            background: linear-gradient(135deg, rgba(118,75,162,0.4), rgba(240,147,251,0.6));
+            box-shadow: 0 0 20px rgba(240,147,251,0.6);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.active {
+            background: linear-gradient(135deg, rgba(240,147,251,0.3), rgba(118,75,162,0.5));
+            border-color: rgba(240,147,251,0.6);
+            color: #764ba2;
+        }
+
+        /* 主容器 */
+        .container {
+            padding: 30px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* 个人信息卡片 */
+        .profile-header {
+            background: linear-gradient(135deg, rgba(102,126,234,0.9), rgba(118,75,162,0.95));
+            border-radius: 25px;
+            padding: 40px;
+            margin-bottom: 40px;
+            border: 2px solid rgba(240,147,251,0.3);
+            animation: slideInUp 0.6s ease-out;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profile-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(240,147,251,0.1), transparent);
+            transition: left 0.8s ease;
+        }
+
+        .profile-header:hover::before {
+            left: 100%;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 0 auto 25px;
+            border: 4px solid rgba(240,147,251,0.6);
+            animation: avatarBreathe 4s infinite ease-in-out;
+            position: relative;
+            z-index: 2;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+        }
+
+        .profile-name {
+            font-size: 28px;
+            color: #f093fb;
+            margin-bottom: 10px;
+            font-weight: 600;
+            position: relative;
+            z-index: 2;
+        }
+
+        .profile-subtitle {
+            font-size: 16px;
+            color: #c8a8ff;
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .stat-item {
+            background: rgba(240,147,251,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            animation: statsPulse 3s infinite;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #f093fb;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #c8a8ff;
+        }
+
+        /* 画像维度 */
+        .profile-dimensions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .dimension-card {
+            background: linear-gradient(135deg, rgba(102,126,234,0.9), rgba(118,75,162,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(240,147,251,0.3);
+            animation: slideInUp 0.8s ease-out;
+        }
+
+        .dimension-title {
+            font-size: 20px;
+            color: #f093fb;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 8px rgba(240,147,251,0.6);
+        }
+
+        .chart {
+            height: 280px;
+            width: 100%;
+        }
+
+        /* 健康标签云 */
+        .health-tags {
+            background: linear-gradient(135deg, rgba(102,126,234,0.9), rgba(118,75,162,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 40px;
+            border: 2px solid rgba(240,147,251,0.3);
+        }
+
+        .tags-title {
+            font-size: 24px;
+            color: #f093fb;
+            margin-bottom: 25px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(240,147,251,0.8);
+        }
+
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .health-tag {
+            background: rgba(240,147,251,0.2);
+            color: #f093fb;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(240,147,251,0.4);
+            font-size: 14px;
+            font-weight: 500;
+            animation: tagFloat 2s infinite ease-in-out;
+            transition: all 0.3s ease;
+        }
+
+        .health-tag:hover {
+            background: rgba(240,147,251,0.3);
+            transform: scale(1.1);
+        }
+
+        .tag-positive { 
+            background: rgba(34,197,94,0.2); 
+            color: #22c55e; 
+            border-color: rgba(34,197,94,0.4);
+        }
+        
+        .tag-warning { 
+            background: rgba(251,191,36,0.2); 
+            color: #fbbf24; 
+            border-color: rgba(251,191,36,0.4);
+        }
+        
+        .tag-risk { 
+            background: rgba(239,68,68,0.2); 
+            color: #ef4444; 
+            border-color: rgba(239,68,68,0.4);
+        }
+
+        /* 生活方式分析 */
+        .lifestyle-analysis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .lifestyle-item {
+            background: linear-gradient(135deg, rgba(102,126,234,0.8), rgba(118,75,162,0.9));
+            border-radius: 18px;
+            padding: 25px;
+            border: 2px solid rgba(240,147,251,0.2);
+            text-align: center;
+        }
+
+        .lifestyle-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            animation: tagFloat 3s infinite ease-in-out;
+        }
+
+        .lifestyle-title {
+            font-size: 18px;
+            color: #f093fb;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .lifestyle-score {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .score-excellent { color: #22c55e; }
+        .score-good { color: #3b82f6; }
+        .score-fair { color: #fbbf24; }
+        .score-poor { color: #ef4444; }
+
+        .lifestyle-desc {
+            font-size: 14px;
+            color: #c8a8ff;
+        }
+
+        /* 健康洞察 */
+        .health-insights {
+            background: linear-gradient(135deg, rgba(102,126,234,0.9), rgba(118,75,162,0.95));
+            border-radius: 20px;
+            padding: 30px;
+            border: 2px solid rgba(240,147,251,0.3);
+        }
+
+        .insights-title {
+            font-size: 22px;
+            color: #f093fb;
+            margin-bottom: 25px;
+            text-align: center;
+            text-shadow: 0 0 8px rgba(240,147,251,0.6);
+        }
+
+        .insight-item {
+            background: rgba(240,147,251,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid rgba(240,147,251,0.6);
+        }
+
+        .insight-title {
+            font-size: 16px;
+            color: #f093fb;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .insight-content {
+            font-size: 14px;
+            color: #c8a8ff;
+            line-height: 1.6;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .profile-dimensions {
+                grid-template-columns: 1fr;
+            }
+            
+            .lifestyle-analysis {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部导航 -->
+    <div class="header">
+        <h1>👤 健康画像分析系统</h1>
+        <div class="nav-buttons">
+            <a href="/" class="nav-btn">🏠 主面板</a>
+            <a href="/health_score_view" class="nav-btn">📊 健康评分</a>
+            <a href="/health_prediction_view" class="nav-btn">🔮 健康预测</a>
+            <a href="/health_recommendation_view" class="nav-btn">💡 健康建议</a>
+            <a href="/health_profile_view" class="nav-btn active">👤 健康画像</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 个人信息概览 -->
+        <div class="profile-header">
+            <div class="profile-avatar">👤</div>
+            <div class="profile-name">张三</div>
+            <div class="profile-subtitle">35岁 · 软件工程师 · 健康管理1年</div>
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <div class="stat-value">85</div>
+                    <div class="stat-label">综合评分</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">365</div>
+                    <div class="stat-label">监测天数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">78%</div>
+                    <div class="stat-label">目标达成率</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">12</div>
+                    <div class="stat-label">健康改善项</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 画像维度分析 -->
+        <div class="profile-dimensions">
+            <div class="dimension-card">
+                <div class="dimension-title">🎯 健康特征画像</div>
+                <div class="chart" id="characterChart"></div>
+            </div>
+            
+            <div class="dimension-card">
+                <div class="dimension-title">📊 生理指标分布</div>
+                <div class="chart" id="physiologyChart"></div>
+            </div>
+            
+            <div class="dimension-card">
+                <div class="dimension-title">⏰ 生活节律分析</div>
+                <div class="chart" id="rhythmChart"></div>
+            </div>
+            
+            <div class="dimension-card">
+                <div class="dimension-title">📈 健康趋势变化</div>
+                <div class="chart" id="trendChart"></div>
+            </div>
+        </div>
+
+        <!-- 健康标签云 -->
+        <div class="health-tags">
+            <div class="tags-title">🏷️ 个性化健康标签</div>
+            <div class="tags-container">
+                <span class="health-tag tag-positive">心率稳定</span>
+                <span class="health-tag tag-positive">血氧正常</span>
+                <span class="health-tag tag-positive">运动积极</span>
+                <span class="health-tag tag-warning">睡眠不足</span>
+                <span class="health-tag tag-positive">饮食规律</span>
+                <span class="health-tag tag-risk">压力较大</span>
+                <span class="health-tag tag-positive">体重稳定</span>
+                <span class="health-tag tag-warning">久坐时间长</span>
+                <span class="health-tag tag-positive">健康意识强</span>
+                <span class="health-tag tag-positive">恢复能力好</span>
+                <span class="health-tag tag-warning">工作压力大</span>
+                <span class="health-tag tag-positive">社交活跃</span>
+                <span class="health-tag tag-warning">屏幕时间长</span>
+                <span class="health-tag tag-positive">学习能力强</span>
+                <span class="health-tag tag-positive">适应性好</span>
+            </div>
+        </div>
+
+        <!-- 生活方式评估 -->
+        <div class="lifestyle-analysis">
+            <div class="lifestyle-item">
+                <div class="lifestyle-icon">🏃‍♂️</div>
+                <div class="lifestyle-title">运动健身</div>
+                <div class="lifestyle-score score-good">82</div>
+                <div class="lifestyle-desc">每周运动4次，有氧运动为主</div>
+            </div>
+            
+            <div class="lifestyle-item">
+                <div class="lifestyle-icon">🥗</div>
+                <div class="lifestyle-title">饮食营养</div>
+                <div class="lifestyle-score score-excellent">88</div>
+                <div class="lifestyle-desc">营养搭配均衡，少油少盐</div>
+            </div>
+            
+            <div class="lifestyle-item">
+                <div class="lifestyle-icon">😴</div>
+                <div class="lifestyle-title">睡眠质量</div>
+                <div class="lifestyle-score score-fair">72</div>
+                <div class="lifestyle-desc">入睡困难，深度睡眠不足</div>
+            </div>
+            
+            <div class="lifestyle-item">
+                <div class="lifestyle-icon">🧘‍♀️</div>
+                <div class="lifestyle-title">压力管理</div>
+                <div class="lifestyle-score score-fair">68</div>
+                <div class="lifestyle-desc">工作压力大，放松时间少</div>
+            </div>
+            
+            <div class="lifestyle-item">
+                <div class="lifestyle-icon">🏥</div>
+                <div class="lifestyle-title">健康管理</div>
+                <div class="lifestyle-score score-excellent">90</div>
+                <div class="lifestyle-desc">定期体检，健康意识强</div>
+            </div>
+            
+            <div class="lifestyle-item">
+                <div class="lifestyle-icon">👥</div>
+                <div class="lifestyle-title">社交健康</div>
+                <div class="lifestyle-score score-good">78</div>
+                <div class="lifestyle-desc">社交活跃，人际关系良好</div>
+            </div>
+        </div>
+
+        <!-- 健康洞察 -->
+        <div class="health-insights">
+            <div class="insights-title">🔍 个性化健康洞察</div>
+            
+            <div class="insight-item">
+                <div class="insight-title">💪 优势特征</div>
+                <div class="insight-content">
+                    您在心血管健康方面表现优异，心率变异性良好，血压稳定。运动习惯较好，有氧运动能力在同龄人中处于上游水平。饮食结构相对合理，营养摄入较为均衡。
+                </div>
+            </div>
+            
+            <div class="insight-item">
+                <div class="insight-title">⚠️ 关注重点</div>
+                <div class="insight-content">
+                    睡眠质量需要重点关注，深度睡眠时间偏短，可能与工作压力和屏幕使用时间过长有关。建议建立更好的睡前习惯，控制蓝光暴露时间。
+                </div>
+            </div>
+            
+            <div class="insight-item">
+                <div class="insight-title">📈 改善潜力</div>
+                <div class="insight-content">
+                    通过优化睡眠质量和压力管理，您的整体健康评分有望提升至90分以上。建议增加冥想练习和深度放松技巧，每天15-20分钟的正念练习对改善睡眠和压力管理都有帮助。
+                </div>
+            </div>
+            
+            <div class="insight-item">
+                <div class="insight-title">🎯 个性化建议</div>
+                <div class="insight-content">
+                    基于您的健康画像，建议制定以下目标：1）每晚11点前入睡，保证7-8小时睡眠；2）每周至少进行2次力量训练；3）学习压力管理技巧，如深呼吸、渐进式肌肉放松等。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化所有图表
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharacterChart();
+            initPhysiologyChart();
+            initRhythmChart();
+            initTrendChart();
+        });
+
+        // 健康特征雷达图
+        function initCharacterChart() {
+            const chart = echarts.init(document.getElementById('characterChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                radar: {
+                    indicator: [
+                        { name: '体质', max: 100 },
+                        { name: '活力', max: 100 },
+                        { name: '稳定性', max: 100 },
+                        { name: '恢复力', max: 100 },
+                        { name: '适应性', max: 100 },
+                        { name: '抗压性', max: 100 }
+                    ],
+                    radius: '70%',
+                    axisName: {
+                        color: '#f093fb',
+                        fontSize: 14
+                    },
+                    splitLine: {
+                        lineStyle: { color: 'rgba(240,147,251,0.3)' }
+                    },
+                    splitArea: {
+                        areaStyle: {
+                            color: ['rgba(240,147,251,0.05)', 'rgba(240,147,251,0.1)']
+                        }
+                    }
+                },
+                series: [{
+                    type: 'radar',
+                    data: [{
+                        value: [85, 78, 82, 88, 75, 68],
+                        name: '健康特征',
+                        areaStyle: {
+                            color: 'rgba(240,147,251,0.2)'
+                        },
+                        lineStyle: {
+                            color: '#f093fb',
+                            width: 3
+                        },
+                        itemStyle: {
+                            color: '#764ba2'
+                        }
+                    }]
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 生理指标分布图
+        function initPhysiologyChart() {
+            const chart = echarts.init(document.getElementById('physiologyChart'));
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'item' },
+                legend: {
+                    bottom: 0,
+                    textStyle: { color: '#c8a8ff' }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: '70%',
+                    data: [
+                        { value: 25, name: '优秀指标', itemStyle: { color: '#22c55e' } },
+                        { value: 15, name: '良好指标', itemStyle: { color: '#3b82f6' } },
+                        { value: 8, name: '一般指标', itemStyle: { color: '#fbbf24' } },
+                        { value: 2, name: '待改善指标', itemStyle: { color: '#ef4444' } }
+                    ],
+                    label: {
+                        show: true,
+                        color: '#fff',
+                        formatter: '{b}\n{d}%'
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 生活节律分析
+        function initRhythmChart() {
+            const chart = echarts.init(document.getElementById('rhythmChart'));
+            
+            // 24小时活动强度数据
+            const hours = [];
+            const activity = [];
+            const heartRate = [];
+            
+            for(let i = 0; i < 24; i++) {
+                hours.push(i + ':00');
+                // 模拟一天的活动强度和心率变化
+                if(i >= 7 && i <= 9) { // 早晨活跃期
+                    activity.push(70 + Math.random() * 20);
+                    heartRate.push(75 + Math.random() * 15);
+                } else if(i >= 14 && i <= 16) { // 下午活跃期
+                    activity.push(60 + Math.random() * 25);
+                    heartRate.push(70 + Math.random() * 20);
+                } else if(i >= 19 && i <= 21) { // 晚间活跃期
+                    activity.push(50 + Math.random() * 30);
+                    heartRate.push(68 + Math.random() * 12);
+                } else if(i >= 22 || i <= 6) { // 休息期
+                    activity.push(10 + Math.random() * 15);
+                    heartRate.push(55 + Math.random() * 10);
+                } else { // 一般期
+                    activity.push(30 + Math.random() * 20);
+                    heartRate.push(65 + Math.random() * 10);
+                }
+            }
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(102,126,234,0.9)',
+                    borderColor: '#f093fb',
+                    textStyle: { color: '#fff' }
+                },
+                legend: {
+                    textStyle: { color: '#c8a8ff' }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: hours,
+                    axisLabel: { color: '#c8a8ff' }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '活动强度',
+                        position: 'left',
+                        axisLabel: { color: '#c8a8ff' },
+                        nameTextStyle: { color: '#c8a8ff' }
+                    },
+                    {
+                        type: 'value',
+                        name: '心率',
+                        position: 'right',
+                        axisLabel: { color: '#c8a8ff' },
+                        nameTextStyle: { color: '#c8a8ff' }
+                    }
+                ],
+                series: [
+                    {
+                        name: '活动强度',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        data: activity,
+                        itemStyle: { color: '#764ba2' },
+                        barWidth: '40%'
+                    },
+                    {
+                        name: '平均心率',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: heartRate,
+                        itemStyle: { color: '#f093fb' },
+                        lineStyle: { width: 2 },
+                        smooth: true
+                    }
+                ]
+            };
+            chart.setOption(option);
+        }
+
+        // 健康趋势变化图
+        function initTrendChart() {
+            const chart = echarts.init(document.getElementById('trendChart'));
+            
+            // 生成最近12个月的数据
+            const months = [];
+            const healthScore = [];
+            const fitnessLevel = [];
+            const stressLevel = [];
+            
+            for(let i = 11; i >= 0; i--) {
+                const date = new Date();
+                date.setMonth(date.getMonth() - i);
+                months.push(date.toLocaleDateString('zh-CN', { month: 'numeric' }) + '月');
+                
+                // 模拟健康改善趋势
+                healthScore.push(70 + (11-i) * 1.2 + Math.random() * 5);
+                fitnessLevel.push(65 + (11-i) * 1.5 + Math.random() * 6);
+                stressLevel.push(80 - (11-i) * 0.8 + Math.random() * 8); // 压力逐渐降低
+            }
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(102,126,234,0.9)',
+                    borderColor: '#f093fb',
+                    textStyle: { color: '#fff' }
+                },
+                legend: {
+                    textStyle: { color: '#c8a8ff' }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: months,
+                    axisLabel: { color: '#c8a8ff' }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 50,
+                    max: 100,
+                    axisLabel: { color: '#c8a8ff' }
+                },
+                series: [
+                    {
+                        name: '综合健康',
+                        type: 'line',
+                        data: healthScore,
+                        itemStyle: { color: '#22c55e' },
+                        lineStyle: { width: 3 },
+                        smooth: true,
+                        areaStyle: { color: 'rgba(34,197,94,0.1)' }
+                    },
+                    {
+                        name: '体适能',
+                        type: 'line',
+                        data: fitnessLevel,
+                        itemStyle: { color: '#3b82f6' },
+                        lineStyle: { width: 2 },
+                        smooth: true
+                    },
+                    {
+                        name: '压力水平',
+                        type: 'line',
+                        data: stressLevel,
+                        itemStyle: { color: '#ef4444' },
+                        lineStyle: { width: 2, type: 'dashed' },
+                        smooth: true
+                    }
+                ]
+            };
+            chart.setOption(option);
+        }
+
+        // 窗口大小改变时重新调整图表
+        window.addEventListener('resize', function() {
+            setTimeout(() => {
+                echarts.getInstanceByDom(document.getElementById('characterChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('physiologyChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('rhythmChart'))?.resize();
+                echarts.getInstanceByDom(document.getElementById('trendChart'))?.resize();
+            }, 100);
+        });
+    </script>
+</body>
+</html>

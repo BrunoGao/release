@@ -22,9 +22,14 @@ from .wechat import send_message as wechat_send_message
 from .user import get_user_info_by_orgIdAndUserId as user_get_user_info_by_orgIdAndUserId, fetch_device_info_by_phone
 from .fetchConfig import get_interface_config as fetch_config_get_interface_config, get_health_config as fetch_config_get_health_config, get_customer_config as fetch_config_get_customer_config, get_optimal_config as fetch_config_get_optimal_config, save_interface_config as fetch_config_save_interface_config, save_health_config as fetch_config_save_health_config, save_customer_config as fetch_config_save_customer_config
 from .user_health_data import get_health_trends, get_health_baseline, get_baseline_for_trend, get_basic_health_data_by_orgIdAndUserId
-from .health_baseline import HealthBaselineGenerator, generate_baseline_task
+from .health_baseline import HealthBaselineQuery, generate_baseline_task
 from .watch_log import upload_watch_log as watch_log_upload_watch_log, watch_logs_page as watch_log_watch_logs_page, get_watch_logs as watch_log_get_watch_logs, get_watch_log_stats as watch_log_get_watch_log_stats
 from .health_profile import get_profile_monitor, manual_generate_profiles, get_health_profiles, get_profile_statistics
+from .weight_calculator import WeightCalculator
+from .health_baseline_manager import HealthBaselineManager
+from .recommendation_tracker import RecommendationTracker
+from .health_recommendation_engine import RealTimeHealthRecommendationEngine
+from .health_cache_integration import health_data_cache_integration, cache_health_data, cache_health_chart, cache_health_stats
 from redis import Redis
 from .health_data_batch_processor import optimized_upload_health_data, save_health_data_fast, get_optimizer_stats
 import requests  # 用于发送HTTP请求
@@ -47,7 +52,7 @@ import os
 from dotenv import load_dotenv
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import SQLALCHEMY_DATABASE_URI, REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_PASSWORD, APP_HOST, APP_PORT, DEBUG, BIGSCREEN_TITLE, COMPANY_NAME, COMPANY_LOGO_URL, THEME_COLOR, BACKGROUND_COLOR, FOOTER_TEXT, WECHAT_APP_ID, WECHAT_APP_SECRET, WECHAT_TEMPLATE_ID, WECHAT_USER_OPENID, WECHAT_API_URL, WECHAT_ALERT_ENABLED
+from config import SQLALCHEMY_DATABASE_URI, REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_PASSWORD, APP_HOST, APP_PORT, DEBUG, BIGSCREEN_TITLE, COMPANY_NAME, COMPANY_LOGO_URL, THEME_COLOR, BACKGROUND_COLOR, FOOTER_TEXT, WECHAT_APP_ID, WECHAT_APP_SECRET, WECHAT_TEMPLATE_ID, WECHAT_USER_OPENID, WECHAT_API_URL, WECHAT_ALERT_ENABLED, PERSONAL_SCREEN_VERSION, BIGSCREEN_VERSION, SYSTEM_VERSION
 # Load environment variables
 load_dotenv()
 
@@ -87,6 +92,16 @@ except ImportError as e:
     system_logger.warning(f"⚠️  健康系统API模块加载失败: {e}")
 except Exception as e:
     system_logger.error(f"❌ 健康系统API模块加载异常: {e}")
+
+# 注册优化后的健康分析API蓝图 V2.0
+try:
+    from .health_analysis_api import health_analysis_api
+    app.register_blueprint(health_analysis_api, url_prefix='/api/health/v2')
+    system_logger.info("✅ 健康分析API V2.0模块加载成功")
+except ImportError as e:
+    system_logger.warning(f"⚠️  健康分析API V2.0模块加载失败: {e}")
+except Exception as e:
+    system_logger.error(f"❌ 健康分析API V2.0模块加载异常: {e}")
 
 # 实时统计API - 直接添加到app而不是蓝图
 @app.route('/api/realtime_stats', methods=['GET'])
@@ -364,6 +379,50 @@ with app.app_context():
         traceback.print_exc()
 
 logger = api_logger#使用API专用记录器
+
+# 健康检查端点
+@app.route('/health', methods=['GET'])
+def health_check():
+    """健康检查端点"""
+    try:
+        # 检查数据库连接
+        db.session.execute('SELECT 1')
+        
+        # 检查Redis连接
+        from .redis_helper import RedisHelper
+        redis_helper = RedisHelper()
+        redis_helper.redis_client.ping()
+        
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'service': 'ljwx-bigscreen',
+            'port': APP_PORT,
+            'checks': {
+                'database': 'ok',
+                'redis': 'ok'
+            }
+        }), 200
+    except Exception as e:
+        system_logger.error(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': datetime.now().isoformat(),
+            'service': 'ljwx-bigscreen',
+            'port': APP_PORT,
+            'error': str(e),
+            'checks': {
+                'database': 'error',
+                'redis': 'error'
+            }
+        }), 500
+
+# API健康检查端点（符合标准API路径）
+@app.route('/api/health', methods=['GET'])
+def api_health_check():
+    """API健康检查端点"""
+    return health_check()
+
 @app.route('/track_view')
 def track_view():
     return render_template('track_view.html')
@@ -432,6 +491,27 @@ def health_trends():
 @app.route("/health_main")
 def health_main():
     return render_template("health_main.html")
+
+# 新增健康分析页面路由
+@app.route("/health_score_view")
+def health_score_view():
+    """健康评分分析页面"""
+    return render_template("health_score_view.html")
+
+@app.route("/health_prediction_view")
+def health_prediction_view():
+    """健康预测分析页面"""
+    return render_template("health_prediction_view.html")
+
+@app.route("/health_recommendation_view")
+def health_recommendation_view():
+    """健康建议分析页面"""
+    return render_template("health_recommendation_view.html")
+
+@app.route("/health_profile_view")
+def health_profile_view():
+    """健康画像分析页面"""
+    return render_template("health_profile_view.html")
 
 @app.route("/health_baseline")
 def health_baseline():
@@ -505,7 +585,9 @@ def bigscreen_index():
     #print("personalInfo", personalInfo)
     # You can now use deviceSn in your logic or pass it to the template
     #return render_template("bigscreen_new.html", deviceSn=deviceSn, userName=userName)
-    return render_template("personal.html", deviceSn=deviceSn)
+    return render_template("personal.html", 
+                         deviceSn=deviceSn,
+                         PERSONAL_SCREEN_VERSION=PERSONAL_SCREEN_VERSION)
 @app.route("/personal_new")
 def personal_new():
     deviceSn = request.args.get('deviceSn')  # Get the deviceSn from query parameters
@@ -537,7 +619,11 @@ def personal_modern():
 def main_index():
     customerId = request.args.get('customerId')  # Get the deviceSn from query parameters
     logger.info(f"customerId: {customerId}")
-    return render_template("bigscreen_main.html", customerId=customerId)
+    return render_template("bigscreen_main.html", 
+                         customerId=customerId,
+                         BIGSCREEN_TITLE=BIGSCREEN_TITLE,
+                         BIGSCREEN_VERSION=BIGSCREEN_VERSION,
+                         COMPANY_NAME=COMPANY_NAME)
 
 @app.route("/main_dashboard")
 def main_dashboard():
@@ -2049,37 +2135,61 @@ def health_data_chart_baseline():
 
 @app.route('/api/health/analysis/comprehensive', methods=['GET'])
 def get_comprehensive_health_analysis():
-    """综合健康分析接口：包含健康预测、评分和建议"""
+    """综合健康分析接口 - 支持多种查询参数"""
     try:
-        deviceSn = request.args.get('deviceSn')
-        days = int(request.args.get('days', 30))  # 分析天数，默认30天
+        device_sn = request.args.get('deviceSn')
+        customer_id = request.args.get('customerId')
+        user_id = request.args.get('userId')
+        days = int(request.args.get('days', 7))
         
-        if not deviceSn:
+        # 支持多种参数组合
+        if not device_sn and not customer_id and not user_id:
             return jsonify({
                 'success': False,
-                'error': 'deviceSn参数是必需的'
+                'error': '需要提供 deviceSn 或 customerId 或 userId 参数'
             }), 400
             
-        # 获取用户ID和组织ID
-        from .device import fetch_user_org_by_deviceSn
-        userId, orgId = fetch_user_org_by_deviceSn(deviceSn)
+        # 如果提供customerId，返回租户级别的分析数据
+        if customer_id and not device_sn and not user_id:
+            return get_customer_comprehensive_analysis(customer_id, days)
         
-        if not userId or not orgId:
+        # 获取用户信息
+        from .user import get_user_id_by_deviceSn
+        user_id = get_user_id_by_deviceSn(device_sn)
+        
+        if not user_id:
             return jsonify({
                 'success': False,
-                'error': '未找到设备对应的用户信息'
+                'error': f'设备{device_sn}未找到对应用户'
+            }), 404
+        
+        # 获取用户组织信息
+        from .device import get_device_user_org_info
+        org_info = get_device_user_org_info(device_sn)
+        
+        if not org_info or not org_info.get('success'):
+            return jsonify({
+                'success': False,
+                'error': f'设备{device_sn}未找到对应组织: {org_info.get("message", "未知错误") if org_info else "查询失败"}'
             }), 404
             
+        org_id = org_info.get('org_id')
+        
         # 计算日期范围
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         
-        # 使用get_all_health_data_optimized获取健康数据
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        
+        api_logger.info(f"📊 综合健康分析: deviceSn={device_sn}, userId={user_id}, orgId={org_id}, days={days}")
+        
+        # 获取健康数据
         health_result = get_all_health_data_optimized(
-            orgId=orgId,
-            userId=userId,
-            startDate=start_date.strftime('%Y-%m-%d'),
-            endDate=end_date.strftime('%Y-%m-%d'),
+            orgId=org_id,
+            userId=user_id,
+            startDate=start_date_str,
+            endDate=end_date_str,
             latest_only=False
         )
         
@@ -2097,18 +2207,148 @@ def get_comprehensive_health_analysis():
         return jsonify({
             'success': True,
             'data': {
-                'deviceSn': deviceSn,
-                'userId': str(userId),
-                'orgId': str(orgId),
+                'deviceSn': device_sn,
+                'userId': str(user_id),
+                'orgId': str(org_id),
                 'analysisDate': datetime.now().isoformat(),
                 'dataPoints': len(health_data),
                 'analysisPeriod': f'{days}天',
+                'dateRange': {
+                    'startDate': start_date_str,
+                    'endDate': end_date_str
+                },
                 **analysis_result
             }
         })
         
     except Exception as e:
-        api_logger.error(f"综合健康分析接口错误: {str(e)}")
+        api_logger.error(f"❌ 综合健康分析失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'综合健康分析失败: {str(e)}'
+        }), 500
+
+def get_customer_comprehensive_analysis(customer_id, days=7):
+    """按租户ID获取综合健康分析数据"""
+    try:
+        from .models import UserInfo
+        from datetime import datetime, timedelta
+        import statistics
+        
+        # 获取租户下所有用户
+        users = UserInfo.query.filter_by(
+            customer_id=customer_id, 
+            is_deleted=False, 
+            status='1'
+        ).all()
+        
+        if not users:
+            return jsonify({
+                'success': False,
+                'error': f'租户{customer_id}下未找到有效用户'
+            }), 404
+        
+        # 计算日期范围
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        
+        # 汇总分析数据
+        all_health_data = []
+        user_analyses = []
+        aggregated_stats = {
+            'total_users': len(users),
+            'active_users': 0,
+            'avg_heart_rate': 0,
+            'avg_blood_oxygen': 0,
+            'avg_temperature': 0,
+            'total_steps': 0,
+            'health_scores': [],
+            'health_distribution': {'excellent': 0, 'good': 0, 'fair': 0, 'poor': 0}
+        }
+        
+        for user in users:
+            try:
+                # 获取用户健康数据
+                user_health_result = get_all_health_data_optimized(
+                    orgId=user.org_id or customer_id,  # 使用用户的组织ID或customer_id
+                    userId=user.id,
+                    startDate=start_date_str,
+                    endDate=end_date_str,
+                    latest_only=False
+                )
+                
+                if user_health_result.get('success'):
+                    user_health_data = user_health_result.get('data', {}).get('healthData', [])
+                    if user_health_data:
+                        aggregated_stats['active_users'] += 1
+                        all_health_data.extend(user_health_data)
+                        
+                        # 分析单个用户数据
+                        user_analysis = analyze_health_comprehensive(user_health_data, days)
+                        user_analysis['user_info'] = {
+                            'user_id': user.id,
+                            'user_name': user.user_name,
+                            'device_sn': user.device_sn
+                        }
+                        user_analyses.append(user_analysis)
+                        
+                        # 汇总健康评分
+                        if user_analysis.get('healthScore', {}).get('overall'):
+                            score = user_analysis['healthScore']['overall']
+                            aggregated_stats['health_scores'].append(score)
+                            
+                            # 统计健康等级分布
+                            if score >= 90:
+                                aggregated_stats['health_distribution']['excellent'] += 1
+                            elif score >= 80:
+                                aggregated_stats['health_distribution']['good'] += 1
+                            elif score >= 70:
+                                aggregated_stats['health_distribution']['fair'] += 1
+                            else:
+                                aggregated_stats['health_distribution']['poor'] += 1
+                        
+            except Exception as user_error:
+                api_logger.warning(f"分析用户{user.id}健康数据失败: {user_error}")
+                continue
+        
+        # 计算租户级别的整体分析
+        if all_health_data:
+            tenant_analysis = analyze_health_comprehensive(all_health_data, days)
+            
+            # 计算统计数据
+            if aggregated_stats['health_scores']:
+                aggregated_stats['avg_health_score'] = round(statistics.mean(aggregated_stats['health_scores']), 1)
+                aggregated_stats['median_health_score'] = round(statistics.median(aggregated_stats['health_scores']), 1)
+                aggregated_stats['max_health_score'] = max(aggregated_stats['health_scores'])
+                aggregated_stats['min_health_score'] = min(aggregated_stats['health_scores'])
+        else:
+            tenant_analysis = {
+                'healthScore': {'overall': 60, 'category': '数据不足'},
+                'healthPrediction': {'trend': '数据不足', 'confidence': 'low'},
+                'healthAdvice': ['请确保设备正常佩戴', '定期同步健康数据']
+            }
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'customerId': customer_id,
+                'analysisDate': datetime.now().isoformat(),
+                'dataPoints': len(all_health_data),
+                'analysisPeriod': f'{days}天',
+                'dateRange': {
+                    'startDate': start_date_str,
+                    'endDate': end_date_str
+                },
+                'aggregatedStats': aggregated_stats,
+                'tenantAnalysis': tenant_analysis,
+                'userAnalyses': user_analyses[:10]  # 限制返回前10个用户的详细分析
+            }
+        })
+        
+    except Exception as e:
+        api_logger.error(f"租户综合健康分析失败: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -2896,9 +3136,9 @@ def api_generate_baseline():
         days = int(data.get('days', 7))
         
         from datetime import datetime, timedelta
-        from .health_baseline import HealthBaselineGenerator
+        from .health_baseline import HealthBaselineQuery
         
-        generator = HealthBaselineGenerator()
+        generator = HealthBaselineQuery()
         
         # 生成最近N天的baseline
         results = []
@@ -4212,6 +4452,92 @@ def get_personal_health_trends():
             'error': f'获取个人健康趋势失败: {str(e)}'
         }), 500
 
+@app.route('/api/device/info', methods=['GET'])
+def get_device_info():
+    """获取设备信息API"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        org_id = request.args.get('orgId')
+        user_id = request.args.get('userId')
+        
+        if not device_sn and not (org_id or user_id):
+            return jsonify({
+                'success': False,
+                'error': '需要deviceSn或orgId/userId参数'
+            }), 400
+        
+        # 获取用户信息
+        if device_sn and not user_id:
+            from .user import get_user_id_by_deviceSn
+            user_id = get_user_id_by_deviceSn(device_sn)
+            
+        from .device import get_all_device_data_optimized
+        device_result = get_all_device_data_optimized(
+            orgId=org_id,
+            userId=user_id,
+            latest_only=True,
+            include_alerts=False
+        )
+        
+        return jsonify(device_result)
+        
+    except Exception as e:
+        api_logger.error(f"获取设备信息失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取设备信息失败: {str(e)}'
+        }), 500
+
+@app.route('/api/health_data/latest', methods=['GET'])
+def get_latest_health_data_api():
+    """获取最新健康数据API"""
+    try:
+        device_sn = request.args.get('deviceSn')
+        
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'error': 'deviceSn参数是必需的'
+            }), 400
+        
+        from .user_health_data import get_latest_health_data_by_device
+        health_data = get_latest_health_data_by_device(device_sn)
+        
+        if health_data is None:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'deviceSn': device_sn,
+                    'heartRate': 0,
+                    'bloodOxygen': 0,
+                    'temperature': '0.0',
+                    'pressureHigh': 0,
+                    'pressureLow': 0,
+                    'step': 0,
+                    'distance': 0.0,
+                    'calorie': 0.0,
+                    'stress': 0,
+                    'timestamp': datetime.now().isoformat(),
+                    'status': 'no_data'
+                }
+            })
+        
+        # 添加deviceSn和状态信息
+        health_data['deviceSn'] = device_sn
+        health_data['status'] = 'active'
+        
+        return jsonify({
+            'success': True,
+            'data': health_data
+        })
+        
+    except Exception as e:
+        api_logger.error(f"获取最新健康数据失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取最新健康数据失败: {str(e)}'
+        }), 500
+
     except Exception as e:
         print(f"Error in phone_get_personal_info: {e}")
         return jsonify({
@@ -4743,7 +5069,7 @@ def test_wechat_send():
 def main():#应用启动入口
     """应用启动入口"""
     import os
-    port=int(os.environ.get('APP_PORT',8001))#支持环境变量配置端口
+    port=int(os.environ.get('APP_PORT',5225))#支持环境变量配置端口 - 本地调试默认5225
     socketio.run(app,host='0.0.0.0',port=port,debug=True,allow_unsafe_werkzeug=True)
 
 if __name__ == "__main__":
@@ -5316,8 +5642,8 @@ def api_health_profile_generate_v2():
             }), 404
         
         # 生成健康画像
-        from .health_profile_engine import HealthProfileEngine
-        profile_engine = HealthProfileEngine()
+        from .health_profile_engine import RealTimeHealthProfileEngine
+        profile_engine = RealTimeHealthProfileEngine()
         
         profile_data = profile_engine.generate_personal_profile(
             user_id=user_info.get('id'),
@@ -5365,8 +5691,8 @@ def api_health_baseline_personal():
             }), 404
         
         # 获取个人基线数据
-        from .health_baseline_engine import HealthBaselineEngine
-        baseline_engine = HealthBaselineEngine()
+        from .health_baseline_engine import RealTimeHealthBaselineEngine
+        baseline_engine = RealTimeHealthBaselineEngine()
         
         baseline_data = baseline_engine.get_personal_baseline(
             user_id=user_info.get('id'),
@@ -5485,8 +5811,8 @@ def api_health_comprehensive_score():
             }), 404
         
         # 计算综合健康评分
-        from .health_score_engine import HealthScoreEngine
-        score_engine = HealthScoreEngine()
+        from .health_score_engine import RealTimeHealthScoreEngine
+        score_engine = RealTimeHealthScoreEngine()
         
         comprehensive_score = score_engine.calculate_comprehensive_score(
             user_id=user_info.get('id'),
@@ -5508,19 +5834,88 @@ def api_health_comprehensive_score():
             'error': str(e)
         }), 500
 
-@app.route('/api/health/recommendations', methods=['POST'])
+@app.route('/api/health/recommendations', methods=['GET'])
 def api_health_recommendations():
-    """健康建议生成接口"""
+    """健康建议查询接口 - 使用标准化参数"""
     try:
-        data = request.get_json()
-        device_sn = data.get('deviceSn')
-        recommendation_type = data.get('type', 'comprehensive')  # comprehensive, emergency, preventive
+        device_sn = request.args.get('deviceSn')
+        days = int(request.args.get('days', 7))
         
         if not device_sn:
             return jsonify({
                 'success': False,
-                'message': '设备序列号不能为空'
+                'error': 'deviceSn参数是必需的'
             }), 400
+        
+        # 获取用户信息
+        from .user import get_user_id_by_deviceSn
+        user_id = get_user_id_by_deviceSn(device_sn)
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': f'设备{device_sn}未找到对应用户'
+            }), 404
+        
+        # 获取用户组织信息
+        from .device import get_device_user_org_info
+        org_info = get_device_user_org_info(device_sn)
+        
+        if not org_info or not org_info.get('success'):
+            return jsonify({
+                'success': False,
+                'error': f'设备{device_sn}未找到对应组织: {org_info.get("message", "未知错误") if org_info else "查询失败"}'
+            }), 404
+            
+        org_id = org_info.get('org_id')
+        
+        # 计算日期范围
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        
+        api_logger.info(f"💡 获取健康建议: deviceSn={device_sn}, userId={user_id}, orgId={org_id}, days={days}")
+        
+        # 获取健康数据用于生成建议
+        health_result = get_all_health_data_optimized(
+            orgId=org_id,
+            userId=user_id,
+            startDate=start_date_str,
+            endDate=end_date_str,
+            latest_only=False
+        )
+        
+        if not health_result.get('success'):
+            # 如果没有健康数据，返回通用建议
+            recommendations = generate_default_health_recommendations()
+        else:
+            health_data = health_result.get('data', {}).get('healthData', [])
+            recommendations = generate_health_recommendations_from_data(health_data, days)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'deviceSn': device_sn,
+                'userId': str(user_id),
+                'orgId': str(org_id),
+                'recommendationDate': datetime.now().isoformat(),
+                'analysisPeriod': f'{days}天',
+                'dateRange': {
+                    'startDate': start_date_str,
+                    'endDate': end_date_str
+                },
+                'recommendations': recommendations
+            }
+        })
+        
+    except Exception as e:
+        api_logger.error(f"❌ 获取健康建议失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'获取健康建议失败: {str(e)}'
+        }), 500
         
         # 获取用户信息
         from .user import get_user_info_by_deviceSn
@@ -5533,8 +5928,8 @@ def api_health_recommendations():
             }), 404
         
         # 生成健康建议
-        from .health_recommendation_engine import HealthRecommendationEngine
-        recommendation_engine = HealthRecommendationEngine()
+        from .health_recommendation_engine import RealTimeHealthRecommendationEngine
+        recommendation_engine = RealTimeHealthRecommendationEngine()
         
         recommendations = recommendation_engine.generate_recommendations(
             user_id=user_info.get('id'),
@@ -5635,6 +6030,839 @@ def api_health_trends_comprehensive():
             'error': str(e)
         }), 500
 
+# ========== 健康数据智能分析系统 API 端点 ==========
+
+# 权重管理 API
+@app.route('/api/weight/user/all', methods=['GET'])
+def api_get_user_weights():
+    """获取用户所有体征权重配置"""
+    try:
+        user_id = request.args.get('userId')
+        customer_id = request.args.get('customerId')
+        
+        if not user_id or not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '用户ID和租户ID不能为空'
+            }), 400
+        
+        weight_calculator = WeightCalculator()
+        weights = weight_calculator.get_all_user_weights(int(user_id), int(customer_id))
+        
+        return jsonify({
+            'success': True,
+            'data': weights,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取用户权重配置失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/weight/metric/update', methods=['POST'])
+def api_update_metric_weight():
+    """更新体征权重"""
+    try:
+        data = request.get_json()
+        customer_id = data.get('customerId')
+        metric_name = data.get('metricName')
+        new_weight = data.get('newWeight')
+        
+        if not all([customer_id, metric_name, new_weight]):
+            return jsonify({
+                'success': False,
+                'message': '必填参数不能为空'
+            }), 400
+        
+        weight_calculator = WeightCalculator()
+        success = weight_calculator.update_metric_weight(
+            int(customer_id), metric_name, float(new_weight)
+        )
+        
+        return jsonify({
+            'success': success,
+            'message': '权重更新成功' if success else '权重更新失败',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"更新体征权重失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/weight/position/update', methods=['POST'])
+def api_update_position_weight():
+    """更新岗位权重"""
+    try:
+        data = request.get_json()
+        position_id = data.get('positionId')
+        new_weight = data.get('newWeight')
+        
+        if not all([position_id, new_weight]):
+            return jsonify({
+                'success': False,
+                'message': '岗位ID和权重值不能为空'
+            }), 400
+        
+        weight_calculator = WeightCalculator()
+        success = weight_calculator.update_position_weight(
+            int(position_id), float(new_weight)
+        )
+        
+        return jsonify({
+            'success': success,
+            'message': '岗位权重更新成功' if success else '岗位权重更新失败',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"更新岗位权重失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/weight/statistics', methods=['GET'])
+def api_get_weight_statistics():
+    """获取权重配置统计信息"""
+    try:
+        customer_id = request.args.get('customerId')
+        
+        if not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '租户ID不能为空'
+            }), 400
+        
+        weight_calculator = WeightCalculator()
+        statistics = weight_calculator.get_weight_statistics(int(customer_id))
+        
+        return jsonify({
+            'success': True,
+            'data': statistics,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取权重统计信息失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/weight/validation', methods=['GET'])
+def api_validate_weight_configuration():
+    """验证权重配置合理性"""
+    try:
+        customer_id = request.args.get('customerId')
+        
+        if not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '租户ID不能为空'
+            }), 400
+        
+        weight_calculator = WeightCalculator()
+        validation_result = weight_calculator.validate_weight_configuration(int(customer_id))
+        
+        return jsonify({
+            'success': True,
+            'data': validation_result,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"验证权重配置失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 健康基线管理 API
+@app.route('/api/baseline/user/generate', methods=['POST'])
+def api_generate_user_baseline():
+    """生成用户个人健康基线"""
+    try:
+        data = request.get_json()
+        user_id = data.get('userId')
+        customer_id = data.get('customerId')
+        days_back = data.get('daysBack', 90)
+        force_update = data.get('forceUpdate', False)
+        
+        if not user_id or not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '用户ID和租户ID不能为空'
+            }), 400
+        
+        baseline_manager = HealthBaselineManager()
+        result = baseline_manager.generate_user_baseline(
+            int(user_id), int(customer_id), int(days_back), force_update
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': result,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"生成用户基线失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/baseline/population/generate', methods=['POST'])
+def api_generate_population_baseline():
+    """生成人群健康基线"""
+    try:
+        data = request.get_json()
+        customer_id = data.get('customerId')
+        age_group = data.get('ageGroup')
+        gender = data.get('gender')
+        days_back = data.get('daysBack', 90)
+        force_update = data.get('forceUpdate', False)
+        
+        if not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '租户ID不能为空'
+            }), 400
+        
+        baseline_manager = HealthBaselineManager()
+        result = baseline_manager.generate_population_baseline(
+            int(customer_id), age_group, gender, int(days_back), force_update
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': result,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"生成人群基线失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/baseline/user/get', methods=['GET'])
+def api_get_user_baseline():
+    """获取用户健康基线"""
+    try:
+        user_id = request.args.get('userId')
+        metric_name = request.args.get('metricName')
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '用户ID不能为空'
+            }), 400
+        
+        baseline_manager = HealthBaselineManager()
+        baseline = baseline_manager.get_user_baseline(int(user_id), metric_name)
+        
+        return jsonify({
+            'success': True,
+            'data': baseline,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取用户基线失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/baseline/compare', methods=['GET'])
+def api_compare_with_baseline():
+    """与基线对比分析"""
+    try:
+        user_id = request.args.get('userId')
+        customer_id = request.args.get('customerId')
+        days_back = request.args.get('daysBack', 30)
+        
+        if not user_id or not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '用户ID和租户ID不能为空'
+            }), 400
+        
+        baseline_manager = HealthBaselineManager()
+        comparison = baseline_manager.compare_user_with_baseline(
+            int(user_id), int(customer_id), int(days_back)
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': comparison,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"基线对比分析失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 健康建议管理 API
+@app.route('/api/recommendation/generate', methods=['POST'])
+def api_generate_recommendations():
+    """查询个性化健康建议 - ljwx-bigscreen只负责查询ljwx-boot生成的建议"""
+    try:
+        data = request.get_json()
+        user_id = data.get('userId')
+        customer_id = data.get('customerId')
+        
+        if not user_id or not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '用户ID和租户ID不能为空'
+            }), 400
+        
+        recommendation_engine = RealTimeHealthRecommendationEngine()
+        recommendations = recommendation_engine.generate_personalized_recommendations(
+            int(user_id), int(customer_id)
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': recommendations,
+            'count': len(recommendations),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"生成健康建议失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/recommendation/user/list', methods=['GET'])
+def api_get_user_recommendations():
+    """获取用户建议列表"""
+    try:
+        user_id = request.args.get('userId')
+        status = request.args.get('status')
+        limit = request.args.get('limit', 10)
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '用户ID不能为空'
+            }), 400
+        
+        recommendation_engine = RealTimeHealthRecommendationEngine()
+        recommendations = recommendation_engine.get_user_recommendations(
+            int(user_id), status, int(limit)
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': recommendations,
+            'count': len(recommendations),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取用户建议列表失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/recommendation/progress/update', methods=['POST'])
+def api_update_recommendation_progress():
+    """更新建议执行进度"""
+    try:
+        data = request.get_json()
+        recommendation_id = data.get('recommendationId')
+        user_feedback = data.get('userFeedback')
+        progress_data = data.get('progressData', {})
+        
+        if not recommendation_id:
+            return jsonify({
+                'success': False,
+                'message': '建议ID不能为空'
+            }), 400
+        
+        recommendation_engine = RealTimeHealthRecommendationEngine()
+        success = recommendation_engine.update_recommendation_progress(
+            int(recommendation_id), user_feedback, progress_data
+        )
+        
+        return jsonify({
+            'success': success,
+            'message': '进度更新成功' if success else '进度更新失败',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"更新建议进度失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/recommendation/effectiveness/evaluate', methods=['GET'])
+def api_evaluate_recommendation_effectiveness():
+    """评估建议执行效果"""
+    try:
+        recommendation_id = request.args.get('recommendationId')
+        
+        if not recommendation_id:
+            return jsonify({
+                'success': False,
+                'message': '建议ID不能为空'
+            }), 400
+        
+        recommendation_engine = RealTimeHealthRecommendationEngine()
+        effectiveness = recommendation_engine.evaluate_recommendation_effectiveness(
+            int(recommendation_id)
+        )
+        
+        if effectiveness is None:
+            return jsonify({
+                'success': False,
+                'message': '无法评估建议效果，可能是建议未完成或数据不足'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'data': effectiveness,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"评估建议效果失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 建议跟踪系统 API
+@app.route('/api/tracking/daily/check', methods=['GET'])
+def api_daily_recommendation_check():
+    """每日建议检查和提醒"""
+    try:
+        customer_id = request.args.get('customerId')
+        
+        if not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '租户ID不能为空'
+            }), 400
+        
+        from .recommendation_tracker import RecommendationTracker
+        tracker = RecommendationTracker()
+        check_result = tracker.daily_recommendation_check(int(customer_id))
+        
+        return jsonify({
+            'success': True,
+            'data': check_result,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"每日建议检查失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/tracking/followup/generate', methods=['POST'])
+def api_generate_followup_recommendations():
+    """自动生成后续建议"""
+    try:
+        data = request.get_json()
+        user_id = data.get('userId')
+        customer_id = data.get('customerId')
+        
+        if not user_id or not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '用户ID和租户ID不能为空'
+            }), 400
+        
+        from .recommendation_tracker import RecommendationTracker
+        tracker = RecommendationTracker()
+        follow_up_recommendations = tracker.auto_generate_follow_up_recommendations(
+            int(user_id), int(customer_id)
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': follow_up_recommendations,
+            'count': len(follow_up_recommendations),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"生成后续建议失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/tracking/recommendation/effects', methods=['GET'])
+def api_get_recommendation_effects():
+    """获取建议执行效果"""
+    try:
+        recommendation_id = request.args.get('recommendationId')
+        
+        if not recommendation_id:
+            return jsonify({
+                'success': False,
+                'message': '建议ID不能为空'
+            }), 400
+        
+        tracker = RecommendationTracker()
+        effects = tracker.get_recommendation_effects(int(recommendation_id))
+        
+        return jsonify({
+            'success': True,
+            'data': effects,
+            'count': len(effects) if effects else 0,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取建议效果失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 综合健康评分 API（已集成权重系统）
+@app.route('/api/health/score/comprehensive', methods=['GET'])
+def api_get_comprehensive_health_score():
+    """获取综合健康评分（已集成权重系统）- 支持多种查询方式"""
+    try:
+        # 支持多种参数组合
+        user_id = request.args.get('userId')
+        customer_id = request.args.get('customerId')
+        device_sn = request.args.get('deviceSn')
+        date_range = request.args.get('dateRange', 30)
+        days = request.args.get('days', 7)
+        
+        # 参数验证和转换逻辑
+        if device_sn and not user_id:
+            # 通过deviceSn获取userId和customerId
+            from .user import get_user_info_by_deviceSn
+            user_info = get_user_info_by_deviceSn(device_sn)
+            if not user_info:
+                return jsonify({
+                    'success': False,
+                    'error': f'设备{device_sn}未找到对应用户'
+                }), 404
+            user_id = user_info.get('id')
+            customer_id = customer_id or user_info.get('customer_id')
+            
+        elif customer_id and not user_id and not device_sn:
+            # 按customerId查询所有用户的综合数据
+            return get_all_users_health_score_by_customer(customer_id, int(days))
+            
+        elif not user_id or not customer_id:
+            return jsonify({
+                'success': False,
+                'error': '需要提供 (userId + customerId) 或 deviceSn 或 customerId 参数'
+            }), 400
+        
+        # 单用户健康评分计算
+        from .health_score_engine import RealTimeHealthScoreEngine
+        score_engine = RealTimeHealthScoreEngine()
+        score_detail = score_engine.calculate_comprehensive_health_score(
+            int(user_id), int(customer_id), int(date_range)
+        )
+        
+        if score_detail is None:
+            return jsonify({
+                'success': False,
+                'message': '无法计算健康评分，可能是数据不足'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'data': score_detail,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取综合健康评分失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def get_all_users_health_score_by_customer(customer_id, days=7):
+    """按租户ID获取所有用户的健康评分统计"""
+    try:
+        from .models import UserInfo
+        from .health_score_engine import RealTimeHealthScoreEngine
+        from datetime import datetime, timedelta
+        import statistics
+        
+        # 获取租户下所有用户
+        users = UserInfo.query.filter_by(
+            customer_id=customer_id, 
+            is_deleted=False, 
+            status='1'
+        ).all()
+        
+        if not users:
+            return jsonify({
+                'success': False,
+                'error': f'租户{customer_id}下未找到有效用户'
+            }), 404
+        
+        score_engine = RealTimeHealthScoreEngine()
+        all_scores = []
+        user_scores = []
+        health_distribution = {'excellent': 0, 'good': 0, 'fair': 0, 'poor': 0}
+        
+        for user in users:
+            try:
+                score_detail = score_engine.calculate_comprehensive_health_score(
+                    user.id, customer_id, days
+                )
+                if score_detail and score_detail.get('overall_score'):
+                    score = score_detail['overall_score']
+                    all_scores.append(score)
+                    
+                    user_scores.append({
+                        'user_id': user.id,
+                        'user_name': user.user_name,
+                        'device_sn': user.device_sn,
+                        'score': score,
+                        'level': get_health_level_by_score(score)
+                    })
+                    
+                    # 统计健康等级分布
+                    if score >= 90:
+                        health_distribution['excellent'] += 1
+                    elif score >= 80:
+                        health_distribution['good'] += 1
+                    elif score >= 70:
+                        health_distribution['fair'] += 1
+                    else:
+                        health_distribution['poor'] += 1
+                        
+            except Exception as user_error:
+                logger.warning(f"计算用户{user.id}健康评分失败: {user_error}")
+                continue
+        
+        if not all_scores:
+            return jsonify({
+                'success': False,
+                'error': '租户下所有用户都无法计算健康评分，可能是数据不足'
+            }), 404
+        
+        # 计算统计数据
+        stats = {
+            'average_score': round(statistics.mean(all_scores), 1),
+            'median_score': round(statistics.median(all_scores), 1),
+            'max_score': max(all_scores),
+            'min_score': min(all_scores),
+            'total_users': len(user_scores),
+            'score_distribution': health_distribution
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'customer_id': customer_id,
+                'statistics': stats,
+                'user_scores': sorted(user_scores, key=lambda x: x['score'], reverse=True),
+                'date_range_days': days
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"按租户获取健康评分失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def get_health_level_by_score(score):
+    """根据分数获取健康等级"""
+    if score >= 90:
+        return '优秀'
+    elif score >= 80:
+        return '良好'
+    elif score >= 70:
+        return '一般'
+    else:
+        return '需改善'
+
+@app.route('/api/health/score/trend', methods=['GET'])
+def api_get_health_score_trend():
+    """获取健康评分趋势"""
+    try:
+        user_id = request.args.get('userId')
+        days_back = request.args.get('daysBack', 90)
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': '用户ID不能为空'
+            }), 400
+        
+        from .health_score_engine import RealTimeHealthScoreEngine
+        score_engine = RealTimeHealthScoreEngine()
+        trends = score_engine.get_user_score_trend(int(user_id), int(days_back))
+        
+        return jsonify({
+            'success': True,
+            'data': trends,
+            'count': len(trends),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"获取健康评分趋势失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/health/score/analysis', methods=['GET'])
+def api_analyze_health_score():
+    """健康评分因素分析"""
+    try:
+        user_id = request.args.get('userId')
+        customer_id = request.args.get('customerId')
+        
+        if not user_id or not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '用户ID和租户ID不能为空'
+            }), 400
+        
+        from .health_score_engine import realtime_score_engine
+        # Use the optimized score engine instance
+        result = realtime_score_engine.calculate_user_health_score_realtime(int(user_id))
+        analysis = result.get('data') if result.get('success') else None
+        
+        if analysis is None:
+            return jsonify({
+                'success': False,
+                'message': '无法分析健康评分，可能是数据不足'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'data': analysis,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"健康评分分析失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ========== 健康数据缓存管理API ==========
+
+@app.route('/api/health/cache/stats', methods=['GET'])
+def api_health_cache_stats():
+    """获取健康数据缓存统计信息"""
+    try:
+        stats = health_data_cache_integration.get_cache_health_stats()
+        return jsonify({
+            'success': True,
+            'data': stats,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"获取健康缓存统计失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/health/cache/clear', methods=['DELETE'])
+def api_health_cache_clear():
+    """清理健康数据缓存"""
+    try:
+        user_id = request.args.get('userId')
+        org_id = request.args.get('orgId')
+        
+        if user_id:
+            # 清理指定用户缓存
+            result = health_data_cache_integration.invalidate_user_cache(
+                int(user_id), int(org_id) if org_id else None
+            )
+            return jsonify({
+                'success': True,
+                'message': '用户缓存清理完成',
+                'data': result
+            })
+        elif org_id:
+            # 清理指定组织缓存
+            result = health_data_cache_integration.cache.clear_org_cache(int(org_id))
+            return jsonify({
+                'success': result,
+                'message': '组织缓存清理完成' if result else '组织缓存清理失败'
+            })
+        else:
+            # 清理过期缓存
+            deleted_count = health_data_cache_integration.cache.clear_expired_cache()
+            return jsonify({
+                'success': True,
+                'message': f'清理过期缓存完成，删除 {deleted_count} 个键'
+            })
+    except Exception as e:
+        logger.error(f"清理健康缓存失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/health/cache/preload', methods=['POST'])
+def api_health_cache_preload():
+    """预加载健康数据缓存"""
+    try:
+        data = request.get_json() or {}
+        org_id = data.get('orgId')
+        user_ids = data.get('userIds', [])
+        days_back = data.get('daysBack', 7)
+        
+        if not org_id:
+            return jsonify({
+                'success': False,
+                'message': '组织ID不能为空'
+            }), 400
+        
+        result = health_data_cache_integration.preload_user_data_cache(
+            int(org_id), user_ids, days_back
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': '缓存预加载完成',
+            'data': result
+        })
+        
+    except Exception as e:
+        logger.error(f"预加载健康缓存失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # ========== 辅助函数 ==========
 
 def get_vital_status(metric, value):
@@ -5669,6 +6897,199 @@ def get_vital_status(metric, value):
             
     except Exception:
         return 'unknown'
+
+def generate_default_health_recommendations():
+    """生成默认健康建议"""
+    return [
+        {
+            'category': '运动健康',
+            'priority': 'high',
+            'title': '保持适量运动',
+            'content': '建议每天步行8000-10000步，进行30分钟中等强度运动',
+            'icon': '🏃'
+        },
+        {
+            'category': '生活作息',
+            'priority': 'high', 
+            'title': '规律作息',
+            'content': '保持规律的睡眠时间，每晚7-8小时充足睡眠',
+            'icon': '😴'
+        },
+        {
+            'category': '健康监测',
+            'priority': 'medium',
+            'title': '定期健康检查',
+            'content': '建议定期监测血压、心率等生命体征指标',
+            'icon': '📊'
+        },
+        {
+            'category': '饮食营养',
+            'priority': 'medium',
+            'title': '均衡饮食',
+            'content': '保持营养均衡，多食用蔬菜水果，控制高油高糖摄入',
+            'icon': '🥗'
+        }
+    ]
+
+def generate_health_recommendations_from_data(health_data, days):
+    """基于健康数据生成个性化建议"""
+    if not health_data:
+        return generate_default_health_recommendations()
+    
+    recommendations = []
+    
+    # 分析健康数据
+    heart_rates = [float(item.get('heart_rate', 0)) for item in health_data if item.get('heart_rate')]
+    blood_oxygen = [float(item.get('blood_oxygen', 0)) for item in health_data if item.get('blood_oxygen')]
+    temperatures = [float(item.get('temperature', 0)) for item in health_data if item.get('temperature')]
+    steps = [int(item.get('step', 0)) for item in health_data if item.get('step')]
+    
+    # 心率建议
+    if heart_rates:
+        avg_hr = sum(heart_rates) / len(heart_rates)
+        if avg_hr > 100:
+            recommendations.append({
+                'category': '心率监测',
+                'priority': 'high',
+                'title': '心率偏高提醒',
+                'content': f'近{days}天平均心率{avg_hr:.1f}bpm，建议放松心情，避免剧烈运动',
+                'icon': '❤️'
+            })
+        elif avg_hr < 60:
+            recommendations.append({
+                'category': '心率监测', 
+                'priority': 'medium',
+                'title': '心率偏低提醒',
+                'content': f'近{days}天平均心率{avg_hr:.1f}bpm，建议适度运动增强心肺功能',
+                'icon': '❤️'
+            })
+    
+    # 血氧建议
+    if blood_oxygen:
+        avg_spo2 = sum(blood_oxygen) / len(blood_oxygen)
+        if avg_spo2 < 95:
+            recommendations.append({
+                'category': '血氧监测',
+                'priority': 'high', 
+                'title': '血氧偏低提醒',
+                'content': f'近{days}天平均血氧{avg_spo2:.1f}%，建议进行深呼吸训练，保持室内空气流通',
+                'icon': '🫁'
+            })
+    
+    # 体温建议
+    if temperatures:
+        avg_temp = sum(temperatures) / len(temperatures)
+        if avg_temp > 37.3:
+            recommendations.append({
+                'category': '体温监测',
+                'priority': 'high',
+                'title': '体温偏高提醒', 
+                'content': f'近{days}天平均体温{avg_temp:.1f}°C，请注意休息，如持续发热请就医',
+                'icon': '🌡️'
+            })
+    
+    # 运动建议
+    if steps:
+        avg_steps = sum(steps) / len(steps) if steps else 0
+        if avg_steps < 6000:
+            recommendations.append({
+                'category': '运动健康',
+                'priority': 'medium',
+                'title': '增加运动量',
+                'content': f'近{days}天平均步数{avg_steps:.0f}步，建议增加日常活动，目标每日8000-10000步',
+                'icon': '🏃'
+            })
+        elif avg_steps > 15000:
+            recommendations.append({
+                'category': '运动健康',
+                'priority': 'low',
+                'title': '运动量充足',
+                'content': f'近{days}天平均步数{avg_steps:.0f}步，运动量很好，注意劳逸结合',
+                'icon': '🏃'
+            })
+    
+    # 如果没有特殊建议，添加通用建议
+    if not recommendations:
+        recommendations = generate_default_health_recommendations()
+    else:
+        # 添加一般性建议
+        recommendations.extend([
+            {
+                'category': '生活作息',
+                'priority': 'low',
+                'title': '保持规律作息',
+                'content': '建议保持规律的作息时间，充足的睡眠对健康很重要',
+                'icon': '😴'
+            },
+            {
+                'category': '定期检查',
+                'priority': 'low', 
+                'title': '持续健康监测',
+                'content': '继续佩戴设备监测健康状况，关注数据变化趋势',
+                'icon': '📱'
+            }
+        ])
+    
+    return recommendations
+
+@app.route('/api/debug/device/<device_sn>', methods=['GET'])
+def debug_device_info(device_sn):
+    """调试端点 - 检查设备绑定信息"""
+    try:
+        api_logger.info(f"🔍 调试设备信息: deviceSn={device_sn}")
+        
+        # 1. 检查用户ID
+        from .user import get_user_id_by_deviceSn
+        user_id = get_user_id_by_deviceSn(device_sn)
+        
+        # 2. 检查组织信息
+        from .device import get_device_user_org_info
+        org_info = get_device_user_org_info(device_sn)
+        
+        # 3. 直接查询数据库
+        from .models import UserInfo, UserOrg, OrgInfo
+        
+        db_user = UserInfo.query.filter_by(device_sn=device_sn, is_deleted=False).first()
+        
+        debug_info = {
+            'deviceSn': device_sn,
+            'user_id_from_function': user_id,
+            'org_info_from_function': org_info,
+            'db_user_info': {
+                'exists': db_user is not None,
+                'user_id': db_user.id if db_user else None,
+                'user_name': db_user.user_name if db_user else None,
+                'is_deleted': db_user.is_deleted if db_user else None
+            } if db_user else None
+        }
+        
+        if db_user:
+            # 查询用户组织关系
+            user_org = UserOrg.query.filter_by(user_id=db_user.id).first()
+            if user_org:
+                org = OrgInfo.query.filter_by(id=user_org.org_id, is_deleted=False).first()
+                debug_info['db_org_info'] = {
+                    'user_org_exists': True,
+                    'org_id': user_org.org_id,
+                    'org_exists': org is not None,
+                    'org_name': org.name if org else None,
+                    'org_is_deleted': org.is_deleted if org else None
+                }
+            else:
+                debug_info['db_org_info'] = {'user_org_exists': False}
+        
+        return jsonify({
+            'success': True,
+            'debug': debug_info
+        })
+        
+    except Exception as e:
+        api_logger.error(f"❌ 调试设备信息失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'deviceSn': device_sn
+        }), 500
         
 if __name__ == '__main__':
     main()
