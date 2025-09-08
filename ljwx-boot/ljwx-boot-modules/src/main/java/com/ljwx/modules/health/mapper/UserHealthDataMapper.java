@@ -66,4 +66,9 @@ public interface UserHealthDataMapper extends BaseMapper<UserHealthData> {
             "FROM t_user_health_data WHERE user_id = #{userId} " +
             "AND timestamp >= #{startTime} AND is_deleted = 0")
     Map<String, Object> getUserHealthSummary(@Param("userId") Long userId, @Param("startTime") LocalDateTime startTime);
+
+    /**
+     * 查询历史数据用于预测模型训练
+     */
+    List<UserHealthData> selectHistoricalData(Map<String, Object> params);
 }

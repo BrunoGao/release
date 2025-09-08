@@ -8,6 +8,8 @@ import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.system.service.ISysUserService;
 import com.ljwx.modules.health.domain.entity.TAlertInfo;
 import com.ljwx.modules.health.repository.mapper.TAlertInfoMapper;
+import com.ljwx.modules.health.domain.dto.UnifiedHealthQueryDTO;
+import com.ljwx.modules.health.service.UnifiedHealthDataQueryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,9 @@ public class HealthScoreCalculationService {
     
     @Autowired
     private ISysUserService sysUserService;
+    
+    @Autowired
+    private UnifiedHealthDataQueryService unifiedQueryService;
 
     /**
      * 计算用户综合健康评分
@@ -64,10 +69,23 @@ public class HealthScoreCalculationService {
                 throw new BizException("用户不存在");
             }
 
-            // 2. 获取时间范围内的健康数据
+            // 2. 使用统一查询服务获取健康数据
             LocalDateTime endTime = LocalDateTime.now();
             LocalDateTime startTime = endTime.minusDays(dateRange);
-            List<UserHealthData> healthDataList = getUserHealthData(userId, startTime, endTime);
+            
+            UnifiedHealthQueryDTO query = new UnifiedHealthQueryDTO();
+            query.setCustomerId(user.getCustomerId());
+            query.setUserId(userId);
+            query.setStartDate(startTime);
+            query.setEndDate(endTime);
+            query.setPageSize(5000); // 评分计算需要适量数据
+            query.setIncludeStats(true); // 需要统计信息用于评分计算
+            query.setEnableSharding(true);
+            query.setOrderBy("timestamp");
+            query.setOrderDirection("desc");
+            
+            Map<String, Object> queryResult = unifiedQueryService.queryHealthData(query);
+            List<UserHealthData> healthDataList = (List<UserHealthData>) queryResult.get("data");
             
             if (healthDataList.isEmpty()) {
                 log.warn("用户{}在{}天内无健康数据", userId, dateRange);
@@ -81,7 +99,8 @@ public class HealthScoreCalculationService {
             Map<String, HealthDataConfig> configMap = getHealthDataConfigs(user.getCustomerId());
             
             // 5. 获取告警历史
-            List<TAlertInfo> alertHistory = getUserAlerts(userId, startTime, endTime);
+            // 获取告警历史（告警数据不在健康数据主表中，保持原有查询方式）
+        List<TAlertInfo> alertHistory = getUserAlerts(userId, startTime, endTime);
             
             // 6. 计算各维度评分
             double physiologicalScore = calculatePhysiologicalScore(healthDataList, baselineMap, configMap);
@@ -347,7 +366,10 @@ public class HealthScoreCalculationService {
 
     // 辅助方法实现
 
+    // 已替换为统一查询服务，此方法保留作为兼容方法
+    @Deprecated
     private List<UserHealthData> getUserHealthData(Long userId, LocalDateTime startTime, LocalDateTime endTime) {
+        log.warn("使用了已废弃的getUserHealthData方法，建议使用UnifiedHealthDataQueryService");
         QueryWrapper<UserHealthData> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId)
                    .ge("timestamp", startTime)

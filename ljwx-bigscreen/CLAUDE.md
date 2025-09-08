@@ -70,7 +70,7 @@ python performance_stress_test.py
 python queue_stress_test.py
 
 # View performance report
-# Navigate to http://localhost:5001/performance_test_report
+# Navigate to http://localhost:5225/performance_test_report (local) or http://localhost:5001/performance_test_report (Docker)
 ```
 
 ## Core Architecture
@@ -110,7 +110,7 @@ Primary tables:
 Key variables in `.env` or environment:
 - `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
-- `APP_PORT` (default 5001)
+- `APP_PORT` (default 5225 for local debug, 5001 for Docker)
 - `WECHAT_APP_ID`, `WECHAT_APP_SECRET` for alerts
 
 ### UI Customization
@@ -180,6 +180,7 @@ The system includes comprehensive performance testing:
 - `/api/realtime_stats`: System statistics
 - `/system_monitor`: Performance monitoring dashboard
 - `/performance_test_report`: Load testing interface
+- `/health` or `/api/health`: Health check endpoints (added in v1.3.3)
 
 ## Code Style Notes
 
@@ -198,8 +199,30 @@ When modifying these functions, always test performance impact:
 
 ## Version Management
 
-Current version: 1.3.2
-- Multi-architecture Docker support
-- Radar chart sleep data fix
+Current version: 1.3.3
+- Port configuration update: Local debug uses 5225, Docker uses 5001
+- Added health check endpoints: `/health` and `/api/health`
+- Health checks validate database and Redis connections
+- Docker configuration remains unchanged for deployment consistency
+
+Previous versions:
+- 1.3.2: Multi-architecture Docker support, Radar chart sleep data fix
 - Performance optimizations for ConnectionResetError/BrokenPipeError
 - JavaScript error handling improvements
+
+## Port Configuration
+
+### Local Development
+- **Port**: 5225 (configured in `config.py`)
+- **Access**: http://localhost:5225
+- **Health Check**: http://localhost:5225/health
+
+### Docker Deployment
+- **Port**: 5001 (configured in `docker-compose.yml`)
+- **Access**: http://localhost:5001
+- **Health Check**: http://localhost:5001/health
+
+### Important Notes
+- **DO NOT STOP** ljwx-bigscreen service when making configuration changes
+- Health endpoints return JSON with service status, database, and Redis connection status
+- Port changes are backward compatible with existing deployment scripts

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ljwx.modules.health.repository.mapper.TUserHealthDataMapper">
+
+    <!-- 统一分表查询 -->
+    <select id="selectFromShardedTable" resultType="com.ljwx.modules.health.domain.entity.TUserHealthData">
+        SELECT 
+            id,
+            user_id,
+            customer_id,
+            org_id,
+            device_sn,
+            timestamp,
+            heart_rate,
+            blood_oxygen,
+            temperature,
+            pressure_high,
+            pressure_low,
+            stress,
+            step,
+            calorie,
+            distance,
+            upload_method,
+            create_time,
+            update_time
+        FROM ${tableName}
+        <where>
+            <if test="params.customerId != null">
+                AND customer_id = #{params.customerId}
+            </if>
+            <if test="params.orgId != null">
+                AND org_id = #{params.orgId}
+            </if>
+            <if test="params.userId != null">
+                AND user_id = #{params.userId}
+            </if>
+            <if test="params.deviceSn != null and params.deviceSn != ''">
+                AND device_sn = #{params.deviceSn}
+            </if>
+            <if test="params.startDate != null">
+                AND timestamp >= #{params.startDate}
+            </if>
+            <if test="params.endDate != null">
+                AND timestamp <= #{params.endDate}
+            </if>
+            <!-- 过滤特殊数据 -->
+            AND upload_method != 'common_event'
+            AND is_deleted = 0
+        </where>
+        ORDER BY timestamp ASC
+        <if test="params.limit != null">
+            LIMIT #{params.offset}, #{params.limit}
+        </if>
+    </select>
+
+</mapper>

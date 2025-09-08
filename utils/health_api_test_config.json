@@ -1,0 +1,128 @@
+{
+  "test_environments": {
+    "local": {
+      "base_url": "http://localhost:8080",
+      "customer_id": 1,
+      "user_id": 1001,
+      "department_id": 1,
+      "description": "本地开发环境"
+    },
+    "staging": {
+      "base_url": "http://staging.ljwx.com:8080",
+      "customer_id": 2,
+      "user_id": 2001,
+      "department_id": 2,
+      "description": "测试环境"
+    },
+    "production": {
+      "base_url": "https://api.ljwx.com",
+      "customer_id": 3,
+      "user_id": 3001,
+      "department_id": 3,
+      "description": "生产环境 (谨慎使用)"
+    }
+  },
+  "test_scenarios": {
+    "basic_health_query": {
+      "description": "基础健康数据查询测试",
+      "apis": [
+        "/health/unified/query",
+        "/health/unified/query/simple",
+        "/health/unified/metrics/supported",
+        "/health/unified/metrics/config"
+      ]
+    },
+    "task_management": {
+      "description": "任务管理功能测试",
+      "apis": [
+        "/api/health/task/status",
+        "/api/health/task/statistics",
+        "/api/health/task/tables",
+        "/api/health/task/cache/statistics"
+      ]
+    },
+    "department_health": {
+      "description": "部门健康数据测试",
+      "apis": [
+        "/api/health/task/department/{departmentId}/overview",
+        "/api/health/task/department/ranking"
+      ]
+    },
+    "cache_operations": {
+      "description": "缓存操作测试",
+      "apis": [
+        "/health/unified/cache/clear",
+        "/api/health/task/cache/clear/{userId}",
+        "/api/health/task/cache/warmup"
+      ]
+    },
+    "health_profile": {
+      "description": "健康画像测试",
+      "apis": [
+        "/health/profile/test",
+        "/health/profile/baseline/generate"
+      ]
+    }
+  },
+  "test_data": {
+    "health_features": [
+      "heart_rate",
+      "blood_oxygen", 
+      "temperature",
+      "pressure_high",
+      "pressure_low",
+      "stress",
+      "step",
+      "calorie",
+      "distance",
+      "sleep"
+    ],
+    "query_date_ranges": [
+      {
+        "name": "last_7_days",
+        "start_offset_days": -7,
+        "end_offset_days": 0
+      },
+      {
+        "name": "last_30_days",
+        "start_offset_days": -30,
+        "end_offset_days": 0
+      },
+      {
+        "name": "last_month",
+        "start_offset_days": -60,
+        "end_offset_days": -30
+      }
+    ],
+    "sample_query_dto": {
+      "customerId": 1,
+      "userId": 1001,
+      "startDate": "2025-09-01T00:00:00",
+      "endDate": "2025-09-08T23:59:59",
+      "page": 1,
+      "pageSize": 20,
+      "latest": false,
+      "queryMode": "all"
+    }
+  },
+  "performance_thresholds": {
+    "response_time_ms": {
+      "excellent": 200,
+      "good": 500,
+      "acceptable": 1000,
+      "poor": 2000
+    },
+    "success_rate": {
+      "excellent": 99.0,
+      "good": 95.0,
+      "acceptable": 90.0,
+      "poor": 80.0
+    }
+  },
+  "safety_settings": {
+    "skip_destructive_operations": true,
+    "confirm_performance_tests": true,
+    "max_concurrent_requests": 10,
+    "request_timeout_seconds": 30
+  }
+}

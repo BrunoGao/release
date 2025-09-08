@@ -1,6 +1,6 @@
 <script setup lang="tsx">
-import { NButton, NPopconfirm } from 'naive-ui';
-import { h } from 'vue';
+import { NButton, NPopconfirm, NCard, NCollapse, NCollapseItem, NAlert, NList, NListItem, NIcon, NTag } from 'naive-ui';
+import { h, ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { $t } from '@/locales';
 import { useTable, useTableOperate } from '@/hooks/common/table';
@@ -28,6 +28,9 @@ const { hasAuth } = useAuth();
 const { dictTag } = useDict();
 const authStore = useAuthStore();
 const customerId = authStore.userInfo?.customerId;
+
+// 使用手册展开状态
+const manualExpanded = ref(['manual']);
 
 /** operation options */
 const options: CommonType.ButtonDropdown<ButtonDropdownKey, Api.Monitor.Scheduler>[] = [
@@ -261,6 +264,153 @@ async function handleBatchDelete() {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
+    <!-- 使用手册 -->
+    <NCard :bordered="false" class="user-manual-card" content-class="p-4">
+      <NCollapse v-model:expanded-names="manualExpanded" display-directive="show">
+        <NCollapseItem name="manual">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <NIcon size="20" color="#3b82f6">
+                <i class="i-material-symbols:schedule"></i>
+              </NIcon>
+              <span class="text-lg font-semibold text-gray-800">定时任务调度管理使用手册</span>
+              <NTag type="info" size="small">点击展开/收起</NTag>
+            </div>
+          </template>
+          
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <!-- 健康任务说明 -->
+            <div>
+              <NCard size="small" class="manual-section">
+                <template #header>
+                  <div class="flex items-center gap-2">
+                    <NIcon size="18" color="#10b981">
+                      <i class="i-material-symbols:health-and-safety"></i>
+                    </NIcon>
+                    <span class="font-medium text-green-700">健康定时任务说明</span>
+                  </div>
+                </template>
+                <NList size="small">
+                  <NListItem>
+                    <div class="manual-item">
+                      <span class="item-icon">🔍</span>
+                      <div>
+                        <div class="item-title">权重配置验证 (01:00)</div>
+                        <div class="item-desc">验证健康数据权重配置的正确性</div>
+                      </div>
+                    </div>
+                  </NListItem>
+                  <NListItem>
+                    <div class="manual-item">
+                      <span class="item-icon">📊</span>
+                      <div>
+                        <div class="item-title">基线和评分生成 (02:00-04:10)</div>
+                        <div class="item-desc">生成用户、部门、组织健康基线和评分数据</div>
+                      </div>
+                    </div>
+                  </NListItem>
+                  <NListItem>
+                    <div class="manual-item">
+                      <span class="item-icon">🎯</span>
+                      <div>
+                        <div class="item-title">健康建议生成 (03:00)</div>
+                        <div class="item-desc">基于健康数据分析生成个性化建议</div>
+                      </div>
+                    </div>
+                  </NListItem>
+                  <NListItem>
+                    <div class="manual-item">
+                      <span class="item-icon">🗑️</span>
+                      <div>
+                        <div class="item-title">数据清理 (05:00)</div>
+                        <div class="item-desc">清理过期数据，保持系统性能</div>
+                      </div>
+                    </div>
+                  </NListItem>
+                </NList>
+              </NCard>
+            </div>
+
+            <!-- 操作指南 -->
+            <div>
+              <NCard size="small" class="manual-section">
+                <template #header>
+                  <div class="flex items-center gap-2">
+                    <NIcon size="18" color="#f59e0b">
+                      <i class="i-material-symbols:touch-app"></i>
+                    </NIcon>
+                    <span class="font-medium text-amber-700">操作功能指南</span>
+                  </div>
+                </template>
+                
+                <div class="grid grid-cols-1 gap-4 mt-3">
+                  <div class="operation-guide">
+                    <div class="guide-header">
+                      <NIcon size="16" color="#3b82f6">
+                        <i class="i-material-symbols:play-arrow"></i>
+                      </NIcon>
+                      <span class="guide-title">任务执行控制</span>
+                    </div>
+                    <div class="guide-content">
+                      <div class="guide-step">• <strong>立即执行</strong>：点击操作按钮中的"立即执行"测试任务</div>
+                      <div class="guide-step">• <strong>暂停/恢复</strong>：控制任务的启用状态</div>
+                      <div class="guide-step">• <strong>批量操作</strong>：选择多个任务进行批量管理</div>
+                    </div>
+                  </div>
+
+                  <div class="operation-guide">
+                    <div class="guide-header">
+                      <NIcon size="16" color="#10b981">
+                        <i class="i-material-symbols:edit"></i>
+                      </NIcon>
+                      <span class="guide-title">任务配置管理</span>
+                    </div>
+                    <div class="guide-content">
+                      <div class="guide-step">• <strong>编辑任务</strong>：修改Cron表达式和任务描述</div>
+                      <div class="guide-step">• <strong>查看状态</strong>：监控任务运行状态和执行历史</div>
+                      <div class="guide-step">• <strong>添加任务</strong>：创建新的定时任务</div>
+                    </div>
+                  </div>
+
+                  <div class="operation-guide">
+                    <div class="guide-header">
+                      <NIcon size="16" color="#ef4444">
+                        <i class="i-material-symbols:warning"></i>
+                      </NIcon>
+                      <span class="guide-title">注意事项</span>
+                    </div>
+                    <div class="guide-content">
+                      <div class="guide-step">• <strong>健康任务</strong>：系统预置的健康相关任务请勿随意删除</div>
+                      <div class="guide-step">• <strong>时间设置</strong>：修改执行时间时注意避免任务冲突</div>
+                      <div class="guide-step">• <strong>监控日志</strong>：定期查看任务执行日志确保正常运行</div>
+                    </div>
+                  </div>
+                </div>
+              </NCard>
+            </div>
+          </div>
+
+          <!-- 状态说明 -->
+          <NAlert type="info" class="mt-4">
+            <template #icon>
+              <NIcon size="18">
+                <i class="i-material-symbols:info"></i>
+              </NIcon>
+            </template>
+            <div>
+              <div class="font-medium mb-2">任务状态说明：</div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div><NTag type="success" size="small">WAITING</NTag> 等待执行</div>
+                <div><NTag type="info" size="small">RUNNING</NTag> 正在执行</div>
+                <div><NTag type="warning" size="small">PAUSED</NTag> 已暂停</div>
+                <div><NTag type="error" size="small">ERROR</NTag> 执行错误</div>
+              </div>
+            </div>
+          </NAlert>
+        </NCollapseItem>
+      </NCollapse>
+    </NCard>
+
     <SchedulerSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <TableHeaderOperation

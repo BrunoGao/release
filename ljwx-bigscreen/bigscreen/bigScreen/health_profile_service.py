@@ -6,14 +6,16 @@ from datetime import datetime,timedelta
 import mysql.connector,schedule
 from statistics import mean,stdev
 from concurrent.futures import ThreadPoolExecutor,as_completed
+from .health_cache_manager import health_cache, cache_result
 
 logging.basicConfig(level=logging.INFO,format='%(asctime)s [%(levelname)s] %(message)s')
 logger=logging.getLogger(__name__)
 
-class HealthProfileService:
+class HealthProfileQueryService:
     def __init__(self,db_config): # 初始化数据库连接
         self.db_config=db_config
-        self.indicator_weights={'heartrate':0.3,'temperature':0.25,'blood_pressure':0.25,'sleep_quality':0.2} # 指标权重配置
+        self.cache = health_cache
+        logger.info("健康画像查询服务初始化完成，已集成Redis缓存策略")
         
     def get_db_connection(self): # 获取数据库连接
         return mysql.connector.connect(**self.db_config,autocommit=True)
@@ -68,177 +70,176 @@ class HealthProfileService:
         
         return {'score':max(0,score),'level':level,'deviation':f'{deviation_ratio:.1%}'}
     
-    def generate_personal_baseline(self,org_id,user_id): # 生成个人健康基线
-        """生成个人基线"""
-        health_data=self.get_all_health_data_optimized(org_id,user_id,30)
-        baselines={}
-        
-        for indicator in self.indicator_weights.keys():
-            if indicator=='blood_pressure':continue # 血压需特殊处理
-            baseline=self.calculate_baseline(health_data,indicator)
-            if baseline:baselines[indicator]=baseline
-                
-        return baselines
-    
-    def generate_department_baseline(self,org_id): # 生成部门健康基线
-        """生成部门基线"""
-        with self.get_db_connection() as conn:
-            cursor=conn.cursor(dictionary=True)
-            cursor.execute("SELECT user_id FROM t_user WHERE org_id=%s AND org_id=%s AND status=1",(org_id,org_id))
-            user_ids=[r['user_id'] for r in cursor.fetchall()]
-            
-        if not user_ids:return {}
-        
-        all_data=self.get_all_health_data_optimized(org_id)
-        dept_data=[d for d in all_data if d['user_id'] in user_ids]
-        
-        baselines={}
-        for indicator in self.indicator_weights.keys():
-            if indicator=='blood_pressure':continue
-            baseline=self.calculate_baseline(dept_data,indicator)
-            if baseline:baselines[indicator]=baseline
-                
-        return baselines
-    
-    def save_baseline(self,user_id,org_id,org_id,baseline_type,baselines): # 保存基线数据
-        """保存基线到数据库"""
-        with self.get_db_connection() as conn:
-            cursor=conn.cursor()
-            for indicator,data in baselines.items():
-                cursor.execute("""
-                    INSERT INTO t_health_baseline 
-                    (user_id,org_id,org_id,baseline_type,indicator_type,baseline_min,baseline_max,baseline_avg,std_deviation,sample_count,confidence_level,last_calculated)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    ON DUPLICATE KEY UPDATE
-                    baseline_min=%s,baseline_max=%s,baseline_avg=%s,std_deviation=%s,sample_count=%s,confidence_level=%s,last_calculated=%s
-                """,(user_id,org_id,org_id,baseline_type,indicator,data['min'],data['max'],data['avg'],data['std'],data['count'],data['confidence'],datetime.now(),
-                     data['min'],data['max'],data['avg'],data['std'],data['count'],data['confidence'],datetime.now()))
-    
-    def calculate_health_scores(self,org_id,user_id,baselines): # 计算健康评分
-        """计算用户健康评分"""
-        recent_data=self.get_all_health_data_optimized(org_id,user_id,7) # 最近7天数据
-        if not recent_data:return {}
-        
-        latest_data=recent_data[0] # 最新数据
-        scores={}
-        total_weighted_score=0
-        total_weight=0
-        
-        for indicator,weight in self.indicator_weights.items():
-            if indicator in baselines and indicator in latest_data:
-                score_info=self.calculate_score(latest_data[indicator],baselines[indicator],indicator)
-                score_info['weight']=weight
-                score_info['weighted_score']=score_info['score']*weight
-                scores[indicator]=score_info
-                total_weighted_score+=score_info['weighted_score']
-                total_weight+=weight
-        
-        overall_score=total_weighted_score/total_weight if total_weight>0 else 50
-        return {'indicators':scores,'overall_score':round(overall_score,2)}
-    
-    def save_scores(self,user_id,org_id,org_id,score_type,scores): # 保存评分数据
-        """保存评分到数据库"""
-        with self.get_db_connection() as conn:
-            cursor=conn.cursor()
-            for indicator,data in scores['indicators'].items():
-                cursor.execute("""
-                    INSERT INTO t_health_score
-                    (user_id,org_id,org_id,score_type,indicator_type,indicator_score,indicator_weight,weighted_score,deviation_level,risk_level,score_detail,calculated_time,data_range_start,data_range_end)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    ON DUPLICATE KEY UPDATE
-                    indicator_score=%s,weighted_score=%s,deviation_level=%s,risk_level=%s,score_detail=%s,calculated_time=%s
-                """,(user_id,org_id,org_id,score_type,indicator,data['score'],data['weight'],data['weighted_score'],data['level'],
-                     'high' if data['score']<60 else 'medium' if data['score']<80 else 'low',json.dumps(data),datetime.now(),
-                     datetime.now()-timedelta(days=7),datetime.now(),
-                     data['score'],data['weighted_score'],data['level'],'high' if data['score']<60 else 'medium' if data['score']<80 else 'low',json.dumps(data),datetime.now()))
-    
-    def generate_health_profile(self,org_id,user_id): # 生成用户健康画像
-        """生成单个用户健康画像"""
+    def query_personal_baseline(self,org_id,user_id): # 查询个人健康基线
+        """查询个人基线 - 从 ljwx-boot 获取生成好的基线数据"""
+        logger.info(f"查询用户{user_id}的个人基线数据")
         try:
-            # 1.生成个人基线
-            personal_baselines=self.generate_personal_baseline(org_id,user_id)
+            with self.get_db_connection() as conn:
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT feature_name, mean_value, std_deviation, baseline_date, sample_count
+                    FROM t_health_baseline 
+                    WHERE user_id = %s AND customer_id = %s 
+                    AND baseline_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                    ORDER BY baseline_date DESC, feature_name
+                """, (user_id, org_id))
+                
+                baselines = cursor.fetchall()
+                baseline_dict = {}
+                for baseline in baselines:
+                    feature = baseline['feature_name']
+                    if feature not in baseline_dict:
+                        baseline_dict[feature] = []
+                    baseline_dict[feature].append(baseline)
+                
+                return baseline_dict
+        except Exception as e:
+            logger.error(f"查询个人基线失败: {e}")
+            return {}
+    
+    def query_department_baseline(self,org_id): # 查询部门健康基线
+        """查询部门基线 - 从 ljwx-boot 获取生成好的基线数据"""
+        logger.info(f"查询组织{org_id}的部门基线数据")
+        # TODO: 调用 ljwx-boot 的基线查询 API
+        return {}
+    
+    # 保存功能已禁用 - 由 ljwx-boot 后端处理
+    
+    def query_health_scores(self,org_id,user_id): # 查询健康评分
+        """查询用户健康评分 - 从 ljwx-boot 获取"""
+        logger.info(f"查询用户{user_id}的健康评分")
+        try:
+            with self.get_db_connection() as conn:
+                cursor = conn.cursor(dictionary=True)
+                cursor.execute("""
+                    SELECT feature_name, score_value, z_score, avg_value, score_date
+                    FROM t_health_score 
+                    WHERE user_id = %s AND org_id = %s 
+                    AND score_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                    ORDER BY score_date DESC, feature_name
+                """, (user_id, org_id))
+                
+                scores = cursor.fetchall()
+                
+                # 计算综合评分
+                if scores:
+                    latest_scores = {}
+                    for score in scores:
+                        feature = score['feature_name']
+                        if feature not in latest_scores:
+                            latest_scores[feature] = score
+                    
+                    # 计算加权平均分
+                    total_score = sum(score['score_value'] for score in latest_scores.values())
+                    avg_score = total_score / len(latest_scores) if latest_scores else 0
+                    
+                    return {
+                        'overall_score': round(avg_score, 2),
+                        'feature_scores': latest_scores,
+                        'score_count': len(latest_scores),
+                        'last_update': max(score['score_date'].isoformat() for score in latest_scores.values())
+                    }
+                else:
+                    return {'overall_score': 0, 'feature_scores': {}, 'score_count': 0}
+                    
+        except Exception as e:
+            logger.error(f"查询健康评分失败: {e}")
+            return {}
+    
+    # 保存评分功能已禁用 - 由 ljwx-boot 后端处理
+    
+    def query_health_profile(self,org_id,user_id): # 查询用户健康画像
+        """查询单个用户健康画像 - 集成缓存优化"""
+        try:
+            # 尝试从缓存获取健康画像
+            cached_profile = self.cache.get_health_profile(user_id, org_id)
+            if cached_profile:
+                logger.info(f"命中健康画像缓存: user_id={user_id}, org_id={org_id}")
+                return {'success': True, 'data': cached_profile, 'cached': True}
             
-            # 2.获取部门信息
+            logger.info(f"查询用户{user_id}的健康画像数据")
+            
             with self.get_db_connection() as conn:
                 cursor=conn.cursor(dictionary=True)
-                cursor.execute("SELECT org_id FROM t_user WHERE user_id=%s AND org_id=%s",(user_id,org_id))
-                result=cursor.fetchone()
-                org_id=result['org_id'] if result else None
-            
-            # 3.保存个人基线
-            if personal_baselines:
-                self.save_baseline(user_id,org_id,org_id,'personal',personal_baselines)
-            
-            # 4.计算健康评分
-            scores=self.calculate_health_scores(org_id,user_id,personal_baselines)
-            if scores:
-                self.save_scores(user_id,org_id,org_id,'personal',scores)
-            
-            # 5.生成健康画像
-            overall_score=scores.get('overall_score',50)
-            health_level='优秀' if overall_score>=90 else '良好' if overall_score>=75 else '一般' if overall_score>=60 else '差'
-            deviation_count=sum(1 for s in scores.get('indicators',{}).values() if s.get('level')!='normal')
-            risk_indicators=[k for k,v in scores.get('indicators',{}).items() if v.get('level') in ['moderate','severe']]
-            
-            # 6.保存健康画像
-            with self.get_db_connection() as conn:
-                cursor=conn.cursor()
                 cursor.execute("""
-                    INSERT INTO t_health_profile
-                    (user_id,org_id,org_id,health_score,health_level,baseline_deviation_count,risk_indicators,profile_data,generated_time,data_range_start,data_range_end)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    ON DUPLICATE KEY UPDATE
-                    health_score=%s,health_level=%s,baseline_deviation_count=%s,risk_indicators=%s,profile_data=%s,generated_time=%s
-                """,(user_id,org_id,org_id,overall_score,health_level,deviation_count,json.dumps(risk_indicators),json.dumps(scores),datetime.now(),datetime.now()-timedelta(days=30),datetime.now(),
-                     overall_score,health_level,deviation_count,json.dumps(risk_indicators),json.dumps(scores),datetime.now()))
-            
-            return {'success':True,'score':overall_score,'level':health_level}
-            
+                    SELECT health_score, health_level, baseline_deviation_count, 
+                           risk_indicators, profile_data, generated_time
+                    FROM t_health_profile 
+                    WHERE user_id=%s AND customer_id=%s
+                    ORDER BY generated_time DESC LIMIT 1
+                """,(user_id,org_id))
+                result=cursor.fetchone()
+                
+            if result:
+                # 缓存查询结果
+                profile_data = result
+                profile_data['cached'] = False
+                profile_data['query_time'] = datetime.now().isoformat()
+                
+                self.cache.cache_health_profile(user_id, org_id, profile_data)
+                logger.info(f"健康画像已缓存: user_id={user_id}")
+                
+                return {'success':True,'data':profile_data}
+            else:
+                return {'success':False,'error':'未找到健康画像数据'}
+                
         except Exception as e:
-            logger.error(f"生成用户{user_id}健康画像失败: {str(e)}")
+            logger.error(f"查询用户{user_id}健康画像失败: {str(e)}")
             return {'success':False,'error':str(e)}
     
-    def batch_generate_profiles(self,org_id,user_ids=None,task_id=None,operator_id=None): # 批量生成健康画像
-        """批量生成健康画像"""
-        task_id=task_id or str(uuid.uuid4())
-        start_time=datetime.now()
-        
-        # 获取目标用户列表
-        if not user_ids:
-            with self.get_db_connection() as conn:
-                cursor=conn.cursor(dictionary=True)
-                cursor.execute("SELECT user_id FROM t_user WHERE org_id=%s AND status=1",(org_id,))
-                user_ids=[r['user_id'] for r in cursor.fetchall()]
-        
-        total_users=len(user_ids)
-        success_count=0
-        failed_users=[]
-        
-        # 记录任务开始
-        self.log_task(task_id,'manual' if operator_id else 'scheduled',org_id,'user',user_ids,total_users,0,0,[],'running',None,start_time,None,operator_id)
-        
-        # 并行处理用户
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures={executor.submit(self.generate_health_profile,org_id,uid):uid for uid in user_ids}
+    def query_batch_profiles(self,org_id,user_ids=None): # 批量查询健康画像
+        """批量查询健康画像 - 集成缓存优化"""
+        try:
+            # 尝试从缓存获取批量画像数据
+            cached_profiles = self.cache.get_health_profile_list(org_id)
+            if cached_profiles and not user_ids:
+                logger.info(f"命中批量健康画像缓存: org_id={org_id}")
+                return {'success': True, 'data': cached_profiles, 'cached': True}
             
-            for future in as_completed(futures):
-                user_id=futures[future]
-                try:
-                    result=future.result()
-                    if result.get('success'):success_count+=1
-                    else:failed_users.append({'user_id':user_id,'error':result.get('error','未知错误')})
-                except Exception as e:
-                    failed_users.append({'user_id':user_id,'error':str(e)})
-        
-        end_time=datetime.now()
-        duration_ms=int((end_time-start_time).total_seconds()*1000)
-        status='success' if failed_users==[] else 'partial' if success_count>0 else 'failed'
-        
-        # 更新任务状态
-        self.log_task(task_id,'manual' if operator_id else 'scheduled',org_id,'user',user_ids,total_users,success_count,len(failed_users),failed_users,status,None,start_time,end_time,operator_id,duration_ms)
-        
-        logger.info(f"批量生成画像完成: 总数{total_users}, 成功{success_count}, 失败{len(failed_users)}, 耗时{duration_ms}ms")
-        return {'task_id':task_id,'total':total_users,'success':success_count,'failed':len(failed_users),'duration_ms':duration_ms}
+            logger.info(f"批量查询组织{org_id}的健康画像数据")
+            
+            with self.get_db_connection() as conn:
+                cursor = conn.cursor(dictionary=True)
+                if user_ids:
+                    placeholders = ','.join(['%s'] * len(user_ids))
+                    cursor.execute(f"""
+                        SELECT user_id, health_score, health_level, baseline_deviation_count, 
+                               risk_indicators, profile_data, generated_time
+                        FROM t_health_profile 
+                        WHERE user_id IN ({placeholders}) AND customer_id = %s
+                        ORDER BY generated_time DESC
+                    """, user_ids + [org_id])
+                else:
+                    cursor.execute("""
+                        SELECT user_id, health_score, health_level, baseline_deviation_count, 
+                               risk_indicators, profile_data, generated_time
+                        FROM t_health_profile 
+                        WHERE customer_id = %s
+                        ORDER BY generated_time DESC
+                    """, (org_id,))
+                
+                results = cursor.fetchall()
+            
+            if results:
+                # 处理结果并缓存
+                profiles = []
+                for result in results:
+                    result['cached'] = False
+                    result['query_time'] = datetime.now().isoformat()
+                    profiles.append(result)
+                
+                # 如果是查询所有用户，则缓存批量结果
+                if not user_ids:
+                    self.cache.cache_health_profile_list(org_id, profiles)
+                    logger.info(f"批量健康画像已缓存: org_id={org_id}, count={len(profiles)}")
+                
+                return {'success': True, 'data': profiles, 'count': len(profiles)}
+            else:
+                return {'success': False, 'error': '未找到健康画像数据', 'data': []}
+                
+        except Exception as e:
+            logger.error(f"批量查询健康画像失败: {str(e)}")
+            return {'success': False, 'error': str(e), 'data': []}
     
     def log_task(self,task_id,task_type,org_id,target_type,target_ids,total_users,success_count,failed_count,failed_users,status,error_message,start_time,end_time=None,operator_id=None,duration_ms=None): # 记录任务日志
         """记录任务执行日志"""
@@ -253,42 +254,23 @@ class HealthProfileService:
             """,(task_id,task_type,org_id,target_type,json.dumps(target_ids) if target_ids else None,total_users,success_count,failed_count,json.dumps(failed_users) if failed_users else None,start_time,end_time,duration_ms,status,error_message,operator_id,
                  total_users,success_count,failed_count,json.dumps(failed_users) if failed_users else None,end_time,duration_ms,status,error_message))
 
-# 定时任务调度器
+# 定时任务已禁用 - 迁移至 ljwx-boot
 class HealthProfileScheduler:
-    def __init__(self,service,org_ids=[1]): # 初始化调度器
+    def __init__(self,service,org_ids=[1]):
         self.service=service
         self.org_ids=org_ids
+        logger.warning("健康画像生成定时任务已禁用，请使用ljwx-boot后端")
         
-    def scheduled_generate_all(self): # 定时生成所有客户的健康画像
-        """定时任务: 生成所有客户健康画像"""
-        logger.info("开始执行定时健康画像生成任务")
-        for org_id in self.org_ids:
-            try:
-                result=self.service.batch_generate_profiles(org_id)
-                logger.info(f"客户{org_id}画像生成完成: {result}")
-            except Exception as e:
-                logger.error(f"客户{org_id}画像生成失败: {str(e)}")
-        logger.info("定时健康画像生成任务完成")
+    def scheduled_generate_all(self):
+        logger.warning("定时生成任务已禁用，请使用ljwx-boot后端的定时任务")
     
-    def start_scheduler(self): # 启动调度器
-        """启动定时任务调度器"""
-        schedule.every().day.at("01:00").do(self.scheduled_generate_all) # 每天凌晨1点执行
-        logger.info("健康画像定时任务已启动 (每天01:00)")
-        
-        while True:
-            schedule.run_pending()
-            time.sleep(60) # 每分钟检查一次
+    def start_scheduler(self):
+        logger.warning("定时任务调度器已禁用，请使用ljwx-boot后端的定时任务")
 
 # 配置和启动
 if __name__=='__main__':
     DB_CONFIG={'host':'localhost','port':3306,'user':'root','password':'123456','database':'ljwx'}
-    service=HealthProfileService(DB_CONFIG)
-    scheduler=HealthProfileScheduler(service,[1,2,3]) # 支持多客户
+    service=HealthProfileQueryService(DB_CONFIG)
     
-    # 测试单个用户画像生成
-    # result=service.generate_health_profile(1,1)
-    # print(f"单用户画像生成结果: {result}")
-    
-    # 启动定时任务
-    try:scheduler.start_scheduler()
-    except KeyboardInterrupt:logger.info("定时任务调度器已停止") 
+    logger.info("健康画像查询服务启动完成，生成功能已迁移至ljwx-boot")
+    logger.info("请使用ljwx-boot后端的定时任务进行健康画像生成") 

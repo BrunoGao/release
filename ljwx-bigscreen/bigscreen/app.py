@@ -16,7 +16,7 @@ import traceback
 if 'IS_DOCKER' not in os.environ:
     os.environ['IS_DOCKER'] = 'true'  # Docker环境
 if 'APP_PORT' not in os.environ:
-    os.environ['APP_PORT'] = '8001'   # 确保使用8001端口
+    os.environ['APP_PORT'] = '5225'   # 确保使用5225端口
 if 'MYSQL_HOST' not in os.environ:
     os.environ['MYSQL_HOST'] = 'mysql'
 if 'MYSQL_PORT' not in os.environ:
@@ -37,7 +37,7 @@ if 'REDIS_PASSWORD' not in os.environ:
 print("🚀 启动LJWX Bigscreen应用")
 print(f"📊 数据库: {os.environ['MYSQL_HOST']}:{os.environ['MYSQL_PORT']}/{os.environ['MYSQL_DATABASE']}")
 print(f"🔧 Redis: {os.environ['REDIS_HOST']}:{os.environ['REDIS_PORT']}")
-print(f"🌐 端口: {os.environ.get('APP_PORT', '8001')}")
+print(f"🌐 端口: {os.environ.get('APP_PORT', '5225')}")
 print("-" * 50)
 
 try:
@@ -79,7 +79,7 @@ if __name__ == '__main__':
         # 🔥关键修复：直接启动Flask应用，而不是使用bigScreen.main()
         app.run(
             host='0.0.0.0',
-            port=int(os.environ.get('APP_PORT', '8001')),
+            port=int(os.environ.get('APP_PORT', '5225')),
             debug=False,  # 生产环境关闭debug
             threaded=True,  # 启用多线程
             use_reloader=False  # 关闭重载器避免重复初始化

@@ -11,6 +11,8 @@ import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.system.service.ISysUserService;
 import com.ljwx.modules.health.domain.entity.TAlertInfo;
 import com.ljwx.modules.health.repository.mapper.TAlertInfoMapper;
+import com.ljwx.modules.health.domain.dto.UnifiedHealthQueryDTO;
+import com.ljwx.modules.health.service.UnifiedHealthDataQueryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -53,6 +55,9 @@ public class HealthProfileService {
     
     @Autowired
     private HealthRecommendationService healthRecommendationService;
+    
+    @Autowired
+    private UnifiedHealthDataQueryService unifiedQueryService;
 
     /**
      * 生成用户综合健康画像
@@ -174,14 +179,22 @@ public class HealthProfileService {
         LocalDateTime endTime = LocalDateTime.now();
         LocalDateTime startTime = endTime.minusDays(180); // 6个月数据
         
-        QueryWrapper<UserHealthData> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("user_id", userId)
-                   .ge("timestamp", startTime)
-                   .le("timestamp", endTime)
-                   .eq("is_deleted", 0)
-                   .orderByAsc("timestamp");
+        // 使用统一查询服务获取趋势分析数据
+        UnifiedHealthQueryDTO trendQuery = new UnifiedHealthQueryDTO();
+        // 从用户服务获取customerId
+        SysUser userForTrend = sysUserService.getById(userId);
+        Long customerId = userForTrend != null ? userForTrend.getCustomerId() : 0L;
+        trendQuery.setCustomerId(customerId);
+        trendQuery.setUserId(userId);
+        trendQuery.setStartDate(startTime);
+        trendQuery.setEndDate(endTime);
+        trendQuery.setPageSize(10000); // 趋势分析需要大量数据
+        trendQuery.setEnableSharding(true); // 跨月查询需要分表支持
+        trendQuery.setOrderBy("timestamp");
+        trendQuery.setOrderDirection("asc");
         
-        List<UserHealthData> historicalData = userHealthDataMapper.selectList(queryWrapper);
+        Map<String, Object> trendResult = unifiedQueryService.queryHealthData(trendQuery);
+        List<UserHealthData> historicalData = (List<UserHealthData>) trendResult.get("data");
         
         HealthTrendAnalysis analysis = new HealthTrendAnalysis();
         

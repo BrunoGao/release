@@ -1,878 +1,1073 @@
 """
-综合健康画像生成引擎
-实现多维度用户健康画像构建、趋势分析和可视化数据生成
-"""
+健康画像实时构建引擎
+基于历史健康数据、基线、评分、建议和预测，构建全面的用户健康画像
 
-import json
+依赖统一的get_all_health_data_optimized查询方法和其他健康分析引擎
+"""
 import numpy as np
-from datetime import datetime, date, timedelta
-from sqlalchemy import and_, or_, func, text
-from .models import db, UserHealthData, UserInfo, Position, UserPosition, AlertInfo, UserHealthProfile
-from .health_baseline_engine import HealthBaselineEngine
-from .health_score_engine import HealthScoreEngine
-from .health_recommendation_engine import HealthRecommendationEngine
+import pandas as pd
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 import logging
+from .redis_helper import RedisHelper
+from .user_health_data import get_all_health_data_optimized
+from .health_baseline_engine import realtime_baseline_engine
+from .health_score_engine import realtime_score_engine
+from .health_recommendation_engine import realtime_recommendation_engine
+from .health_prediction_engine import realtime_prediction_engine
+from .models import db, UserHealthProfile
+from sqlalchemy import and_
+import json
+import time
 
 logger = logging.getLogger(__name__)
 
-class HealthProfileEngine:
-    """综合健康画像生成引擎"""
+class RealTimeHealthProfileEngine:
+    """实时健康画像构建引擎"""
     
     def __init__(self):
-        self.baseline_engine = HealthBaselineEngine()
-        self.score_engine = HealthScoreEngine()
-        self.recommendation_engine = HealthRecommendationEngine()
-    
-    def generate_comprehensive_health_profile(self, user_id, customer_id):
-        """生成综合健康画像"""
-        try:
-            logger.info(f"开始生成用户 {user_id} 的综合健康画像")
-            
-            # 1. 获取用户基础信息
-            user_basic_info = self._get_user_basic_info(user_id)
-            
-            # 2. 计算当前健康状态
-            current_health_status = self._get_current_health_status(user_id, customer_id)
-            
-            # 3. 获取健康指标分析
-            health_metrics_analysis = self._get_health_metrics_analysis(user_id, customer_id)
-            
-            # 4. 分析行为模式
-            behavioral_analysis = self._get_behavioral_analysis(user_id)
-            
-            # 5. 进行风险评估
-            risk_assessment = self._get_risk_assessment(user_id, customer_id)
-            
-            # 6. 分析健康趋势
-            health_trends = self._get_health_trends(user_id)
-            
-            # 7. 生成个性化建议
-            personalized_recommendations = self.recommendation_engine.generate_personalized_recommendations(
-                user_id, customer_id
-            )
-            
-            # 8. 设定健康目标
-            health_goals = self._generate_personalized_goals(user_id, current_health_status)
-            
-            # 9. 创建监测计划
-            monitoring_plan = self._create_monitoring_plan(user_id, risk_assessment)
-            
-            # 10. 构建完整健康画像
-            health_profile = {
-                'profile_id': f"HP_{user_id}_{datetime.now().strftime('%Y%m%d')}",
-                'generation_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'user_basic_info': user_basic_info,
-                'current_health_status': current_health_status,
-                'health_metrics_analysis': health_metrics_analysis,
-                'behavioral_analysis': behavioral_analysis,
-                'risk_assessment': risk_assessment,
-                'health_trends': health_trends,
-                'personalized_recommendations': personalized_recommendations,
-                'health_goals': health_goals,
-                'monitoring_plan': monitoring_plan,
-                'profile_summary': self._generate_profile_summary(current_health_status, risk_assessment)
-            }
-            
-            # 11. 保存健康画像到数据库
-            self._save_health_profile(user_id, customer_id, health_profile)
-            
-            logger.info(f"用户 {user_id} 健康画像生成完成")
-            return health_profile
-            
-        except Exception as e:
-            logger.error(f"生成综合健康画像失败: {e}")
-            return None
-    
-    def _get_user_basic_info(self, user_id):
-        """获取用户基础信息"""
-        try:
-            user = db.session.query(UserInfo).filter_by(id=user_id).first()
-            
-            if not user:
-                return {}
-            
-            # 获取职位信息
-            position_info = db.session.query(Position).join(
-                UserPosition, Position.id == UserPosition.position_id
-            ).filter(
-                and_(
-                    UserPosition.user_id == user_id,
-                    UserPosition.is_deleted == False,
-                    Position.is_deleted == False
-                )
-            ).first()
-            
-            # 获取设备信息
-            latest_health_data = db.session.query(UserHealthData).filter(
-                and_(
-                    UserHealthData.user_id == user_id,
-                    UserHealthData.is_deleted == False
-                )
-            ).order_by(UserHealthData.timestamp.desc()).first()
-            
-            basic_info = {
-                'user_id': user_id,
-                'user_name': user.user_name,
-                'real_name': user.real_name,
-                'gender': user.gender,
-                'phone': user.phone,
-                'working_years': user.working_years,
-                'customer_id': user.customer_id,
-                'device_sn': latest_health_data.device_sn if latest_health_data else None,
-                'registration_date': user.create_time.strftime('%Y-%m-%d') if user.create_time else None
-            }
-            
-            if position_info:
-                basic_info.update({
-                    'position_name': position_info.name,
-                    'position_risk_level': position_info.risk_level,
-                    'position_weight': float(position_info.weight) if position_info.weight else 0.15,
-                    'org_id': position_info.org_id
-                })
-            
-            return basic_info
-            
-        except Exception as e:
-            logger.error(f"获取用户基础信息失败: {e}")
-            return {}
-    
-    def _get_current_health_status(self, user_id, customer_id):
-        """获取当前健康状态"""
-        try:
-            # 计算综合健康评分
-            health_score = self.score_engine.calculate_comprehensive_health_score(
-                user_id, customer_id
-            )
-            
-            if not health_score:
-                return {}
-            
-            # 获取最新健康数据
-            latest_data = db.session.query(UserHealthData).filter(
-                and_(
-                    UserHealthData.user_id == user_id,
-                    UserHealthData.is_deleted == False
-                )
-            ).order_by(UserHealthData.timestamp.desc()).first()
-            
-            # 获取关键健康指标
-            key_indicators = {}
-            if latest_data:
-                key_indicators = {
-                    'heart_rate': latest_data.heart_rate,
-                    'blood_oxygen': latest_data.blood_oxygen,
-                    'pressure_high': latest_data.pressure_high,
-                    'pressure_low': latest_data.pressure_low,
-                    'temperature': float(latest_data.temperature) if latest_data.temperature else None,
-                    'stress': latest_data.stress,
-                    'last_update': latest_data.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                }
-            
-            # 识别紧急关注点
-            immediate_concerns = self._identify_immediate_concerns(latest_data, health_score)
-            
-            return {
-                'overall_health_score': health_score['total_score'],
-                'health_level': health_score['score_level'],
-                'dimension_scores': {
-                    'physiological': health_score['physiological_score'],
-                    'behavioral': health_score['behavioral_score'],
-                    'risk_factor': health_score['risk_factor_score']
-                },
-                'detailed_scores': health_score['detailed_breakdown'],
-                'key_health_indicators': key_indicators,
-                'immediate_concerns': immediate_concerns,
-                'last_assessment': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            }
-            
-        except Exception as e:
-            logger.error(f"获取当前健康状态失败: {e}")
-            return {}
-    
-    def _get_health_metrics_analysis(self, user_id, customer_id):
-        """获取健康指标分析"""
-        try:
-            # 获取最近30天的健康数据
-            recent_data = self._get_recent_health_data(user_id, 30)
-            
-            if not recent_data:
-                return {}
-            
-            # 分析各系统健康状况
-            cardiovascular_analysis = self._analyze_cardiovascular_system(recent_data)
-            respiratory_analysis = self._analyze_respiratory_system(recent_data)
-            metabolic_analysis = self._analyze_metabolic_system(recent_data)
-            psychological_analysis = self._analyze_psychological_state(recent_data)
-            
-            return {
-                'cardiovascular': cardiovascular_analysis,
-                'respiratory': respiratory_analysis,
-                'metabolic': metabolic_analysis,
-                'psychological': psychological_analysis,
-                'analysis_period': '30天',
-                'data_quality': {
-                    'total_records': len(recent_data),
-                    'data_completeness': self._calculate_data_completeness(recent_data)
-                }
-            }
-            
-        except Exception as e:
-            logger.error(f"获取健康指标分析失败: {e}")
-            return {}
-    
-    def _get_behavioral_analysis(self, user_id):
-        """分析用户行为模式"""
-        try:
-            # 获取最近90天的数据用于行为分析
-            activity_data = self._get_recent_health_data(user_id, 90)
-            
-            if not activity_data:
-                return {}
-            
-            # 活动模式分析
-            activity_patterns = self._analyze_activity_patterns(activity_data)
-            
-            # 睡眠模式分析
-            sleep_patterns = self._analyze_sleep_patterns(activity_data)
-            
-            # 健康参与度分析
-            health_engagement = self._analyze_health_engagement(user_id, activity_data)
-            
-            return {
-                'activity_patterns': activity_patterns,
-                'sleep_patterns': sleep_patterns,
-                'health_engagement': health_engagement,
-                'analysis_period': '90天',
-                'behavior_summary': self._generate_behavior_summary(
-                    activity_patterns, sleep_patterns, health_engagement
-                )
-            }
-            
-        except Exception as e:
-            logger.error(f"分析用户行为模式失败: {e}")
-            return {}
-    
-    def _get_risk_assessment(self, user_id, customer_id):
-        """进行风险评估"""
-        try:
-            # 获取告警历史
-            alert_history = self._get_alert_history(user_id, 60)
-            
-            # 分析当前风险等级
-            current_risk = self._assess_current_risk_level(user_id, alert_history)
-            
-            # 预测未来风险
-            future_risk = self._predict_future_risk(user_id, customer_id)
-            
-            # 识别风险因子
-            risk_factors = self._identify_risk_factors(user_id, alert_history)
-            
-            # 识别保护因子
-            protective_factors = self._identify_protective_factors(user_id)
-            
-            return {
-                'current_risk_level': current_risk['level'],
-                'risk_score': current_risk['score'],
-                'future_risk_prediction': future_risk,
-                'risk_factors': risk_factors,
-                'protective_factors': protective_factors,
-                'risk_assessment_date': datetime.now().strftime('%Y-%m-%d'),
-                'risk_trend': self._calculate_risk_trend(alert_history)
-            }
-            
-        except Exception as e:
-            logger.error(f"风险评估失败: {e}")
-            return {}
-    
-    def _get_health_trends(self, user_id):
-        """分析健康趋势变化"""
-        try:
-            # 获取6个月的历史数据
-            historical_data = self._get_recent_health_data(user_id, 180)
-            
-            if not historical_data:
-                return {}
-            
-            trends = {}
-            metrics = ['heart_rate', 'blood_oxygen', 'pressure_high', 'pressure_low', 'stress']
-            
-            for metric in metrics:
-                metric_data = [getattr(record, metric) for record in historical_data 
-                              if getattr(record, metric) is not None]
-                
-                if len(metric_data) >= 10:
-                    # 趋势分析
-                    trend_analysis = self._analyze_metric_trend(metric_data, metric)
-                    trends[metric] = trend_analysis
-            
-            return trends
-            
-        except Exception as e:
-            logger.error(f"分析健康趋势失败: {e}")
-            return {}
-    
-    def _analyze_metric_trend(self, metric_data, metric_name):
-        """分析单个指标的趋势"""
-        try:
-            # 计算线性趋势
-            x = np.arange(len(metric_data))
-            y = np.array(metric_data)
-            
-            # 线性回归计算趋势斜率
-            trend_slope = np.polyfit(x, y, 1)[0]
-            
-            # 计算稳定性
-            stability_score = 100 - min(np.std(y) / np.mean(y) * 100, 50)
-            
-            # 异常点检测
-            q75, q25 = np.percentile(y, [75, 25])
-            iqr = q75 - q25
-            lower_bound = q25 - (iqr * 1.5)
-            upper_bound = q75 + (iqr * 1.5)
-            
-            anomalies = [i for i, val in enumerate(y) if val < lower_bound or val > upper_bound]
-            anomaly_frequency = len(anomalies) / len(y)
-            
-            # 季节性分析（简化版本）
-            seasonal_pattern = self._detect_seasonal_pattern(metric_data, metric_name)
-            
-            return {
-                'trend_direction': 'improving' if trend_slope < -0.1 else 'deteriorating' if trend_slope > 0.1 else 'stable',
-                'trend_strength': abs(trend_slope),
-                'stability_score': round(stability_score, 2),
-                'anomaly_frequency': round(anomaly_frequency, 3),
-                'seasonal_variation': seasonal_pattern,
-                'data_quality': {
-                    'sample_count': len(metric_data),
-                    'data_span_days': 180,
-                    'completeness': len(metric_data) / 180
-                }
-            }
-            
-        except Exception as e:
-            logger.error(f"分析指标趋势失败: {e}")
-            return {}
-    
-    def _save_health_profile(self, user_id, customer_id, health_profile):
-        """保存健康画像到数据库"""
-        try:
-            profile_date = date.today()
-            
-            # 检查是否已存在今日画像
-            existing_profile = db.session.query(UserHealthProfile).filter(
-                and_(
-                    UserHealthProfile.user_id == user_id,
-                    UserHealthProfile.profile_date == profile_date,
-                    UserHealthProfile.is_deleted == False
-                )
-            ).first()
-            
-            current_status = health_profile['current_health_status']
-            detailed_scores = current_status.get('detailed_scores', {})
-            
-            if existing_profile:
-                # 更新现有记录
-                existing_profile.overall_health_score = current_status.get('overall_health_score', 0)
-                existing_profile.health_level = current_status.get('health_level', 'fair')
-                existing_profile.physiological_score = current_status.get('dimension_scores', {}).get('physiological', 0)
-                existing_profile.behavioral_score = current_status.get('dimension_scores', {}).get('behavioral', 0)
-                existing_profile.risk_factor_score = current_status.get('dimension_scores', {}).get('risk_factor', 0)
-                existing_profile.cardiovascular_score = detailed_scores.get('cardiovascular_score', 0)
-                existing_profile.respiratory_score = detailed_scores.get('respiratory_score', 0)
-                existing_profile.metabolic_score = detailed_scores.get('metabolic_score', 0)
-                existing_profile.psychological_score = detailed_scores.get('psychological_score', 0)
-                existing_profile.activity_consistency_score = detailed_scores.get('activity_consistency_score', 0)
-                existing_profile.sleep_quality_score = detailed_scores.get('sleep_quality_score', 0)
-                existing_profile.health_engagement_score = detailed_scores.get('health_engagement_score', 0)
-                existing_profile.current_risk_level = health_profile['risk_assessment'].get('current_risk_level', 'medium')
-                existing_profile.predicted_risk_score = health_profile['risk_assessment'].get('future_risk_prediction', {}).get('risk_score', 0)
-                existing_profile.detailed_analysis = health_profile['health_metrics_analysis']
-                existing_profile.trend_analysis = health_profile['health_trends']
-                existing_profile.recommendations = health_profile['personalized_recommendations']
-                existing_profile.update_time = datetime.now()
-                existing_profile.version += 1
-                
-            else:
-                # 创建新记录
-                new_profile = UserHealthProfile(
-                    user_id=user_id,
-                    customer_id=customer_id,
-                    profile_date=profile_date,
-                    overall_health_score=current_status.get('overall_health_score', 0),
-                    health_level=current_status.get('health_level', 'fair'),
-                    physiological_score=current_status.get('dimension_scores', {}).get('physiological', 0),
-                    behavioral_score=current_status.get('dimension_scores', {}).get('behavioral', 0),
-                    risk_factor_score=current_status.get('dimension_scores', {}).get('risk_factor', 0),
-                    cardiovascular_score=detailed_scores.get('cardiovascular_score', 0),
-                    respiratory_score=detailed_scores.get('respiratory_score', 0),
-                    metabolic_score=detailed_scores.get('metabolic_score', 0),
-                    psychological_score=detailed_scores.get('psychological_score', 0),
-                    activity_consistency_score=detailed_scores.get('activity_consistency_score', 0),
-                    sleep_quality_score=detailed_scores.get('sleep_quality_score', 0),
-                    health_engagement_score=detailed_scores.get('health_engagement_score', 0),
-                    current_risk_level=health_profile['risk_assessment'].get('current_risk_level', 'medium'),
-                    predicted_risk_score=health_profile['risk_assessment'].get('future_risk_prediction', {}).get('risk_score', 0),
-                    detailed_analysis=health_profile['health_metrics_analysis'],
-                    trend_analysis=health_profile['health_trends'],
-                    recommendations=health_profile['personalized_recommendations'],
-                    create_time=datetime.now(),
-                    update_time=datetime.now(),
-                    is_deleted=False,
-                    version=1
-                )
-                
-                db.session.add(new_profile)
-            
-            db.session.commit()
-            logger.info(f"用户 {user_id} 健康画像已保存到数据库")
-            return True
-            
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"保存健康画像失败: {e}")
-            return False
-    
-    def _get_recent_health_data(self, user_id, days_back):
-        """获取最近的健康数据"""
-        try:
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days_back)
-            
-            health_data = db.session.query(UserHealthData).filter(
-                and_(
-                    UserHealthData.user_id == user_id,
-                    UserHealthData.timestamp >= start_date,
-                    UserHealthData.is_deleted == False
-                )
-            ).order_by(UserHealthData.timestamp.desc()).all()
-            
-            return health_data
-            
-        except Exception as e:
-            logger.error(f"获取最近健康数据失败: {e}")
-            return []
-    
-    def _analyze_cardiovascular_system(self, health_data):
-        """分析心血管系统"""
-        try:
-            heart_rates = [record.heart_rate for record in health_data if record.heart_rate]
-            pressures_high = [record.pressure_high for record in health_data if record.pressure_high]
-            pressures_low = [record.pressure_low for record in health_data if record.pressure_low]
-            
-            analysis = {}
-            
-            if heart_rates:
-                analysis['heart_rate'] = {
-                    'average': round(np.mean(heart_rates), 2),
-                    'variability': round(np.std(heart_rates), 2),
-                    'min': int(np.min(heart_rates)),
-                    'max': int(np.max(heart_rates)),
-                    'trend': self._calculate_simple_trend(heart_rates)
-                }
-            
-            if pressures_high and pressures_low:
-                analysis['blood_pressure'] = {
-                    'systolic_avg': round(np.mean(pressures_high), 2),
-                    'diastolic_avg': round(np.mean(pressures_low), 2),
-                    'pressure_variability': round(np.std(pressures_high), 2),
-                    'hypertension_risk': self._assess_hypertension_risk(pressures_high, pressures_low)
-                }
-            
-            # 心血管风险评估
-            analysis['cardiovascular_risk_score'] = self._calculate_cardiovascular_risk_score(analysis)
-            
-            return analysis
-            
-        except Exception as e:
-            logger.error(f"心血管系统分析失败: {e}")
-            return {}
-    
-    def _analyze_respiratory_system(self, health_data):
-        """分析呼吸系统"""
-        try:
-            blood_oxygen_values = [record.blood_oxygen for record in health_data if record.blood_oxygen]
-            
-            if not blood_oxygen_values:
-                return {}
-            
-            analysis = {
-                'blood_oxygen': {
-                    'average': round(np.mean(blood_oxygen_values), 2),
-                    'stability': round(100 - np.std(blood_oxygen_values), 2),
-                    'min': int(np.min(blood_oxygen_values)),
-                    'max': int(np.max(blood_oxygen_values)),
-                    'trend': self._calculate_simple_trend(blood_oxygen_values)
-                },
-                'respiratory_health_score': self._calculate_respiratory_health_score(blood_oxygen_values),
-                'hypoxia_episodes': len([val for val in blood_oxygen_values if val < 90])
-            }
-            
-            return analysis
-            
-        except Exception as e:
-            logger.error(f"呼吸系统分析失败: {e}")
-            return {}
-    
-    def _analyze_activity_patterns(self, health_data):
-        """分析活动模式"""
-        try:
-            daily_steps = []
-            distances = []
-            calories = []
-            
-            # 按日期聚合数据
-            daily_data = {}
-            for record in health_data:
-                date_key = record.timestamp.date()
-                if date_key not in daily_data:
-                    daily_data[date_key] = {'steps': 0, 'distance': 0, 'calories': 0}
-                
-                if record.step:
-                    daily_data[date_key]['steps'] += record.step
-                if record.distance:
-                    daily_data[date_key]['distance'] += record.distance
-                if record.calorie:
-                    daily_data[date_key]['calories'] += record.calorie
-            
-            # 提取每日汇总
-            for date_data in daily_data.values():
-                daily_steps.append(date_data['steps'])
-                distances.append(date_data['distance'])
-                calories.append(date_data['calories'])
-            
-            if not daily_steps:
-                return {}
-            
-            # 计算活动一致性
-            activity_consistency = 100 - min(np.std(daily_steps) / max(np.mean(daily_steps), 1) * 100, 80)
-            
-            # 识别活跃时段
-            peak_activity_hours = self._identify_peak_activity_hours(health_data)
-            
-            # 比较工作日和周末
-            weekend_weekday_comparison = self._compare_weekend_weekday_activity(daily_data)
-            
-            return {
-                'daily_step_average': round(np.mean(daily_steps), 0),
-                'step_consistency': round(activity_consistency, 2),
-                'daily_distance_average': round(np.mean(distances), 2),
-                'daily_calories_average': round(np.mean(calories), 0),
-                'activity_consistency': round(activity_consistency, 2),
-                'peak_activity_hours': peak_activity_hours,
-                'weekend_vs_weekday': weekend_weekday_comparison,
-                'activity_trend': self._calculate_simple_trend(daily_steps)
-            }
-            
-        except Exception as e:
-            logger.error(f"分析活动模式失败: {e}")
-            return {}
-    
-    def create_health_portrait_visualization(self, health_profile):
-        """创建健康画像可视化数据"""
-        try:
-            if not health_profile:
-                return {}
-            
-            # 雷达图数据：多维度健康指标
-            detailed_scores = health_profile.get('current_health_status', {}).get('detailed_scores', {})
-            
-            radar_data = {
-                'dimensions': ['心血管', '呼吸系统', '代谢功能', '心理健康', '运动能力', '睡眠质量'],
-                'values': [
-                    detailed_scores.get('cardiovascular_score', 0),
-                    detailed_scores.get('respiratory_score', 0),
-                    detailed_scores.get('metabolic_score', 0),
-                    detailed_scores.get('psychological_score', 0),
-                    detailed_scores.get('activity_consistency_score', 0),
-                    detailed_scores.get('sleep_quality_score', 0)
-                ],
-                'max_value': 100
-            }
-            
-            # 趋势图数据
-            trend_data = {}
-            health_trends = health_profile.get('health_trends', {})
-            for metric, trend_info in health_trends.items():
-                trend_data[metric] = {
-                    'direction': trend_info.get('trend_direction', 'stable'),
-                    'strength': trend_info.get('trend_strength', 0),
-                    'stability': trend_info.get('stability_score', 0)
-                }
-            
-            # 风险热力图数据
-            risk_assessment = health_profile.get('risk_assessment', {})
-            risk_heatmap = {
-                'risk_factors': risk_assessment.get('risk_factors', []),
-                'risk_levels': [factor.get('severity', 'medium') for factor in risk_assessment.get('risk_factors', [])],
-                'current_risk_level': risk_assessment.get('current_risk_level', 'medium')
-            }
-            
-            # 汇总指标
-            summary_metrics = self._extract_summary_metrics(health_profile)
-            
-            return {
-                'radar_chart': radar_data,
-                'trend_charts': trend_data,
-                'risk_heatmap': risk_heatmap,
-                'summary_metrics': summary_metrics,
-                'generation_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            }
-            
-        except Exception as e:
-            logger.error(f"创建可视化数据失败: {e}")
-            return {}
-    
-    def _extract_summary_metrics(self, health_profile):
-        """提取汇总指标"""
-        try:
-            current_status = health_profile.get('current_health_status', {})
-            risk_assessment = health_profile.get('risk_assessment', {})
-            behavioral_analysis = health_profile.get('behavioral_analysis', {})
-            
-            return {
-                'overall_score': current_status.get('overall_health_score', 0),
-                'health_level': current_status.get('health_level', 'fair'),
-                'risk_level': risk_assessment.get('current_risk_level', 'medium'),
-                'improvement_potential': self._calculate_improvement_potential(health_profile),
-                'engagement_level': behavioral_analysis.get('health_engagement', {}).get('overall_engagement', 50),
-                'data_quality_score': self._calculate_data_quality_score(health_profile)
-            }
-            
-        except Exception as e:
-            logger.error(f"提取汇总指标失败: {e}")
-            return {}
-    
-    def _calculate_improvement_potential(self, health_profile):
-        """计算改善潜力"""
-        current_score = health_profile.get('current_health_status', {}).get('overall_health_score', 0)
+        self.redis = RedisHelper()
         
-        # 基于当前评分计算改善潜力
-        if current_score >= 90:
-            return 'low'  # 已经很好，改善空间有限
-        elif current_score >= 70:
-            return 'medium'  # 有一定改善空间
-        else:
-            return 'high'  # 有很大改善空间
-    
-    def get_user_health_profile(self, user_id, profile_date=None):
-        """获取用户健康画像"""
-        try:
-            if not profile_date:
-                profile_date = date.today()
-            
-            profile_record = db.session.query(UserHealthProfile).filter(
-                and_(
-                    UserHealthProfile.user_id == user_id,
-                    UserHealthProfile.profile_date == profile_date,
-                    UserHealthProfile.is_deleted == False
-                )
-            ).first()
-            
-            if profile_record:
-                return profile_record.to_dict()
-            else:
-                logger.info(f"用户 {user_id} 在 {profile_date} 的健康画像不存在")
-                return None
-                
-        except Exception as e:
-            logger.error(f"获取用户健康画像失败: {e}")
-            return None
-    
-    def _identify_immediate_concerns(self, latest_data, health_score):
-        """识别紧急关注点"""
-        concerns = []
+        # 健康特征配置 - 与其他引擎保持一致
+        self.HEALTH_FEATURES = [
+            "heart_rate", "blood_oxygen", "temperature", "pressure_high", 
+            "pressure_low", "stress", "step", "calorie", "distance", "sleep"
+        ]
         
-        if not latest_data:
-            return concerns
-        
-        # 检查关键指标异常
-        if latest_data.heart_rate and (latest_data.heart_rate > 120 or latest_data.heart_rate < 50):
-            concerns.append({
-                'type': 'critical',
-                'indicator': 'heart_rate',
-                'value': latest_data.heart_rate,
-                'message': '心率异常，建议立即关注'
-            })
-        
-        if latest_data.blood_oxygen and latest_data.blood_oxygen < 90:
-            concerns.append({
-                'type': 'critical',
-                'indicator': 'blood_oxygen',
-                'value': latest_data.blood_oxygen,
-                'message': '血氧饱和度偏低，需要医疗关注'
-            })
-        
-        # 检查综合评分
-        if health_score and health_score['total_score'] < 60:
-            concerns.append({
-                'type': 'warning',
-                'indicator': 'overall_health',
-                'value': health_score['total_score'],
-                'message': '综合健康评分偏低，建议制定改善计划'
-            })
-        
-        return concerns
-    
-    def _calculate_simple_trend(self, values):
-        """计算简单趋势"""
-        if len(values) < 3:
-            return 'insufficient_data'
-        
-        recent_avg = np.mean(values[-7:]) if len(values) >= 7 else np.mean(values[-len(values)//2:])
-        early_avg = np.mean(values[:7]) if len(values) >= 14 else np.mean(values[:len(values)//2])
-        
-        change_rate = (recent_avg - early_avg) / early_avg * 100
-        
-        if change_rate > 5:
-            return 'increasing'
-        elif change_rate < -5:
-            return 'decreasing'
-        else:
-            return 'stable'
-    
-    def _detect_seasonal_pattern(self, metric_data, metric_name):
-        """检测季节性模式（简化版本）"""
-        # 简化的季节性检测
-        current_month = datetime.now().month
-        season = self._get_season(current_month)
-        
-        # 基于当前季节返回预期模式
-        seasonal_expectations = {
-            'heart_rate': {
-                'winter': 'slightly_higher',
-                'spring': 'normal',
-                'summer': 'slightly_lower',
-                'autumn': 'normal'
+        # 健康画像维度配置
+        self.PROFILE_DIMENSIONS = {
+            'cardiovascular': {
+                'name': '心血管健康',
+                'features': ['heart_rate', 'pressure_high', 'pressure_low'],
+                'weight': 0.30,
+                'icon': '❤️'
             },
-            'blood_oxygen': {
-                'winter': 'lower',
-                'spring': 'normal',
-                'summer': 'higher',
-                'autumn': 'normal'
+            'respiratory': {
+                'name': '呼吸系统',
+                'features': ['blood_oxygen'],
+                'weight': 0.20,
+                'icon': '🫁'
+            },
+            'metabolic': {
+                'name': '代谢健康',
+                'features': ['temperature', 'calorie'],
+                'weight': 0.15,
+                'icon': '🔥'
+            },
+            'mental': {
+                'name': '心理健康',
+                'features': ['stress'],
+                'weight': 0.15,
+                'icon': '🧠'
+            },
+            'activity': {
+                'name': '运动健康',
+                'features': ['step', 'distance'],
+                'weight': 0.10,
+                'icon': '🏃'
+            },
+            'recovery': {
+                'name': '恢复健康',
+                'features': ['sleep'],
+                'weight': 0.10,
+                'icon': '😴'
             }
         }
         
-        return seasonal_expectations.get(metric_name, {}).get(season, 'normal')
+        # 健康等级标签配置
+        self.HEALTH_LABELS = {
+            'excellent': {'label': '优秀', 'color': '#52c41a', 'badge': '🏆'},
+            'good': {'label': '良好', 'color': '#1890ff', 'badge': '👍'},
+            'fair': {'label': '一般', 'color': '#faad14', 'badge': '⚠️'},
+            'poor': {'label': '较差', 'color': '#fa8c16', 'badge': '📉'},
+            'critical': {'label': '危险', 'color': '#f5222d', 'badge': '🚨'}
+        }
+        
+        # 健康画像类型配置
+        self.PROFILE_TYPES = {
+            'comprehensive': '综合画像',
+            'cardiovascular_focused': '心血管重点',
+            'activity_focused': '运动健康',
+            'mental_focused': '心理健康',
+            'preventive': '预防保健'
+        }
+        
+        # 时间维度配置
+        self.TIME_DIMENSIONS = {
+            'current': {'days': 7, 'label': '当前状态'},
+            'short_term': {'days': 30, 'label': '近期趋势'},
+            'long_term': {'days': 90, 'label': '长期变化'}
+        }
     
-    def _get_season(self, month):
-        """获取季节"""
-        if month in [12, 1, 2]:
-            return 'winter'
-        elif month in [3, 4, 5]:
-            return 'spring'
-        elif month in [6, 7, 8]:
-            return 'summer'
-        else:
-            return 'autumn'
-    
-    def generate_personal_profile(self, user_id, device_sn, include_health_data=True, include_user_info=True):
-        """生成个人健康画像 - API兼容方法"""
+    def generate_user_health_profile_realtime(self, user_id: int, target_date: str = None, 
+                                            profile_type: str = 'comprehensive') -> Dict:
+        """
+        生成用户健康画像，优先从数据库查询，空值时实时生成
+        
+        Args:
+            user_id: 用户ID
+            target_date: 目标日期，默认为今天
+            profile_type: 画像类型，默认为综合画像
+            
+        Returns:
+            Dict: 包含完整的用户健康画像
+        """
+        start_time = time.time()
+        
+        if target_date is None:
+            target_date = datetime.now().strftime('%Y-%m-%d')
+        
+        logger.info(f"🔄 开始获取用户 {user_id} 的健康画像，目标日期: {target_date}，类型: {profile_type}")
+        
         try:
-            # 通过device_sn获取customer_id - 使用正确的函数
-            from .user import get_user_info_by_deviceSn
-            user_info = get_user_info_by_deviceSn(device_sn)
+            # 步骤1: 优先从数据库查询已生成的画像
+            db_result = self._query_database_profile(user_id, target_date)
+            if db_result['success'] and db_result['data']:
+                logger.info(f"✅ 用户 {user_id} 从数据库获取画像成功，健康指数: {db_result['data'].get('health_index', {}).get('overall_score', 0)}")
+                return db_result
             
-            if not user_info:
-                logger.error(f"设备 {device_sn} 对应的用户信息不存在")
-                return None
+            # 步骤2: 数据库无数据，执行实时生成
+            logger.info(f"📊 用户 {user_id} 数据库无画像数据，开始实时生成...")
+            return self._generate_profile_realtime(user_id, target_date, profile_type, start_time)
             
-            customer_id = user_info.get('customer_id', 0)
-            actual_user_id = user_info.get('id', user_id)
-            
-            # 调用综合健康画像生成方法，使用实际的用户ID
-            profile = self.generate_comprehensive_health_profile(actual_user_id, customer_id)
-            
-            if not profile:
-                return None
-            
-            # 根据参数过滤返回数据
-            result = {
+        except Exception as e:
+            logger.error(f"❌ 用户 {user_id} 画像获取失败: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
                 'user_id': user_id,
-                'device_sn': device_sn,
+                'target_date': target_date,
+                'execution_time': round(time.time() - start_time, 3)
+            }
+    
+    def _query_database_profile(self, user_id: int, target_date: str) -> Dict:
+        """从数据库查询已生成的健康画像"""
+        try:
+            # 查询健康画像记录
+            profile_record = db.session.query(UserHealthProfile).filter(
+                and_(
+                    UserHealthProfile.user_id == user_id,
+                    UserHealthProfile.profile_date == target_date,
+                    UserHealthProfile.is_deleted == False
+                )
+            ).first()
+            
+            if not profile_record:
+                return {'success': True, 'data': None, 'source': 'database_empty'}
+            
+            # 转换为标准格式
+            user_info = self._get_user_basic_info(user_id)
+            
+            # 构建健康指数
+            health_index = {
+                'overall_score': float(profile_record.overall_health_score or 0),
+                'overall_level': profile_record.health_level or 'fair',
+                'level_info': self.HEALTH_LABELS.get(profile_record.health_level or 'fair', {}),
+                'dimension_scores': {
+                    'cardiovascular': float(profile_record.cardiovascular_score or 0),
+                    'respiratory': float(profile_record.respiratory_score or 0),
+                    'metabolic': float(profile_record.metabolic_score or 0),
+                    'mental': float(profile_record.psychological_score or 0),
+                    'activity': float(profile_record.behavioral_score or 0),
+                    'recovery': float(profile_record.sleep_quality_score or 0)
+                },
+                'stability_score': 0,  # 数据库中没有，设为默认值
+                'risk_score': float(profile_record.predicted_risk_score or 0),
+                'improvement_potential': 0,  # 计算改善潜力
+                'data_quality_score': 0.8  # 默认质量评分
+            }
+            
+            # 构建维度画像
+            dimension_profiles = {}
+            for dimension, config in self.PROFILE_DIMENSIONS.items():
+                score = health_index['dimension_scores'].get(dimension, 0)
+                dimension_profiles[dimension] = {
+                    'name': config['name'],
+                    'icon': config['icon'],
+                    'score': score,
+                    'level': self._determine_health_level(score),
+                    'weight': config['weight'],
+                    'feature_count': len(config['features']),
+                    'scored_features': len(config['features']),
+                    'feature_details': {},
+                    'completeness': 1.0,
+                    'source': 'database'
+                }
+            
+            # 构建健康洞察
+            health_insights = [f"用户健康画像来源于数据库记录，整体健康评分 {health_index['overall_score']} 分"]
+            
+            # 构建个性化标签
+            level_config = self.HEALTH_LABELS.get(profile_record.health_level or 'fair', {})
+            personality_tags = [{
+                'type': 'health_level',
+                'text': level_config.get('label', '一般'),
+                'color': level_config.get('color', '#faad14'),
+                'icon': level_config.get('badge', '⚠️')
+            }]
+            
+            # 生成画像汇总
+            profile_summary = {
+                'user_id': user_id,
+                'target_date': target_date,
+                'profile_type': 'comprehensive',
+                'data_source': 'database',
+                'health_index': health_index,
+                'dimension_count': len(dimension_profiles),
+                'data_completeness': 1.0,
+                'profile_confidence': 0.9,
+                'last_update': profile_record.update_time.isoformat() if profile_record.update_time else datetime.now().isoformat(),
+                'generation_time': 0
+            }
+            
+            # 构建完整画像
+            complete_profile = {
+                'user_info': user_info,
+                'health_index': health_index,
+                'dimension_profiles': dimension_profiles,
+                'health_insights': health_insights,
+                'personality_tags': personality_tags,
+                'raw_data': {
+                    'detailed_analysis': profile_record.detailed_analysis,
+                    'trend_analysis': profile_record.trend_analysis,
+                    'recommendations': profile_record.recommendations
+                },
+                'summary': profile_summary
+            }
+            
+            logger.info(f"📋 从数据库获取用户 {user_id} 画像: 健康等级 {profile_record.health_level}，综合评分 {health_index['overall_score']}")
+            
+            return {
+                'success': True,
+                'data': complete_profile,
+                'source': 'database'
+            }
+            
+        except Exception as e:
+            logger.warning(f"⚠️ 数据库画像查询失败: {str(e)}")
+            return {'success': False, 'error': str(e), 'source': 'database_error'}
+    
+    def _generate_profile_realtime(self, user_id: int, target_date: str, profile_type: str, start_time: float) -> Dict:
+        """实时生成健康画像（原有逻辑）"""
+        logger.info(f"🔄 开始实时生成用户 {user_id} 健康画像，日期: {target_date}，类型: {profile_type}")
+        
+        try:
+            # 1. 获取用户基本信息
+            user_info = self._get_user_basic_info(user_id)
+            
+            # 2. 并行获取各个维度的数据
+            profile_data = {}
+            
+            # 2.1 获取基线数据
+            baseline_result = realtime_baseline_engine.generate_user_baseline_realtime(
+                user_id, (datetime.strptime(target_date, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+            )
+            profile_data['baseline'] = baseline_result.get('data', {}) if baseline_result.get('success') else {}
+            
+            # 2.2 获取评分数据
+            score_result = realtime_score_engine.calculate_user_health_score_realtime(
+                user_id, (datetime.strptime(target_date, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+            )
+            profile_data['score'] = score_result.get('data', {}) if score_result.get('success') else {}
+            
+            # 2.3 获取建议数据
+            recommendation_result = realtime_recommendation_engine.generate_user_health_recommendations_realtime(
+                user_id, (datetime.strptime(target_date, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+            )
+            profile_data['recommendations'] = recommendation_result.get('data', {}) if recommendation_result.get('success') else {}
+            
+            # 2.4 获取预测数据
+            prediction_result = realtime_prediction_engine.generate_user_health_prediction_realtime(
+                user_id, target_date, 30
+            )
+            profile_data['predictions'] = prediction_result.get('data', {}) if prediction_result.get('success') else {}
+            
+            # 2.5 获取历史趋势数据
+            historical_trends = self._get_historical_trends(user_id, target_date)
+            profile_data['trends'] = historical_trends
+            
+            # 3. 构建维度画像
+            dimension_profiles = self._build_dimension_profiles(profile_data, profile_type)
+            
+            # 4. 计算综合健康指数
+            health_index = self._calculate_health_index(dimension_profiles, profile_data)
+            
+            # 5. 生成健康洞察
+            health_insights = self._generate_health_insights(
+                dimension_profiles, health_index, profile_data, user_info
+            )
+            
+            # 6. 构建个性化特征标签
+            personality_tags = self._generate_personality_tags(profile_data, dimension_profiles, user_info)
+            
+            # 7. 生成健康画像汇总
+            profile_summary = {
+                'user_id': user_id,
+                'target_date': target_date,
+                'profile_type': profile_type,
+                'data_source': 'realtime',
+                'health_index': health_index,
+                'dimension_count': len(dimension_profiles),
+                'data_completeness': self._calculate_data_completeness(profile_data),
+                'profile_confidence': self._calculate_profile_confidence(profile_data),
+                'last_update': datetime.now().isoformat(),
+                'generation_time': round(time.time() - start_time, 3)
+            }
+            
+            # 8. 构建完整健康画像
+            complete_profile = {
+                'user_info': user_info,
+                'health_index': health_index,
+                'dimension_profiles': dimension_profiles,
+                'health_insights': health_insights,
+                'personality_tags': personality_tags,
+                'raw_data': profile_data,
+                'summary': profile_summary
+            }
+            
+            # 9. 缓存结果
+            cache_key = f"realtime_profile:user:{user_id}:{target_date}:{profile_type}"
+            self.redis.set_data(cache_key, json.dumps(complete_profile, default=str), 7200)  # 缓存2小时
+            
+            logger.info(f"✅ 用户 {user_id} 健康画像生成完成: 健康指数 {health_index['overall_score']}")
+            
+            return {
+                'success': True,
+                'data': complete_profile
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ 用户 {user_id} 健康画像生成失败: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'user_id': user_id,
+                'target_date': target_date,
+                'execution_time': round(time.time() - start_time, 3)
+            }
+    
+    def generate_department_health_profile_realtime(self, org_id: int, target_date: str = None) -> Dict:
+        """
+        实时生成部门健康画像聚合
+        
+        Args:
+            org_id: 组织ID
+            target_date: 目标日期，默认为今天
+            
+        Returns:
+            Dict: 包含部门级别的健康画像聚合
+        """
+        start_time = time.time()
+        
+        if target_date is None:
+            target_date = datetime.now().strftime('%Y-%m-%d')
+        
+        logger.info(f"🔄 开始生成部门 {org_id} 的实时健康画像聚合，日期: {target_date}")
+        
+        try:
+            # 1. 获取部门下所有用户
+            from .org import fetch_users_by_orgId
+            users = fetch_users_by_orgId(org_id)
+            
+            if not users:
+                return {
+                    'success': False,
+                    'error': '未找到部门用户',
+                    'org_id': org_id,
+                    'target_date': target_date
+                }
+            
+            # 2. 获取每个用户的健康画像
+            user_profiles = {}
+            department_dimension_stats = {}
+            department_health_distribution = {'excellent': 0, 'good': 0, 'fair': 0, 'poor': 0, 'critical': 0}
+            total_users = len(users)
+            processed_users = 0
+            
+            for user in users:
+                user_id = user['id']
+                user_profile_result = self.generate_user_health_profile_realtime(user_id, target_date)
+                
+                if user_profile_result.get('success'):
+                    user_profiles[user_id] = user_profile_result['data']
+                    processed_users += 1
+                    
+                    # 聚合维度统计
+                    dimension_profiles = user_profile_result['data'].get('dimension_profiles', {})
+                    for dimension, dim_data in dimension_profiles.items():
+                        if dimension not in department_dimension_stats:
+                            department_dimension_stats[dimension] = {
+                                'scores': [],
+                                'levels': [],
+                                'user_count': 0
+                            }
+                        department_dimension_stats[dimension]['scores'].append(dim_data.get('score', 0))
+                        department_dimension_stats[dimension]['levels'].append(dim_data.get('level', 'unknown'))
+                        department_dimension_stats[dimension]['user_count'] += 1
+                    
+                    # 聚合健康等级分布
+                    health_level = user_profile_result['data']['health_index'].get('overall_level', 'fair')
+                    department_health_distribution[health_level] += 1
+                else:
+                    logger.warning(f"⚠️ 用户 {user_id} 画像生成失败: {user_profile_result.get('error')}")
+            
+            # 3. 计算部门级别统计
+            department_stats = self._calculate_department_profile_stats(
+                department_dimension_stats, department_health_distribution, total_users
+            )
+            
+            # 4. 生成部门健康洞察
+            department_insights = self._generate_department_health_insights(
+                department_stats, department_health_distribution, total_users
+            )
+            
+            # 5. 识别部门健康特征
+            department_characteristics = self._identify_department_characteristics(
+                user_profiles, department_stats
+            )
+            
+            # 6. 生成部门汇总
+            department_summary = {
+                'org_id': org_id,
+                'target_date': target_date,
+                'total_users': total_users,
+                'processed_users': processed_users,
+                'coverage_rate': round(processed_users / total_users, 3) if total_users > 0 else 0,
+                'health_distribution': department_health_distribution,
+                'average_health_index': department_stats.get('avg_health_index', 0),
+                'generation_time': round(time.time() - start_time, 3),
                 'generated_at': datetime.now().isoformat()
             }
             
-            if include_user_info:
-                result['user_info'] = profile.get('user_basic_info', {})
+            # 7. 缓存结果
+            cache_key = f"realtime_profile:department:{org_id}:{target_date}"
+            cache_data = {
+                'user_profiles': user_profiles,
+                'department_stats': department_stats,
+                'health_distribution': department_health_distribution,
+                'insights': department_insights,
+                'characteristics': department_characteristics,
+                'summary': department_summary
+            }
+            self.redis.set_data(cache_key, json.dumps(cache_data, default=str), 7200)
             
-            if include_health_data:
-                result['health_profile'] = profile
-            else:
-                # 只返回基本的画像摘要
-                current_status = profile.get('current_health_status', {})
-                risk_assessment = profile.get('risk_assessment', {})
-                result['health_summary'] = {
-                    'overall_health_score': current_status.get('overall_health_score'),
-                    'health_level': current_status.get('health_level'),
-                    'risk_level': risk_assessment.get('current_risk_level')
-                }
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"生成个人健康画像失败: {e}")
-            return None
-
-class HealthProfileBatchProcessor:
-    """健康画像批处理器"""
-    
-    def __init__(self):
-        self.profile_engine = HealthProfileEngine()
-    
-    def batch_generate_profiles(self, customer_id):
-        """批量生成客户下所有用户的健康画像"""
-        try:
-            # 获取客户下所有用户
-            users = db.session.query(UserInfo).filter(
-                and_(
-                    UserInfo.customer_id == customer_id,
-                    UserInfo.is_deleted == False
-                )
-            ).all()
-            
-            success_count = 0
-            total_count = len(users)
-            results = []
-            
-            for user in users:
-                try:
-                    profile = self.profile_engine.generate_comprehensive_health_profile(
-                        user.id, customer_id
-                    )
-                    if profile:
-                        success_count += 1
-                        results.append({
-                            'user_id': user.id,
-                            'user_name': user.user_name,
-                            'profile_generated': True,
-                            'overall_score': profile['current_health_status'].get('overall_health_score', 0)
-                        })
-                    else:
-                        results.append({
-                            'user_id': user.id,
-                            'user_name': user.user_name,
-                            'profile_generated': False,
-                            'error': '画像生成失败'
-                        })
-                except Exception as e:
-                    logger.error(f"用户 {user.id} 画像生成失败: {e}")
-                    results.append({
-                        'user_id': user.id,
-                        'user_name': user.user_name,
-                        'profile_generated': False,
-                        'error': str(e)
-                    })
-            
-            logger.info(f"批量生成健康画像完成: {success_count}/{total_count} 成功")
+            logger.info(f"✅ 部门 {org_id} 健康画像聚合完成: 处理用户 {processed_users}/{total_users}")
             
             return {
-                'success_count': success_count,
-                'total_count': total_count,
-                'success_rate': success_count / total_count if total_count > 0 else 0,
-                'results': results,
-                'batch_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                'success': True,
+                'data': {
+                    'user_profiles': user_profiles,
+                    'department_stats': department_stats,
+                    'health_distribution': department_health_distribution,
+                    'insights': department_insights,
+                    'characteristics': department_characteristics,
+                    'summary': department_summary
+                }
             }
             
         except Exception as e:
-            logger.error(f"批量生成健康画像失败: {e}")
-            return None
+            logger.error(f"❌ 部门 {org_id} 健康画像聚合失败: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'org_id': org_id,
+                'target_date': target_date,
+                'execution_time': round(time.time() - start_time, 3)
+            }
+    
+    def _get_user_basic_info(self, user_id: int) -> Dict:
+        """获取用户基本信息"""
+        try:
+            from .models import UserInfo, OrgInfo, UserOrg
+            
+            user = db.session.query(UserInfo, OrgInfo.name.label('dept_name')).join(
+                UserOrg, UserInfo.id == UserOrg.user_id
+            ).join(
+                OrgInfo, UserOrg.org_id == OrgInfo.id
+            ).filter(
+                UserInfo.id == user_id,
+                UserInfo.is_deleted == False
+            ).first()
+            
+            if user:
+                return {
+                    'user_id': user_id,
+                    'user_name': user[0].user_name or '未知用户',
+                    'phone': user[0].phone or '',
+                    'dept_name': user[1] or '未知部门',
+                    'device_sn': user[0].device_sn or '',
+                    'avatar': user[0].avatar or '',
+                    'create_time': user[0].create_time.isoformat() if user[0].create_time else None
+                }
+            else:
+                return {
+                    'user_id': user_id,
+                    'user_name': '未知用户',
+                    'phone': '',
+                    'dept_name': '未知部门',
+                    'device_sn': '',
+                    'avatar': '',
+                    'create_time': None
+                }
+        except Exception as e:
+            logger.warning(f"获取用户 {user_id} 基本信息失败: {e}")
+            return {
+                'user_id': user_id,
+                'user_name': '未知用户',
+                'phone': '',
+                'dept_name': '未知部门',
+                'device_sn': '',
+                'avatar': '',
+                'create_time': None
+            }
+    
+    def _get_historical_trends(self, user_id: int, target_date: str) -> Dict:
+        """获取历史趋势数据"""
+        trends = {}
+        
+        try:
+            # 获取不同时间维度的数据
+            for period, config in self.TIME_DIMENSIONS.items():
+                start_date = (datetime.strptime(target_date, '%Y-%m-%d') - timedelta(days=config['days'])).strftime('%Y-%m-%d')
+                
+                history_result = get_all_health_data_optimized(
+                    userId=user_id,
+                    startDate=start_date,
+                    endDate=target_date,
+                    latest_only=False,
+                    pageSize=None
+                )
+                
+                if history_result.get('success'):
+                    history_data = history_result.get('data', {}).get('healthData', [])
+                    trends[period] = {
+                        'label': config['label'],
+                        'data_points': len(history_data),
+                        'date_range': f"{start_date} to {target_date}",
+                        'summary': self._analyze_period_trends(history_data)
+                    }
+                else:
+                    trends[period] = {
+                        'label': config['label'],
+                        'data_points': 0,
+                        'date_range': f"{start_date} to {target_date}",
+                        'summary': {}
+                    }
+        
+        except Exception as e:
+            logger.warning(f"获取用户 {user_id} 历史趋势失败: {e}")
+        
+        return trends
+    
+    def _analyze_period_trends(self, health_data: List[Dict]) -> Dict:
+        """分析时期趋势"""
+        if not health_data:
+            return {}
+        
+        df = realtime_baseline_engine._convert_to_dataframe(health_data)
+        summary = {}
+        
+        for feature in self.HEALTH_FEATURES:
+            if feature in df.columns:
+                feature_data = df[feature].dropna()
+                if len(feature_data) > 0:
+                    summary[feature] = {
+                        'mean': round(float(feature_data.mean()), 2),
+                        'std': round(float(feature_data.std()), 2),
+                        'min': round(float(feature_data.min()), 2),
+                        'max': round(float(feature_data.max()), 2),
+                        'count': len(feature_data)
+                    }
+        
+        return summary
+    
+    def _build_dimension_profiles(self, profile_data: Dict, profile_type: str) -> Dict:
+        """构建维度画像"""
+        dimension_profiles = {}
+        
+        # 获取评分数据
+        feature_scores = profile_data.get('score', {}).get('feature_scores', {})
+        
+        for dimension, config in self.PROFILE_DIMENSIONS.items():
+            # 根据画像类型调整权重
+            if profile_type != 'comprehensive':
+                if dimension in profile_type:
+                    weight_multiplier = 1.5  # 重点关注的维度
+                else:
+                    weight_multiplier = 0.7  # 其他维度
+            else:
+                weight_multiplier = 1.0
+            
+            # 计算维度评分
+            dimension_scores = []
+            feature_details = {}
+            
+            for feature in config['features']:
+                if feature in feature_scores:
+                    score_data = feature_scores[feature]
+                    score = score_data.get('score_value', 0)
+                    dimension_scores.append(score)
+                    feature_details[feature] = {
+                        'score': score,
+                        'level': self._determine_health_level(score),
+                        'display_name': self._get_feature_display_name(feature)
+                    }
+            
+            # 计算维度综合评分
+            if dimension_scores:
+                dimension_score = round(np.mean(dimension_scores), 2)
+                dimension_level = self._determine_health_level(dimension_score)
+            else:
+                dimension_score = 0
+                dimension_level = 'unknown'
+            
+            dimension_profiles[dimension] = {
+                'name': config['name'],
+                'icon': config['icon'],
+                'score': dimension_score,
+                'level': dimension_level,
+                'weight': config['weight'] * weight_multiplier,
+                'feature_count': len(config['features']),
+                'scored_features': len(dimension_scores),
+                'feature_details': feature_details,
+                'completeness': len(dimension_scores) / len(config['features']) if config['features'] else 0
+            }
+        
+        return dimension_profiles
+    
+    def _calculate_health_index(self, dimension_profiles: Dict, profile_data: Dict) -> Dict:
+        """计算综合健康指数"""
+        # 计算加权综合评分
+        total_weighted_score = 0
+        total_weight = 0
+        
+        for dimension, dim_data in dimension_profiles.items():
+            score = dim_data.get('score', 0)
+            weight = dim_data.get('weight', 0)
+            total_weighted_score += score * weight
+            total_weight += weight
+        
+        overall_score = round(total_weighted_score / total_weight, 2) if total_weight > 0 else 0
+        overall_level = self._determine_health_level(overall_score)
+        
+        # 计算健康指数的其他指标
+        score_summary = profile_data.get('score', {}).get('summary', {})
+        prediction_summary = profile_data.get('predictions', {}).get('summary', {})
+        
+        health_index = {
+            'overall_score': overall_score,
+            'overall_level': overall_level,
+            'level_info': self.HEALTH_LABELS.get(overall_level, {}),
+            'dimension_scores': {
+                dim: data.get('score', 0) 
+                for dim, data in dimension_profiles.items()
+            },
+            'stability_score': self._calculate_stability_score(profile_data),
+            'risk_score': prediction_summary.get('overall_risk_score', 0),
+            'improvement_potential': self._calculate_improvement_potential(dimension_profiles),
+            'data_quality_score': score_summary.get('quality_indicators', {}).get('overall_quality', 0)
+        }
+        
+        return health_index
+    
+    def _calculate_stability_score(self, profile_data: Dict) -> float:
+        """计算健康稳定性评分"""
+        trends = profile_data.get('trends', {})
+        
+        stability_scores = []
+        
+        for period, trend_data in trends.items():
+            summary = trend_data.get('summary', {})
+            for feature, stats in summary.items():
+                if 'std' in stats and 'mean' in stats:
+                    mean_val = stats['mean']
+                    std_val = stats['std']
+                    cv = std_val / mean_val if mean_val > 0 else 1
+                    stability_score = max(0, 1 - cv)  # 变异系数越小，稳定性越高
+                    stability_scores.append(stability_score)
+        
+        return round(np.mean(stability_scores), 3) if stability_scores else 0
+    
+    def _calculate_improvement_potential(self, dimension_profiles: Dict) -> float:
+        """计算改善潜力评分"""
+        improvement_scores = []
+        
+        for dimension, dim_data in dimension_profiles.items():
+            current_score = dim_data.get('score', 0)
+            # 改善潜力 = (100 - 当前分数) / 100，分数越低改善潜力越大
+            improvement_potential = (100 - current_score) / 100
+            improvement_scores.append(improvement_potential)
+        
+        return round(np.mean(improvement_scores), 3) if improvement_scores else 0
+    
+    def _generate_health_insights(self, dimension_profiles: Dict, health_index: Dict, 
+                                 profile_data: Dict, user_info: Dict) -> List[str]:
+        """生成健康洞察"""
+        insights = []
+        
+        overall_level = health_index.get('overall_level', 'fair')
+        overall_score = health_index.get('overall_score', 0)
+        
+        # 1. 总体健康状况洞察
+        if overall_level == 'excellent':
+            insights.append(f"🏆 {user_info['user_name']} 的整体健康状况优秀（{overall_score}分），各项指标表现良好")
+        elif overall_level == 'good':
+            insights.append(f"👍 {user_info['user_name']} 的健康状况良好（{overall_score}分），继续保持当前状态")
+        elif overall_level == 'fair':
+            insights.append(f"⚠️ {user_info['user_name']} 的健康状况一般（{overall_score}分），有进一步改善空间")
+        elif overall_level == 'poor':
+            insights.append(f"📉 {user_info['user_name']} 的健康状况较差（{overall_score}分），需要积极改善")
+        else:
+            insights.append(f"🚨 {user_info['user_name']} 的健康状况存在风险（{overall_score}分），建议立即关注")
+        
+        # 2. 维度强项洞察
+        strong_dimensions = [
+            (dim, data) for dim, data in dimension_profiles.items() 
+            if data.get('score', 0) >= 80
+        ]
+        if strong_dimensions:
+            strong_names = [self.PROFILE_DIMENSIONS[dim]['name'] for dim, _ in strong_dimensions]
+            insights.append(f"💪 健康强项：{', '.join(strong_names[:3])} 表现优秀")
+        
+        # 3. 维度弱项洞察
+        weak_dimensions = [
+            (dim, data) for dim, data in dimension_profiles.items() 
+            if data.get('score', 0) < 60
+        ]
+        if weak_dimensions:
+            weak_names = [self.PROFILE_DIMENSIONS[dim]['name'] for dim, _ in weak_dimensions]
+            insights.append(f"🔴 需要改善：{', '.join(weak_names[:3])} 需要重点关注")
+        
+        # 4. 稳定性洞察
+        stability_score = health_index.get('stability_score', 0)
+        if stability_score > 0.8:
+            insights.append("📊 健康数据稳定性很好，各项指标波动较小")
+        elif stability_score < 0.5:
+            insights.append("📈 健康数据波动较大，建议关注指标稳定性")
+        
+        # 5. 风险预警洞察
+        risk_score = health_index.get('risk_score', 0)
+        if risk_score > 0.6:
+            insights.append(f"⚠️ 健康风险较高（风险指数 {risk_score:.2f}），建议预防性干预")
+        
+        # 6. 建议洞察
+        recommendations = profile_data.get('recommendations', {}).get('priority_issues', [])
+        if recommendations:
+            insights.append(f"💡 优先建议：关注{', '.join(recommendations[:2])}等方面的改善")
+        
+        return insights
+    
+    def _generate_personality_tags(self, profile_data: Dict, dimension_profiles: Dict, 
+                                 user_info: Dict) -> List[Dict]:
+        """生成个性化特征标签"""
+        tags = []
+        
+        # 1. 基于整体健康等级的标签
+        overall_level = profile_data.get('score', {}).get('summary', {}).get('health_level', 'fair')
+        level_config = self.HEALTH_LABELS.get(overall_level, {})
+        tags.append({
+            'type': 'health_level',
+            'text': level_config.get('label', '一般'),
+            'color': level_config.get('color', '#faad14'),
+            'icon': level_config.get('badge', '⚠️')
+        })
+        
+        # 2. 基于维度表现的标签
+        for dimension, dim_data in dimension_profiles.items():
+            score = dim_data.get('score', 0)
+            if score >= 90:
+                config = self.PROFILE_DIMENSIONS[dimension]
+                tags.append({
+                    'type': 'strength',
+                    'text': f"{config['name']}优秀",
+                    'color': '#52c41a',
+                    'icon': config['icon']
+                })
+            elif score < 60:
+                config = self.PROFILE_DIMENSIONS[dimension]
+                tags.append({
+                    'type': 'concern',
+                    'text': f"{config['name']}需改善",
+                    'color': '#f5222d',
+                    'icon': '⚠️'
+                })
+        
+        # 3. 基于预测风险的标签
+        risk_score = profile_data.get('predictions', {}).get('summary', {}).get('overall_risk_score', 0)
+        if risk_score > 0.7:
+            tags.append({
+                'type': 'risk',
+                'text': '高风险预警',
+                'color': '#f5222d',
+                'icon': '🚨'
+            })
+        elif risk_score < 0.3:
+            tags.append({
+                'type': 'safe',
+                'text': '低风险状态',
+                'color': '#52c41a',
+                'icon': '✅'
+            })
+        
+        # 4. 基于数据质量的标签
+        data_quality = profile_data.get('score', {}).get('summary', {}).get('quality_indicators', {}).get('overall_quality', 0)
+        if data_quality > 0.8:
+            tags.append({
+                'type': 'quality',
+                'text': '数据充足',
+                'color': '#1890ff',
+                'icon': '📊'
+            })
+        elif data_quality < 0.5:
+            tags.append({
+                'type': 'quality',
+                'text': '数据不足',
+                'color': '#faad14',
+                'icon': '📉'
+            })
+        
+        return tags
+    
+    def _calculate_data_completeness(self, profile_data: Dict) -> float:
+        """计算数据完整性"""
+        completeness_scores = []
+        
+        # 基线数据完整性
+        baseline_data = profile_data.get('baseline', {}).get('baselines', {})
+        baseline_completeness = len(baseline_data) / len(self.HEALTH_FEATURES)
+        completeness_scores.append(baseline_completeness)
+        
+        # 评分数据完整性
+        score_data = profile_data.get('score', {}).get('feature_scores', {})
+        score_completeness = len(score_data) / len(self.HEALTH_FEATURES)
+        completeness_scores.append(score_completeness)
+        
+        # 建议数据完整性
+        recommendation_data = profile_data.get('recommendations', {}).get('feature_recommendations', {})
+        recommendation_completeness = len(recommendation_data) / len(self.HEALTH_FEATURES)
+        completeness_scores.append(recommendation_completeness)
+        
+        # 预测数据完整性
+        prediction_data = profile_data.get('predictions', {}).get('feature_predictions', {})
+        prediction_completeness = len(prediction_data) / len(self.HEALTH_FEATURES)
+        completeness_scores.append(prediction_completeness)
+        
+        return round(np.mean(completeness_scores), 3) if completeness_scores else 0
+    
+    def _calculate_profile_confidence(self, profile_data: Dict) -> float:
+        """计算画像置信度"""
+        confidence_scores = []
+        
+        # 评分置信度
+        score_quality = profile_data.get('score', {}).get('summary', {}).get('quality_indicators', {}).get('overall_quality', 0)
+        confidence_scores.append(score_quality)
+        
+        # 预测置信度
+        prediction_confidence = profile_data.get('predictions', {}).get('summary', {}).get('prediction_confidence', 0)
+        confidence_scores.append(prediction_confidence)
+        
+        # 建议质量
+        recommendation_quality = profile_data.get('recommendations', {}).get('summary', {}).get('recommendation_quality', {}).get('overall_quality', 0)
+        confidence_scores.append(recommendation_quality)
+        
+        # 数据完整性
+        data_completeness = self._calculate_data_completeness(profile_data)
+        confidence_scores.append(data_completeness)
+        
+        return round(np.mean(confidence_scores), 3) if confidence_scores else 0
+    
+    def _calculate_department_profile_stats(self, dimension_stats: Dict, 
+                                          health_distribution: Dict, total_users: int) -> Dict:
+        """计算部门画像统计"""
+        stats = {}
+        
+        # 计算各维度的部门平均值
+        for dimension, data in dimension_stats.items():
+            scores = data.get('scores', [])
+            if scores:
+                stats[dimension] = {
+                    'avg_score': round(np.mean(scores), 2),
+                    'min_score': round(np.min(scores), 2),
+                    'max_score': round(np.max(scores), 2),
+                    'std_score': round(np.std(scores), 2),
+                    'user_count': data.get('user_count', 0)
+                }
+        
+        # 计算整体健康指数
+        if stats:
+            dimension_scores = [stat['avg_score'] for stat in stats.values()]
+            avg_health_index = round(np.mean(dimension_scores), 2)
+        else:
+            avg_health_index = 0
+        
+        stats['avg_health_index'] = avg_health_index
+        stats['health_distribution'] = health_distribution
+        stats['total_users'] = total_users
+        
+        return stats
+    
+    def _generate_department_health_insights(self, department_stats: Dict, 
+                                           health_distribution: Dict, total_users: int) -> List[str]:
+        """生成部门健康洞察"""
+        insights = []
+        
+        # 整体健康状况
+        avg_health_index = department_stats.get('avg_health_index', 0)
+        excellent_count = health_distribution.get('excellent', 0)
+        good_count = health_distribution.get('good', 0)
+        poor_count = health_distribution.get('poor', 0)
+        critical_count = health_distribution.get('critical', 0)
+        
+        excellent_percentage = round(excellent_count / total_users * 100, 1) if total_users > 0 else 0
+        good_percentage = round(good_count / total_users * 100, 1) if total_users > 0 else 0
+        
+        if excellent_percentage > 50:
+            insights.append(f"🏆 部门整体健康状况优秀，{excellent_percentage}%的员工健康指数优秀")
+        elif good_percentage + excellent_percentage > 70:
+            insights.append(f"👍 部门健康状况良好，{good_percentage + excellent_percentage:.1f}%的员工健康状况良好以上")
+        elif poor_count + critical_count > total_users * 0.3:
+            insights.append(f"⚠️ 部门健康状况需要关注，{poor_count + critical_count}名员工健康状况较差")
+        
+        # 维度强弱项分析
+        dimension_scores = [(dim, stat.get('avg_score', 0)) for dim, stat in department_stats.items() 
+                           if dim != 'avg_health_index' and dim != 'health_distribution' and dim != 'total_users']
+        dimension_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        if dimension_scores:
+            best_dimension = dimension_scores[0]
+            worst_dimension = dimension_scores[-1]
+            
+            best_name = self.PROFILE_DIMENSIONS.get(best_dimension[0], {}).get('name', best_dimension[0])
+            worst_name = self.PROFILE_DIMENSIONS.get(worst_dimension[0], {}).get('name', worst_dimension[0])
+            
+            insights.append(f"💪 部门健康强项：{best_name}（平均 {best_dimension[1]} 分）")
+            if worst_dimension[1] < 70:
+                insights.append(f"🔴 需要改善领域：{worst_name}（平均 {worst_dimension[1]} 分）")
+        
+        return insights
+    
+    def _identify_department_characteristics(self, user_profiles: Dict, department_stats: Dict) -> List[Dict]:
+        """识别部门健康特征"""
+        characteristics = []
+        
+        # 基于健康分布的特征
+        total_users = len(user_profiles)
+        if total_users == 0:
+            return characteristics
+        
+        # 计算各等级比例
+        level_counts = {'excellent': 0, 'good': 0, 'fair': 0, 'poor': 0, 'critical': 0}
+        for user_id, profile in user_profiles.items():
+            level = profile.get('health_index', {}).get('overall_level', 'fair')
+            level_counts[level] += 1
+        
+        # 识别主要特征
+        if level_counts['excellent'] / total_users > 0.6:
+            characteristics.append({
+                'type': 'excellence',
+                'title': '健康优秀型部门',
+                'description': f"部门内{level_counts['excellent']}/{total_users}员工健康状况优秀",
+                'icon': '🏆',
+                'color': '#52c41a'
+            })
+        
+        if level_counts['poor'] + level_counts['critical'] > total_users * 0.3:
+            characteristics.append({
+                'type': 'concern',
+                'title': '健康关注型部门',
+                'description': f"部门内{level_counts['poor'] + level_counts['critical']}名员工需要健康关注",
+                'icon': '⚠️',
+                'color': '#f5222d'
+            })
+        
+        # 基于维度表现的特征
+        avg_health_index = department_stats.get('avg_health_index', 0)
+        if avg_health_index > 85:
+            characteristics.append({
+                'type': 'high_performance',
+                'title': '高健康指数部门',
+                'description': f"部门平均健康指数 {avg_health_index} 分，表现优异",
+                'icon': '📊',
+                'color': '#1890ff'
+            })
+        
+        return characteristics
+    
+    def _determine_health_level(self, score: float) -> str:
+        """根据评分确定健康等级"""
+        if score >= 90:
+            return 'excellent'    # 优秀
+        elif score >= 80:
+            return 'good'        # 良好
+        elif score >= 70:
+            return 'fair'        # 一般
+        elif score >= 60:
+            return 'poor'        # 较差
+        else:
+            return 'critical'    # 危险
+    
+    def _get_feature_display_name(self, feature: str) -> str:
+        """获取特征显示名称"""
+        display_names = {
+            "heart_rate": "心率",
+            "blood_oxygen": "血氧",
+            "temperature": "体温",
+            "pressure_high": "收缩压",
+            "pressure_low": "舒张压",
+            "stress": "压力",
+            "step": "步数",
+            "calorie": "卡路里",
+            "distance": "运动距离",
+            "sleep": "睡眠"
+        }
+        return display_names.get(feature, feature)
+
+
+# 全局实例
+realtime_profile_engine = RealTimeHealthProfileEngine()
+
+
+def get_user_health_profile_realtime(user_id: int, target_date: str = None, 
+                                   profile_type: str = 'comprehensive') -> Dict:
+    """获取用户实时健康画像 - 对外接口"""
+    return realtime_profile_engine.generate_user_health_profile_realtime(
+        user_id, target_date, profile_type
+    )
+
+
+def get_department_health_profile_realtime(org_id: int, target_date: str = None) -> Dict:
+    """获取部门实时健康画像聚合 - 对外接口"""
+    return realtime_profile_engine.generate_department_health_profile_realtime(org_id, target_date)
+
+
+def get_health_profile_status(identifier: int, identifier_type: str = 'user', 
+                            target_date: str = None, profile_type: str = 'comprehensive') -> Dict:
+    """获取画像状态 - 对外接口"""
+    if target_date is None:
+        target_date = datetime.now().strftime('%Y-%m-%d')
+    
+    if identifier_type == 'user':
+        cache_key = f"realtime_profile:user:{identifier}:{target_date}:{profile_type}"
+    else:
+        cache_key = f"realtime_profile:department:{identifier}:{target_date}"
+    
+    cached_result = realtime_profile_engine.redis.get_data(cache_key)
+    
+    if cached_result:
+        data = json.loads(cached_result)
+        return {
+            'success': True,
+            'cached': True,
+            'data': data,
+            'cache_key': cache_key
+        }
+    else:
+        return {
+            'success': False,
+            'cached': False,
+            'message': '未找到缓存的画像数据',
+            'identifier': identifier,
+            'identifier_type': identifier_type,
+            'target_date': target_date,
+            'profile_type': profile_type
+        }

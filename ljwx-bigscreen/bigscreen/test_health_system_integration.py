@@ -83,7 +83,7 @@ def test_database_connection():
             tables_to_check = [
                 't_user_health_data',
                 't_health_baseline',
-                't_user_health_profile',
+                't_health_profile',
                 't_health_recommendation_track'
             ]
             

@@ -1,586 +1,394 @@
 """
-健康基线生成算法引擎
-实现多层次健康基线生成：个人基线、群体基线、职位风险基线
-"""
+实时健康基线生成引擎
+作为ljwx-boot定时任务的备份方案，在bigscreen中实现实时生成逻辑
 
-import math
+依赖统一的get_all_health_data_optimized查询方法
+"""
 import numpy as np
-from datetime import datetime, date, timedelta
-from sqlalchemy import text, and_, or_
-from .models import db, HealthBaseline, UserHealthData, UserInfo, Position, UserPosition
+import pandas as pd
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 import logging
+from .redis_helper import RedisHelper
+from .user_health_data import get_all_health_data_optimized
+from .models import db, HealthBaseline
+from sqlalchemy import text, and_
+import json
+import time
 
 logger = logging.getLogger(__name__)
 
-class HealthBaselineEngine:
-    """健康基线生成算法引擎"""
+class RealTimeHealthBaselineEngine:
+    """实时健康基线生成引擎"""
     
     def __init__(self):
-        self.feature_names = ['heart_rate', 'blood_oxygen', 'pressure_high', 'pressure_low', 
-                             'temperature', 'stress', 'step', 'distance', 'calorie', 'sleep']
-        self.seasonal_factors = {
-            'heart_rate': {'winter': 1.02, 'spring': 1.00, 'summer': 0.98, 'autumn': 1.01},
-            'blood_oxygen': {'winter': 0.98, 'spring': 1.00, 'summer': 1.02, 'autumn': 1.00},
-            'pressure_high': {'winter': 1.05, 'spring': 1.00, 'summer': 0.96, 'autumn': 1.02},
-            'pressure_low': {'winter': 1.03, 'spring': 1.00, 'summer': 0.97, 'autumn': 1.01},
-            'temperature': {'winter': 0.99, 'spring': 1.00, 'summer': 1.01, 'autumn': 1.00}
-        }
-    
-    def generate_personal_baseline(self, user_id, customer_id, days_back=30):
-        """生成个人健康基线"""
-        try:
-            baseline_date = date.today()
-            start_date = baseline_date - timedelta(days=days_back)
-            
-            # 获取用户健康数据
-            user_data = db.session.query(UserHealthData).filter(
-                and_(
-                    UserHealthData.user_id == user_id,
-                    UserHealthData.timestamp >= start_date,
-                    UserHealthData.is_deleted == False
-                )
-            ).all()
-            
-            if not user_data:
-                logger.warning(f"用户 {user_id} 没有足够的健康数据生成基线")
-                return False
-            
-            # 获取用户信息用于季节性调整
-            user = db.session.query(UserInfo).filter_by(id=user_id).first()
-            device_sn = user_data[0].device_sn if user_data else None
-            
-            # 按特征计算基线统计
-            baseline_stats = {}
-            for feature in self.feature_names:
-                values = [getattr(record, feature) for record in user_data 
-                         if getattr(record, feature) is not None]
-                
-                if len(values) >= 5:  # 至少需要5个样本
-                    stats = self._calculate_feature_stats(values, feature, baseline_date)
-                    baseline_stats[feature] = stats
-            
-            # 保存个人基线到数据库
-            for feature, stats in baseline_stats.items():
-                self._save_baseline_record(
-                    device_sn=device_sn,
-                    user_id=user_id,
-                    customer_id=customer_id,
-                    feature_name=feature,
-                    baseline_date=baseline_date,
-                    baseline_type='personal',
-                    stats=stats
-                )
-            
-            logger.info(f"成功生成用户 {user_id} 的个人健康基线，包含 {len(baseline_stats)} 个特征")
-            return True
-            
-        except Exception as e:
-            logger.error(f"生成个人基线失败: {e}")
-            return False
-    
-    def generate_population_baseline(self, customer_id, age_group=None, gender=None):
-        """生成群体健康基线"""
-        try:
-            baseline_date = date.today()
-            start_date = baseline_date - timedelta(days=90)  # 使用90天数据
-            
-            # 构建查询条件
-            query = db.session.query(UserHealthData, UserInfo).join(
-                UserInfo, UserHealthData.user_id == UserInfo.id
-            ).filter(
-                and_(
-                    UserHealthData.customer_id == customer_id,
-                    UserHealthData.timestamp >= start_date,
-                    UserHealthData.is_deleted == False,
-                    UserInfo.is_deleted == False
-                )
-            )
-            
-            # 添加年龄组过滤
-            if age_group:
-                if age_group == 'young':
-                    query = query.filter(text("YEAR(CURDATE()) - YEAR(birthday) < 30"))
-                elif age_group == 'middle':
-                    query = query.filter(text("YEAR(CURDATE()) - YEAR(birthday) BETWEEN 30 AND 50"))
-                elif age_group == 'senior':
-                    query = query.filter(text("YEAR(CURDATE()) - YEAR(birthday) > 50"))
-            
-            # 添加性别过滤
-            if gender:
-                query = query.filter(UserInfo.gender == gender)
-            
-            data_records = query.all()
-            
-            if len(data_records) < 10:  # 群体基线需要更多样本
-                logger.warning(f"群体基线样本不足: {len(data_records)}")
-                return False
-            
-            # 按特征计算群体统计
-            baseline_stats = {}
-            for feature in self.feature_names:
-                values = [getattr(record.UserHealthData, feature) 
-                         for record in data_records 
-                         if getattr(record.UserHealthData, feature) is not None]
-                
-                if len(values) >= 10:
-                    stats = self._calculate_feature_stats(values, feature, baseline_date)
-                    baseline_stats[feature] = stats
-            
-            # 保存群体基线
-            for feature, stats in baseline_stats.items():
-                self._save_baseline_record(
-                    device_sn=None,
-                    user_id=None,
-                    customer_id=customer_id,
-                    feature_name=feature,
-                    baseline_date=baseline_date,
-                    baseline_type='population',
-                    stats=stats,
-                    age_group=age_group,
-                    gender=gender
-                )
-            
-            logger.info(f"成功生成客户 {customer_id} 群体基线，年龄组: {age_group}, 性别: {gender}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"生成群体基线失败: {e}")
-            return False
-    
-    def generate_position_risk_baseline(self, customer_id, position_id):
-        """生成职位风险调整基线"""
-        try:
-            baseline_date = date.today()
-            
-            # 获取职位信息
-            position = db.session.query(Position).filter_by(
-                id=position_id, customer_id=customer_id, is_deleted=False
-            ).first()
-            
-            if not position:
-                logger.warning(f"职位 {position_id} 不存在")
-                return False
-            
-            # 获取该职位下的所有用户
-            user_positions = db.session.query(UserPosition).filter_by(
-                position_id=position_id, is_deleted=False
-            ).all()
-            
-            user_ids = [up.user_id for up in user_positions]
-            
-            if not user_ids:
-                logger.warning(f"职位 {position_id} 下没有用户")
-                return False
-            
-            # 获取职位用户的健康数据
-            start_date = baseline_date - timedelta(days=60)
-            health_data = db.session.query(UserHealthData).filter(
-                and_(
-                    UserHealthData.user_id.in_(user_ids),
-                    UserHealthData.timestamp >= start_date,
-                    UserHealthData.customer_id == customer_id,
-                    UserHealthData.is_deleted == False
-                )
-            ).all()
-            
-            if len(health_data) < 20:  # 职位基线需要足够样本
-                logger.warning(f"职位 {position_id} 健康数据样本不足")
-                return False
-            
-            # 计算职位基线并应用风险调整
-            baseline_stats = {}
-            for feature in self.feature_names:
-                values = [getattr(record, feature) for record in health_data 
-                         if getattr(record, feature) is not None]
-                
-                if len(values) >= 10:
-                    stats = self._calculate_feature_stats(values, feature, baseline_date)
-                    
-                    # 应用职位风险调整
-                    stats = self._apply_position_risk_adjustment(stats, position, feature)
-                    baseline_stats[feature] = stats
-            
-            # 保存职位基线
-            for feature, stats in baseline_stats.items():
-                self._save_baseline_record(
-                    device_sn=None,
-                    user_id=None,
-                    customer_id=customer_id,
-                    feature_name=feature,
-                    baseline_date=baseline_date,
-                    baseline_type='position',
-                    stats=stats,
-                    position_risk_level=position.risk_level
-                )
-            
-            logger.info(f"成功生成职位 {position_id} 的风险调整基线")
-            return True
-            
-        except Exception as e:
-            logger.error(f"生成职位基线失败: {e}")
-            return False
-    
-    def _calculate_feature_stats(self, values, feature_name, baseline_date):
-        """计算特征统计数据"""
-        if not values:
-            return None
+        self.redis = RedisHelper()
         
-        values_array = np.array(values)
+        # 健康特征配置 - 与ljwx-boot保持一致
+        self.HEALTH_FEATURES = [
+            "heart_rate", "blood_oxygen", "temperature", "pressure_high", 
+            "pressure_low", "stress", "step", "calorie", "distance", "sleep"
+        ]
         
-        # 基础统计
-        stats = {
-            'mean_value': float(np.mean(values_array)),
-            'std_value': float(np.std(values_array)),
-            'min_value': float(np.min(values_array)),
-            'max_value': float(np.max(values_array)),
-            'sample_count': len(values)
+        # 特征值范围配置 - 与ljwx-boot保持一致
+        self.FEATURE_RANGES = {
+            "heart_rate": (30.0, 200.0),
+            "blood_oxygen": (70.0, 100.0),
+            "temperature": (30.0, 45.0),
+            "pressure_high": (60.0, 250.0),
+            "pressure_low": (40.0, 150.0),
+            "stress": (0.0, 100.0),
+            "step": (0.0, 50000.0),
+            "calorie": (0.0, 5000.0),
+            "distance": (0.0, 100.0),
+            "sleep": (0.0, 24.0)
         }
         
-        # 应用季节性调整
-        season = self._get_season(baseline_date.month)
-        if feature_name in self.seasonal_factors:
-            factor = self.seasonal_factors[feature_name].get(season, 1.0)
-            stats['seasonal_factor'] = factor
-            stats['mean_value'] *= factor
-        else:
-            stats['seasonal_factor'] = 1.0
-        
-        # 计算置信水平
-        if len(values) >= 30:
-            stats['confidence_level'] = 0.95
-        elif len(values) >= 15:
-            stats['confidence_level'] = 0.90
-        else:
-            stats['confidence_level'] = 0.85
-        
-        return stats
-    
-    def _apply_position_risk_adjustment(self, stats, position, feature_name):
-        """应用职位风险调整"""
-        if not stats or not position:
-            return stats
-        
-        risk_adjustments = {
-            'high': {'heart_rate': 0.85, 'blood_oxygen': 1.05, 'pressure_high': 0.90},
-            'medium': {'heart_rate': 0.90, 'blood_oxygen': 1.02, 'pressure_high': 0.95},
-            'low': {'heart_rate': 1.00, 'blood_oxygen': 1.00, 'pressure_high': 1.00}
+        # 最小标准差配置 - 避免除零错误
+        self.MIN_STD_VALUES = {
+            "heart_rate": 1.0,
+            "blood_oxygen": 0.5,
+            "temperature": 0.1,
+            "pressure_high": 2.0,
+            "pressure_low": 1.5,
+            "stress": 1.0,
+            "step": 100.0,
+            "calorie": 50.0,
+            "distance": 0.5,
+            "sleep": 0.2
         }
-        
-        risk_level = position.risk_level or 'medium'
-        adjustment_factor = risk_adjustments.get(risk_level, {}).get(feature_name, 1.0)
-        
-        if adjustment_factor != 1.0:
-            stats['mean_value'] *= adjustment_factor
-            stats['position_risk_adjustment'] = adjustment_factor
-        
-        return stats
     
-    def _save_baseline_record(self, device_sn, user_id, customer_id, feature_name, 
-                             baseline_date, baseline_type, stats, age_group=None, 
-                             gender=None, position_risk_level=None):
-        """保存基线记录到数据库"""
+    def generate_user_baseline_realtime(self, user_id: int, target_date: str = None, days_back: int = 30) -> Dict:
+        """
+        生成单个用户的健康基线，优先从数据库查询，空值时实时生成
+        
+        Args:
+            user_id: 用户ID
+            target_date: 目标日期，默认为昨天
+            days_back: 向前计算天数，默认30天
+            
+        Returns:
+            Dict: 包含基线数据和统计信息
+        """
+        start_time = time.time()
+        
+        if target_date is None:
+            target_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        logger.info(f"🔄 开始获取用户 {user_id} 的健康基线，目标日期: {target_date}")
+        
         try:
-            # 标记旧基线为非当前
-            db.session.query(HealthBaseline).filter(
-                and_(
-                    HealthBaseline.user_id == user_id if user_id else True,
-                    HealthBaseline.customer_id == customer_id,
-                    HealthBaseline.feature_name == feature_name,
-                    HealthBaseline.baseline_type == baseline_type,
-                    HealthBaseline.is_current == True
-                )
-            ).update({'is_current': False})
+            # 步骤1: 优先从数据库查询已生成的基线
+            db_result = self._query_database_baseline(user_id, target_date)
+            if db_result['success'] and db_result['data']:
+                logger.info(f"✅ 用户 {user_id} 从数据库获取基线成功，特征数量: {len(db_result['data'].get('baselines', {}))}")
+                return db_result
             
-            # 创建新基线记录
-            baseline = HealthBaseline(
-                device_sn=device_sn,
-                user_id=user_id,
-                customer_id=customer_id,
-                feature_name=feature_name,
-                baseline_date=baseline_date,
-                mean_value=stats['mean_value'],
-                std_value=stats['std_value'],
-                min_value=stats['min_value'],
-                max_value=stats['max_value'],
-                sample_count=stats['sample_count'],
-                is_current=True,
-                baseline_type=baseline_type,
-                age_group=age_group,
-                gender=gender,
-                position_risk_level=position_risk_level,
-                seasonal_factor=stats.get('seasonal_factor', 1.0),
-                confidence_level=stats.get('confidence_level', 0.95),
-                baseline_time=datetime.now(),
-                create_user='system',
-                create_user_id=1
-            )
-            
-            db.session.add(baseline)
-            db.session.commit()
+            # 步骤2: 数据库无数据，执行实时生成
+            logger.info(f"📊 用户 {user_id} 数据库无基线数据，开始实时生成...")
+            return self._generate_baseline_realtime(user_id, target_date, days_back, start_time)
             
         except Exception as e:
-            db.session.rollback()
-            logger.error(f"保存基线记录失败: {e}")
-            raise
+            logger.error(f"❌ 用户 {user_id} 基线获取失败: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'user_id': user_id,
+                'target_date': target_date,
+                'execution_time': round(time.time() - start_time, 3)
+            }
     
-    def _get_season(self, month):
-        """获取季节"""
-        if month in [12, 1, 2]:
-            return 'winter'
-        elif month in [3, 4, 5]:
-            return 'spring'
-        elif month in [6, 7, 8]:
-            return 'summer'
-        else:
-            return 'autumn'
-    
-    def update_baseline_for_user(self, user_id, customer_id):
-        """为指定用户更新基线"""
+    def _query_database_baseline(self, user_id: int, target_date: str) -> Dict:
+        """从数据库查询已生成的健康基线"""
         try:
-            # 生成个人基线
-            personal_result = self.generate_personal_baseline(user_id, customer_id)
-            
-            # 获取用户信息
-            user = db.session.query(UserInfo).filter_by(id=user_id).first()
-            if user:
-                # 确定年龄组
-                age_group = self._determine_age_group(user)
-                
-                # 生成对应的群体基线
-                population_result = self.generate_population_baseline(
-                    customer_id, age_group, user.gender
-                )
-                
-                # 获取用户职位并生成职位基线
-                user_position = db.session.query(UserPosition).filter_by(
-                    user_id=user_id, is_deleted=False
-                ).first()
-                
-                if user_position:
-                    position_result = self.generate_position_risk_baseline(
-                        customer_id, user_position.position_id
-                    )
-                    return personal_result and population_result and position_result
-            
-            return personal_result
-            
-        except Exception as e:
-            logger.error(f"更新用户基线失败: {e}")
-            return False
-    
-    def _determine_age_group(self, user):
-        """确定用户年龄组"""
-        if not hasattr(user, 'birthday') or not user.birthday:
-            return 'middle'  # 默认中年
-        
-        age = (date.today() - user.birthday).days // 365
-        if age < 30:
-            return 'young'
-        elif age <= 50:
-            return 'middle'
-        else:
-            return 'senior'
-    
-    def get_user_baseline(self, user_id, feature_name=None, baseline_type='personal'):
-        """获取用户基线数据"""
-        try:
-            query = db.session.query(HealthBaseline).filter(
+            # 查询当前有效的基线记录
+            baseline_records = db.session.query(HealthBaseline).filter(
                 and_(
                     HealthBaseline.user_id == user_id,
-                    HealthBaseline.baseline_type == baseline_type,
-                    HealthBaseline.is_current == True
-                )
-            )
-            
-            if feature_name:
-                query = query.filter(HealthBaseline.feature_name == feature_name)
-            
-            baselines = query.all()
-            
-            if not baselines:
-                return None
-            
-            # 转换为字典格式
-            baseline_dict = {}
-            for baseline in baselines:
-                baseline_dict[baseline.feature_name] = {
-                    'mean': baseline.mean_value,
-                    'std': baseline.std_value,
-                    'min': baseline.min_value,
-                    'max': baseline.max_value,
-                    'sample_count': baseline.sample_count,
-                    'confidence_level': baseline.confidence_level,
-                    'seasonal_factor': baseline.seasonal_factor
-                }
-            
-            return baseline_dict
-            
-        except Exception as e:
-            logger.error(f"获取用户基线失败: {e}")
-            return None
-    
-    def batch_update_customer_baselines(self, customer_id):
-        """批量更新客户下所有用户的基线"""
-        try:
-            # 获取客户下所有用户
-            users = db.session.query(UserInfo).filter(
-                and_(
-                    UserInfo.customer_id == customer_id,
-                    UserInfo.is_deleted == False
+                    HealthBaseline.baseline_date == target_date,
+                    HealthBaseline.is_current == True,
+                    HealthBaseline.baseline_type == 'personal'
                 )
             ).all()
             
-            success_count = 0
-            total_count = len(users)
+            if not baseline_records:
+                return {'success': True, 'data': None, 'source': 'database_empty'}
             
-            for user in users:
-                if self.update_baseline_for_user(user.id, customer_id):
-                    success_count += 1
+            # 转换为标准格式
+            baseline_results = {}
+            for record in baseline_records:
+                feature_name = record.feature_name
+                baseline_results[feature_name] = {
+                    'identifier': user_id,
+                    'feature_name': feature_name,
+                    'baseline_date': target_date,
+                    'mean_value': float(record.mean_value) if record.mean_value else 0.0,
+                    'std_value': float(record.std_value) if record.std_value else 0.1,
+                    'min_value': float(record.min_value) if record.min_value else 0.0,
+                    'max_value': float(record.max_value) if record.max_value else 0.0,
+                    'sample_count': record.sample_count or 0,
+                    'quality_score': round((record.confidence_level or 0.95), 3),
+                    'is_current': bool(record.is_current),
+                    'generated_at': record.baseline_time.isoformat() if record.baseline_time else datetime.now().isoformat(),
+                    'source': 'database'
+                }
             
-            logger.info(f"批量基线更新完成: {success_count}/{total_count} 成功")
-            return success_count, total_count
+            # 生成汇总信息
+            summary = {
+                'user_id': user_id,
+                'target_date': target_date,
+                'data_source': 'database',
+                'features_processed': len(baseline_results),
+                'baseline_quality_score': self._calculate_baseline_quality(baseline_results),
+                'generated_at': datetime.now().isoformat()
+            }
             
-        except Exception as e:
-            logger.error(f"批量更新基线失败: {e}")
-            return 0, 0
-    
-    def calculate_baseline_deviation(self, user_id, current_data, feature_name):
-        """计算当前数据相对于基线的偏离度"""
-        try:
-            baseline = self.get_user_baseline(user_id, feature_name)
-            
-            if not baseline or feature_name not in baseline:
-                return None
-            
-            baseline_info = baseline[feature_name]
-            current_value = current_data.get(feature_name)
-            
-            if current_value is None:
-                return None
-            
-            # 计算Z-Score
-            mean = baseline_info['mean']
-            std = baseline_info['std']
-            
-            if std == 0:
-                z_score = 0
-            else:
-                z_score = (current_value - mean) / std
-            
-            # 计算偏离等级
-            if abs(z_score) <= 1:
-                deviation_level = 'normal'
-            elif abs(z_score) <= 2:
-                deviation_level = 'mild'
-            elif abs(z_score) <= 3:
-                deviation_level = 'moderate'
-            else:
-                deviation_level = 'severe'
+            logger.info(f"📋 从数据库获取用户 {user_id} 基线: {len(baseline_results)} 个特征")
             
             return {
-                'z_score': z_score,
-                'deviation_level': deviation_level,
-                'current_value': current_value,
-                'baseline_mean': mean,
-                'baseline_std': std,
-                'confidence_level': baseline_info['confidence_level']
+                'success': True,
+                'data': {
+                    'baselines': baseline_results,
+                    'summary': summary
+                },
+                'source': 'database'
             }
             
         except Exception as e:
-            logger.error(f"计算基线偏离度失败: {e}")
+            logger.warning(f"⚠️ 数据库基线查询失败: {str(e)}")
+            return {'success': False, 'error': str(e), 'source': 'database_error'}
+    
+    def _generate_baseline_realtime(self, user_id: int, target_date: str, days_back: int, start_time: float) -> Dict:
+        """实时生成健康基线（原有逻辑）"""
+        # 计算查询时间范围
+        end_date = datetime.strptime(target_date, '%Y-%m-%d')
+        start_date = end_date - timedelta(days=days_back)
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        
+        logger.info(f"🔄 开始实时生成用户 {user_id} 健康基线，数据范围: {start_date_str} - {target_date}")
+        
+        try:
+            # 使用统一的health data查询接口
+            health_result = get_all_health_data_optimized(
+                userId=user_id,
+                startDate=start_date_str,
+                endDate=target_date,
+                latest_only=False,
+                pageSize=None  # 获取所有数据，不分页
+            )
+            
+            if not health_result.get('success'):
+                logger.warning(f"⚠️ 用户 {user_id} 获取健康数据失败: {health_result.get('message')}")
+                return {
+                    'success': False,
+                    'error': health_result.get('message'),
+                    'user_id': user_id,
+                    'target_date': target_date
+                }
+            
+            health_data = health_result.get('data', {}).get('healthData', [])
+            total_records = len(health_data)
+            
+            if total_records < 5:
+                logger.warning(f"⚠️ 用户 {user_id} 数据不足，需要至少5条记录，实际: {total_records}")
+                return {
+                    'success': False,
+                    'error': f'数据不足，需要至少5条记录，实际: {total_records}',
+                    'user_id': user_id,
+                    'target_date': target_date,
+                    'data_count': total_records
+                }
+            
+            # 转换为DataFrame进行分析
+            df = self._convert_to_dataframe(health_data)
+            
+            # 为每个健康特征生成基线
+            baseline_results = {}
+            for feature in self.HEALTH_FEATURES:
+                baseline = self._calculate_feature_baseline(df, feature, user_id, target_date)
+                if baseline:
+                    baseline_results[feature] = baseline
+                    # 标记为实时生成
+                    baseline_results[feature]['source'] = 'realtime'
+            
+            # 生成汇总统计
+            summary = {
+                'user_id': user_id,
+                'target_date': target_date,
+                'data_source': 'realtime',
+                'data_period': f"{start_date_str} to {target_date}",
+                'total_records': total_records,
+                'features_processed': len(baseline_results),
+                'baseline_quality_score': self._calculate_baseline_quality(baseline_results),
+                'generation_time': round(time.time() - start_time, 3),
+                'generated_at': datetime.now().isoformat()
+            }
+            
+            # 缓存结果
+            cache_key = f"realtime_baseline:user:{user_id}:{target_date}"
+            cache_data = {
+                'baselines': baseline_results,
+                'summary': summary
+            }
+            self.redis.set_data(cache_key, json.dumps(cache_data, default=str), 3600)  # 缓存1小时
+            
+            logger.info(f"✅ 用户 {user_id} 实时基线生成完成: {len(baseline_results)} 个特征，质量评分: {summary['baseline_quality_score']:.2f}")
+            
+            return {
+                'success': True,
+                'data': {
+                    'baselines': baseline_results,
+                    'summary': summary
+                },
+                'source': 'realtime'
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ 用户 {user_id} 实时基线生成失败: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'user_id': user_id,
+                'target_date': target_date,
+                'execution_time': round(time.time() - start_time, 3)
+            }
+    
+    def _convert_to_dataframe(self, health_data: List[Dict]) -> pd.DataFrame:
+        """将健康数据转换为pandas DataFrame"""
+        if not health_data:
+            return pd.DataFrame()
+        
+        # 标准化字段映射
+        records = []
+        for record in health_data:
+            clean_record = {}
+            
+            # 基础字段
+            clean_record['user_id'] = record.get('user_id') or record.get('userId')
+            clean_record['device_sn'] = record.get('device_sn') or record.get('deviceSn')
+            clean_record['timestamp'] = record.get('timestamp') or record.get('create_time')
+            clean_record['dept_name'] = record.get('dept_name') or record.get('deptName')
+            clean_record['dept_id'] = record.get('dept_id') or record.get('deptId')
+            
+            # 健康特征字段
+            for feature in self.HEALTH_FEATURES:
+                value = record.get(feature)
+                
+                # 处理特殊映射
+                if feature == 'heart_rate' and value is None:
+                    value = record.get('heartRate') or record.get('heart_rate')
+                elif feature == 'blood_oxygen' and value is None:
+                    value = record.get('bloodOxygen') or record.get('blood_oxygen')
+                elif feature == 'pressure_high' and value is None:
+                    value = record.get('pressureHigh') or record.get('pressure_high')
+                elif feature == 'pressure_low' and value is None:
+                    value = record.get('pressureLow') or record.get('pressure_low')
+                
+                # 数据验证和清理
+                if value is not None:
+                    try:
+                        value = float(value)
+                        min_val, max_val = self.FEATURE_RANGES.get(feature, (0, 10000))
+                        if min_val <= value <= max_val:
+                            clean_record[feature] = value
+                        else:
+                            clean_record[feature] = None
+                    except (ValueError, TypeError):
+                        clean_record[feature] = None
+                else:
+                    clean_record[feature] = None
+            
+            records.append(clean_record)
+        
+        df = pd.DataFrame(records)
+        
+        # 转换时间戳
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        
+        return df
+    
+    def _calculate_feature_baseline(self, df: pd.DataFrame, feature: str, identifier: int, target_date: str) -> Dict:
+        """计算单个特征的基线统计"""
+        if feature not in df.columns:
             return None
+        
+        feature_data = df[feature].dropna()
+        
+        if len(feature_data) < 3:
+            return None
+        
+        try:
+            # 基础统计
+            mean_val = float(feature_data.mean())
+            std_val = max(float(feature_data.std()), self.MIN_STD_VALUES.get(feature, 0.1))
+            min_val = float(feature_data.min())
+            max_val = float(feature_data.max())
+            count = int(len(feature_data))
+            
+            # 数据质量指标
+            outlier_threshold = 3 * std_val
+            outliers = len(feature_data[(feature_data < mean_val - outlier_threshold) | 
+                                      (feature_data > mean_val + outlier_threshold)])
+            quality_score = max(0, 1 - (outliers / count)) if count > 0 else 0
+            
+            baseline = {
+                'identifier': identifier,
+                'feature_name': feature,
+                'baseline_date': target_date,
+                'mean_value': round(mean_val, 2),
+                'std_value': round(std_val, 2),
+                'min_value': round(min_val, 2),
+                'max_value': round(max_val, 2),
+                'sample_count': count,
+                'quality_score': round(quality_score, 3),
+                'outlier_count': outliers,
+                'is_current': True,
+                'generated_at': datetime.now().isoformat()
+            }
+            
+            return baseline
+            
+        except Exception as e:
+            logger.warning(f"⚠️ 计算特征 {feature} 基线失败: {str(e)}")
+            return None
+    
+    def _calculate_baseline_quality(self, baselines: Dict) -> float:
+        """计算基线质量评分"""
+        if not baselines:
+            return 0.0
+        
+        total_score = 0
+        for baseline in baselines.values():
+            # 基于样本数量和数据分布的质量评分
+            sample_count = baseline.get('sample_count', 0)
+            std_value = baseline.get('std_value', 0)
+            mean_value = baseline.get('mean_value', 0)
+            
+            # 样本数量评分 (0-0.4)
+            sample_score = min(0.4, sample_count / 100)
+            
+            # 数据分布评分 (0-0.4)
+            cv = std_value / mean_value if mean_value > 0 else 1
+            distribution_score = max(0, 0.4 - cv * 0.1)
+            
+            # 完整性评分 (0-0.2)
+            completeness_score = 0.2 if all(k in baseline for k in ['mean_value', 'std_value', 'sample_count']) else 0
+            
+            total_score += sample_score + distribution_score + completeness_score
+        
+        return round(total_score / len(baselines), 3) if baselines else 0.0
 
-class BaselineScheduler:
-    """基线生成调度器"""
-    
-    def __init__(self):
-        self.engine = HealthBaselineEngine()
-    
-    def daily_baseline_update(self):
-        """每日基线更新任务"""
-        try:
-            logger.info("开始每日基线更新任务")
-            
-            # 获取所有活跃客户
-            customers = db.session.execute(
-                text("SELECT DISTINCT customer_id FROM sys_user WHERE is_deleted = 0")
-            ).fetchall()
-            
-            total_success = 0
-            total_processed = 0
-            
-            for customer in customers:
-                customer_id = customer[0]
-                success, total = self.engine.batch_update_customer_baselines(customer_id)
-                total_success += success
-                total_processed += total
-            
-            logger.info(f"每日基线更新完成: {total_success}/{total_processed} 成功")
-            return True
-            
-        except Exception as e:
-            logger.error(f"每日基线更新失败: {e}")
-            return False
-    
-    def weekly_population_baseline_update(self):
-        """每周群体基线更新任务"""
-        try:
-            logger.info("开始每周群体基线更新任务")
-            
-            # 获取所有客户
-            customers = db.session.execute(
-                text("SELECT DISTINCT customer_id FROM sys_user WHERE is_deleted = 0")
-            ).fetchall()
-            
-            for customer in customers:
-                customer_id = customer[0]
-                
-                # 为每个年龄组和性别组合生成群体基线
-                age_groups = ['young', 'middle', 'senior']
-                genders = ['1', '2']  # 1=男, 2=女
-                
-                for age_group in age_groups:
-                    for gender in genders:
-                        self.engine.generate_population_baseline(
-                            customer_id, age_group, gender
-                        )
-            
-            logger.info("每周群体基线更新完成")
-            return True
-            
-        except Exception as e:
-            logger.error(f"每周群体基线更新失败: {e}")
-            return False
-    
-    def get_personal_baseline(self, user_id, device_sn, metrics=None, date_range=30):
-        """获取个人基线数据 - API兼容方法"""
-        try:
-            # 获取用户信息
-            from .user import get_user_info_by_deviceSn
-            user_info = get_user_info_by_deviceSn(device_sn)
-            
-            if not user_info:
-                logger.error(f"设备 {device_sn} 对应的用户信息不存在")
-                return None
-                
-            customer_id = user_info.get('customer_id', 0)
-            
-            # 生成基线数据
-            baseline_data = self.generate_personal_baseline(user_id, customer_id, date_range)
-            
-            if not baseline_data:
-                return None
-            
-            # 如果指定了特定指标，过滤返回数据
-            if metrics:
-                filtered_data = {}
-                for metric in metrics:
-                    if metric in baseline_data:
-                        filtered_data[metric] = baseline_data[metric]
-                return filtered_data
-            
-            return baseline_data
-            
-        except Exception as e:
-            logger.error(f"获取个人基线数据失败: {e}")
-            return None
+
+# 全局实例
+realtime_baseline_engine = RealTimeHealthBaselineEngine()
+
+
+def get_user_baseline_realtime(user_id: int, target_date: str = None) -> Dict:
+    """获取用户实时基线 - 对外接口"""
+    return realtime_baseline_engine.generate_user_baseline_realtime(user_id, target_date)
+
+
+def get_baseline_status(identifier: int, identifier_type: str = 'user', target_date: str = None) -> Dict:
+    """获取基线状态 - 对外接口"""
+    return realtime_baseline_engine.get_baseline_status(identifier, identifier_type, target_date)

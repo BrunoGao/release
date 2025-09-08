@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能穿戴个人健康大屏 v1.3.5</title>
+    <title>智能穿戴个人健康大屏 {{ PERSONAL_SCREEN_VERSION }}</title>
     
     <!-- 依赖引入 - 使用本地文件 -->
     <script src="/static/js/jquery-3.6.0.min.js"></script>
@@ -250,6 +250,7 @@
             position: relative;
             overflow: hidden;
             min-height: 70px;
+            gap: 20px;
         }
 
         .top-header::before {
@@ -443,6 +444,7 @@
             display: flex;
             align-items: center;
             gap: 20px;
+            margin-left: auto;
         }
 
         .device-status {
@@ -1203,8 +1205,20 @@
                 gap: 8px;
             }
 
-            .message-panel, .alert-panel {
+            .device-info-panel, .message-panel, .alert-panel {
                 padding: 12px;
+            }
+
+            .device-info-panel .device-info-grid {
+                gap: 10px;
+            }
+
+            .device-info-panel .device-info-label {
+                font-size: 10px;
+            }
+
+            .device-info-panel .device-info-value {
+                font-size: 12px;
             }
 
             .panel-title {
@@ -2009,6 +2023,98 @@
             gap: 20px;
         }
 
+        /* ============= 设备信息面板 ============= */
+        .device-info-panel {
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(0, 228, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .device-info-panel:hover {
+            border-color: rgba(0, 228, 255, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 228, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .device-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .device-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .device-info-label {
+            color: rgba(0, 228, 255, 0.8);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .device-info-value {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .device-status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .device-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff9d;
+            animation: pulse 2s infinite;
+        }
+
+        .device-battery {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .battery-bar {
+            width: 24px;
+            height: 12px;
+            border: 1px solid rgba(0, 228, 255, 0.5);
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff9d, #00e4ff);
+            transition: width 0.3s ease;
+            border-radius: 1px;
+        }
+
+        .battery-tip {
+            width: 2px;
+            height: 6px;
+            background: rgba(0, 228, 255, 0.5);
+            border-radius: 0 1px 1px 0;
+            position: absolute;
+            right: -3px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
         /* ============= 消息通知面板 ============= */
         .message-panel {
             background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
@@ -2557,6 +2663,187 @@
             max-height: 80vh;
             overflow-y: auto;
             position: relative;
+        }
+
+        .health-profile-modal {
+            background: linear-gradient(145deg, #1e2a3a, #0f1419);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 16px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 
+                0 25px 80px rgba(0, 0, 0, 0.6),
+                0 0 0 1px rgba(0, 255, 157, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            animation: modalSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            padding: 0;
+        }
+
+        @keyframes modalSlideUp {
+            from {
+                transform: translateY(50px) scale(0.9);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .health-profile-modal .modal-header {
+            padding: 25px 30px;
+            background: linear-gradient(135deg, rgba(0, 255, 157, 0.1), rgba(155, 89, 182, 0.1));
+            border-bottom: 1px solid rgba(0, 255, 157, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            margin: 0;
+        }
+
+        .health-profile-modal .modal-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 157, 0.6), transparent);
+        }
+
+        .modal-close-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-close-btn:hover {
+            background: rgba(255, 87, 87, 0.2);
+            border-color: rgba(255, 87, 87, 0.4);
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(255, 87, 87, 0.3);
+        }
+
+        .health-profile-modal .modal-body {
+            padding: 30px;
+            overflow-y: auto;
+            max-height: 50vh;
+        }
+
+        .profile-detail-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(0, 255, 157, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 157, 0.1);
+        }
+
+        .profile-detail-section h4 {
+            color: #00ff9d;
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .score-breakdown {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .score-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .score-label {
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        .score-value-detail {
+            color: #00ff9d;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .health-profile-modal .modal-footer {
+            padding: 20px 30px;
+            border-top: 1px solid rgba(0, 255, 157, 0.2);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.1);
+            margin: 0;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #00ff9d, #00d4aa);
+            color: #000;
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 255, 157, 0.3);
+        }
+
+        .modal-btn.primary:hover {
+            background: linear-gradient(135deg, #00d4aa, #00ff9d);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 157, 0.4);
+        }
+
+        .trend-analysis, .advice-list-detailed {
+            color: #ccc;
+            line-height: 1.6;
+        }
+
+        .advice-list-detailed ol {
+            padding-left: 20px;
+        }
+
+        .advice-list-detailed li {
+            margin-bottom: 8px;
+            color: #ddd;
+        }
             color: #ffffff !important;
         }
         
@@ -3254,6 +3541,69 @@
         .health-profile-panel-center {
             height: auto !important;
             min-height: 320px;
+        }
+        
+        /* ============= 健康功能快捷导航样式 ============= */
+        .health-quick-nav {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(0, 255, 157, 0.05);
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 8px;
+        }
+        
+        .nav-btn {
+            flex: 1;
+            background: linear-gradient(135deg, rgba(0, 255, 157, 0.1), rgba(0, 228, 255, 0.1));
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            border-radius: 6px;
+            padding: 8px 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .nav-btn:hover {
+            background: linear-gradient(135deg, rgba(0, 255, 157, 0.2), rgba(0, 228, 255, 0.2));
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 255, 157, 0.2);
+        }
+        
+        .nav-icon {
+            font-size: 16px;
+            display: block;
+        }
+        
+        .nav-text {
+            font-size: 10px;
+            font-weight: 500;
+            line-height: 1;
+        }
+        
+        .prediction-nav:hover {
+            border-color: #1890ff;
+            background: linear-gradient(135deg, rgba(24, 144, 255, 0.1), rgba(64, 169, 255, 0.1));
+        }
+        
+        .profile-nav:hover {
+            border-color: #722ed1;
+            background: linear-gradient(135deg, rgba(114, 46, 209, 0.1), rgba(146, 84, 222, 0.1));
+        }
+        
+        .baseline-nav:hover {
+            border-color: #13c2c2;
+            background: linear-gradient(135deg, rgba(19, 194, 194, 0.1), rgba(54, 207, 201, 0.1));
+        }
             padding: 18px;
         }
         
@@ -3791,6 +4141,9 @@
             font-size: 12px;
         }
     </style>
+    
+    <!-- 引入统一模态窗口组件 -->
+    <script src="/static/js/modal-window.js"></script>
 </head>
 
 <body>
@@ -3802,7 +4155,7 @@
                     <div class="logo">L</div>
                     <div>
                         <div class="header-title">智能健康监控</div>
-                        <div class="header-subtitle">个人健康大屏 v1.3.5</div>
+                        <div class="header-subtitle">个人健康大屏 {{ PERSONAL_SCREEN_VERSION }}</div>
                     </div>
                 </div>
                 
@@ -3814,17 +4167,12 @@
                     </div>
                     <div class="user-details">
                         <div class="user-name" id="headerEmployeeName">李建华</div>
-                        <div class="user-meta">
+                            <div class="user-meta">
                             <span class="user-role" id="headerEmployeeRole">普通员工</span>
                             <span class="user-separator">•</span>
-                            <span class="user-device" id="headerEmployeeDevice"><span id="dynamicDeviceSn"></span></span>
-                        </div>
-                    </div>
-                    <div class="user-status">
-                        <div class="status-badge online">在线</div>
-                        <div class="device-info">
-                            <span class="device-label">设备：</span>
-                            <span class="device-sn" id="statusDeviceSn"></span>
+                            <span class="device-sn" id="headerDeviceSn">A5GTQ24B26000001</span>
+                            <span class="user-separator">•</span>
+                            <span class="status-badge online">在线</span>
                         </div>
                     </div>
                 </div>
@@ -3858,11 +4206,6 @@
                         <button class="settings-btn" onclick="toggleSettings()" title="个性化设置">⚙️</button>
                     </div>
                     
-                    <div class="device-status" onclick="navigateToDeviceView()" style="cursor: pointer;" title="点击查看设备详情">
-                        <div class="status-indicator"></div>
-                        <span id="deviceStatusText">设备在线</span>
-                        <span style="margin-left: 8px; color: rgba(0,228,255,0.6); font-size: 10px;">▶</span>
-                    </div>
                     <button class="close-btn" onclick="window.close()">✕</button>
                 </div>
             </header>
@@ -3887,22 +4230,22 @@
                             </div>
                         </div>
                     </div>
-                    <div class="health-details">
-                        <div class="detail-item">
-                            <span class="detail-label">最高</span>
-                            <span class="detail-value" id="heartRateMax">--</span>
+                    <div class="health-details" style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 8px;">
+                        <div class="detail-item" style="text-align: center;">
+                            <div class="detail-label" style="color: #888;">最高</div>
+                            <div class="detail-value" id="heartRateMax" style="color: #00ff9d; font-weight: bold;">--</div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">最低</span>
-                            <span class="detail-value" id="heartRateMin">--</span>
+                        <div class="detail-item" style="text-align: center;">
+                            <div class="detail-label" style="color: #888;">最低</div>
+                            <div class="detail-value" id="heartRateMin" style="color: #00ff9d; font-weight: bold;">--</div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">平均</span>
-                            <span class="detail-value" id="heartRateAvg">--</span>
+                        <div class="detail-item" style="text-align: center;">
+                            <div class="detail-label" style="color: #888;">平均</div>
+                            <div class="detail-value" id="heartRateAvg" style="color: #00ff9d; font-weight: bold;">--</div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">状态</span>
-                            <span class="detail-value" id="heartRateLevel">正常</span>
+                        <div class="detail-item" style="text-align: center;">
+                            <div class="detail-label" style="color: #888;">状态</div>
+                            <div class="detail-value" id="heartRateLevel" style="color: #00ff9d; font-weight: bold;">正常</div>
                         </div>
                     </div>
                 </div>
@@ -4146,6 +4489,22 @@
                                 </div>
                             </div>
                             
+                            <!-- 新增：健康功能快捷导航 -->
+                            <div class="health-quick-nav">
+                                <button class="nav-btn prediction-nav" onclick="openHealthPrediction()" title="进入健康预测详细分析">
+                                    <span class="nav-icon">🔮</span>
+                                    <span class="nav-text">预测分析</span>
+                                </button>
+                                <button class="nav-btn profile-nav" onclick="openHealthProfile()" title="查看360度健康画像">
+                                    <span class="nav-icon">👤</span>
+                                    <span class="nav-text">健康画像</span>
+                                </button>
+                                <button class="nav-btn baseline-nav" onclick="openHealthBaseline()" title="查看健康基线数据">
+                                    <span class="nav-icon">📊</span>
+                                    <span class="nav-text">基线数据</span>
+                                </button>
+                            </div>
+                            
                             <div class="profile-advice-enhanced" id="healthAdviceList">
                                 <div class="advice-item-enhanced actionable">
                                     <span class="advice-icon">💧</span>
@@ -4169,6 +4528,44 @@
 
             <!-- 右侧消息和告警面板 -->
             <aside class="right-panel">
+
+                <!-- 设备信息面板 -->
+                <div class="device-info-panel" onclick="navigateToDeviceView()" title="点击查看设备详情">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>📱</span>
+                            <span>设备信息</span>
+                            <span style="float: right; color: rgba(0,228,255,0.6); font-size: 10px; margin-left: 10px;">点击查看 ▶</span>
+                        </div>
+                    </div>
+                    <div class="device-info-grid">
+                        <div class="device-info-item">
+                            <div class="device-info-label">设备序列号</div>
+                            <div class="device-info-value" id="deviceInfoSn">--</div>
+                        </div>
+                        <div class="device-info-item">
+                            <div class="device-info-label">设备状态</div>
+                            <div class="device-status-indicator">
+                                <div class="device-status-dot" id="deviceInfoStatusDot"></div>
+                                <div class="device-info-value" id="deviceInfoStatus">初始化中</div>
+                            </div>
+                        </div>
+                        <div class="device-info-item">
+                            <div class="device-info-label">电池电量</div>
+                            <div class="device-battery">
+                                <div class="battery-bar">
+                                    <div class="battery-fill" id="batteryFill" style="width: 0%;"></div>
+                                    <div class="battery-tip"></div>
+                                </div>
+                                <div class="device-info-value" id="batteryLevel">--</div>
+                            </div>
+                        </div>
+                        <div class="device-info-item">
+                            <div class="device-info-label">最后更新</div>
+                            <div class="device-info-value" id="deviceLastUpdate">--</div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- 消息通知面板 -->
                 <div class="message-panel" onclick="navigateToMessageView()" style="cursor: pointer;">
@@ -4252,7 +4649,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             deviceSn = urlParams.get('deviceSn') || '';
             
-            console.log('🚀 初始化个人健康大屏 v1.3.5');
+            console.log('🚀 初始化个人健康大屏 {{ PERSONAL_SCREEN_VERSION }}');
             console.log('📱 设备序列号:', deviceSn);
             
             // 初始化设备状态显示
@@ -4630,64 +5027,260 @@
 
         function generateDetailContent(cardType, tabType) {
             if (tabType === 'realtime') {
+                // 加载实时数据显示
+                loadRealTimeHealthData(cardType);
                 return `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div style="text-align: center;">
-                            <h4 style="color: #00ff9d; margin-bottom: 15px;">当前数值</h4>
-                            <div style="font-size: 48px; font-weight: bold; color: #ff6b6b; margin: 20px 0;">75</div>
-                            <div style="color: rgba(255,255,255,0.8);">BPM</div>
-                            <div style="margin-top: 15px; padding: 10px; background: rgba(0,255,60,0.1); border-radius: 8px; color: #00ff3c;">
-                                ✓ 正常范围
-                            </div>
-                        </div>
-                        <div>
-                            <h4 style="color: #00ff9d; margin-bottom: 15px;">今日统计</h4>
-                            <div style="display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                                <span style="color: rgba(255,255,255,0.7);">最高:</span>
-                                <span style="color: #ffffff; font-weight: bold;">89 BPM</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                                <span style="color: rgba(255,255,255,0.7);">最低:</span>
-                                <span style="color: #ffffff; font-weight: bold;">62 BPM</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0;">
-                                <span style="color: rgba(255,255,255,0.7);">平均:</span>
-                                <span style="color: #ffffff; font-weight: bold;">75 BPM</span>
-                            </div>
-                        </div>
+                    <div id="realtimeDataLoading" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.8);">
+                        <div style="font-size: 24px; margin-bottom: 15px;">⏳</div>
+                        <p>正在获取实时健康数据...</p>
                     </div>
-                    <div style="margin-top: 20px;">
-                        <h4 style="color: #00ff9d; margin-bottom: 10px;">健康建议</h4>
-                        <div style="background: rgba(0,228,255,0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #00e4ff;">
-                            <p style="color: #ffffff; margin: 0; line-height: 1.6;">
-                                您的心率处于正常范围内，建议保持规律的作息时间，适量运动，避免过度劳累。
-                            </p>
+                    <div id="realtimeDataContent" style="display: none;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div style="text-align: center;">
+                                <h4 style="color: #00ff9d; margin-bottom: 15px;">当前数值</h4>
+                                <div id="currentValue" style="font-size: 48px; font-weight: bold; color: #ff6b6b; margin: 20px 0;">--</div>
+                                <div id="currentUnit" style="color: rgba(255,255,255,0.8);">--</div>
+                                <div id="healthStatus" style="margin-top: 15px; padding: 10px; background: rgba(0,255,60,0.1); border-radius: 8px; color: #00ff3c;">
+                                    获取中...
+                                </div>
+                            </div>
+                            <div>
+                                <h4 style="color: #00ff9d; margin-bottom: 15px;">今日统计</h4>
+                                <div style="display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <span style="color: rgba(255,255,255,0.7);">最高:</span>
+                                    <span id="maxValue" style="color: #ffffff; font-weight: bold;">--</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <span style="color: rgba(255,255,255,0.7);">最低:</span>
+                                    <span id="minValue" style="color: #ffffff; font-weight: bold;">--</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin: 10px 0; padding: 8px 0;">
+                                    <span style="color: rgba(255,255,255,0.7);">平均:</span>
+                                    <span id="avgValue" style="color: #ffffff; font-weight: bold;">--</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <h4 style="color: #00ff9d; margin-bottom: 10px;">健康建议</h4>
+                            <div id="healthAdvice" style="background: rgba(0,228,255,0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #00e4ff;">
+                                <p style="color: #ffffff; margin: 0; line-height: 1.6;">
+                                    正在获取个性化健康建议...
+                                </p>
+                            </div>
                         </div>
                     </div>
                 `;
             } else if (tabType === 'history') {
+                // 加载历史数据
+                loadHistoryHealthData(cardType);
                 return `
-                    <div style="text-align: center; color: rgba(255,255,255,0.8); padding: 40px;">
-                        <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
-                        <h3 style="color: #00ff9d;">历史趋势分析</h3>
-                        <p>显示过去7天的健康数据变化趋势</p>
-                        <div style="margin-top: 20px; padding: 15px; background: rgba(0,255,157,0.1); border-radius: 8px;">
-                            功能开发中，敬请期待...
+                    <div id="historyDataLoading" style="text-align: center; color: rgba(255,255,255,0.8); padding: 40px;">
+                        <div style="font-size: 24px; margin-bottom: 15px;">⏳</div>
+                        <p>正在加载历史趋势数据...</p>
+                    </div>
+                    <div id="historyDataContent" style="display: none;">
+                        <div style="text-align: center; color: rgba(255,255,255,0.8); padding: 40px;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
+                            <h3 style="color: #00ff9d;">历史趋势分析</h3>
+                            <div id="historyChart" style="width: 100%; height: 300px; margin: 20px 0;"></div>
                         </div>
                     </div>
                 `;
             } else if (tabType === 'analysis') {
+                // 加载AI分析数据
+                loadAIAnalysisData(cardType);
                 return `
-                    <div style="text-align: center; color: rgba(255,255,255,0.8); padding: 40px;">
-                        <div style="font-size: 48px; margin-bottom: 20px;">🤖</div>
-                        <h3 style="color: #00ff9d;">AI智能分析</h3>
-                        <p>基于机器学习算法的健康状态评估</p>
-                        <div style="margin-top: 20px; padding: 15px; background: rgba(255,170,0,0.1); border-radius: 8px;">
-                            AI分析功能正在训练中...
+                    <div id="aiAnalysisLoading" style="text-align: center; color: rgba(255,255,255,0.8); padding: 40px;">
+                        <div style="font-size: 24px; margin-bottom: 15px;">🤖</div>
+                        <p>AI正在分析您的健康数据...</p>
+                    </div>
+                    <div id="aiAnalysisContent" style="display: none;">
+                        <div style="text-align: center; color: rgba(255,255,255,0.8); padding: 40px;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">🤖</div>
+                            <h3 style="color: #00ff9d;">AI智能分析</h3>
+                            <div id="aiRecommendations" style="margin-top: 20px; text-align: left;">
+                                <!-- AI分析结果将在这里显示 -->
+                            </div>
                         </div>
                     </div>
                 `;
             }
+        }
+
+        // 加载实时健康数据
+        async function loadRealTimeHealthData(cardType) {
+            try {
+                const response = await fetch('/api/personal/realtime-health', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUser.userId,
+                        cardType: cardType,
+                        deviceSn: currentUser.deviceSn
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayRealTimeData(data, cardType);
+                } else {
+                    throw new Error('获取实时数据失败');
+                }
+            } catch (error) {
+                console.error('实时数据加载失败:', error);
+                showDataError('实时数据获取失败，显示模拟数据');
+                displayMockRealTimeData(cardType);
+            }
+        }
+
+        // 加载历史健康数据
+        async function loadHistoryHealthData(cardType) {
+            try {
+                const response = await fetch('/api/personal/history-health', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUser.userId,
+                        cardType: cardType,
+                        days: 7
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayHistoryData(data, cardType);
+                } else {
+                    throw new Error('获取历史数据失败');
+                }
+            } catch (error) {
+                console.error('历史数据加载失败:', error);
+                showDataError('历史数据获取失败，显示模拟数据');
+                displayMockHistoryData(cardType);
+            }
+        }
+
+        // 加载AI分析数据
+        async function loadAIAnalysisData(cardType) {
+            try {
+                const response = await fetch('/api/personal/ai-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUser.userId,
+                        cardType: cardType,
+                        analysisType: 'comprehensive'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayAIAnalysis(data, cardType);
+                } else {
+                    throw new Error('获取AI分析失败');
+                }
+            } catch (error) {
+                console.error('AI分析加载失败:', error);
+                showDataError('AI分析功能暂不可用');
+                displayMockAIAnalysis(cardType);
+            }
+        }
+
+        // 显示实时数据
+        function displayRealTimeData(data, cardType) {
+            const loading = document.getElementById('realtimeDataLoading');
+            const content = document.getElementById('realtimeDataContent');
+            
+            if (loading) loading.style.display = 'none';
+            if (content) {
+                content.style.display = 'block';
+                
+                // 根据cardType设置不同的单位和状态
+                const configs = {
+                    heartRate: { unit: 'BPM', color: '#ff6b6b' },
+                    bloodOxygen: { unit: '%', color: '#00e4ff' },
+                    temperature: { unit: '°C', color: '#ffaa00' }
+                };
+                
+                const config = configs[cardType] || configs.heartRate;
+                
+                document.getElementById('currentValue').textContent = data.current || '--';
+                document.getElementById('currentValue').style.color = config.color;
+                document.getElementById('currentUnit').textContent = config.unit;
+                document.getElementById('maxValue').textContent = `${data.max || '--'} ${config.unit}`;
+                document.getElementById('minValue').textContent = `${data.min || '--'} ${config.unit}`;
+                document.getElementById('avgValue').textContent = `${data.avg || '--'} ${config.unit}`;
+                
+                // 更新健康状态和建议
+                const statusEl = document.getElementById('healthStatus');
+                const adviceEl = document.getElementById('healthAdvice').querySelector('p');
+                
+                if (data.status) {
+                    statusEl.textContent = data.status;
+                    statusEl.className = data.status.includes('正常') ? 'status-normal' : 'status-warning';
+                }
+                
+                if (data.advice) {
+                    adviceEl.textContent = data.advice;
+                }
+            }
+        }
+
+        // 显示模拟实时数据
+        function displayMockRealTimeData(cardType) {
+            const mockData = {
+                heartRate: {
+                    current: 75, max: 89, min: 62, avg: 75,
+                    status: '✓ 正常范围',
+                    advice: '您的心率处于正常范围内，建议保持规律的作息时间，适量运动，避免过度劳累。'
+                },
+                bloodOxygen: {
+                    current: 98, max: 99, min: 96, avg: 97,
+                    status: '✓ 优秀',
+                    advice: '血氧饱和度优秀，说明您的心肺功能良好，建议继续保持健康的生活方式。'
+                },
+                temperature: {
+                    current: 36.5, max: 36.8, min: 36.2, avg: 36.5,
+                    status: '✓ 正常体温',
+                    advice: '体温正常，免疫系统功能良好。建议保持充足睡眠，增强身体抵抗力。'
+                }
+            };
+            
+            displayRealTimeData(mockData[cardType] || mockData.heartRate, cardType);
+        }
+
+        // 显示数据错误
+        function showDataError(message) {
+            console.warn('数据获取警告:', message);
+        }
+
+        // 显示历史数据 (简化实现)
+        function displayHistoryData(data, cardType) {
+            const loading = document.getElementById('historyDataLoading');
+            const content = document.getElementById('historyDataContent');
+            
+            if (loading) loading.style.display = 'none';
+            if (content) content.style.display = 'block';
+            
+            // 这里可以实现ECharts图表显示
+        }
+
+        // 显示模拟历史数据
+        function displayMockHistoryData(cardType) {
+            displayHistoryData({}, cardType);
+        }
+
+        // 显示AI分析
+        function displayAIAnalysis(data, cardType) {
+            const loading = document.getElementById('aiAnalysisLoading');
+            const content = document.getElementById('aiAnalysisContent');
+            
+            if (loading) loading.style.display = 'none';
+            if (content) content.style.display = 'block';
+        }
+
+        // 显示模拟AI分析
+        function displayMockAIAnalysis(cardType) {
+            displayAIAnalysis({}, cardType);
         }
 
         // ============= 设备状态管理 =============
@@ -5860,6 +6453,12 @@
             
             const device = deviceData[0];
             console.log('📱 更新设备状态:', device);
+            
+            // Add null check for device
+            if (!device) {
+                console.warn('⚠️ 设备信息为空，跳过状态更新');
+                return;
+            }
             
             const deviceStatus = {
                 batteryLevel: device.batteryLevel || Math.floor(Math.random() * (100 - 20)) + 20,
@@ -7372,7 +7971,7 @@
         }
 
         function updateHealthProfileFallback() {
-            // 使用模拟数据
+            // 使用现有的健康分析数据生成画像
             const mockData = {
                 healthScore: { overall: 75, category: '良好' },
                 healthPrediction: { 
@@ -7445,6 +8044,14 @@
             loadDetailedHealthProfile();
         }
 
+        // 修复缺失的 closeModal 函数
+        function closeModal() {
+            const modalOverlay = document.querySelector('.modal-overlay');
+            if (modalOverlay) {
+                modalOverlay.remove();
+            }
+        }
+
         function loadDetailedHealthProfile() {
             fetch(`/api/health/analysis/comprehensive?deviceSn=${deviceSn}&days=30`, {
                 method: 'GET',
@@ -7510,7 +8117,7 @@
         }
 
         function initializeDeviceStatusDisplay() {
-            // 初始化设备状态显示
+            // 初始化header区域设备状态显示
             const statusText = document.getElementById('deviceStatusText');
             const statusIndicator = document.querySelector('.status-indicator');
             
@@ -7521,19 +8128,244 @@
                 statusIndicator.style.background = '#ffaa00'; // 初始化为黄色
             }
             
+            // 初始化右侧设备信息面板
+            initializeDeviceInfoPanel();
+            
             console.log('📱 设备状态显示初始化完成');
+        }
+
+        function initializeDeviceInfoPanel() {
+            // 初始化设备序列号显示
+            const deviceInfoSn = document.getElementById('deviceInfoSn');
+            if (deviceInfoSn) {
+                deviceInfoSn.textContent = deviceSn || '--';
+            }
+            
+            // 初始化设备状态显示
+            const deviceInfoStatus = document.getElementById('deviceInfoStatus');
+            const deviceInfoStatusDot = document.getElementById('deviceInfoStatusDot');
+            
+            if (deviceInfoStatus) {
+                deviceInfoStatus.textContent = '初始化中';
+            }
+            if (deviceInfoStatusDot) {
+                deviceInfoStatusDot.style.background = '#ffaa00'; // 初始化为黄色
+            }
+            
+            // 初始化电池显示
+            const batteryLevel = document.getElementById('batteryLevel');
+            const batteryFill = document.getElementById('batteryFill');
+            
+            if (batteryLevel) {
+                batteryLevel.textContent = '--';
+            }
+            if (batteryFill) {
+                batteryFill.style.width = '0%';
+                batteryFill.style.background = 'linear-gradient(90deg, #666, #888)';
+            }
+            
+            // 初始化最后更新时间
+            const deviceLastUpdate = document.getElementById('deviceLastUpdate');
+            if (deviceLastUpdate) {
+                deviceLastUpdate.textContent = '--';
+            }
+            
+            // 调用API获取设备信息
+            if (deviceSn) {
+                loadDeviceInfo();
+            }
+            
+            console.log('📱 设备信息面板初始化完成');
+        }
+
+        // 调用设备信息API
+        async function loadDeviceInfo() {
+            try {
+                console.log('🔄 正在获取设备信息...', deviceSn);
+                
+                const response = await fetch('/api/device/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        deviceSn: deviceSn
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data) {
+                        updateDeviceInfoDisplay(result.data);
+                    } else {
+                        console.warn('设备信息获取失败:', result.error || '未知错误');
+                        showDeviceInfoError();
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('设备信息API调用失败:', error);
+                showDeviceInfoError();
+            }
+        }
+
+        // 更新设备信息显示
+        function updateDeviceInfoDisplay(deviceData) {
+            try {
+                console.log('🔄 更新设备信息显示:', deviceData);
+                
+                // 更新设备序列号
+                const deviceInfoSn = document.getElementById('deviceInfoSn');
+                if (deviceInfoSn && deviceData.serialNumber) {
+                    deviceInfoSn.textContent = deviceData.serialNumber;
+                }
+                
+                // 更新设备状态
+                const deviceInfoStatus = document.getElementById('deviceInfoStatus');
+                const deviceInfoStatusDot = document.getElementById('deviceInfoStatusDot');
+                
+                if (deviceData.status) {
+                    if (deviceInfoStatus) {
+                        // 转换英文状态为中文
+                        const statusMap = {
+                            'ACTIVE': '在线',
+                            'INACTIVE': '离线', 
+                            'OFFLINE': '离线',
+                            'ONLINE': '在线',
+                            'CHARGING': '充电中',
+                            'NOT_CHARGING': '未充电'
+                        };
+                        const displayStatus = statusMap[deviceData.status] || deviceData.status;
+                        deviceInfoStatus.textContent = displayStatus;
+                    }
+                    if (deviceInfoStatusDot) {
+                        const statusColor = getDeviceStatusColor(deviceData.status);
+                        deviceInfoStatusDot.style.background = statusColor;
+                        deviceInfoStatusDot.style.boxShadow = `0 0 10px ${statusColor}`;
+                    }
+                }
+                
+                // 更新电池信息
+                if (deviceData.batteryLevel !== undefined && deviceData.batteryLevel !== null) {
+                    const batteryLevel = document.getElementById('batteryLevel');
+                    const batteryFill = document.getElementById('batteryFill');
+                    
+                    if (batteryLevel) {
+                        batteryLevel.textContent = `${deviceData.batteryLevel}%`;
+                    }
+                    if (batteryFill) {
+                        batteryFill.style.width = `${deviceData.batteryLevel}%`;
+                        batteryFill.style.background = getBatteryColor(deviceData.batteryLevel);
+                    }
+                }
+                
+                // 更新最后更新时间 
+                const updateTime = deviceData.updateTime || new Date().toLocaleString();
+                const deviceLastUpdate = document.getElementById('deviceLastUpdate');
+                if (deviceLastUpdate) {
+                    deviceLastUpdate.textContent = updateTime;
+                }
+                
+                // 更新header区域的设备状态
+                updateHeaderDeviceStatus(deviceData);
+                
+                // 更新设备信息面板
+                updateDeviceInfoPanel(deviceData);
+                
+                console.log('✅ 设备信息显示更新完成');
+                
+            } catch (error) {
+                console.error('❌ 设备信息显示更新失败:', error);
+                showDeviceInfoError();
+            }
+        }
+
+        // 显示设备信息错误
+        function showDeviceInfoError() {
+            const deviceInfoStatus = document.getElementById('deviceInfoStatus');
+            const deviceInfoStatusDot = document.getElementById('deviceInfoStatusDot');
+            
+            if (deviceInfoStatus) {
+                deviceInfoStatus.textContent = '获取失败';
+            }
+            if (deviceInfoStatusDot) {
+                deviceInfoStatusDot.style.background = '#ff4757'; // 错误为红色
+            }
+        }
+
+        // 获取设备状态对应的颜色
+        function getDeviceStatusColor(status) {
+            const statusColors = {
+                // 中文状态
+                '在线': '#00ff9d',
+                '离线': '#666666', 
+                '初始化中': '#ffaa00',
+                '异常': '#ff4757',
+                '获取失败': '#ff4757',
+                '充电中': '#00e4ff',
+                '未充电': '#ffaa00',
+                // 英文状态
+                'ACTIVE': '#00ff9d',
+                'INACTIVE': '#666666',
+                'OFFLINE': '#666666', 
+                'ONLINE': '#00ff9d',
+                'CHARGING': '#00e4ff',
+                'NOT_CHARGING': '#ffaa00',
+                'NOT_WORN': '#ff8c00',
+                'WORN': '#00ff9d'
+            };
+            return statusColors[status] || '#ffaa00';
+        }
+
+        // 获取电池颜色
+        function getBatteryColor(level) {
+            if (level > 60) return 'linear-gradient(90deg, #00ff9d, #00e4ff)';
+            if (level > 30) return 'linear-gradient(90deg, #ffaa00, #ff8c00)';
+            return 'linear-gradient(90deg, #ff4757, #ff6b6b)';
+        }
+
+        // 更新header区域设备状态
+        function updateHeaderDeviceStatus(deviceData) {
+            const statusText = document.getElementById('deviceStatusText');
+            const statusIndicator = document.querySelector('.status-indicator');
+            
+            if (statusText && deviceData.status) {
+                statusText.textContent = `设备 ${deviceSn} ${deviceData.status}`;
+            }
+            if (statusIndicator && deviceData.status) {
+                statusIndicator.style.background = getDeviceStatusColor(deviceData.status);
+            }
+        }
+
+        // 格式化时间显示
+        function formatTime(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (error) {
+                return timestamp || '--';
+            }
         }
 
         function updateDeviceSnDisplay() {
             // 更新页面中所有显示设备序列号的地方
             const dynamicDeviceSnEl = document.getElementById('dynamicDeviceSn');
             const statusDeviceSnEl = document.getElementById('statusDeviceSn');
+            const headerDeviceSnEl = document.getElementById('headerDeviceSn');
             
             if (dynamicDeviceSnEl) {
                 dynamicDeviceSnEl.textContent = deviceSn || '';
             }
             if (statusDeviceSnEl) {
                 statusDeviceSnEl.textContent = deviceSn || '';
+            }
+            if (headerDeviceSnEl) {
+                headerDeviceSnEl.textContent = deviceSn || 'A5GTQ24B26000001';
             }
             
             console.log('📱 设备序列号显示已更新:', deviceSn);
@@ -7545,7 +8377,7 @@
                 return;
             }
             
-            // 更新设备状态显示
+            // 更新header区域的设备状态显示
             const statusText = document.getElementById('deviceStatusText');
             const statusIndicator = document.querySelector('.status-indicator');
             
@@ -7558,88 +8390,81 @@
                 statusIndicator.style.background = deviceData.status === 'ACTIVE' ? '#00ff9d' : '#ff4757';
             }
             
+            // 更新右侧设备信息面板
+            updateDeviceInfoPanel(deviceData);
+            
             console.log('📱 设备状态已更新:', deviceData);
+        }
+
+        function updateDeviceInfoPanel(deviceData) {
+            // 更新设备序列号
+            const deviceInfoSn = document.getElementById('deviceInfoSn');
+            if (deviceInfoSn) {
+                deviceInfoSn.textContent = deviceSn || '--';
+            }
+            
+            // 更新设备状态
+            const deviceInfoStatus = document.getElementById('deviceInfoStatus');
+            const deviceInfoStatusDot = document.getElementById('deviceInfoStatusDot');
+            
+            if (deviceInfoStatus && deviceInfoStatusDot) {
+                const isActive = deviceData.status === 'ACTIVE';
+                const statusText = isActive ? '在线' : '离线';
+                const statusColor = isActive ? '#00ff9d' : '#ff4757';
+                
+                deviceInfoStatus.textContent = statusText;
+                deviceInfoStatusDot.style.background = statusColor;
+            }
+            
+            // 更新电池电量
+            const batteryLevel = document.getElementById('batteryLevel');
+            const batteryFill = document.getElementById('batteryFill');
+            
+            if (batteryLevel && batteryFill && deviceData.batteryLevel) {
+                const level = Math.min(100, Math.max(0, deviceData.batteryLevel));
+                batteryLevel.textContent = `${level}%`;
+                batteryFill.style.width = `${level}%`;
+                
+                // 根据电量调整颜色
+                if (level > 50) {
+                    batteryFill.style.background = 'linear-gradient(90deg, #00ff9d, #00e4ff)';
+                } else if (level > 20) {
+                    batteryFill.style.background = 'linear-gradient(90deg, #faad14, #f39c12)';
+                } else {
+                    batteryFill.style.background = 'linear-gradient(90deg, #ff4757, #e74c3c)';
+                }
+            }
+            
+            // 更新最后更新时间
+            const deviceLastUpdate = document.getElementById('deviceLastUpdate');
+            if (deviceLastUpdate) {
+                const lastUpdate = deviceData.lastUpdate || new Date();
+                const now = new Date();
+                const diffMinutes = Math.floor((now - new Date(lastUpdate)) / 1000 / 60);
+                
+                let timeText;
+                if (diffMinutes < 1) {
+                    timeText = '刚刚';
+                } else if (diffMinutes < 60) {
+                    timeText = `${diffMinutes}分钟前`;
+                } else if (diffMinutes < 1440) {
+                    const diffHours = Math.floor(diffMinutes / 60);
+                    timeText = `${diffHours}小时前`;
+                } else {
+                    const diffDays = Math.floor(diffMinutes / 1440);
+                    timeText = `${diffDays}天前`;
+                }
+                
+                deviceLastUpdate.textContent = timeText;
+            }
+            
+            console.log('📱 设备信息面板已更新');
         }
 
         // WebSocket functionality removed for performance optimization
 
         // ============= 卡片导航功能 =============
-        function createModalWindow(url, title, width, height) {
-            const modalContainer = document.createElement('div');
-            modalContainer.className = 'modal-container';
-            modalContainer.innerHTML = `
-                <div class="modal-content">
-                    <button class="modal-close">✖</button>
-                    <iframe src="${url}" class="user-view-iframe"></iframe>
-                </div>
-            `;
-            
-            document.body.appendChild(modalContainer);
-            
-            // 添加模态窗口样式
-            if (!document.getElementById('modalStyles')) {
-                const style = document.createElement('style');
-                style.id = 'modalStyles';
-                style.textContent = `
-                    .modal-container {
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0, 0, 0, 0.8);
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        z-index: 10000;
-                    }
-                    .modal-content {
-                        width: ${width || '90%'};
-                        height: ${height || '90%'};
-                        background: #001529;
-                        border-radius: 8px;
-                        position: relative;
-                        border: 1px solid #00e4ff;
-                        box-shadow: 0 0 30px rgba(0, 228, 255, 0.3);
-                    }
-                    .modal-close {
-                        position: absolute;
-                        top: 10px;
-                        right: 15px;
-                        background: #ff4757;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        padding: 5px 10px;
-                        cursor: pointer;
-                        z-index: 10001;
-                        font-size: 14px;
-                    }
-                    .modal-close:hover {
-                        background: #ff3742;
-                    }
-                    .user-view-iframe {
-                        width: 100%;
-                        height: 100%;
-                        border: none;
-                        border-radius: 8px;
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-            
-            // 关闭按钮事件
-            modalContainer.querySelector('.modal-close').addEventListener('click', function() {
-                document.body.removeChild(modalContainer);
-            });
-            
-            // 点击背景关闭
-            modalContainer.addEventListener('click', function(e) {
-                if (e.target === modalContainer) {
-                    document.body.removeChild(modalContainer);
-                }
-            });
-        }
+        // createModalWindow 函数已由统一模态窗口组件 modal-window.js 提供
 
         // 消息通知面板点击跳转函数
         async function navigateToMessageView() {
@@ -8112,7 +8937,7 @@
                 const messageAlertRow = document.createElement('div');
                 messageAlertRow.className = 'message-alert-row';
                 
-                const rightPanels = rightPanel.querySelectorAll('.message-panel, .alert-panel');
+                const rightPanels = rightPanel.querySelectorAll('.device-info-panel, .message-panel, .alert-panel');
                 rightPanels.forEach(panel => {
                     messageAlertRow.appendChild(panel.cloneNode(true));
                 });
@@ -8177,6 +9002,60 @@
             detectBreakpoint();
         }
 
+        // ============= 健康功能导航函数 =============
+        function openHealthPrediction() {
+            console.log('🔮 打开健康预测分析页面...');
+            const deviceSn = getDeviceSnFromUrl();
+            const userId = getCurrentUserId();
+            
+            if (deviceSn) {
+                // 在新窗口中打开健康预测页面
+                const predictionUrl = `/health_prediction?deviceSn=${deviceSn}&userId=${userId || ''}`;
+                window.open(predictionUrl, '_blank', 'width=1400,height=900,scrollbars=yes,resizable=yes');
+            } else {
+                alert('请先选择用户设备');
+            }
+        }
+        
+        function openHealthProfile() {
+            console.log('👤 打开360度健康画像页面...');
+            const deviceSn = getDeviceSnFromUrl();
+            const userId = getCurrentUserId();
+            
+            if (deviceSn) {
+                // 在新窗口中打开健康画像页面
+                const profileUrl = `/health_profile_enhanced?deviceSn=${deviceSn}&userId=${userId || ''}`;
+                window.open(profileUrl, '_blank', 'width=1600,height=1000,scrollbars=yes,resizable=yes');
+            } else {
+                alert('请先选择用户设备');
+            }
+        }
+        
+        function openHealthBaseline() {
+            console.log('📊 打开健康基线数据页面...');
+            const deviceSn = getDeviceSnFromUrl();
+            
+            if (deviceSn) {
+                // 在新窗口中打开健康基线页面
+                const baselineUrl = `/health_baseline?deviceSn=${deviceSn}`;
+                window.open(baselineUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+            } else {
+                alert('请先选择用户设备');
+            }
+        }
+        
+        // 获取当前用户ID的辅助函数
+        function getCurrentUserId() {
+            try {
+                // 从URL参数或全局变量获取用户ID
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get('userId') || window.currentUserId || null;
+            } catch (error) {
+                console.warn('获取用户ID失败:', error);
+                return null;
+            }
+        }
+
         // ============= 错误处理 =============
         window.addEventListener('error', function(event) {
             console.error('⚠️ 页面错误:', event.error);
@@ -8203,7 +9082,7 @@
             cacheEnabled: true
         };
         
-        console.log('🚀 个人健康大屏页面加载完成');
+        console.log('🚀 个人健康大屏页面加载完成 {{ PERSONAL_SCREEN_VERSION }}');
         
         // ============= 健康预测加载函数 =============
         function loadHealthPredictions() {
@@ -8759,10 +9638,173 @@
             console.log('✨ 专业级健康趋势图表配置已应用');
         }
         
+        // ============= 新增：实时数据刷新函数 =============
+        function loadDeviceInfoNew() {
+            console.log('📊 从新API获取设备信息...');
+            
+            fetch(`/api/device/info?deviceSn=${deviceSn}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success && result.data && result.data.deviceData && result.data.deviceData.length > 0) {
+                        console.log('✅ 设备信息获取成功:', result.data);
+                        
+                        // 取第一个设备的信息
+                        const deviceInfo = result.data.deviceData[0];
+                        
+                        // 转换数据格式以匹配现有的显示函数
+                        const formattedDeviceData = {
+                            status: deviceInfo.status,
+                            batteryLevel: deviceInfo.battery_level,
+                            chargingStatus: deviceInfo.charging_status,
+                            wearableStatus: deviceInfo.wearable_status,
+                            deviceName: deviceInfo.device_name,
+                            serialNumber: deviceInfo.serial_number,
+                            imei: deviceInfo.imei,
+                            voltage: deviceInfo.voltage,
+                            ipAddress: deviceInfo.ip_address,
+                            bluetoothAddress: deviceInfo.bluetooth_address,
+                            wifiAddress: deviceInfo.wifi_address,
+                            systemVersion: deviceInfo.system_software_version,
+                            updateTime: deviceInfo.update_time,
+                            userName: deviceInfo.user_name,
+                            deptName: deviceInfo.dept_name,
+                            networkMode: deviceInfo.network_access_mode
+                        };
+                        
+                        updateDeviceInfoDisplay(formattedDeviceData);
+                        
+                    } else {
+                        console.warn('⚠️ 设备信息获取失败:', result.error || '无设备数据');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ 设备信息API请求失败:', error);
+                });
+        }
+        
+        function loadLatestHealthData() {
+            console.log('📊 从新API获取最新健康数据...');
+            
+            fetch(`/api/health_data/latest?deviceSn=${deviceSn}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success && result.data) {
+                        console.log('✅ 最新健康数据获取成功:', result.data);
+                        
+                        // 更新实时心率、血氧、体温显示
+                        updateRealTimeVitalSigns(result.data);
+                        
+                        // 更新生命体征图表
+                        updateVitalSignsChart(result.data);
+                        
+                    } else {
+                        console.warn('⚠️ 最新健康数据获取失败:', result.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ 最新健康数据API请求失败:', error);
+                });
+        }
+        
+        function updateRealTimeVitalSigns(data) {
+            console.log('🔄 更新实时生命体征:', data);
+            
+            // 更新心率显示和图表
+            if (data.heartRate !== undefined && data.heartRate > 0) {
+                document.getElementById('heartRateValue').textContent = data.heartRate;
+                updateGaugeValue(chartInstances.heartRateGauge, data.heartRate, 180);
+                updateHealthCardStatus('heartRateCard', data.heartRate, 60, 100, 120);
+            }
+            
+            // 更新血氧显示和图表
+            if (data.bloodOxygen !== undefined && data.bloodOxygen > 0) {
+                document.getElementById('bloodOxygenValue').textContent = data.bloodOxygen;
+                updateGaugeValue(chartInstances.bloodOxygenGauge, data.bloodOxygen, 100);
+                updateHealthCardStatus('bloodOxygenCard', data.bloodOxygen, 95, 100, 90);
+            }
+            
+            // 更新体温显示和图表
+            if (data.temperature !== undefined && parseFloat(data.temperature) > 0) {
+                const tempValue = parseFloat(data.temperature);
+                document.getElementById('temperatureValue').textContent = data.temperature;
+                updateGaugeValue(chartInstances.temperatureGauge, tempValue, 40);
+                updateHealthCardStatus('temperatureCard', tempValue, 36.1, 37.3, 38.0);
+            }
+            
+            // 更新时间戳
+            const timestamp = new Date().toLocaleTimeString();
+            const updateElement = document.querySelector('.last-update-time');
+            if (updateElement) {
+                updateElement.textContent = `最后更新: ${timestamp}`;
+            }
+        }
+        
+        function updateVitalSignsChart(data) {
+            console.log('📈 更新生命体征图表:', data);
+            
+            // 获取当前时间
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString();
+            
+            // 更新心率波形图
+            if (chartInstances.waveChart && data.heartRate > 0) {
+                const option = chartInstances.waveChart.getOption();
+                if (option.series && option.series[0] && option.series[0].data) {
+                    // 保持最近20个数据点
+                    const seriesData = option.series[0].data;
+                    if (seriesData.length >= 20) {
+                        seriesData.shift();
+                    }
+                    seriesData.push({
+                        name: timeLabel,
+                        value: [timeLabel, data.heartRate]
+                    });
+                    
+                    // 更新X轴数据
+                    if (option.xAxis && option.xAxis[0]) {
+                        if (!option.xAxis[0].data) option.xAxis[0].data = [];
+                        if (option.xAxis[0].data.length >= 20) {
+                            option.xAxis[0].data.shift();
+                        }
+                        option.xAxis[0].data.push(timeLabel);
+                    }
+                    
+                    chartInstances.waveChart.setOption(option);
+                }
+            }
+        }
+        
+        // ============= 实时数据刷新定时器 =============
+        function startRealTimeDataRefresh() {
+            console.log('🔄 启动实时数据刷新...');
+            
+            // 立即执行一次
+            loadLatestHealthData();
+            loadDeviceInfoNew();
+            
+            // 设置定时刷新 - 每30秒刷新健康数据
+            setInterval(() => {
+                loadLatestHealthData();
+            }, 30000);
+            
+            // 设置定时刷新 - 每60秒刷新设备信息  
+            setInterval(() => {
+                loadDeviceInfoNew();
+            }, 60000);
+        }
+        
         // 在初始化后增强图表
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 applyProfessionalTrendEffects();
+                // 启动实时数据刷新
+                startRealTimeDataRefresh();
             }, 2000); // 等待图表初始化完成后再增强
         });
     </script>

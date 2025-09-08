@@ -99,10 +99,11 @@
         display: grid;
         grid-template-columns: 22% 1fr 22%; /* 调整为比例分配：左22% 中间自适应 右22% */
         grid-gap: 16px; /* 减少间距：从20px减少到16px */
-        padding: 0 16px 16px 16px; /* 减少内边距：从20px减少到16px */
-        height: calc(100vh - 76px); /* 优化高度计算：60px标题+16px底边距 */
-        max-height: calc(100vh - 76px); /* 限制最大高度 */
+        padding: 0 16px 8px 16px; /* 调整底部内边距为8px，与中间面板底部边距一致 */
+        height: calc(100vh - 104px); /* 调整高度计算：80px新标题+16px间距+8px底边距 */
+        max-height: calc(100vh - 104px); /* 限制最大高度 */
         overflow: hidden;
+        align-items: end; /* 确保所有面板底部对齐 */
       }
 
       .panel {
@@ -130,14 +131,14 @@
       }
 
       .panel:nth-child(2) {
-        height: 30%; /* 人员管理面板：从35%减少到30% */
-        min-height: 220px; /* 调整最小高度 */
-        max-height: none; /* 调整最大高度 */
+        height: 28%; /* 进一步减少人员管理面板高度：从30%减少到28% */
+        min-height: 200px; /* 减少最小高度：从220px到200px */
+        max-height: 280px; /* 限制最大高度 */
       }
 
       .panel:nth-child(3) {
         flex: 1; /* 使用flex: 1填充剩余空间而不是固定高度 */
-        min-height: 220px; /* 调整最小高度 */
+        min-height: 250px; /* 增加告警面板最小高度：从220px到250px */
         max-height: none; /* 允许自适应但不超过容器 */
         overflow: hidden; /* 防止内容溢出 */
       }
@@ -150,14 +151,14 @@
       }
 
       .side-container:last-child .panel:nth-child(2) {
-        height: 36%; /* 健康数据分析面板：从34%增加到36% */
-        min-height: 220px; /* 增加最小高度：从200px到220px */
-        max-height: 340px; /* 增加最大高度：从320px到340px */
+        height: 32%; /* 减少健康数据分析面板高度：从36%减少到32% */
+        min-height: 200px; /* 减少最小高度：从220px到200px */
+        max-height: 300px; /* 减少最大高度：从340px到300px */
       }
 
       .side-container:last-child .panel:nth-child(3) {
         flex: 1; /* 使用flex: 1填充剩余空间确保底部对齐 */
-        min-height: 200px; /* 调整最小高度 */
+        min-height: 250px; /* 增加最小高度：从200px到250px */
         max-height: none; /* 保持无最大高度限制 */
         overflow: hidden; /* 防止内容溢出 */
       }
@@ -180,13 +181,15 @@
       }
 
       .map-container {
-        flex: 1; /* 使用flex: 1自动填充剩余空间 */
+        flex: 1;
         background: rgba(0, 21, 41, 0.7);
         border: 1px solid rgba(0, 228, 255, 0.2);
-        border-radius: 4px;
+        border-radius: 8px;
         padding: 10px;
-        margin-bottom: 10px;
-        min-height: 300px; /* 设置最小高度确保地图有足够显示空间 */
+        margin-bottom: 15px;
+        min-height: 350px;
+        max-height: 450px;
+        position: relative;
       }
 
       /* 数据卡片样式 */
@@ -256,7 +259,7 @@
       }
 
       .side-container:last-child .panel:nth-child(3) .chart-container {
-        min-height: 150px; /* 健康评分面板最小高度：从120px增加到150px */
+        min-height: 180px; /* 进一步增加健康评分面板最小高度：从150px增加到180px */
         height: calc(100% - 40px);
         max-height: none; /* 移除最大高度限制 */
       }
@@ -265,14 +268,14 @@
       #alertTypeChart, #alertLevelChart, #alertStatusChart, #alertTrendChart {
         width: 100% !important;
         height: 100% !important;
-        min-height: 90px !important; /* 增加最小高度：从80px到90px */
-        max-height: 180px !important; /* 增加单个图表最大高度：从150px增加到180px，给告警类型更多显示空间 */
+        min-height: 110px !important; /* 进一步增加最小高度：从90px到110px */
+        max-height: 200px !important; /* 增加单个图表最大高度：从180px增加到200px，给告警信息更多显示空间 */
         overflow: hidden !important;
       }
 
       /* 特别限制告警类型图表高度 */
       #alertTypeChart {
-        max-height: 160px !important; /* 增加告警类型图表高度：从120px增加到160px，当类型增多时有更好的显示效果 */
+        max-height: 200px !important; /* 进一步增加告警类型图表高度：从160px增加到200px，确保完整显示 */
       }
 
       /* 告警面板网格布局优化 */
@@ -304,6 +307,25 @@
         .container {
           grid-template-columns: 26% 1fr 26%; /* 小屏幕：进一步增加侧边栏宽度确保内容显示 */
         }
+        
+        /* 响应式租户信息调整 */
+        .tenant-header-compact {
+          gap: 10px;
+        }
+        
+        .tenant-stats-compact {
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+          padding: 6px 8px;
+        }
+        
+        .tenant-name-compact {
+          font-size: 15px;
+        }
+        
+        .compact-stat-value {
+          font-size: 13px;
+        }
       }
 
       @media screen and (max-width: 1024px) {
@@ -330,46 +352,166 @@
         .side-container:last-child .panel:nth-child(3) .chart-container {
           min-height: 100px;
         }
+        
+        /* 小屏幕下进一步优化租户信息 */
+        .tenant-info-header {
+          height: 55px; /* 减少高度 */
+        }
+        
+        .tenant-avatar-small {
+          width: 36px;
+          height: 36px;
+        }
+        
+        .tenant-stats-compact {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          padding: 4px 6px;
+        }
+        
+        .compact-stat {
+          min-width: 45px;
+          padding: 3px 5px;
+        }
+        
+        .compact-stat-label {
+          font-size: 9px;
+        }
+        
+        .compact-stat-value {
+          font-size: 12px;
+        }
+        
+        /* 健康卡片响应式 */
+        .health-cards-container {
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+        
+        .health-card {
+          min-height: 140px;
+          padding: 12px;
+        }
+      }
+      
+      @media (max-width: 600px) {
+        .health-cards-container {
+          grid-template-columns: 1fr;
+          gap: 10px;
+          margin: 10px 0;
+        }
+        
+        .health-card {
+          min-height: 120px;
+          padding: 10px;
+        }
+        
+        .score-circle-compact {
+          width: 60px;
+          height: 60px;
+        }
+        
+        .score-circle-compact::before {
+          width: 50px;
+          height: 50px;
+        }
+        
+        .score-number-compact {
+          font-size: 18px;
+        }
       }
 
-      /* 在已有的 style 标签中添加 */
+      /* ============= 大屏Header美化样式 ============= */
       .header-title {
-    position: relative;
-    width: 100%;
-        height: 60px;
-        background: linear-gradient(90deg, rgba(0,21,41,0.8) 0%, rgba(0,91,171,0.8) 50%, rgba(0,21,41,0.8) 100%);
-    display: flex;
+        position: relative;
+        width: 100%;
+        height: 80px;
+        background: linear-gradient(135deg, rgba(0,21,41,0.95) 0%, rgba(0,91,171,0.4) 30%, rgba(13,20,33,0.8) 70%, rgba(0,21,41,0.95) 100%);
+        display: flex;
         justify-content: center;
-    align-items: center;
-        border-bottom: 1px solid rgba(0,228,255,0.3);
-    margin-bottom: 20px;
-}
-
-      .header-title h1 {
-        color: #00e4ff;
-        font-size: 28px;
-        font-weight: normal;
-        text-shadow: 0 0 10px rgba(0,228,255,0.5);
-        letter-spacing: 2px;
+        align-items: center;
+        border-bottom: 2px solid transparent;
+        border-image: linear-gradient(90deg, transparent, #00e4ff, #00ff9d, #00e4ff, transparent) 1;
+        margin-bottom: 16px;
+        backdrop-filter: blur(20px);
+        box-shadow: 0 4px 20px rgba(0,21,41,0.6), inset 0 1px 0 rgba(0,228,255,0.2);
+        overflow: hidden;
       }
-
-      .header-title::before,
+      
+      .header-title::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #00e4ff, #00ff9d, transparent);
+        animation: scanLine 4s infinite;
+      }
+      
       .header-title::after {
         content: '';
         position: absolute;
-        width: 200px;
-        height: 1px;
-        background: linear-gradient(90deg, transparent, #00e4ff, transparent);
-        bottom: -1px;
-      }
-
-      .header-title::before {
+        top: 0;
         left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+          radial-gradient(circle at 20% 50%, rgba(0,228,255,0.1) 0%, transparent 50%),
+          radial-gradient(circle at 80% 50%, rgba(0,255,157,0.1) 0%, transparent 50%),
+          linear-gradient(90deg, transparent, rgba(0,228,255,0.05), transparent);
+        pointer-events: none;
       }
 
-      .header-title::after {
-        right: 0;
+      .header-title h1 {
+        color: #ffffff;
+        font-size: 32px;
+        font-weight: 600;
+        text-shadow: 
+          0 0 20px rgba(0,228,255,0.8),
+          0 0 40px rgba(0,228,255,0.4),
+          2px 2px 4px rgba(0,0,0,0.8);
+        letter-spacing: 3px;
+        z-index: 2;
+        position: relative;
+        background: linear-gradient(45deg, #00e4ff, #00ff9d, #ffffff, #00ff9d, #00e4ff);
+        background-size: 300% 300%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: gradientShift 3s ease-in-out infinite;
       }
+      
+      @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+      }
+
+      .version-info {
+        position: absolute;
+        top: 12px;
+        right: 24px;
+        color: rgba(0, 228, 255, 0.8);
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 1px;
+        text-shadow: 0 0 10px rgba(0,228,255,0.6);
+        background: rgba(0, 228, 255, 0.1);
+        padding: 4px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(0, 228, 255, 0.3);
+        backdrop-filter: blur(10px);
+        z-index: 3;
+        transition: all 0.3s ease;
+      }
+      
+      .version-info:hover {
+        background: rgba(0, 228, 255, 0.2);
+        border-color: rgba(0, 228, 255, 0.5);
+        transform: scale(1.05);
+      }
+
+      /* Header装饰线条已整合到上面的样式中 */
 
       /* 添加装饰元素 */
       .header-decoration {
@@ -389,6 +531,691 @@
         right: 50px;
         background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMzAiPjxwYXRoIGQ9Ik0wIDE1aDEyME0zMCAwdjMwTTYwIDB2MzBNOTAgMHYzMCIgc3Ryb2tlPSIjMDBlNGZmIiBzdHJva2Utd2lkdGg9IjEiIG9wYWNpdHk9IjAuMyIvPjwvc3ZnPg==');
         transform: translateY(-50%) scaleX(-1);
+      }
+
+      /* ============= 租户信息头部卡片（紧凑型） ============= */
+      .tenant-info-header {
+        background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+        border: 1px solid rgba(0, 255, 157, 0.3);
+        border-radius: 10px;
+        margin-bottom: 8px;
+        backdrop-filter: blur(15px);
+        position: relative;
+        overflow: hidden;
+        height: 75px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 255, 157, 0.1);
+      }
+      
+      .tenant-info-header:hover {
+        border-color: rgba(0, 255, 157, 0.6);
+        box-shadow: 0 8px 25px rgba(0, 255, 157, 0.2);
+        transform: translateY(-1px);
+      }
+
+      .tenant-info-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #00ff9d, transparent);
+        animation: scan 4s infinite;
+      }
+
+      .tenant-card-compact {
+        height: 100%;
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+      }
+
+      .tenant-header-compact {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        width: 100%;
+      }
+
+      .tenant-avatar-small {
+        position: relative;
+        width: 42px;
+        height: 42px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 2px solid #00ff9d;
+        box-shadow: 0 0 12px rgba(0, 255, 157, 0.4);
+        flex-shrink: 0;
+      }
+
+      .tenant-avatar-small img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .tenant-avatar-placeholder-small {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 255, 157, 0.1);
+        color: #00ff9d;
+        font-size: 20px;
+      }
+
+      .tenant-info-compact {
+        flex: 1;
+        color: #ffffff;
+        min-width: 0;
+      }
+
+      .tenant-name-compact {
+        font-size: 16px;
+        font-weight: bold;
+        color: #00ff9d;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .tenant-meta-compact {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .tenant-id-compact {
+        color: #00e4ff;
+        font-size: 11px;
+      }
+
+      .tenant-status-compact.online {
+        color: #00ff9d;
+        font-weight: 500;
+        font-size: 11px;
+      }
+
+      .tenant-stats-compact {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 12px;
+        margin-right: 15px;
+        padding: 8px 12px;
+        background: rgba(0, 228, 255, 0.05);
+        border-radius: 6px;
+        border: 1px solid rgba(0, 228, 255, 0.1);
+        backdrop-filter: blur(5px);
+      }
+
+      .compact-stat {
+        text-align: center;
+        min-width: 50px;
+        padding: 4px 6px;
+        border-radius: 4px;
+        background: rgba(0, 21, 41, 0.3);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        transition: all 0.3s ease;
+      }
+      
+      .compact-stat:hover {
+        background: rgba(0, 228, 255, 0.1);
+        border-color: rgba(0, 228, 255, 0.4);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 228, 255, 0.2);
+      }
+
+      .compact-stat-label {
+        display: block;
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 3px;
+        font-weight: 500;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      }
+
+      .compact-stat-value {
+        display: block;
+        font-size: 15px;
+        font-weight: bold;
+        color: #00e4ff;
+        text-shadow: 0 0 8px rgba(0, 228, 255, 0.6);
+        letter-spacing: 0.5px;
+      }
+
+      /* ============= 中间面板布局优化 ============= */
+      .center-panel {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        gap: 8px;
+        padding: 8px 8px 0px 8px; /* 底部padding为0，让消息卡片直接贴底 */
+      }
+      
+      .center-panel > * {
+        flex-shrink: 0;
+      }
+      
+      /* 租户信息头部 - 固定高度 */
+      .tenant-info-header {
+        height: 75px;
+        flex-shrink: 0;
+        margin-bottom: 5px;
+      }
+      
+      /* 健康卡片容器布局优化 */
+      .health-cards-container {
+        margin: 8px 0;
+      }
+      
+      /* 地图容器 - 占用可用空间但为消息卡片预留合理空间 */
+      .map-container {
+        flex: 1;
+        min-height: 300px;
+        position: relative;
+        background: rgba(0, 21, 41, 0.7);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 8px; /* 为消息卡片预留间距 */
+      }
+      
+      /* ============= 消息卡片样式 - 扩展高度 ============= */
+      .message-card {
+        background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+        border: 1px solid rgba(0, 228, 255, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        backdrop-filter: blur(10px);
+        position: relative;
+        flex: 0 0 auto; /* 不参与flex扩展，但可以根据内容调整 */
+        margin-top: auto; /* 自动推到底部 */
+        margin-bottom: 0; /* 确保与容器底部齐平 */
+        min-height: 260px; /* 增加最小高度到260px */
+        max-height: 280px; /* 适当增加最大高度到280px */
+        overflow: hidden;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .message-card:hover {
+        border-color: rgba(0, 228, 255, 0.6);
+        box-shadow: 0 8px 25px rgba(0, 228, 255, 0.15);
+        transform: translateY(-2px);
+      }
+      
+      .message-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #00e4ff, #00ff9d);
+        border-radius: 8px 8px 0 0;
+        opacity: 0.8;
+      }
+      
+      .message-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(0, 228, 255, 0.2);
+        flex-shrink: 0;
+      }
+      
+      .message-card-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #00e4ff;
+        font-size: 14px;
+        font-weight: bold;
+      }
+      
+      .message-card-icon {
+        font-size: 16px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 228, 255, 0.1);
+        border-radius: 4px;
+        border: 1px solid rgba(0, 228, 255, 0.3);
+      }
+      
+      .message-card-count {
+        background: rgba(255, 107, 107, 0.2);
+        color: #ff6b6b;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        border: 1px solid rgba(255, 107, 107, 0.3);
+      }
+      
+      .message-card-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 220px; /* 调整内容区域高度以匹配260px卡片 */
+        overflow-y: auto;
+        padding: 4px;
+      }
+      
+      .message-item-compact {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px;
+        margin-bottom: 6px;
+        background: rgba(0, 21, 41, 0.3);
+        border-radius: 4px;
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+      
+      .message-item-compact:hover {
+        background: rgba(0, 228, 255, 0.1);
+        border-color: rgba(0, 228, 255, 0.4);
+      }
+      
+      .message-type-icon {
+        font-size: 14px;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+      
+      .message-type-icon.announcement { background: rgba(24, 144, 255, 0.2); }
+      .message-type-icon.notification { background: rgba(82, 196, 26, 0.2); }
+      .message-type-icon.alert { background: rgba(255, 77, 79, 0.2); }
+      
+      .message-item-text {
+        flex: 1;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 11px;
+        line-height: 1.3;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      
+      .message-item-time {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 10px;
+        flex-shrink: 0;
+      }
+      
+      /* ============= 健康卡片动画keyframes ============= */
+      @keyframes iconFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+      }
+      
+      @keyframes numberGlow {
+        0% { text-shadow: 0 0 15px rgba(0, 228, 255, 0.8); }
+        100% { text-shadow: 0 0 20px rgba(0, 228, 255, 1), 0 0 30px rgba(0, 228, 255, 0.5); }
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* ============= 健康功能卡片样式 ============= */
+      .health-cards-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+        margin: 12px 0;
+        padding: 0 8px;
+        height: 160px; /* 固定高度确保美观 */
+      }
+      
+      .health-card {
+        background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+        border: 1px solid rgba(0, 228, 255, 0.3);
+        border-radius: 10px;
+        padding: 12px;
+        backdrop-filter: blur(15px);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        min-height: 140px;
+        display: flex;
+        flex-direction: column;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 21, 41, 0.3);
+      }
+      
+      .health-card:hover {
+        border-color: rgba(0, 228, 255, 0.8);
+        box-shadow: 
+          0 12px 35px rgba(0, 228, 255, 0.25),
+          0 0 25px rgba(0, 228, 255, 0.15);
+        transform: translateY(-4px) scale(1.02);
+        background: linear-gradient(145deg, rgba(13, 20, 33, 1), rgba(6, 18, 25, 1));
+      }
+      
+      .health-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #00e4ff, #00ff9d, #ffbb00, transparent);
+        animation: scanLine 3s infinite;
+        border-radius: 10px 10px 0 0;
+      }
+      
+      .health-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(0, 228, 255, 0.2);
+        flex-shrink: 0;
+      }
+      
+      .health-card-icon {
+        font-size: 22px;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 228, 255, 0.15);
+        border-radius: 8px;
+        border: 1px solid rgba(0, 228, 255, 0.3);
+        transition: all 0.3s ease;
+        animation: iconFloat 2s ease-in-out infinite;
+      }
+      
+      .health-card:hover .health-card-icon {
+        background: rgba(0, 228, 255, 0.25);
+        border-color: rgba(0, 228, 255, 0.5);
+        transform: scale(1.1);
+        box-shadow: 0 4px 15px rgba(0, 228, 255, 0.3);
+      }
+      
+      .health-card-title {
+        color: #00e4ff;
+        font-size: 13px;
+        font-weight: bold;
+        text-shadow: 0 0 10px rgba(0, 228, 255, 0.5);
+        letter-spacing: 0.5px;
+      }
+      
+      .health-card-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      /* 健康预测卡片 */
+      .prediction-item-small {
+        background: rgba(0, 21, 41, 0.3);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        border-radius: 6px;
+        padding: 8px;
+        margin-bottom: 8px;
+      }
+      
+      .prediction-label-small {
+        color: #00ff9d;
+        font-size: 11px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      
+      .prediction-content-small {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 11px;
+        line-height: 1.4;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .prediction-risk-small {
+        color: #ffbb00;
+        font-size: 10px;
+        font-weight: bold;
+        background: rgba(255, 187, 0, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 187, 0, 0.3);
+      }
+      
+      /* 健康评分卡片 */
+      .score-display-compact {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        height: 100%;
+      }
+      
+      .score-circle-compact {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: conic-gradient(from 0deg, 
+          #ff4757 0%, 
+          #ff6b6b 20%, 
+          #ffa726 40%, 
+          #4ecdc4 60%, 
+          #00e4ff 80%, 
+          #00ff9d 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        margin-bottom: 8px;
+        animation: healthPulse 2s ease-in-out infinite;
+        box-shadow: 0 4px 20px rgba(0, 228, 255, 0.3);
+      }
+      
+      .health-card:hover .score-circle-compact {
+        animation: healthBeat 1s ease-in-out infinite;
+        box-shadow: 0 6px 25px rgba(0, 228, 255, 0.5);
+      }
+      
+      .score-circle-compact::before {
+        content: '';
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: rgba(0, 21, 41, 0.95);
+        position: absolute;
+        backdrop-filter: blur(10px);
+      }
+      
+      .score-number-compact {
+        color: #00e4ff;
+        font-size: 22px;
+        font-weight: bold;
+        z-index: 1;
+        text-shadow: 0 0 15px rgba(0, 228, 255, 0.8);
+        animation: numberGlow 2s ease-in-out infinite alternate;
+      }
+      
+      .score-status-compact {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 10px;
+        text-align: center;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+      }
+      
+      /* 健康建议卡片 */
+      .recommendation-item-small {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        background: rgba(0, 21, 41, 0.4);
+        border: 1px solid rgba(0, 228, 255, 0.2);
+        border-radius: 8px;
+        padding: 8px;
+        margin-bottom: 6px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .recommendation-item-small::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(180deg, #00ff9d, #00e4ff);
+        border-radius: 0 2px 2px 0;
+      }
+      
+      .recommendation-item-small:hover {
+        background: rgba(0, 228, 255, 0.15);
+        border-color: rgba(0, 228, 255, 0.5);
+        transform: translateX(3px);
+        box-shadow: 0 4px 12px rgba(0, 228, 255, 0.2);
+      }
+      
+      .recommendation-icon-small {
+        font-size: 16px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 187, 0, 0.15);
+        border-radius: 6px;
+        border: 1px solid rgba(255, 187, 0, 0.3);
+        flex-shrink: 0;
+        transition: all 0.3s ease;
+      }
+      
+      .recommendation-item-small:hover .recommendation-icon-small {
+        background: rgba(255, 187, 0, 0.25);
+        border-color: rgba(255, 187, 0, 0.5);
+        transform: scale(1.1);
+      }
+      
+      .recommendation-text-small {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 10px;
+        line-height: 1.4;
+        flex: 1;
+        font-weight: 500;
+      }
+      
+      .recommendation-priority-small {
+        color: #ff6b6b;
+        font-size: 9px;
+        font-weight: bold;
+        background: rgba(255, 107, 107, 0.15);
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-top: 4px;
+        display: inline-block;
+        border: 1px solid rgba(255, 107, 107, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      
+      /* 健康加载动画 */
+      .health-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex: 1;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 10px;
+      }
+      
+      .loading-spinner-small {
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(0, 228, 255, 0.2);
+        border-top: 2px solid #00e4ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      /* 加载状态 */
+      .health-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 11px;
+        flex: 1;
+      }
+      
+      .loading-spinner-small {
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(0, 228, 255, 0.3);
+        border-top: 2px solid #00e4ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .tenant-indicator-compact {
+        display: flex;
+        align-items: center;
+      }
+
+      .indicator-dot-small {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #666;
+        border: 2px solid #333;
+        transition: all 0.3s ease;
+      }
+
+      .indicator-dot-small.active {
+        background: #00ff9d;
+        border-color: #fff;
+        box-shadow: 0 0 8px rgba(0, 255, 157, 0.6);
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes scan {
+        0% { left: -100%; }
+        100% { left: 100%; }
       }
 
       /* 添加人员管理面板特殊调整 */
@@ -1402,14 +2229,14 @@
 
       /* 消息面板优化样式 - 统一定义 */
       .message-panel {
-          height: 240px; /* 使用固定高度240px确保底部对齐 */
+          flex: 1; /* 使用flex: 1占用剩余空间 */
           background: rgba(0, 21, 41, 0.7);
           border: 1px solid rgba(0, 228, 255, 0.2);
           border-radius: 4px;
           padding: 8px; /* 减少内边距：从10px减少到8px */
           margin-bottom: 0; /* 移除底部间距确保对齐 */
-          min-height: 220px; /* 保持最小高度 */
-          max-height: 280px; /* 限制最大高度 */
+          min-height: 200px; /* 减少最小高度，给地图更多空间 */
+          max-height: 250px; /* 限制最大高度，防止占用过多空间 */
           overflow: hidden; /* 防止内容溢出 */
           display: flex;
           flex-direction: column;
@@ -1694,13 +2521,16 @@
 
       /* 消息面板额外优化 - 防止变形 */
   </style>
+  
+  <!-- 引入统一模态窗口组件 -->
+  <script src="/static/js/modal-window.js"></script>
   </head>
   <body>
     <!-- 添加标题栏 -->
     <div class="header-title">
         <div class="header-decoration left"></div>
         <h1>{{ BIGSCREEN_TITLE }}</h1>
-      
+        <div class="version-info">{{ BIGSCREEN_VERSION }}</div>
         <div class="header-decoration right"></div>
           </div>
 
@@ -1843,6 +2673,123 @@
 
       <!-- 中间地图区域 -->
       <div style="display: flex; flex-direction: column; height: 100%; width: 100%;">
+        
+        <!-- 租户信息卡片 -->
+        <div class="tenant-info-header">
+            <div class="tenant-card-compact">
+                <div class="tenant-header-compact">
+                    <div class="tenant-avatar-small">
+                        <img id="tenantLogo" src="/static/images/tenant-default.png" alt="租户Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="tenant-avatar-placeholder-small" style="display: none;">🏢</div>
+                    </div>
+                    <div class="tenant-info-compact">
+                        <div class="tenant-name-compact" id="tenantName">{{ COMPANY_NAME }}</div>
+                        <div class="tenant-meta-compact">
+                            <span class="tenant-id-compact">ID: <span id="tenantId">{{ customerId }}</span></span>
+                            <span class="tenant-separator">•</span>
+                            <span class="tenant-status-compact online">运行中</span>
+                        </div>
+                    </div>
+                    <div class="tenant-stats-compact">
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">部门</span>
+                            <span class="compact-stat-value" id="tenantDeptCount">-</span>
+                        </div>
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">用户</span>
+                            <span class="compact-stat-value" id="tenantUserCount">-</span>
+                        </div>
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">设备</span>
+                            <span class="compact-stat-value" id="tenantDeviceCount">-</span>
+                        </div>
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">告警</span>
+                            <span class="compact-stat-value" id="tenantAlertCount">-</span>
+                        </div>
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">消息</span>
+                            <span class="compact-stat-value" id="tenantMessageCount">-</span>
+                        </div>
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">健康数据</span>
+                            <span class="compact-stat-value" id="tenantHealthDataCount">-</span>
+                        </div>
+                    </div>
+                    <div class="tenant-indicator-compact">
+                        <div class="indicator-dot-small active"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 健康功能卡片组 -->
+        <div class="health-cards-container">
+            <!-- 健康预测卡片 -->
+            <div class="health-card" id="healthPredictionCard">
+                <div class="health-card-header">
+                    <div class="health-card-icon">🔮</div>
+                    <div class="health-card-title">健康预测</div>
+                </div>
+                <div class="health-card-content">
+                    <div class="health-loading" id="predictionLoading">
+                        <div class="loading-spinner-small"></div>
+                        <span>正在分析健康预测...</span>
+                    </div>
+                    <div id="predictionItems" style="display: none;">
+                        <!-- 健康预测内容将通过API动态加载 -->
+                    </div>
+                    <div class="prediction-item-small">
+                        <div class="prediction-label-small">环境适应性</div>
+                        <div class="prediction-content-small">
+                            车间环境温度适宜，建议保持当前作业强度
+                            <span class="prediction-risk-small">📈 理想</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 健康评分卡片 -->
+            <div class="health-card" id="healthScoreCard">
+                <div class="health-card-header">
+                    <div class="health-card-icon">🏆</div>
+                    <div class="health-card-title">健康评分</div>
+                </div>
+                <div class="health-card-content">
+                    <div class="score-display-compact">
+                        <div class="score-circle-compact">
+                            <div class="score-number-compact" id="compactHealthScore">0</div>
+                        </div>
+                        <div class="score-status-compact" id="compactHealthStatus">正在计算...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 健康建议卡片 -->
+            <div class="health-card" id="healthRecommendationCard">
+                <div class="health-card-header">
+                    <div class="health-card-icon">💡</div>
+                    <div class="health-card-title">健康建议</div>
+                </div>
+                <div class="health-card-content">
+                    <div class="health-loading" id="recommendationLoading">
+                        <div class="loading-spinner-small"></div>
+                        <span>正在生成健康建议...</span>
+                    </div>
+                    <div id="recommendationItems" style="display: none;">
+                        <!-- 健康建议内容将通过API动态加载 -->
+                    </div>
+                    <div class="recommendation-item-small">
+                        <div class="recommendation-icon-small">😴</div>
+                        <div class="recommendation-text-small">
+                            保证7-8小时优质睡眠时间
+                            <div class="recommendation-priority-small">日常</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- 地图容器 -->
         <div class="map-container" id="map-container">
             <!-- 筛选面板 -->
@@ -1866,42 +2813,28 @@
         <!-- 保留原有地图代码 -->
         </div>
         
-        <!-- 消息面板 -->
-        <div class="message-panel" onclick="openMessagePanel()" style="cursor: pointer;">
-          <div class="panel-header">
-            <span>消息信息</span>
-            <span class="message-count" id="messageCount">0</span>
-          </div>
-          <!-- 消息面板内容 -->
-          <div class="message-panel-content">
-            <!-- 左侧消息列表 -->
-            <div class="message-list-container">
-              <div style="color: rgba(255,255,255,0.8); font-size: 11px; margin-bottom: 5px; padding-left: 5px;">最新消息</div>
-              <div class="message-list" id="messageList"></div>
+        <!-- 消息卡片 -->
+        <div class="message-card" onclick="openMessagePanel()" style="cursor: pointer;">
+          <div class="message-card-header">
+            <div class="message-card-title">
+              <div class="message-card-icon">📬</div>
+              <span>消息信息</span>
             </div>
-            
-            <!-- 右侧统计图表 -->
-            <div class="message-stats-container">
-              <div style="color: rgba(255,255,255,0.8); font-size: 11px; margin-bottom: 5px; padding-left: 5px;">消息统计</div>
-              <div class="message-stats-chart">
-                <!-- 消息统计概览 -->
-                <div class="message-stats-overview">
-                  <div>
-                    <div style="color: #00e4ff; font-size: 12px; font-weight: bold;" id="todayMessages">0</div>
-                    <div style="color: rgba(255,255,255,0.6); font-size: 8px;">今日</div>
-                  </div>
-                  <div>
-                    <div style="color: #ffbb00; font-size: 12px; font-weight: bold;" id="messageUnreadCount">0</div>
-                    <div style="color: rgba(255,255,255,0.6); font-size: 8px;">未读</div>
-                  </div>
-                  <div>
-                    <div style="color: #00ff9d; font-size: 12px; font-weight: bold;" id="urgentMessages">0</div>
-                    <div style="color: rgba(255,255,255,0.6); font-size: 8px;">紧急</div>
-                  </div>
-                </div>
-                <!-- 消息类型分布图 -->
-                <div id="messageStatsChart"></div>
-              </div>
+            <div class="message-card-count" id="messageCount">0</div>
+          </div>
+          <div class="message-card-content" id="messageCardContent">
+            <div class="health-loading" id="messageLoading">
+              <div class="loading-spinner-small"></div>
+              <span>正在加载消息...</span>
+            </div>
+            <div id="messageItems" style="display: none;">
+              <!-- 消息列表将动态加载 -->
+            </div>
+            <!-- 默认消息示例 -->
+            <div class="message-item-compact">
+              <div class="message-type-icon announcement">📢</div>
+              <div class="message-item-text">系统维护通知：今日晚上22:00-24:00进行系统维护</div>
+              <div class="message-item-time">10:30</div>
             </div>
           </div>
         </div>
@@ -1936,14 +2869,14 @@
         <div class="panel health-score-panel">
           <div class="panel-header">
             <span>🏆 健康评分</span>
-            <span class="total-score">总分：88.9</span>
+            <span class="total-score" id="totalHealthScore">总分：0</span>
           </div>
           <div class="panel-content">
             <!-- 评分显示区域 -->
             <div class="score-display">
               <div class="score-main">
                 <div class="score-circle">
-                  <div class="score-number">89</div>
+                  <div class="score-number" id="overallHealthScore">0</div>
                 </div>
                 <div class="score-info">
                   <div class="score-title">综合健康评分</div>
@@ -2085,11 +3018,11 @@
                             const factors = result.data.healthScores.factors;
                             
                             // 更新总分显示
-                            const totalScoreElement = document.querySelector('.total-score');
+                            const totalScoreElement = document.getElementById('totalHealthScore');
                             if (totalScoreElement) {
                                 totalScoreElement.textContent = `总分：${result.data.summary.overallScore}`;
                             }
-                            const scoreNumberElement = document.querySelector('.score-number');
+                            const scoreNumberElement = document.getElementById('overallHealthScore');
                             if (scoreNumberElement) {
                                 scoreNumberElement.textContent = `${result.data.summary.overallScore}`;
                             }
@@ -2181,13 +3114,13 @@
                             charts.healthScore.setOption(healthScoreOption);
                         } else {
                             // 如果没有数据，显示0分
-                            const totalScoreElement = document.querySelector('.total-score');
+                            const totalScoreElement = document.getElementById('totalHealthScore');
                             if (totalScoreElement) {
                                 totalScoreElement.textContent = '总分：0';
                             }
-                            const scoreNumberElement = document.querySelector('.score-number');
+                            const scoreNumberElement = document.getElementById('overallHealthScore');
                             if (scoreNumberElement) {
-                                scoreNumberElement.textContent = `0`;
+                                scoreNumberElement.textContent = '0';
                             }
                             const scoreStatusElement = document.querySelector('.score-status');
                             if (scoreStatusElement) {
@@ -4293,6 +5226,12 @@ function refreshData() {
                 updateMapData(data);
                
 
+                // 更新租户信息
+                updateTenantInfo(data, customerId);
+                
+                // 更新健康卡片数据
+                updateHealthCardsData(data, customerId);
+                
                 // 更新人员管理面板
                 initPersonnelManagementPanel(data);
 
@@ -4452,240 +5391,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 添加通用的创建模态窗口函数
-function createModalWindow(url, data, dataType) {
-    const modalContainer = document.createElement('div');
-    modalContainer.className = 'modal-container';
-    modalContainer.innerHTML = `
-        <div class="modal-content">
-            <button class="modal-close">✖</button>
-            <div class="modal-header">
-                <div class="filter-controls">
-                    <div class="select-group">
-                        <select id="modalDeptSelect" class="modal-select">
-                            <option value="">选择部门</option>
-                        </select>
-                        <select id="modalUserSelect" class="modal-select">
-                            <option value="">选择用户</option>
-                        </select>
-                    </div>
-                    <div class="date-picker" style="display: none;">
-                        <!-- 预留时间选择器位置 -->
-                    </div>
-                </div>
-            </div>
-            <iframe src="${url}" class="user-view-iframe"></iframe>
-        </div>
-    `;
-    
-    document.body.appendChild(modalContainer);
-    
-    // 获取iframe引用
-    const iframe = modalContainer.querySelector('iframe');
-    
-    // 当iframe加载完成后传递数据
-    iframe.onload = function() {
-        console.log('🔄 iframe加载完成，准备传递数据:', { dataType, hasData: !!data });
-        if (data) {
-            try {
-                // 延迟一点时间确保iframe完全准备好
-                setTimeout(() => {
-                    console.log('📤 正在传递数据到iframe:', { type: dataType, data: data });
-                    iframe.contentWindow.postMessage({
-                        type: dataType,
-                        data: data
-                    }, '*');
-                    console.log('✅ 数据传递完成');
-                }, 100);
-            } catch (e) {
-                console.error('❌ 无法传递数据到iframe:', e);
-            }
-        } else {
-            console.warn('⚠️ 没有数据需要传递');
-        }
-    };
-    
-    // 添加样式
-    const style = document.createElement('style');
-    style.textContent = `
-        .modal-header {
-            position: absolute;
-            top: 10px;
-            right: 50px;
-            z-index: 2;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .filter-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .select-group {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .modal-select {
-            background: rgba(0, 21, 41, 0.8);
-            border: 1px solid rgba(0, 228, 255, 0.3);
-            border-radius: 4px;
-            color: #fff;
-            padding: 5px 10px;
-            font-size: 14px;
-            min-width: 120px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .modal-select:hover {
-            border-color: rgba(0, 228, 255, 0.6);
-        }
-        
-        .modal-select option {
-            background: rgba(0, 21, 41, 0.9);
-            color: #fff;
-        }
-        
-        .user-view-iframe {
-            margin-top: 10px;
-        }
-    `;
-    document.head.appendChild(style);
-    
-    // 存储部门数据的映射关系
-    const departmentMap = new Map();
-    
-    // 获取部门数据并填充选择框
-    fetch(`/get_departments?orgId={{ customerId }}&customerId={{ customerId }}`)
-        .then(response => response.json())
-        .then(response => {
-            if (response.success && response.data) {
-                const deptSelect = document.getElementById('modalDeptSelect');
-                
-                // 递归添加部门选项并保存映射关系
-                function addDepartmentOptions(departments, level = 0) {
-                    departments.forEach(dept => {
-                        const option = document.createElement('option');
-                        option.value = dept.id;
-                        const indent = '　'.repeat(level);
-                        option.textContent = indent + dept.name;
-                        deptSelect.appendChild(option);
-                        
-                        // 保存部门ID和名称的映射
-                        departmentMap.set(dept.id.toString(), dept.name); // 确保key为字符串类型
-                        
-                        if (dept.children && dept.children.length > 0) {
-                            addDepartmentOptions(dept.children, level + 1);
-                        }
-                    });
-                }
-                
-                addDepartmentOptions(response.data);
-            }
-        })
-        .catch(error => console.error('Error fetching departments:', error));
-    
-    // 部门选择变化时更新用户列表
-    const deptSelect = document.getElementById('modalDeptSelect');
-    const userSelect = document.getElementById('modalUserSelect');
-    
-    deptSelect.addEventListener('change', function() {
-        const selectedDeptId = this.value;
-        const selectedDeptName = selectedDeptId ? departmentMap.get(selectedDeptId.toString()) : ''; // 确保ID为字符串类型进行查找
-        userSelect.innerHTML = '<option value="">选择用户</option>';
-        
-        if (selectedDeptId) {
-            fetch(`/fetch_users?orgId=${selectedDeptId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data) {
-                        data.forEach(user => {
-                            const option = document.createElement('option');
-                            option.value = user.id;
-                            option.textContent = user.user_name;
-                            // 将用户名存储在data属性中
-                            option.dataset.userName = user.user_name;
-                            userSelect.appendChild(option);
-                        });
-                        // 添加"全部用户"选项
-                        const allOption = document.createElement('option');
-                        allOption.value = 'all';
-                        allOption.textContent = '全部用户';
-                        userSelect.appendChild(allOption);
-                    }
-                })
-                .catch(error => console.error('Error fetching users:', error));
-        }
-        
-        // 更新 iframe URL，包含部门信息
-        updateIframeUrl(selectedDeptId, selectedDeptName);
-    });
-    
-    // 用户选择变化时触发事件
-    userSelect.addEventListener('change', function() {
-        const selectedDeptId = deptSelect.value;
-        const selectedDeptName = selectedDeptId ? departmentMap.get(selectedDeptId.toString()) : ''; // 确保ID为字符串类型进行查找
-        const selectedUserId = this.value;
-        const selectedOption = this.options[this.selectedIndex];
-        const selectedUserName = selectedOption.dataset.userName || '';
-        
-        // 更新 iframe URL，包含部门和用户信息
-        updateIframeUrl(selectedDeptId, selectedDeptName, selectedUserId, selectedUserName);
-    });
-    
-    // 更新 iframe URL 的辅助函数
-    function updateIframeUrl(deptId, deptName, userId, userName) {
-        const iframe = modalContainer.querySelector('iframe');
-        let newUrl = new URL(iframe.src);
-        
-        // 保持原有的 customerId 参数
-        const customerId = newUrl.searchParams.get('customerId');
-        
-        // 重置 URL 参数
-        newUrl.search = '';
-        
-        // 重新添加所有必要的参数
-        if (customerId) {
-            newUrl.searchParams.set('customerId', customerId);
-        }
-        if (deptId) {
-            newUrl.searchParams.set('deptId', deptId);
-            newUrl.searchParams.set('deptName', encodeURIComponent(deptName || ''));
-        }
-        if (userId && userId !== 'all') {
-            newUrl.searchParams.set('userId', userId);
-            newUrl.searchParams.set('userName', encodeURIComponent(userName || ''));
-        }
-        
-        // 更新 iframe 的 src
-        iframe.src = newUrl.toString();
-        
-        // 如果页面有刷新数据的函数，尝试调用它
-        try {
-            iframe.contentWindow.fetchData && iframe.contentWindow.fetchData();
-        } catch (e) {
-            console.log('No fetchData function found in iframe or cross-origin restrictions apply');
-        }
-    }
-    
-    // 添加关闭事件
-    const closeBtn = modalContainer.querySelector('.modal-close');
-    closeBtn.onclick = () => {
-        modalContainer.remove();
-        style.remove();
-    };
-    
-    // 点击遮罩层关闭
-    modalContainer.onclick = (e) => {
-        if (e.target === modalContainer) {
-            modalContainer.remove();
-            style.remove();
-        }
-    };
-}
+// createModalWindow 函数已由统一模态窗口组件 modal-window.js 提供
+// 对于需要特殊过滤器功能的场景，使用统一组件的 showFilters 选项
 
 // 添加面板样式
 const panelStyle = document.createElement('style');
@@ -8745,6 +9452,342 @@ function initOverviewChart() {
         dismissAlert();
       }
     });
+
+    // ============= 租户信息管理函数 =============
+    function updateTenantInfo(data, customerId) {
+      try {
+        console.log('🏢 更新租户信息', customerId);
+        
+        // 更新租户ID
+        const tenantIdElement = document.getElementById('tenantId');
+        if (tenantIdElement) {
+          tenantIdElement.textContent = customerId;
+        }
+        
+        // 更新统计数据
+        const tenantDeptCountElement = document.getElementById('tenantDeptCount');
+        const tenantUserCountElement = document.getElementById('tenantUserCount');
+        const tenantDeviceCountElement = document.getElementById('tenantDeviceCount');
+        
+        if (tenantDeptCountElement && data.departments) {
+          tenantDeptCountElement.textContent = Array.isArray(data.departments) ? data.departments.length : 0;
+        }
+        
+        if (tenantUserCountElement && data.user_info) {
+          const userCount = data.user_info.total_users || (Array.isArray(data.user_info) ? data.user_info.length : 0);
+          tenantUserCountElement.textContent = userCount;
+        }
+        
+        if (tenantDeviceCountElement && data.device_info) {
+          const deviceCount = data.device_info.total_devices || (Array.isArray(data.device_info) ? data.device_info.length : 0);
+          tenantDeviceCountElement.textContent = deviceCount;
+        }
+        
+        // 更新新增的统计数据
+        const tenantAlertCountElement = document.getElementById('tenantAlertCount');
+        const tenantMessageCountElement = document.getElementById('tenantMessageCount');
+        const tenantHealthDataCountElement = document.getElementById('tenantHealthDataCount');
+        
+        if (tenantAlertCountElement && data.alert_info) {
+          const alertCount = data.alert_info.total_alerts || (Array.isArray(data.alert_info) ? data.alert_info.length : 0);
+          tenantAlertCountElement.textContent = alertCount;
+        }
+        
+        if (tenantMessageCountElement && data.message_info) {
+          const messageCount = data.message_info.total_messages || (Array.isArray(data.message_info) ? data.message_info.length : 0);
+          tenantMessageCountElement.textContent = messageCount;
+        }
+        
+        if (tenantHealthDataCountElement && data.user_health_data) {
+          const healthDataCount = data.user_health_data.total_records || (Array.isArray(data.user_health_data) ? data.user_health_data.length : 0);
+          tenantHealthDataCountElement.textContent = healthDataCount;
+        }
+        
+        // 获取租户名称并更新显示
+        if (data.tenant_info && data.tenant_info.tenant_name) {
+          const tenantNameElement = document.getElementById('tenantName');
+          if (tenantNameElement) {
+            tenantNameElement.textContent = data.tenant_info.tenant_name;
+          }
+        }
+        
+        console.log('✅ 租户信息更新完成');
+        
+      } catch (error) {
+        console.error('❌ 租户信息更新失败:', error);
+      }
+    }
+
+    function initializeTenantInfo() {
+      console.log('🏢 初始化租户信息显示');
+      
+      // 从URL获取customerId
+      const urlParams = new URLSearchParams(window.location.search);
+      const customerId = urlParams.get('customerId') || '1';
+      
+      // 更新租户ID显示
+      const tenantIdElement = document.getElementById('tenantId');
+      if (tenantIdElement) {
+        tenantIdElement.textContent = customerId;
+      }
+    }
+
+    // 页面加载时初始化租户信息
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeTenantInfo();
+      // 初始化健康卡片
+      initializeHealthCards();
+    });
+    
+    // ============= 健康卡片管理函数 =============
+    function initializeHealthCards() {
+      console.log('🏆 初始化健康功能卡片');
+      
+      // 加载健康预测
+      loadHealthPredictions();
+      
+      // 加载健康评分
+      loadCompactHealthScore();
+      
+      // 加载健康建议
+      loadHealthRecommendations();
+      
+      // 加载消息卡片
+      loadMessageCard();
+    }
+    
+    // 健康预测加载函数
+    function loadHealthPredictions() {
+      console.log('🔮 加载健康预测...');
+      
+      const loadingEl = document.getElementById('predictionLoading');
+      const itemsEl = document.getElementById('predictionItems');
+      
+      if (loadingEl) loadingEl.style.display = 'flex';
+      if (itemsEl) itemsEl.style.display = 'none';
+      
+      // 获取customerId
+      const urlParams = new URLSearchParams(window.location.search);
+      const customerId = urlParams.get('customerId') || '1';
+      
+      fetch(`/api/health/analysis/comprehensive?customerId=${customerId}&days=7`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.success && result.data && result.data.predictions) {
+          console.log('✅ 健康预测加载成功');
+          updateHealthPredictions(result.data.predictions);
+        } else {
+          console.warn('⚠️ 使用默认预测数据');
+          updateHealthPredictionsFallback();
+        }
+      })
+      .catch(error => {
+        console.error('❌ 健康预测加载失败:', error);
+        updateHealthPredictionsFallback();
+      });
+    }
+    
+    function updateHealthPredictions(predictions) {
+      const loadingEl = document.getElementById('predictionLoading');
+      const itemsEl = document.getElementById('predictionItems');
+      
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (itemsEl) {
+        itemsEl.style.display = 'block';
+        itemsEl.innerHTML = predictions.slice(0, 2).map(pred => `
+          <div class="prediction-item-small">
+            <div class="prediction-label-small">${pred.type || '健康预测'}</div>
+            <div class="prediction-content-small">
+              ${pred.description || pred.text || '正在分析您的健康数据...'}
+              <span class="prediction-risk-small">${pred.level === 'high' ? '⚠️' : pred.level === 'medium' ? '🟡' : '✅'} ${pred.risk || pred.level || '正常'}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+    
+    function updateHealthPredictionsFallback() {
+      const predictions = [
+        { type: '环境适应性', description: '当前状态适合继续轻度作业', level: 'low', risk: '适宜' },
+        { type: '作业适宜性', description: '建议每小时休息5-10分钟', level: 'medium', risk: '注意' }
+      ];
+      updateHealthPredictions(predictions);
+    }
+    
+    // 紧凑版健康评分加载函数
+    function loadCompactHealthScore() {
+      console.log('🏆 加载紧凑版健康评分...');
+      
+      const scoreEl = document.getElementById('compactHealthScore');
+      const statusEl = document.getElementById('compactHealthStatus');
+      
+      // 获取customerId
+      const urlParams = new URLSearchParams(window.location.search);
+      const customerId = urlParams.get('customerId') || '1';
+      
+      fetch(`/api/health/score/comprehensive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: customerId,
+          startDate: formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000)),
+          endDate: formatDate(new Date())
+        })
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.success && result.data && result.data.summary) {
+          console.log('✅ 紧凑版健康评分加载成功');
+          const score = Math.round(result.data.summary.overallScore || 0);
+          if (scoreEl) scoreEl.textContent = score;
+          if (statusEl) {
+            statusEl.textContent = getHealthStatus(score);
+          }
+          // 更新色彩
+          updateScoreCircleColor(score);
+        } else {
+          console.warn('⚠️ 使用默认评分');
+          if (scoreEl) scoreEl.textContent = '0';
+          if (statusEl) statusEl.textContent = '正在计算...';
+        }
+      })
+      .catch(error => {
+        console.error('❌ 紧凑版健康评分加载失败:', error);
+        if (scoreEl) scoreEl.textContent = '0';
+        if (statusEl) statusEl.textContent = '数据加载失败';
+      });
+    }
+    
+    function getHealthStatus(score) {
+      if (score >= 90) return '优秀状态';
+      if (score >= 80) return '良好状态';
+      if (score >= 70) return '一般状态';
+      if (score >= 60) return '需要关注';
+      return '需要改善';
+    }
+    
+    function updateScoreCircleColor(score) {
+      const circleEl = document.querySelector('.score-circle-compact');
+      if (circleEl) {
+        let gradient = 'conic-gradient(from 0deg, #ff4757 0%, #ff6b6b 25%, #ffa726 50%, #4ecdc4 75%, #00e4ff 100%)';
+        if (score >= 90) {
+          gradient = 'conic-gradient(from 0deg, #00e4ff 0%, #4ecdc4 100%)';
+        } else if (score >= 80) {
+          gradient = 'conic-gradient(from 0deg, #4ecdc4 0%, #ffa726 100%)';
+        } else if (score < 60) {
+          gradient = 'conic-gradient(from 0deg, #ff4757 0%, #ff6b6b 100%)';
+        }
+        circleEl.style.background = gradient;
+      }
+    }
+    
+    // 健康建议加载函数
+    function loadHealthRecommendations() {
+      console.log('💡 加载健康建议...');
+      
+      const loadingEl = document.getElementById('recommendationLoading');
+      const itemsEl = document.getElementById('recommendationItems');
+      
+      if (loadingEl) loadingEl.style.display = 'flex';
+      if (itemsEl) itemsEl.style.display = 'none';
+      
+      // 获取customerId
+      const urlParams = new URLSearchParams(window.location.search);
+      const customerId = urlParams.get('customerId') || '1';
+      
+      fetch('/api/health/recommendations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          customerId: customerId,
+          analysisType: 'comprehensive'
+        })
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.success && result.data && result.data.recommendations) {
+          console.log('✅ 健康建议加载成功');
+          updateHealthRecommendations(result.data.recommendations);
+        } else {
+          console.warn('⚠️ 使用默认建议数据');
+          updateHealthRecommendationsFallback();
+        }
+      })
+      .catch(error => {
+        console.error('❌ 健康建议加载失败:', error);
+        updateHealthRecommendationsFallback();
+      });
+    }
+    
+    function updateHealthRecommendations(recommendations) {
+      const loadingEl = document.getElementById('recommendationLoading');
+      const itemsEl = document.getElementById('recommendationItems');
+      
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (itemsEl) {
+        itemsEl.style.display = 'block';
+        itemsEl.innerHTML = recommendations.slice(0, 2).map(rec => `
+          <div class="recommendation-item-small">
+            <div class="recommendation-icon-small">${rec.icon || '💡'}</div>
+            <div class="recommendation-text-small">
+              ${rec.text || rec.content || rec.description || '健康建议加载中...'}
+              <div class="recommendation-priority-small">${rec.priority || rec.level || '建议'}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+    
+    function updateHealthRecommendationsFallback() {
+      const recommendations = [
+        { icon: '💧', text: '适当补充水分，建议每小时饮水150-200ml', priority: '高优先级' },
+        { icon: '😴', text: '保证7-8小时优质睡眠时间', priority: '日常' }
+      ];
+      updateHealthRecommendations(recommendations);
+    }
+    
+    // 根据实时数据更新健康卡片
+    function updateHealthCardsData(data, customerId) {
+      try {
+        console.log('🔄 更新健康卡片数据', customerId);
+        
+        // 如果数据中包含健康评分信息，优先使用实时数据
+        if (data.health_score) {
+          const scoreEl = document.getElementById('compactHealthScore');
+          const statusEl = document.getElementById('compactHealthStatus');
+          
+          if (scoreEl) {
+            const score = Math.round(data.health_score || 0);
+            scoreEl.textContent = score;
+            
+            if (statusEl) {
+              statusEl.textContent = getHealthStatus(score);
+            }
+            
+            // 更新色彩
+            updateScoreCircleColor(score);
+          }
+        }
+        
+        // 如果有健康预测数据
+        if (data.health_predictions && data.health_predictions.length > 0) {
+          updateHealthPredictions(data.health_predictions);
+        }
+        
+        // 如果有健康建议数据
+        if (data.health_recommendations && data.health_recommendations.length > 0) {
+          updateHealthRecommendations(data.health_recommendations);
+        }
+        
+        console.log('✅ 健康卡片数据更新完成');
+        
+      } catch (error) {
+        console.error('❌ 健康卡片数据更新失败:', error);
+      }
+    }
   </script>
 
   </body>

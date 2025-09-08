@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-@TableName("t_user_health_profile")
+@TableName("t_health_profile")
 public class UserHealthProfile implements Serializable {
 
     private static final long serialVersionUID = 1L;

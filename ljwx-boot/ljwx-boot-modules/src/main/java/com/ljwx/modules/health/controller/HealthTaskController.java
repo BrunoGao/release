@@ -115,7 +115,7 @@ public class HealthTaskController {
             Thread.sleep(2000); // 等待2秒
             
             // 执行部门基线聚合 (基于组织闭包表)
-            departmentHealthAggregationJob.execute();
+            departmentHealthAggregationJob.executeAggregation();
             Thread.sleep(2000);
             
             // 执行部门健康评分生成
@@ -374,7 +374,7 @@ public class HealthTaskController {
         
         try {
             log.info("🔧 手动触发部门健康基线聚合任务");
-            departmentHealthAggregationJob.execute();
+            departmentHealthAggregationJob.executeAggregation();
             
             result.put("success", true);
             result.put("message", "部门健康基线聚合任务执行成功");

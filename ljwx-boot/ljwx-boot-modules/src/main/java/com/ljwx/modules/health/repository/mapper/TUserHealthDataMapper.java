@@ -26,6 +26,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  *  Mapper 接口层
@@ -46,4 +47,10 @@ public interface TUserHealthDataMapper extends BaseMapper<TUserHealthData> {
                                                   @Param("deviceSnList") String deviceSnList,
                                                   @Param("startDate") LocalDateTime startDate,
                                                   @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * 统一分表查询方法
+     */
+    List<TUserHealthData> selectFromShardedTable(@Param("tableName") String tableName, 
+                                                  @Param("params") Map<String, Object> params);
 }

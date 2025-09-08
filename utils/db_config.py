@@ -87,6 +87,23 @@ class DatabaseConfig:
         except Error as e:
             print(f"查询用户设备关联错误: {e}")
             return []
+    
+    def get_departments(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """获取部门数据"""
+        if not self.connection or not self.connection.is_connected():
+            if not self.connect():
+                return []
+        
+        try:
+            cursor = self.connection.cursor(dictionary=True)
+            query = "SELECT id, name FROM sys_org_units WHERE is_deleted = 0 LIMIT %s"
+            cursor.execute(query, (limit,))
+            departments = cursor.fetchall()
+            cursor.close()
+            return departments
+        except Error as e:
+            print(f"查询部门错误: {e}")
+            return []
 
 def load_db_config() -> DatabaseConfig:
     config_file = os.path.join(os.path.dirname(__file__), 'db_config.json')

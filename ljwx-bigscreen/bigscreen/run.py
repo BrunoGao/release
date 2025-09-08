@@ -26,7 +26,7 @@ import traceback
 print("🚀 启动Bigscreen应用")
 print(f"📊 数据库: {os.environ['MYSQL_HOST']}:{os.environ['MYSQL_PORT']}/{os.environ['MYSQL_DATABASE']}")
 print(f"🔧 Redis: {os.environ['REDIS_HOST']}:{os.environ['REDIS_PORT']}")
-print(f"🌐 端口: {os.environ.get('APP_PORT', '5001')}")
+print(f"🌐 端口: {os.environ.get('APP_PORT', '5225')}")
 print("-" * 50)
 
 try:

@@ -23,7 +23,7 @@ REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '123456')  # 添加Redis密码配�
 
 # Application configuration
 APP_HOST = os.getenv('APP_HOST', '0.0.0.0')
-APP_PORT = int(os.getenv('APP_PORT', 5001))
+APP_PORT = int(os.getenv('APP_PORT', 5225))
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 # UI定制化配置 - 客户可通过环境变量或配置文件定制
@@ -33,6 +33,11 @@ COMPANY_LOGO_URL = os.getenv('COMPANY_LOGO_URL', '/static/images/logo.png')  # �
 THEME_COLOR = os.getenv('THEME_COLOR', '#1890ff')  # 主题色
 BACKGROUND_COLOR = os.getenv('BACKGROUND_COLOR', '#0a0e27')  # 背景色
 FOOTER_TEXT = os.getenv('FOOTER_TEXT', '© 2024 智能科技有限公司 版权所有')  # 页脚文字
+
+# 版本控制配置 - 可通过环境变量配置版本号
+PERSONAL_SCREEN_VERSION = os.getenv('PERSONAL_SCREEN_VERSION', 'v1.3.5')  # 个人健康大屏版本
+BIGSCREEN_VERSION = os.getenv('BIGSCREEN_VERSION', 'v2.1.0')  # 主大屏版本
+SYSTEM_VERSION = os.getenv('SYSTEM_VERSION', 'v2.1.0')  # 系统整体版本
 
 # ==================== 微信告警配置 ====================
 # 微信配置 - 客户可通过环境变量定制
@@ -59,7 +64,7 @@ SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI',
 
 # 压力测试配置文件
 STRESS_TEST_CONFIG = {
-    'URL': 'http://localhost:5001/upload_health_data',  # 目标接口
+    'URL': f'http://localhost:{APP_PORT}/upload_health_data',  # 目标接口 - 动态端口
     'BASE_ID': 'A5GTQ24B26000732',  # 基础设备ID
     'DEVICE_COUNT': 500,  # 设备数量(降低避免积压)
     'INTERVAL': 5,  # 上传间隔秒数

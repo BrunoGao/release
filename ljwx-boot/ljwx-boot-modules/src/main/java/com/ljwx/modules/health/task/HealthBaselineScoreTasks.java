@@ -38,6 +38,15 @@ public class HealthBaselineScoreTasks {
     @Autowired
     private DepartmentHealthAggregationJob departmentHealthAggregationJob;
     
+    @Autowired
+    private com.ljwx.modules.health.service.WeightCalculationService weightCalculationService;
+    
+    @Autowired
+    private com.ljwx.modules.health.service.HealthPredictionService healthPredictionService;
+    
+    @Autowired
+    private com.ljwx.modules.health.service.HealthRecommendationService healthRecommendationService;
+    
     private final DateTimeFormatter TABLE_SUFFIX_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
     private final ExecutorService executorService = Executors.newFixedThreadPool(8); // #优化线程池大小
     
@@ -46,6 +55,23 @@ public class HealthBaselineScoreTasks {
         "heart_rate", "blood_oxygen", "temperature", "pressure_high", 
         "pressure_low", "stress", "step", "calorie", "distance", "sleep"
     };
+
+    /**
+     * 0. 权重配置验证任务 - 每日01:00执行
+     */
+    @Scheduled(cron = "0 0 1 * * ?")
+    @Transactional(rollbackFor = Exception.class)
+    public void validateWeightConfigurations() {
+        log.info("🔍 开始验证权重配置");
+        
+        try {
+            weightCalculationService.validateAllCustomerWeights();
+            log.info("✅ 权重配置验证完成");
+        } catch (Exception e) {
+            log.error("❌ 权重配置验证失败: {}", e.getMessage(), e);
+            throw new RuntimeException("权重配置验证失败: " + e.getMessage(), e);
+        }
+    }
 
     /**
      * 1. 按月分表任务 - 每月1日凌晨执行
@@ -310,7 +336,7 @@ public class HealthBaselineScoreTasks {
                     NOW() as update_time
                 FROM (%s) as unified_data
                 WHERE value IS NOT NULL AND value > 0
-                GROUP BY device_sn, org_id
+                GROUP BY device_sn, user_id, org_id
                 HAVING COUNT(*) >= 3
                 """, feature, date, getMinStandardDeviation(feature), unionSql.toString());
                 
@@ -403,7 +429,7 @@ public class HealthBaselineScoreTasks {
         log.info("🔄 开始生成部门健康基线聚合 (基于组织闭包表)");
         
         try {
-            departmentHealthAggregationJob.execute();
+            departmentHealthAggregationJob.executeAggregation();
             log.info("🎉 部门健康基线聚合任务完成");
             
         } catch (Exception e) {
@@ -483,7 +509,7 @@ public class HealthBaselineScoreTasks {
     }
 
     /**
-     * 6. 生成用户健康评分 - 每日04:00执行
+     * 6. 生成用户健康评分 - 每日04:00执行 (集成权重计算)
      */
     @Scheduled(cron = "0 0 4 * * ?")
     @Transactional(rollbackFor = Exception.class)
@@ -494,6 +520,9 @@ public class HealthBaselineScoreTasks {
         log.info("🔄 开始生成用户健康评分，日期: {}", dateStr);
         
         try {
+            // 首先更新权重缓存
+            weightCalculationService.updateDailyWeights();
+            
             List<String> tablesToQuery = getHealthDataTables(yesterday);
             
             // 检查是否有基线数据
@@ -607,7 +636,7 @@ public class HealthBaselineScoreTasks {
                     AND b.feature_name = '%s'
                     AND b.baseline_date = DATE('%s')
                 WHERE h.value IS NOT NULL AND h.value > 0
-                GROUP BY h.device_sn, h.org_id, b.mean_value, b.std_value, 
+                GROUP BY h.device_sn, h.user_id, h.org_id, b.mean_value, b.std_value, 
                          b.max_value, b.min_value, b.baseline_time
                 HAVING COUNT(*) >= 3
                 """, feature, date, unionSql.toString(), feature, date);
@@ -686,9 +715,85 @@ public class HealthBaselineScoreTasks {
     }
     
     /**
-     * 8. 数据清理任务 - 每日05:00执行
+     * 8. 生成健康预测 - 每日05:30执行
      */
-    @Scheduled(cron = "0 0 5 * * ?")
+    @Scheduled(cron = "0 30 5 * * ?")
+    @Transactional(rollbackFor = Exception.class)
+    public void generateHealthPredictions() {
+        log.info("🔮 开始生成健康预测");
+        
+        try {
+            // 获取所有活跃用户
+            List<Map<String, Object>> activeUsers = getActiveUsersForPrediction();
+            log.info("📊 找到 {} 个用户需要生成健康预测", activeUsers.size());
+            
+            int processedUsers = 0;
+            int successfulPredictions = 0;
+            int failedPredictions = 0;
+            
+            for (Map<String, Object> user : activeUsers) {
+                try {
+                    Long userId = ((Number) user.get("user_id")).longValue();
+                    Long customerId = ((Number) user.get("customer_id")).longValue();
+                    
+                    // 生成健康趋势预测（30天预测窗口）
+                    List<?> trendPredictions = healthPredictionService.generateHealthTrendPredictions(
+                        userId, customerId, 30);
+                    
+                    // 生成健康风险评估
+                    List<?> riskAssessments = healthPredictionService.generateRiskAssessmentPredictions(
+                        userId, customerId);
+                    
+                    successfulPredictions += (trendPredictions != null ? trendPredictions.size() : 0);
+                    successfulPredictions += (riskAssessments != null ? riskAssessments.size() : 0);
+                    processedUsers++;
+                    
+                    log.debug("✅ 用户 {} 预测生成完成", userId);
+                    
+                } catch (Exception e) {
+                    Long userId = ((Number) user.get("user_id")).longValue();
+                    log.warn("⚠️ 用户 {} 预测生成失败: {}", userId, e.getMessage());
+                    failedPredictions++;
+                }
+                
+                // 批次间短暂休息，避免数据库压力
+                if (processedUsers % 20 == 0) {
+                    Thread.sleep(500);
+                }
+            }
+            
+            log.info("🎉 健康预测生成完成 - 处理用户: {}, 成功预测: {}, 失败: {}", 
+                processedUsers, successfulPredictions, failedPredictions);
+                
+        } catch (Exception e) {
+            log.error("❌ 健康预测生成失败: {}", e.getMessage(), e);
+            throw new RuntimeException("健康预测生成失败: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 9. 生成健康建议 - 每日06:00执行
+     */
+    @Scheduled(cron = "0 0 6 * * ?")
+    @Transactional(rollbackFor = Exception.class)
+    public void generateHealthRecommendations() {
+        log.info("💡 开始生成健康建议");
+        
+        try {
+            // 委托给专用的健康建议服务
+            healthRecommendationService.generateDailyRecommendations();
+            log.info("🎉 健康建议生成任务完成");
+            
+        } catch (Exception e) {
+            log.error("❌ 健康建议生成失败: {}", e.getMessage(), e);
+            throw new RuntimeException("健康建议生成失败: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 10. 数据清理任务 - 每日07:00执行
+     */
+    @Scheduled(cron = "0 0 7 * * ?")
     public void cleanupOldData() {
         log.info("🔄 开始执行数据清理任务");
         
@@ -859,6 +964,33 @@ public class HealthBaselineScoreTasks {
             }
         } catch (Exception e) {
             log.error("❌ 数据覆盖率检测失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 获取需要生成预测的活跃用户列表
+     */
+    private List<Map<String, Object>> getActiveUsersForPrediction() {
+        try {
+            String sql = """
+                SELECT DISTINCT 
+                    u.user_id, 
+                    u.customer_id, 
+                    COUNT(*) as data_count
+                FROM t_user_health_data u
+                WHERE u.timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                AND u.is_deleted = 0
+                AND (u.heart_rate > 0 OR u.blood_oxygen > 0 OR u.temperature > 0)
+                GROUP BY u.user_id, u.customer_id
+                HAVING data_count >= 10
+                ORDER BY data_count DESC
+                """;
+            
+            return jdbcTemplate.queryForList(sql);
+            
+        } catch (Exception e) {
+            log.error("❌ 获取预测用户列表失败: {}", e.getMessage(), e);
+            return new ArrayList<>();
         }
     }
     

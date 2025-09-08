@@ -31,11 +31,12 @@
                ms.trigger_name,
                ms.trigger_group,
                ms.trigger_data,
-               mqjd.JOB_CLASS_NAME,
-               mqjd.DESCRIPTION,
-               mqct.CRON_EXPRESSION,
-               mqt.DESCRIPTION AS TRIGGER_DESCRIPTION,
-               mqt.TRIGGER_STATE,
+               -- 优先从JSON字段解析，如果为空则从Quartz表获取
+               COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ms.job_data, '$[0].value')), mqjd.JOB_CLASS_NAME) AS JOB_CLASS_NAME,
+               COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ms.job_data, '$[1].value')), mqjd.DESCRIPTION) AS DESCRIPTION,
+               COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ms.trigger_data, '$[0].value')), mqct.CRON_EXPRESSION) AS CRON_EXPRESSION,
+               COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ms.trigger_data, '$[1].value')), mqt.DESCRIPTION) AS TRIGGER_DESCRIPTION,
+               COALESCE(mqt.TRIGGER_STATE, 'WAITING') AS TRIGGER_STATE,
                ms.create_time,
                ms.create_user,
                ms.create_user_id

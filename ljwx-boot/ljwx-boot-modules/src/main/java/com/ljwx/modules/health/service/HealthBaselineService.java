@@ -10,6 +10,8 @@ import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.system.entity.SysPosition;
 import com.ljwx.modules.system.service.ISysUserService;
 import com.ljwx.modules.system.service.ISysPositionService;
+import com.ljwx.modules.health.domain.dto.UnifiedHealthQueryDTO;
+import com.ljwx.modules.health.service.UnifiedHealthDataQueryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,6 +44,9 @@ public class HealthBaselineService {
     
     @Autowired
     private ISysPositionService sysPositionService;
+    
+    @Autowired
+    private UnifiedHealthDataQueryService unifiedQueryService;
 
     /**
      * 生成个人健康基线
@@ -65,15 +70,19 @@ public class HealthBaselineService {
             LocalDateTime endTime = LocalDateTime.now();
             LocalDateTime startTime = endTime.minusDays(days);
 
-            // 查询用户健康数据
-            QueryWrapper<UserHealthData> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("user_id", userId)
-                       .ge("timestamp", startTime)
-                       .le("timestamp", endTime)
-                       .eq("is_deleted", 0)
-                       .orderByAsc("timestamp");
-
-            List<UserHealthData> healthDataList = userHealthDataMapper.selectList(queryWrapper);
+            // 使用统一查询服务获取健康数据
+            UnifiedHealthQueryDTO query = new UnifiedHealthQueryDTO();
+            query.setCustomerId(user.getCustomerId());
+            query.setUserId(userId);
+            query.setStartDate(startTime);
+            query.setEndDate(endTime);
+            query.setPageSize(10000); // 基线生成需要大量数据
+            query.setEnableSharding(true);
+            query.setOrderBy("timestamp");
+            query.setOrderDirection("asc");
+            
+            Map<String, Object> queryResult = unifiedQueryService.queryHealthData(query);
+            List<UserHealthData> healthDataList = (List<UserHealthData>) queryResult.get("data");
             
             if (healthDataList.isEmpty()) {
                 log.warn("用户{}在{}天内无健康数据，跳过基线生成", userId, days);
@@ -161,7 +170,15 @@ public class HealthBaselineService {
             LocalDateTime endTime = LocalDateTime.now();
             LocalDateTime startTime = endTime.minusDays(90);
 
-            // 查询符合条件的用户健康数据
+            // 使用统一查询服务获取群体健康数据
+            UnifiedHealthQueryDTO query = new UnifiedHealthQueryDTO();
+            query.setCustomerId(customerId);
+            query.setStartDate(startTime);
+            query.setEndDate(endTime);
+            query.setPageSize(10000);
+            query.setEnableSharding(true);
+            // 注意：这里需要扩展统一查询服务支持按年龄组和性别过滤
+            // 暂时使用原有方法，后续可扩展统一查询服务
             List<UserHealthData> populationData = getUserHealthDataByDemographics(
                 customerId, ageGroup, gender, startTime, endTime);
             
@@ -472,7 +489,9 @@ public class HealthBaselineService {
     private List<UserHealthData> getUserHealthDataByDemographics(Long customerId, String ageGroup, 
             String gender, LocalDateTime startTime, LocalDateTime endTime) {
         // 这里需要实现复杂的查询逻辑，关联用户表和健康数据表
+        // TODO: 扩展统一查询服务支持按人口统计学特征过滤
         // 临时返回空列表，实际实现需要编写相应的SQL
+        log.warn("群体基线查询暂未集成统一查询服务，需要扩展支持人口统计学过滤功能");
         return new ArrayList<>();
     }
 

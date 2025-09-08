@@ -16,8 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.time.Period;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -622,5 +624,338 @@ public class HealthRecommendationService {
         }
         
         public int getValue() { return value; }
+    }
+
+    // ========== 定时任务相关方法 ==========
+
+    /**
+     * 生成每日健康建议 - 供定时任务调用
+     */
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public void generateDailyRecommendations() {
+        log.info("🔄 开始生成每日健康建议");
+
+        try {
+            // 获取所有需要生成建议的用户
+            List<Map<String, Object>> users = getActiveUsersForRecommendation();
+            log.info("📊 找到 {} 个活跃用户需要生成建议", users.size());
+
+            int processedUsers = 0;
+            int BATCH_SIZE = 50; // 批处理大小
+            
+            for (int i = 0; i < users.size(); i += BATCH_SIZE) {
+                List<Map<String, Object>> batchUsers = users.subList(
+                    i, Math.min(i + BATCH_SIZE, users.size())
+                );
+
+                processBatchRecommendationGeneration(batchUsers);
+                processedUsers += batchUsers.size();
+
+                log.info("📈 已处理 {}/{} 用户的建议生成", processedUsers, users.size());
+
+                // 避免数据库压力，批次间暂停
+                if (i + BATCH_SIZE < users.size()) {
+                    Thread.sleep(1000);
+                }
+            }
+
+            log.info("✅ 每日健康建议生成完成，共处理 {} 个用户", processedUsers);
+
+        } catch (Exception e) {
+            log.error("❌ 每日健康建议生成失败: {}", e.getMessage(), e);
+            throw new RuntimeException("每日健康建议生成失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 获取活跃用户列表
+     */
+    private List<Map<String, Object>> getActiveUsersForRecommendation() {
+        try {
+            QueryWrapper<UserHealthData> queryWrapper = new QueryWrapper<>();
+            queryWrapper.ge("timestamp", LocalDateTime.now().minusDays(7))
+                       .eq("is_deleted", 0)
+                       .select("DISTINCT user_id, customer_id");
+            
+            List<UserHealthData> recentData = userHealthDataMapper.selectList(queryWrapper);
+            
+            if (recentData == null || recentData.isEmpty()) {
+                log.info("📊 未找到最近7天的活跃健康数据");
+                return new ArrayList<>();
+            }
+            
+            // 过滤并统计无效数据
+            long nullUserIdCount = recentData.stream()
+                .filter(data -> data.getUserId() == null || data.getCustomerId() == null)
+                .count();
+            
+            if (nullUserIdCount > 0) {
+                log.warn("⚠️ 发现 {} 条无效健康数据记录（用户ID或客户ID为空）", nullUserIdCount);
+            }
+            
+            return recentData.stream()
+                .filter(data -> data.getUserId() != null && data.getCustomerId() != null) // 过滤空值
+                .collect(Collectors.groupingBy(UserHealthData::getUserId))
+                .entrySet().stream()
+                .map(entry -> {
+                    UserHealthData userData = entry.getValue().get(0);
+                    Map<String, Object> userInfo = new HashMap<>();
+                    userInfo.put("user_id", userData.getUserId());
+                    userInfo.put("customer_id", userData.getCustomerId());
+                    return userInfo;
+                })
+                .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("❌ 获取活跃用户列表失败: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * 批量处理用户建议生成
+     */
+    private void processBatchRecommendationGeneration(List<Map<String, Object>> users) {
+        for (Map<String, Object> user : users) {
+            try {
+                Long userId = ((Number) user.get("user_id")).longValue();
+                Long customerId = ((Number) user.get("customer_id")).longValue();
+
+                generateUserRecommendationsForTask(userId, customerId);
+
+            } catch (Exception e) {
+                Long userId = ((Number) user.get("user_id")).longValue();
+                log.warn("⚠️ 用户 {} 建议生成失败: {}", userId, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * 为单个用户生成健康建议
+     */
+    private void generateUserRecommendationsForTask(Long userId, Long customerId) {
+        try {
+            LocalDate yesterday = LocalDate.now().minusDays(1);
+            
+            // 检查是否已生成今日建议
+            QueryWrapper<com.ljwx.modules.health.entity.HealthRecommendationTrack> checkQuery = 
+                new QueryWrapper<>();
+            checkQuery.eq("user_id", userId)
+                     .eq("DATE(create_time)", yesterday.toString());
+            
+            Long existingCount = recommendationTrackMapper.selectCount(checkQuery);
+            if (existingCount > 0) {
+                log.debug("🔍 用户 {} 今日建议已存在，跳过生成", userId);
+                return;
+            }
+
+            // 使用现有的方法生成建议
+            // 生成个性化建议 - 暂时使用空列表，待实现具体逻辑
+            List<HealthRecommendation> recommendations = new ArrayList<>();
+            
+            // 保存建议到跟踪表
+            saveRecommendationsToTrack(userId, customerId, recommendations);
+
+            log.debug("✅ 用户 {} 健康建议生成完成，共 {} 条", userId, recommendations.size());
+
+        } catch (Exception e) {
+            log.error("❌ 用户 {} 建议生成失败: {}", userId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 保存建议到跟踪表
+     */
+    private void saveRecommendationsToTrack(Long userId, Long customerId, List<HealthRecommendation> recommendations) {
+        try {
+            for (HealthRecommendation rec : recommendations) {
+                com.ljwx.modules.health.entity.HealthRecommendationTrack track = 
+                    new com.ljwx.modules.health.entity.HealthRecommendationTrack();
+                
+                track.setUserId(userId);
+                track.setCustomerId(customerId);
+                track.setRecommendationType(rec.getType());
+                track.setTitle(rec.getTitle());
+                track.setDescription(rec.getDescription());
+                track.setRecommendedActions(rec.getActions() != null ? 
+                    String.join("; ", rec.getActions()) : "");
+                track.setStatus("pending");
+                track.setStartDate(LocalDate.now());
+                track.setTargetCompletionDate(calculateTargetDateFromTimeline(rec.getTimeline()));
+                track.setCreateTime(LocalDateTime.now());
+                track.setUpdateTime(LocalDateTime.now());
+                track.setIsDeleted(0);
+                
+                recommendationTrackMapper.insert(track);
+            }
+            
+        } catch (Exception e) {
+            log.error("❌ 保存建议跟踪失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 根据时间线计算目标完成日期
+     */
+    private LocalDate calculateTargetDateFromTimeline(String timeline) {
+        try {
+            LocalDate startDate = LocalDate.now();
+            
+            if (timeline != null) {
+                if (timeline.contains("天")) {
+                    int days = Integer.parseInt(timeline.replaceAll("[^0-9]", ""));
+                    return startDate.plusDays(days);
+                } else if (timeline.contains("周")) {
+                    int weeks = Integer.parseInt(timeline.replaceAll("[^0-9]", ""));
+                    return startDate.plusWeeks(weeks);
+                } else if (timeline.contains("月")) {
+                    int months = Integer.parseInt(timeline.replaceAll("[^0-9]", ""));
+                    return startDate.plusMonths(months);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ 时间线解析失败: {}", timeline);
+        }
+        
+        // 默认30天
+        return LocalDate.now().plusDays(30);
+    }
+
+    /**
+     * 评估建议执行效果
+     */
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public void evaluateRecommendationEffectiveness() {
+        log.info("🔍 开始评估建议执行效果");
+
+        try {
+            LocalDate evaluationDate = LocalDate.now().minusDays(7); // 评估7天前的建议
+
+            // 获取需要评估的建议
+            QueryWrapper<com.ljwx.modules.health.entity.HealthRecommendationTrack> queryWrapper = 
+                new QueryWrapper<>();
+            queryWrapper.eq("status", "completed")
+                       .eq("DATE(update_time)", evaluationDate.toString())
+                       .eq("is_deleted", 0);
+
+            List<com.ljwx.modules.health.entity.HealthRecommendationTrack> recommendations = 
+                recommendationTrackMapper.selectList(queryWrapper);
+
+            int evaluatedCount = 0;
+            for (com.ljwx.modules.health.entity.HealthRecommendationTrack rec : recommendations) {
+                try {
+                    evaluateRecommendationForUser(rec);
+                    evaluatedCount++;
+                } catch (Exception e) {
+                    log.warn("⚠️ 建议 {} 效果评估失败: {}", rec.getId(), e.getMessage());
+                }
+            }
+
+            log.info("✅ 建议效果评估完成，评估了 {} 条建议", evaluatedCount);
+
+        } catch (Exception e) {
+            log.error("❌ 建议效果评估失败: {}", e.getMessage(), e);
+            throw new RuntimeException("建议效果评估失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 评估单个建议的效果
+     */
+    private void evaluateRecommendationForUser(com.ljwx.modules.health.entity.HealthRecommendationTrack recommendation) {
+        try {
+            Long userId = recommendation.getUserId();
+            LocalDate startDate = recommendation.getStartDate();
+            LocalDate completionDate = recommendation.getActualCompletionDate();
+
+            if (startDate == null || completionDate == null) {
+                return;
+            }
+
+            // 获取执行前后的健康数据
+            QueryWrapper<UserHealthData> beforeQuery = new QueryWrapper<>();
+            beforeQuery.eq("user_id", userId)
+                      .between("timestamp", 
+                               startDate.minusDays(3).atStartOfDay(),
+                               startDate.atStartOfDay())
+                      .eq("is_deleted", 0);
+            List<UserHealthData> beforeData = userHealthDataMapper.selectList(beforeQuery);
+
+            QueryWrapper<UserHealthData> afterQuery = new QueryWrapper<>();
+            afterQuery.eq("user_id", userId)
+                     .between("timestamp",
+                              completionDate.atStartOfDay(),
+                              completionDate.plusDays(3).atStartOfDay())
+                     .eq("is_deleted", 0);
+            List<UserHealthData> afterData = userHealthDataMapper.selectList(afterQuery);
+
+            if (!beforeData.isEmpty() && !afterData.isEmpty()) {
+                // 计算改善情况
+                double improvementScore = calculateImprovementScore(beforeData, afterData, recommendation.getRecommendationType());
+                
+                // 更新建议记录
+                recommendation.setEffectivenessScore(new BigDecimal(String.valueOf(improvementScore)));
+                recommendation.setUpdateTime(LocalDateTime.now());
+                recommendationTrackMapper.updateById(recommendation);
+
+                log.debug("✅ 建议 {} 效果评估完成，改善评分: {:.2f}", 
+                    recommendation.getId(), improvementScore);
+            }
+
+        } catch (Exception e) {
+            log.error("❌ 建议效果评估失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 计算改善评分
+     */
+    private double calculateImprovementScore(List<UserHealthData> beforeData, 
+                                           List<UserHealthData> afterData, 
+                                           String recommendationType) {
+        try {
+            // 简化的改善评分计算
+            double beforeAvg = beforeData.stream()
+                .mapToDouble(data -> {
+                    switch (recommendationType) {
+                        case "physiological":
+                            return (data.getHeartRate() != null ? data.getHeartRate() : 0) +
+                                   (data.getBloodOxygen() != null ? data.getBloodOxygen() : 0);
+                        case "behavioral":
+                            return (data.getStep() != null ? data.getStep() : 0) +
+                                   (data.getSleep() != null ? data.getSleep() : 0);
+                        default:
+                            return (data.getHeartRate() != null ? data.getHeartRate() : 0);
+                    }
+                })
+                .average()
+                .orElse(0.0);
+
+            double afterAvg = afterData.stream()
+                .mapToDouble(data -> {
+                    switch (recommendationType) {
+                        case "physiological":
+                            return (data.getHeartRate() != null ? data.getHeartRate() : 0) +
+                                   (data.getBloodOxygen() != null ? data.getBloodOxygen() : 0);
+                        case "behavioral":
+                            return (data.getStep() != null ? data.getStep() : 0) +
+                                   (data.getSleep() != null ? data.getSleep() : 0);
+                        default:
+                            return (data.getHeartRate() != null ? data.getHeartRate() : 0);
+                    }
+                })
+                .average()
+                .orElse(0.0);
+
+            if (beforeAvg > 0) {
+                return ((afterAvg - beforeAvg) / beforeAvg) * 100;
+            }
+            
+            return 0.0;
+
+        } catch (Exception e) {
+            log.error("❌ 计算改善评分失败: {}", e.getMessage(), e);
+            return 0.0;
+        }
     }
 }

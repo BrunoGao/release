@@ -1168,3 +1168,4 @@ class HealthRecommendationTrack(db.Model):
             'is_deleted': self.is_deleted
         }
 
+

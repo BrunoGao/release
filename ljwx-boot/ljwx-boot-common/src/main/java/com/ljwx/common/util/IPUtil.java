@@ -47,12 +47,51 @@ public class IPUtil {
      */
     @SneakyThrows
     public static String getIpAddr(String ip) {
+        // 处理空值或无效IP
+        if (ip == null || ip.trim().isEmpty()) {
+            return "未知|未知|未知|未知";
+        }
+        
+        // 处理本地地址
+        if (isLocalAddress(ip)) {
+            return "本地|本地|本地|本地";
+        }
+        
+        // 处理IPv6地址 - ip2region不支持IPv6
+        if (isIPv6Address(ip)) {
+            return "IPv6|IPv6|IPv6|IPv6";
+        }
+        
         // 3、查询
         try {
-            return searcher.search(ip);
+            String result = searcher.search(ip);
+            // 如果查询结果为空或无效，返回默认值
+            if (result == null || result.trim().isEmpty() || "0|0|0|内网IP|内网IP".equals(result)) {
+                return "内网|内网|内网|内网";
+            }
+            return result;
         } catch (Exception e) {
-            log.error("Failed to search({})", ip, e);
+            log.warn("Failed to search IP location for ({}): {}", ip, e.getMessage());
+            return "未知|未知|未知|未知";
         }
-        return StringPools.EMPTY;
+    }
+    
+    /**
+     * 判断是否为本地地址
+     */
+    private static boolean isLocalAddress(String ip) {
+        if (ip == null) return false;
+        return "127.0.0.1".equals(ip) || 
+               "localhost".equals(ip) || 
+               "0:0:0:0:0:0:0:1".equals(ip) || 
+               "::1".equals(ip);
+    }
+    
+    /**
+     * 判断是否为IPv6地址
+     */
+    private static boolean isIPv6Address(String ip) {
+        if (ip == null) return false;
+        return ip.contains(":");
     }
 }

@@ -7,191 +7,39 @@ from .models import db, HealthBaseline, OrgHealthBaseline, UserHealthData, UserI
 from flask import jsonify
 import logging
 import statistics
+from .health_cache_manager import health_cache, cache_result
 
 logger = logging.getLogger(__name__)
 
-class HealthBaselineGenerator:
-    """健康基线生成器"""
+class HealthBaselineQuery:
+    """健康基线查询服务 - 仅提供查询功能，生成逻辑已迁移至ljwx-boot"""
     
     def __init__(self):
-        self.features = ['heart_rate', 'blood_oxygen', 'temperature', 'pressure_high', 'pressure_low', 'stress']  # 支持的体征
-    
-    def generate_daily_user_baseline(self, target_date=None):
-        """生成每日用户基线"""
-        if not target_date:
-            target_date = date.today() - timedelta(days=1)  # 默认生成昨天的基线
-        
-        try:
-            # 获取所有有数据的用户
-            users_with_data = db.session.query(UserHealthData.user_id, UserHealthData.device_sn)\
-                .filter(func.date(UserHealthData.create_time) == target_date)\
-                .filter(UserHealthData.is_deleted == False)\
-                .filter(UserHealthData.user_id.isnot(None))\
-                .distinct().all()
-            
-            generated_count = 0
-            for user_id, device_sn in users_with_data:
-                for feature in self.features:
-                    baseline = self._calculate_user_feature_baseline(user_id, device_sn, feature, target_date)
-                    if baseline:
-                        self._save_user_baseline(user_id, device_sn, feature, target_date, baseline)
-                        generated_count += 1
-            
-            logger.info(f"生成用户基线完成: {target_date}, 共{generated_count}条")
-            return {'success': True, 'count': generated_count, 'date': target_date.strftime('%Y-%m-%d')}
-            
-        except Exception as e:
-            logger.error(f"生成用户基线失败: {e}")
-            return {'success': False, 'error': str(e)}
-    
-    def generate_daily_org_baseline(self, target_date=None):
-        """生成每日组织基线 - 暂时简化实现"""
-        if not target_date:
-            target_date = date.today() - timedelta(days=1)
-        
-        try:
-            logger.info(f"组织基线生成暂时跳过，等待表结构完善: {target_date}")
-            return {'success': True, 'count': 0, 'date': target_date.strftime('%Y-%m-%d'), 'message': '组织基线功能暂时禁用'}
-            
-        except Exception as e:
-            logger.error(f"生成组织基线失败: {e}")
-            return {'success': False, 'error': str(e)}
-    
-    def _calculate_user_feature_baseline(self, user_id, device_sn, feature, target_date):
-        """计算用户特定体征的基线"""
-        try:
-            # 查询用户当天的健康数据
-            query = db.session.query(getattr(UserHealthData, feature))\
-                .filter(UserHealthData.device_sn == device_sn)\
-                .filter(func.date(UserHealthData.create_time) == target_date)\
-                .filter(UserHealthData.is_deleted == False)\
-                .filter(getattr(UserHealthData, feature).isnot(None))
-            
-            values = [float(v[0]) for v in query.all() if v[0] is not None]
-            
-            if len(values) < 3:  # 至少需要3个数据点
-                return None
-            
-            baseline_data = {
-                'mean_value': statistics.mean(values),
-                'std_value': statistics.stdev(values) if len(values) > 1 else 0,
-                'min_value': min(values),
-                'max_value': max(values),
-                'sample_count': len(values) if hasattr(HealthBaseline, 'sample_count') else None
-            }
-            
-            # 移除sample_count如果表中不存在此字段
-            if baseline_data['sample_count'] is None:
-                del baseline_data['sample_count']
-            
-            return baseline_data
-            
-        except Exception as e:
-            logger.error(f"计算用户基线失败 device_sn={device_sn}, feature={feature}: {e}")
-            return None
-    
-    def _calculate_org_feature_baseline(self, org_id, feature, target_date):
-        """计算组织特定体征的基线 - 修复字段映射"""
-        try:
-            # 查询组织下所有用户的基线数据 - 使用实际存在的字段
-            user_baselines = db.session.query(HealthBaseline)\
-                .join(UserOrg, text("find_in_set(:device_sn, (SELECT GROUP_CONCAT(u.device_sn) FROM sys_user u JOIN sys_user_org uo ON u.id = uo.user_id WHERE uo.org_id = :org_id))"))\
-                .filter(HealthBaseline.feature_name == feature)\
-                .filter(func.date(HealthBaseline.baseline_time) == target_date)\
-                .params(org_id=org_id, device_sn=HealthBaseline.device_sn)\
-                .all()
-            
-            if len(user_baselines) < 1:  # 至少需要1个用户的数据
-                return None
-            
-            mean_values = [b.mean_value for b in user_baselines if b.mean_value is not None]
-            all_samples = sum(b.sample_count or 0 for b in user_baselines)
-            
-            if not mean_values:
-                return None
-            
-            return {
-                'mean_value': statistics.mean(mean_values),
-                'std_value': statistics.stdev(mean_values) if len(mean_values) > 1 else 0,
-                'min_value': min(b.min_value for b in user_baselines if b.min_value is not None),
-                'max_value': max(b.max_value for b in user_baselines if b.max_value is not None),
-                'user_count': len(user_baselines),
-                'sample_count': all_samples
-            }
-            
-        except Exception as e:
-            logger.error(f"计算组织基线失败 org_id={org_id}, feature={feature}: {e}")
-            return None
-    
-    def _save_user_baseline(self, user_id, device_sn, feature, baseline_date, baseline_data):
-        """保存用户基线"""
-        try:
-            # 检查是否已存在 - 基于实际表结构，使用baseline_time的日期部分
-            existing = HealthBaseline.query.filter_by(
-                device_sn=device_sn, 
-                feature_name=feature
-            ).filter(
-                func.date(HealthBaseline.baseline_time) == baseline_date
-            ).first()
-            
-            if existing:
-                # 更新现有记录
-                for key, value in baseline_data.items():
-                    setattr(existing, key, value)
-                existing.update_time = datetime.now()
-            else:
-                # 创建新记录 - 使用实际存在的字段
-                baseline = HealthBaseline(
-                    device_sn=device_sn,
-                    feature_name=feature,
-                    baseline_time=datetime.combine(baseline_date, datetime.min.time()),  # 使用baseline_time而不是baseline_date
-                    is_current=True,
-                    **baseline_data
-                )
-                db.session.add(baseline)
-            
-            db.session.commit()
-            
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"保存用户基线失败: {e}")
-    
-    def _save_org_baseline(self, org_id, feature, baseline_date, baseline_data):
-        """保存组织基线"""
-        try:
-            # 检查是否已存在
-            existing = OrgHealthBaseline.query.filter_by(
-                org_id=org_id, feature_name=feature, baseline_date=baseline_date
-            ).first()
-            
-            if existing:
-                # 更新现有记录
-                for key, value in baseline_data.items():
-                    setattr(existing, key, value)
-                existing.update_time = datetime.now()
-            else:
-                # 创建新记录
-                baseline = OrgHealthBaseline(
-                    org_id=org_id,
-                    feature_name=feature,
-                    baseline_date=baseline_date,
-                    **baseline_data
-                )
-                db.session.add(baseline)
-            
-            db.session.commit()
-            
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"保存组织基线失败: {e}")
+        self.features = ['heart_rate', 'blood_oxygen', 'temperature', 'pressure_high', 'pressure_low', 'stress']
+        self.cache = health_cache
+        logger.info("健康基线查询服务初始化完成，已集成Redis缓存策略")
 
 def get_baseline_chart_data(org_id, user_id=None, start_date=None, end_date=None):
-    """获取基线图表数据"""
+    """获取基线图表数据 - 集成缓存优化"""
     try:
         if not start_date:
             start_date = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
         if not end_date:
             end_date = date.today().strftime('%Y-%m-%d')
+        
+        # 构建缓存键
+        cache_params = {
+            'org_id': org_id,
+            'user_id': user_id,
+            'start_date': start_date,
+            'end_date': end_date
+        }
+        
+        # 尝试从缓存获取图表数据
+        cached_data = health_cache.get_chart_data('baseline_chart', user_id or org_id, cache_params)
+        if cached_data:
+            logger.info(f"命中基线图表缓存: org_id={org_id}, user_id={user_id}")
+            return cached_data
         
         # 生成日期范围
         start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -257,30 +105,30 @@ def get_baseline_chart_data(org_id, user_id=None, start_date=None, end_date=None
         # 按数据量排序，有数据的指标优先显示
         metrics.sort(key=lambda x: x['data_count'], reverse=True)
         
-        return {
+        result = {
             'success': True,
             'dates': dates,
             'metrics': metrics,
             'date_range': f"{start_date} 至 {end_date}",
             'total_days': len(dates),
-            'data_source': 'user_baseline' if user_id else 'org_baseline'
+            'data_source': 'user_baseline' if user_id else 'org_baseline',
+            'cached': False
         }
+        
+        # 缓存结果
+        health_cache.cache_chart_data('baseline_chart', user_id or org_id, cache_params, result)
+        logger.info(f"基线图表数据已缓存: org_id={org_id}, user_id={user_id}")
+        
+        return result
         
     except Exception as e:
         logger.error(f"获取基线图表数据失败: {e}")
         return {'success': False, 'error': str(e)}
 
 def generate_baseline_task():
-    """定时任务：生成基线数据"""
-    generator = HealthBaselineGenerator()
-    
-    # 生成用户基线
-    user_result = generator.generate_daily_user_baseline()
-    
-    # 生成组织基线
-    org_result = generator.generate_daily_org_baseline()
-    
+    """定时任务：生成基线数据 - 已禁用，功能迁移至ljwx-boot"""
+    logger.warning("基线生成任务已禁用，请使用ljwx-boot后端的定时任务")
     return {
-        'user_baseline': user_result,
-        'org_baseline': org_result
+        'user_baseline': {'success': True, 'message': '基线生成已迁移至ljwx-boot'},
+        'org_baseline': {'success': True, 'message': '基线生成已迁移至ljwx-boot'}
     } 
