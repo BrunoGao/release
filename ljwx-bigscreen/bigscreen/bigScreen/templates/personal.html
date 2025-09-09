@@ -5110,14 +5110,9 @@
         // 加载实时健康数据
         async function loadRealTimeHealthData(cardType) {
             try {
-                const response = await fetch('/api/personal/realtime-health', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: currentUser.userId,
-                        cardType: cardType,
-                        deviceSn: currentUser.deviceSn
-                    })
+                const response = await fetch(`/api/personal/realtime-health?userId=${currentUser.userId}&cardType=${cardType}&deviceSn=${currentUser.deviceSn}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
                 });
                 
                 if (response.ok) {
@@ -5136,14 +5131,9 @@
         // 加载历史健康数据
         async function loadHistoryHealthData(cardType) {
             try {
-                const response = await fetch('/api/personal/history-health', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: currentUser.userId,
-                        cardType: cardType,
-                        days: 7
-                    })
+                const response = await fetch(`/api/personal/history-health?userId=${currentUser.userId}&cardType=${cardType}&days=7`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
                 });
                 
                 if (response.ok) {
@@ -5162,14 +5152,9 @@
         // 加载AI分析数据
         async function loadAIAnalysisData(cardType) {
             try {
-                const response = await fetch('/api/personal/ai-analysis', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: currentUser.userId,
-                        cardType: cardType,
-                        analysisType: 'comprehensive'
-                    })
+                const response = await fetch(`/api/personal/ai-analysis?userId=${currentUser.userId}&cardType=${cardType}&analysisType=comprehensive`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
                 });
                 
                 if (response.ok) {
@@ -8183,12 +8168,9 @@
             try {
                 console.log('🔄 正在获取设备信息...', deviceSn);
                 
-                const response = await fetch('/api/device/info', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        deviceSn: deviceSn
-                    })
+                const response = await fetch(`/api/device/info?deviceSn=${deviceSn}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
                 });
                 
                 if (response.ok) {
@@ -9151,10 +9133,9 @@
             if (loadingEl) loadingEl.style.display = 'flex';
             if (itemsEl) itemsEl.style.display = 'none';
             
-            fetch('/api/health/recommendations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deviceSn: deviceSn, analysisType: 'comprehensive' })
+            fetch(`/api/health/recommendations?deviceSn=${deviceSn}&analysisType=comprehensive`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
             })
                 .then(response => response.json())
                 .then(result => {

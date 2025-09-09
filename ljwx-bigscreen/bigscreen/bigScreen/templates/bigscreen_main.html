@@ -9552,8 +9552,8 @@ function initOverviewChart() {
       // 加载健康建议
       loadHealthRecommendations();
       
-      // 加载消息卡片
-      loadMessageCard();
+      // 加载消息卡片 - 暂时注释掉，消息功能已在其他地方处理
+      // loadMessageCard();
     }
     
     // 健康预测加载函数
@@ -9628,14 +9628,9 @@ function initOverviewChart() {
       const urlParams = new URLSearchParams(window.location.search);
       const customerId = urlParams.get('customerId') || '1';
       
-      fetch(`/api/health/score/comprehensive`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: customerId,
-          startDate: formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000)),
-          endDate: formatDate(new Date())
-        })
+      fetch(`/api/health/score/comprehensive?customerId=${customerId}&startDate=${formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000))}&endDate=${formatDate(new Date())}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
       })
       .then(response => response.json())
       .then(result => {
@@ -9698,13 +9693,9 @@ function initOverviewChart() {
       const urlParams = new URLSearchParams(window.location.search);
       const customerId = urlParams.get('customerId') || '1';
       
-      fetch('/api/health/recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          customerId: customerId,
-          analysisType: 'comprehensive'
-        })
+      fetch(`/api/health/recommendations?customerId=${customerId}&analysisType=comprehensive`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
       })
       .then(response => response.json())
       .then(result => {
