@@ -28,10 +28,10 @@ from functools import wraps
 import traceback
 
 # 导入健康引擎模块
-from .health_baseline_engine import HealthBaselineEngine
-from .health_score_engine import HealthScoreEngine
-from .health_recommendation_engine import HealthRecommendationEngine
-from .health_profile_engine import HealthProfileEngine
+from .health_baseline_engine import RealTimeHealthBaselineEngine
+from .health_score_engine import RealTimeHealthScoreEngine  
+from .health_recommendation_engine import RealTimeHealthRecommendationEngine
+from .health_profile_engine import RealTimeHealthProfileEngine
 from .health_cache_service import health_cache_service
 from .health_data_quality import health_data_quality
 
@@ -115,13 +115,13 @@ def init_engines():
     
     try:
         if not baseline_engine:
-            baseline_engine = HealthBaselineEngine()
+            baseline_engine = RealTimeHealthBaselineEngine()
         if not score_engine:
-            score_engine = HealthScoreEngine()
+            score_engine = RealTimeHealthScoreEngine()
         if not recommendation_engine:
-            recommendation_engine = HealthRecommendationEngine()
+            recommendation_engine = RealTimeHealthRecommendationEngine()
         if not profile_engine:
-            profile_engine = HealthProfileEngine()
+            profile_engine = RealTimeHealthProfileEngine()
         
         logger.info("✅ 健康引擎初始化成功")
         
