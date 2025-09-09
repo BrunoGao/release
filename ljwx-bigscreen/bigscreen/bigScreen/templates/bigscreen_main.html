@@ -3564,25 +3564,13 @@
     document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             globalCharts = initCharts(); // 存储图表实例
-             // 🗺️ 地图初始化 - 修复地图未初始化问题
-        console.log('🗺️ 开始初始化地图...');
-        try {
-            // 从URL获取userId参数，如果没有则不传递
-            const urlParams = new URLSearchParams(window.location.search);
-            const userId = urlParams.get('userId') || null;
-            initializeMap(GLOBAL_CUSTOMER_ID, userId);
-            console.log('✅ 地图初始化完成');
-        } catch (error) {
-            console.error('❌ 地图初始化失败:', error);
-        }
-             // 等待地图初始化完成后再刷新数据
-        setTimeout(() => {
-            refreshData(); // 初始加载数据
-        }, 500); // 给地图初始化留500ms时间
+            
+            // 等待地图初始化完成后再刷新数据
+            setTimeout(() => {
+                refreshData(); // 初始加载数据
+            }, 1500); // 给地图初始化更多时间
 
             // 每分钟刷新一次数据
-
-
             setInterval(refreshData, 60000);
         }, 100);
     });
@@ -5219,39 +5207,32 @@ function refreshData() {
     updateRealtimeStats(GLOBAL_CUSTOMER_ID); // 更新实时统计数据
     //loadMessages(); // 加载消息数据
 
-    apiCall(`/get_total_info`)
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                const data = result.data;
-                console.log('Refreshing data:', data);
+    // 使用独立API端点并发获取数据
+    fetchAllDataConcurrently(GLOBAL_CUSTOMER_ID)
+        .then(data => {
+            console.log('Refreshing data:', data);
 
-                lastTotalInfo = data;
-               
-                updateMapData(data);
-               
+            lastTotalInfo = data;
+           
+            updateMapData(data);
+           
+            // 更新健康卡片数据
+            updateHealthCardsData(data, GLOBAL_CUSTOMER_ID);
+            
+            // 更新人员管理面板
+            initPersonnelManagementPanel(data);
 
-                // 更新租户信息
-                updateTenantInfo(data, customerId);
-                
-                // 更新健康卡片数据
-                updateHealthCardsData(data, customerId);
-                
-                // 更新人员管理面板
-                initPersonnelManagementPanel(data);
+            // 更新告警信息图表
+            initAlertChart(data);
 
-                // 更新告警信息图表
-                initAlertChart(data);
+            // 更新设备管理图表
+            initDeviceChart(data);
 
-                // 更新设备管理图表
-                initDeviceChart(data);
+            // 更新消息列表
+            initMessageList(data);
 
-                // 更新消息列表
-                initMessageList(data);
-
-                // 为各个面板添加点击事件
-                setupPanelClickEvents(customerId, data);
-            }
+            // 为各个面板添加点击事件
+            setupPanelClickEvents(GLOBAL_CUSTOMER_ID, data);
         })
         .catch(error => console.error('Error fetching data:', error));
 }
@@ -9533,6 +9514,7 @@ function initOverviewChart() {
       initializeHealthCards();
     });
     
+
     // ============= 健康卡片管理函数 =============
     function initializeHealthCards() {
       console.log('🏆 初始化健康功能卡片');
@@ -9752,6 +9734,21 @@ function initOverviewChart() {
         console.error('❌ 健康卡片数据更新失败:', error);
       }
     }
+
+    // 🗺️ 地图初始化调用
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            console.log('🗺️ 开始初始化地图...');
+            try {
+                // 从URL获取userId参数，如果没有则不传递
+                const userId = urlParams.get('userId') || null;
+                initializeMap(GLOBAL_CUSTOMER_ID, userId);
+                console.log('✅ 地图初始化完成');
+            } catch (error) {
+                console.error('❌ 地图初始化失败:', error);
+            }
+        }, 200); // 稍早于第一个脚本标签的延迟
+    });
   </script>
 
   </body>
