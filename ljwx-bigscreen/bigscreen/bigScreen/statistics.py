@@ -72,7 +72,7 @@ def get_realtime_stats_data():
                 DeviceInfo, DeviceMessage.device_sn == DeviceInfo.serial_number
             ).filter(
                 DeviceInfo.org_id == customer_id,
-                func.date(DeviceMessage.created_at) == query_date
+                func.date(DeviceMessage.create_time) == query_date
             )
             message_count = message_query.scalar() or 0
             
@@ -175,7 +175,7 @@ def get_statistics_overview_data():
             DeviceInfo, DeviceMessage.device_sn == DeviceInfo.serial_number
         ).filter(
             DeviceInfo.org_id == customer_id,
-            DeviceMessage.created_at >= start_date
+            DeviceMessage.create_time >= start_date
         ).scalar() or 0
         
         result = {

@@ -37,6 +37,10 @@ from .health_recommendation_engine import RealTimeHealthRecommendationEngine
 from .health_cache_integration import health_data_cache_integration, cache_health_data, cache_health_chart, cache_health_stats
 from redis import Redis
 from .health_data_batch_processor import optimized_upload_health_data, save_health_data_fast, get_optimizer_stats
+from .statistics import get_realtime_stats_data, get_statistics_overview_data
+from .message import save_device_message_data, send_device_message_data, receive_device_messages_data
+from .device import get_device_analysis_data
+from .health_analysis import get_customer_comprehensive_analysis, get_health_trends_analysis_data
 import requests  # 用于发送HTTP请求
 import json
 import threading
@@ -108,177 +112,12 @@ except ImportError as e:
 except Exception as e:
     system_logger.error(f"❌ 健康分析API V2.0模块加载异常: {e}")
 
-# 实时统计API - 直接添加到app而不是蓝图
+# 实时统计API - 重构后使用模块化实现
 @app.route('/api/realtime_stats', methods=['GET'])
 def get_realtime_stats():
     """获取实时统计数据API - 支持日期对比"""
-    try:
-        from datetime import date, timedelta
-        from sqlalchemy import func, and_
-        
-        customer_id = request.args.get('customerId')
-        selected_date = request.args.get('date')  # 新增日期参数
-        
-        if not customer_id:
-            return jsonify({
-                "success": False,
-                "error": "customerId参数是必需的"
-            }), 400
-        
-        # 解析选中的日期，默认为今天
-        if selected_date:
-            try:
-                target_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
-            except ValueError:
-                target_date = date.today()
-        else:
-            target_date = date.today()
-            
-        # 对比日期（上一个工作日）
-        def get_previous_workday(date_obj):
-            """获取上一个工作日（周一到周五）"""
-            prev_date = date_obj - timedelta(days=1)
-            # 如果是周末，继续往前找到上一个周五
-            while prev_date.weekday() > 4:  # weekday(): 周一=0, 周日=6
-                prev_date = prev_date - timedelta(days=1)
-            return prev_date
-        
-        compare_date = get_previous_workday(target_date)
-        
-        try:
-            # 计算统计数据的函数
-            def get_stats_for_date(query_date, is_current=True):
-                # 健康数据统计
-                health_query = db.session.query(func.count(UserHealthData.id)).join(
-                    DeviceInfo, UserHealthData.device_sn == DeviceInfo.serial_number
-                ).filter(
-                    DeviceInfo.org_id == customer_id,
-                    func.date(UserHealthData.timestamp) == query_date
-                )
-                health_count = health_query.scalar() or 0
-                
-                # 告警统计（对于当前日期统计待处理的，对于对比日期统计当日新增的）
-                if is_current:
-                    alert_query = db.session.query(func.count(AlertInfo.id)).join(
-                        DeviceInfo, AlertInfo.device_sn == DeviceInfo.serial_number
-                    ).filter(
-                        DeviceInfo.org_id == customer_id,
-                        AlertInfo.alert_status == 'pending'
-                    )
-                else:
-                    alert_query = db.session.query(func.count(AlertInfo.id)).join(
-                        DeviceInfo, AlertInfo.device_sn == DeviceInfo.serial_number
-                    ).filter(
-                        DeviceInfo.org_id == customer_id,
-                        func.date(AlertInfo.alert_timestamp) == query_date
-                    )
-                alert_count = alert_query.scalar() or 0
-                
-                # 设备统计（活跃设备数）
-                device_query = db.session.query(func.count(DeviceInfo.id)).filter(
-                    DeviceInfo.org_id == customer_id,
-                    DeviceInfo.status == 'ACTIVE'
-                )
-                device_count = device_query.scalar() or 0
-                
-                # 消息统计
-                message_query = db.session.query(func.count(DeviceMessage.id)).join(
-                    DeviceInfo, DeviceMessage.device_sn == DeviceInfo.serial_number
-                ).filter(
-                    DeviceInfo.org_id == customer_id,
-                    func.date(DeviceMessage.create_time) == query_date,
-                    DeviceMessage.message_status == '1'
-                )
-                message_count = message_query.scalar() or 0
-                
-                return {
-                    'health': health_count,
-                    'alert': alert_count,
-                    'device': device_count,
-                    'message': message_count
-                }
-            
-            # 计算当前日期和对比日期的数据
-            current_stats = get_stats_for_date(target_date, True)
-            compare_stats = get_stats_for_date(compare_date, False)
-            
-            # 计算增长率的函数
-            def calculate_growth(current, previous):
-                if previous == 0:
-                    return "+100%" if current > 0 else "0%"
-                growth = ((current - previous) / previous) * 100
-                return f"{growth:+.0f}%"
-            
-            # 格式化数字显示
-            def format_count(count):
-                return f"{count/1000:.1f}K" if count >= 1000 else str(count)
-            
-            # 计算增长率
-            health_growth = calculate_growth(current_stats['health'], compare_stats['health'])
-            alert_growth = calculate_growth(current_stats['alert'], compare_stats['alert'])
-            device_growth = calculate_growth(current_stats['device'], compare_stats['device'])
-            message_growth = calculate_growth(current_stats['message'], compare_stats['message'])
-            
-            # 系统告警
-            system_alerts = current_stats['alert'] if current_stats['alert'] > 10 else 0
-            
-            # 确定对比信息
-            if target_date == date.today():
-                compare_info = "与上一工作日对比"
-            else:
-                compare_info = f"与工作日{compare_date.strftime('%m-%d')}对比"
-            
-            return jsonify({
-                "success": True,
-                "data": {
-                    "health_data": {
-                        "count": format_count(current_stats['health']),
-                        "growth": health_growth
-                    },
-                    "pending_alerts": {
-                        "count": format_count(current_stats['alert']),
-                        "growth": alert_growth
-                    },
-                    "active_devices": {
-                        "count": str(current_stats['device']),
-                        "growth": device_growth
-                    },
-                    "unread_messages": {
-                        "count": format_count(current_stats['message']),
-                        "growth": message_growth
-                    },
-                    "system_alerts": system_alerts,
-                    "compare_info": compare_info,
-                    "target_date": target_date.strftime("%Y-%m-%d"),
-                    "compare_date": compare_date.strftime("%Y-%m-%d"),
-                    "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }
-            })
-            
-        except Exception as query_error:
-            # 如果查询失败，返回模拟数据
-            system_logger.warning(f'实时统计查询失败，返回模拟数据: {query_error}')
-            return jsonify({
-                "success": True,
-                "data": {
-                    "health_data": {"count": "0", "growth": "+0%"},
-                    "pending_alerts": {"count": "0", "growth": "+0%"},
-                    "active_devices": {"count": "0", "growth": "+0%"},
-                    "unread_messages": {"count": "0", "growth": "+0%"},
-                    "system_alerts": 0,
-                    "compare_info": "与上一工作日对比",
-                    "target_date": target_date.strftime("%Y-%m-%d"),
-                    "compare_date": get_previous_workday(target_date).strftime("%Y-%m-%d"),
-                    "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }
-            })
-            
-    except Exception as e:
-        system_logger.error(f'实时统计API异常: {e}')
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+    result, status_code = get_realtime_stats_data()
+    return jsonify(result), status_code
 
 system_logger.info('实时统计API直接路由注册成功')
 
@@ -630,9 +469,9 @@ def personal_modern():
 
 @app.route("/main")
 def main_index():
-    customerId = request.args.get('customerId')  # Get the deviceSn from query parameters
+    customerId = request.args.get('customerId')  # Get the customerId from query parameters
     logger.info(f"customerId: {customerId}")
-    return render_template("bigscreen_main.html", 
+    return render_template("main.html", 
                          customerId=customerId,
                          BIGSCREEN_TITLE=BIGSCREEN_TITLE,
                          BIGSCREEN_VERSION=BIGSCREEN_VERSION,
@@ -719,80 +558,25 @@ def get_all_users():
 
 @app.route('/DeviceMessage/save_message', methods=['POST'])
 def save_message():
-    try:
-        data = request.get_json()
-        print("save_message::data", data)
-
-        # 创建新的消息记录
-        new_message = DeviceMessage(
-            message=data.get('message'),
-            message_type=data.get('message_type'),
-            sender_type=data.get('sender_type'),
-            receiver_type=data.get('receiver_type'),
-            message_status=data.get('message_status'),
-            org_id=data.get('org_id') or data.get('department_info'),  # 修改: department_info -> org_id, 向后兼容
-            user_id=data.get('user_id'),
-            sent_time=datetime.now()
-        )
-
-        db.session.add(new_message)
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'message': '消息发送成功'
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': f'发送消息失败: {str(e)}'
-        }), 500
+    """保存设备消息 - 重构后使用模块化实现"""
+    data = request.get_json()
+    result, status_code = save_device_message_data(data)
+    return jsonify(result), status_code
 @app.route('/DeviceMessage/send', methods=['POST'])
 @log_api_request('/DeviceMessage/send','POST')
 def send_device_message(data=None):
-    try:
-        if data is None:
-            data = request.get_json()
-        
-        # 记录消息发送日志
-        from logging_config import device_logger
-        device_logger.info('设备消息发送',extra={
-            'message_type':data.get('message_type'),
-            'receiver_type':data.get('receiver_type'),
-            'user_id':data.get('user_id'),
-            'data_count':1
-        })
-        
-        return message_send_message(data)
-    except Exception as e:
-        device_logger.error('设备消息发送失败',extra={'error':str(e)},exc_info=True)
-        raise
+    """发送设备消息 - 重构后使用模块化实现"""
+    if data is None:
+        data = request.get_json()
+    return send_device_message_data(data)
 
 @app.route('/DeviceMessage/receive', methods=['GET'])
 @log_api_request('/DeviceMessage/receive','GET')
 def received_messages(deviceSn=None):
-    try:
-        if deviceSn is None:
-            deviceSn = request.args.get('deviceSn')
-        
-        # 记录消息接收日志
-        from logging_config import device_logger
-        device_logger.info('设备消息查询',extra={'device_sn':deviceSn})
-        
-        result = message_received_messages(deviceSn)
-        
-        # 记录查询结果
-        if hasattr(result,'get_json'):
-            result_data = result.get_json()
-            if isinstance(result_data,dict) and 'data' in result_data:
-                message_count = len(result_data['data']) if isinstance(result_data['data'],list) else 1
-                device_logger.info('设备消息查询完成',extra={'device_sn':deviceSn,'message_count':message_count})
-        
-        return result
-    except Exception as e:
-        device_logger.error('设备消息查询失败',extra={'device_sn':deviceSn,'error':str(e)},exc_info=True)
-        raise
+    """接收设备消息 - 重构后使用模块化实现"""
+    if deviceSn is None:
+        deviceSn = request.args.get('deviceSn')
+    return receive_device_messages_data(deviceSn)
 
 # Initialize the heart_rate_timestamps list
 
@@ -1865,29 +1649,14 @@ def device_dashboard():
 
 @app.route('/api/devices/analysis', methods=['GET'])  # 设备分析数据接口
 def api_get_device_analysis():
-    """设备分析数据接口，支持时间范围和趋势分析"""
+    """设备分析数据接口 - 重构后使用模块化实现"""
     try:
         orgId = request.args.get('orgId', '1')
         userId = request.args.get('userId', '')
-        timeRange = request.args.get('timeRange', '24h')  # 1h, 6h, 24h, 7d
+        timeRange = request.args.get('timeRange', '24h')
         
-        # 获取基础设备数据
-        devices_result = fetch_devices_by_orgIdAndUserId(orgId, userId)
-        devices = []
-        
-        if devices_result and isinstance(devices_result, dict):
-            if 'devices' in devices_result:
-                devices = devices_result['devices']
-            elif 'data' in devices_result and isinstance(devices_result['data'], dict):
-                devices = devices_result['data'].get('devices', [])
-        
-        # 生成分析数据
-        analysis_data = generate_device_analysis_data(devices, timeRange)
-        
-        return jsonify({
-            'success': True,
-            'data': analysis_data
-        })
+        result, status_code = get_device_analysis_data(orgId, userId, timeRange)
+        return jsonify(result), status_code
         
     except Exception as e:
         api_logger.error(f"设备分析数据获取失败: {str(e)}")
@@ -2937,233 +2706,25 @@ def health_data_page():
 
 @app.route('/api/statistics/overview', methods=['GET'])  #统计概览接口
 def statistics_overview():
+    """统计概览接口 - 重构后使用模块化实现，支持参数映射"""
     try:
-        import time
-        start_time = time.time()
+        # 参数映射：将 orgId 映射为 customerId
+        org_id = request.args.get('orgId')
+        if org_id and not request.args.get('customerId'):
+            # 创建新的请求参数字典，将 orgId 映射为 customerId
+            new_args = request.args.to_dict()
+            new_args['customerId'] = org_id
+            
+            # 临时修改 request.args
+            from werkzeug.datastructures import ImmutableMultiDict
+            request.args = ImmutableMultiDict(new_args)
         
-        orgId = request.args.get('orgId', '1')
-        deviceSn = request.args.get('deviceSn')  # 新增个人设备参数
-        date = request.args.get('date')
-        
-        # 如果指定了deviceSn，获取个人级别统计数据
-        if deviceSn:
-            api_logger.info(f"🏠 获取个人统计数据: deviceSn={deviceSn}")
-            
-            # 获取个人健康数据总数
-            health_count = 0
-            try:
-                from .user_health_data import get_all_health_data_optimized
-                from .user import get_user_id_by_deviceSn #先将deviceSn转为userId
-                userId = get_user_id_by_deviceSn(deviceSn)
-                if userId:
-                    health_result = get_all_health_data_optimized(orgId=orgId, userId=userId, latest_only=False, pageSize=1)
-                    if health_result.get('success') and 'data' in health_result:
-                        pagination = health_result['data'].get('pagination', {})
-                        health_count = pagination.get('totalCount', len(health_result['data'].get('healthData', [])))
-                        api_logger.info(f"✅ 获取个人健康数据总数: {health_count} (userId={userId})")
-                else:
-                    api_logger.warning(f"❌ 无法通过deviceSn={deviceSn}获取userId")
-                    health_count = random.randint(30, 150)
-            except Exception as e:
-                api_logger.warning(f"❌ 获取个人健康数据失败，使用模拟数据: {e}")
-                health_count = random.randint(30, 150)
-            
-            # 获取个人告警数量
-            alert_count = 0
-            try:
-                from .alert import fetch_alerts_by_orgIdAndUserId
-                from .user import get_user_id_by_deviceSn
-                userId = get_user_id_by_deviceSn(deviceSn)
-                if userId:
-                    alert_result = fetch_alerts_by_orgIdAndUserId(orgId, userId, None)
-                    if alert_result:
-                        alert_data = alert_result.get_json() if hasattr(alert_result, 'get_json') else alert_result
-                        alerts = alert_data.get('data', {}).get('alerts', []) if isinstance(alert_data, dict) else []
-                        alert_count = len([a for a in alerts if a.get('alert_status') == 'pending' or a.get('status') == 'pending'])
-                        api_logger.info(f"📊 个人pending告警: {alert_count}/{len(alerts)}")
-            except Exception as e:
-                api_logger.warning(f"个人告警数据统计失败: {e}")
-                alert_count = random.randint(0, 8)
-            
-            # 获取个人消息数量
-            message_count = 0
-            try:
-                from .message import fetch_messages_by_orgIdAndUserId
-                from .user import get_user_id_by_deviceSn
-                userId = get_user_id_by_deviceSn(deviceSn)
-                if userId:
-                    msg_result = fetch_messages_by_orgIdAndUserId(orgId, userId, None)
-                    if msg_result:
-                        msg_data = msg_result.get_json() if hasattr(msg_result, 'get_json') else msg_result
-                        messages = msg_data.get('data', {}).get('messages', []) if isinstance(msg_data, dict) else []
-                        message_count = len([m for m in messages if m.get('message_status') == 1 or m.get('message_status') == '1'])
-                        api_logger.info(f"📊 个人未读消息: {message_count}/{len(messages)}")
-            except Exception as e:
-                api_logger.warning(f"个人消息数据统计失败: {e}")
-                message_count = random.randint(0, 15)
-            
-            # 获取个人设备状态
-            device_status = 'ACTIVE'
-            try:
-                from .device import fetch_device_info
-                device_info = fetch_device_info(deviceSn)
-                if device_info:
-                    device_data = device_info.get_json() if hasattr(device_info, 'get_json') else device_info
-                    device_status = device_data.get('status', 'ACTIVE')
-                    api_logger.info(f"📊 个人设备状态: {device_status}")
-            except Exception as e:
-                api_logger.warning(f"个人设备状态获取失败: {e}")
-                device_status = 'ACTIVE'
-            
-            # 生成个人统计概览数据
-            personal_data = {
-                'success': True,
-                'data': {
-                    'date': date or datetime.now().strftime('%Y-%m-%d'),
-                    'deviceSn': deviceSn,
-                    'orgId': orgId,
-                    'health_count': health_count,      # 个人健康数据总数
-                    'alert_count': alert_count,        # 个人pending告警数量
-                    'device_status': device_status,    # 个人设备状态
-                    'message_count': message_count,    # 个人未读消息数量
-                    'health_trend': '+5%',             # 模拟趋势数据
-                    'alert_trend': '+3%' if alert_count > 3 else '0%',
-                    'device_trend': '+0%',
-                    'message_trend': '+8%' if message_count > 5 else '+2%'
-                },
-                'performance': {
-                    'response_time': round(time.time() - start_time, 3),
-                    'cached': False,
-                    'data_source': 'personal_calculated'
-                }
-            }
-            
-            api_logger.info(f"✅ 个人统计概览数据生成完成", extra={
-                'deviceSn': deviceSn,
-                'health_count': health_count,
-                'alert_count': alert_count,
-                'message_count': message_count,
-                'device_status': device_status,
-                'response_time': personal_data['performance']['response_time']
-            })
-            
-            return jsonify(personal_data)
-        
-        # 原有组织级别统计逻辑
-        # 获取真实的健康数据总数
-        health_count = 0
-        try:
-            from .user_health_data import get_all_health_data_optimized
-            health_result = get_all_health_data_optimized(orgId=orgId, latest_only=False, pageSize=1)
-            if health_result.get('success') and 'data' in health_result:
-                pagination = health_result['data'].get('pagination', {})
-                health_count = pagination.get('totalCount', len(health_result['data'].get('healthData', [])))
-                api_logger.info(f"✅ 获取健康数据总数: {health_count}")
-        except Exception as e:
-            api_logger.warning(f"❌ 获取健康数据失败，使用模拟数据: {e}")
-            health_count = 156
-        
-        # 直接调用内部函数获取统计数据，避免HTTP循环调用
-        alert_count = 0  # pending状态的告警数量
-        message_count = 0  # status=1的消息数量
-        active_devices = 0  # status=ACTIVE的设备数量
-        total_devices = 0  # 总设备数量
-        online_users = 0  # 在线用户数量
-        
-        try:
-            # 直接调用内部函数避免HTTP调用循环
-            from .alert import fetch_alerts_by_orgIdAndUserId
-            from .message import fetch_messages_by_orgIdAndUserId
-            from .device import fetch_devices_by_orgIdAndUserId
-            from .org import fetch_users_by_orgId
-            
-            # 统计告警数据 (alert_status=pending)
-            try:
-                alert_result = fetch_alerts_by_orgIdAndUserId(orgId, None, None)
-                if alert_result:
-                    alert_data = alert_result.get_json() if hasattr(alert_result, 'get_json') else alert_result
-                    alerts = alert_data.get('data', {}).get('alerts', []) if isinstance(alert_data, dict) else []
-                    alert_count = len([a for a in alerts if a.get('alert_status') == 'pending' or a.get('status') == 'pending'])
-                    api_logger.info(f"📊 统计pending告警: {alert_count}/{len(alerts)}")
-            except Exception as e:
-                api_logger.warning(f"告警数据统计失败: {e}")
-            
-            # 统计消息数据 (message_status=1)
-            try:
-                msg_result = fetch_messages_by_orgIdAndUserId(orgId, None, None)
-                if msg_result:
-                    msg_data = msg_result.get_json() if hasattr(msg_result, 'get_json') else msg_result
-                    messages = msg_data.get('data', {}).get('messages', []) if isinstance(msg_data, dict) else []
-                    message_count = len([m for m in messages if m.get('message_status') == 1 or m.get('message_status') == '1'])
-                    api_logger.info(f"📊 统计未读消息: {message_count}/{len(messages)}")
-            except Exception as e:
-                api_logger.warning(f"消息数据统计失败: {e}")
-            
-            # 统计设备数据 (status=ACTIVE)
-            try:
-                dev_result = fetch_devices_by_orgIdAndUserId(orgId, None)
-                if dev_result:
-                    dev_data = dev_result.get_json() if hasattr(dev_result, 'get_json') else dev_result
-                    devices = dev_data.get('data', {}).get('devices', []) if isinstance(dev_data, dict) else dev_data.get('devices', [])
-                    total_devices = len(devices)
-                    active_devices = len([d for d in devices if d.get('status') == 'ACTIVE'])
-                    api_logger.info(f"📊 统计活跃设备: {active_devices}/{total_devices}")
-            except Exception as e:
-                api_logger.warning(f"设备数据统计失败: {e}")
-            
-            # 统计用户数据
-            try:
-                users = fetch_users_by_orgId(orgId)
-                if isinstance(users, list):
-                    total_users = len(users)
-                    online_users = int(total_users * 0.75)  # 假设75%在线
-                    api_logger.info(f"📊 统计用户: 总数{total_users}, 在线{online_users}")
-                else:
-                    online_users = 67  # 默认值
-            except Exception as e:
-                api_logger.warning(f"用户数据统计失败: {e}")
-                online_users = 67
-                
-            api_logger.info(f"✅ 真实数据统计完成 - 告警:{alert_count}, 消息:{message_count}, 活跃设备:{active_devices}/{total_devices}, 在线用户:{online_users}")
-                
-        except Exception as e:
-            api_logger.error(f"❌ 统计数据计算失败: {e}")
-            # 使用默认模拟值
-            alert_count, message_count, active_devices, total_devices, online_users = 23, 45, 78, 89, 67
-        
-        # 生成统计概览数据
-        overview_data = {
-            'success': True,
-            'data': {
-                'date': date or datetime.now().strftime('%Y-%m-%d'),
-                'orgId': orgId,
-                'health_count': health_count,   # 使用真实健康数据总数
-                'alert_count': alert_count,     # 真实pending告警数量
-                'device_count': total_devices or 89,  # 真实设备总数或默认值
-                'message_count': message_count, # 真实未读消息数量
-                'online_users': online_users,   # 计算的在线用户数
-                'active_devices': active_devices # 真实活跃设备数量
-            },
-            'performance': {
-                'response_time': round(time.time() - start_time, 3),
-                'cached': False,
-                'data_source': 'internal_calculated'  # 标记使用内部函数计算
-            }
-        }
-        
-        api_logger.info(f"统计概览数据生成完成", extra={
-            'orgId': orgId,
-            'health_count': health_count,
-            'alert_count': alert_count,
-            'message_count': message_count,
-            'active_devices': active_devices,
-            'response_time': overview_data['performance']['response_time']
-        })
-        
-        return jsonify(overview_data)
+        result, status_code = get_statistics_overview_data()
+        return jsonify(result), status_code
     except Exception as e:
         api_logger.error(f"统计概览接口错误: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/baseline/generate', methods=['POST'])  #baseline生成API接口
 def api_generate_baseline():
@@ -5874,16 +5435,34 @@ def api_health_comprehensive_score():
 
 @app.route('/api/health/recommendations', methods=['GET'])
 def api_health_recommendations():
-    """健康建议查询接口 - 使用标准化参数"""
+    """健康建议查询接口 - 支持多种参数模式"""
     try:
         device_sn = request.args.get('deviceSn')
+        analysis_type = request.args.get('analysisType', 'comprehensive')
         days = int(request.args.get('days', 7))
         
-        if not device_sn:
+        # 支持不同的调用模式
+        if device_sn:
+            # 基于设备的个人健康建议
+            # 获取用户信息
+            from .user import get_user_id_by_deviceSn
+            user_id = get_user_id_by_deviceSn(device_sn)
+            
+            if not user_id:
+                return jsonify({
+                    'success': False,
+                    'error': f'设备{device_sn}未找到对应用户'
+                }), 404
+        else:
+            # 通用健康建议（无需特定设备）
             return jsonify({
-                'success': False,
-                'error': 'deviceSn参数是必需的'
-            }), 400
+                'success': True,
+                'data': {
+                    'recommendations': generate_default_health_recommendations(),
+                    'analysisType': analysis_type,
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                }
+            })
         
         # 获取用户信息
         from .user import get_user_id_by_deviceSn
@@ -7128,6 +6707,106 @@ def debug_device_info(device_sn):
             'error': str(e),
             'deviceSn': device_sn
         }), 500
+
+# =============================================================================
+# 标准化API路由别名 - 与前端 API_MAPPINGS 保持一致
+# =============================================================================
+
+# 健康评分标准化路由
+@app.route('/api/health/scores/comprehensive', methods=['GET'])
+def api_health_scores_comprehensive():
+    """标准化健康评分路由 - 别名，参数映射处理"""
+    try:
+        # 参数映射：将 orgId 映射为 customerId
+        org_id = request.args.get('orgId')
+        if org_id and not request.args.get('customerId'):
+            # 创建新的请求参数字典，将 orgId 映射为 customerId
+            new_args = request.args.to_dict()
+            new_args['customerId'] = org_id
+            
+            # 临时修改 request.args（通过创建新的查询字符串）
+            from werkzeug.datastructures import ImmutableMultiDict
+            request.args = ImmutableMultiDict(new_args)
+        
+        return api_get_comprehensive_health_score()
+    except Exception as e:
+        api_logger.error(f"标准化健康评分路由错误: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# 健康图表基线标准化路由
+@app.route('/api/health/charts/baseline', methods=['GET'])
+def api_health_charts_baseline():
+    """标准化健康图表基线路由 - 别名"""
+    return health_data_chart_baseline()
+
+# 健康建议标准化路由（别名）
+@app.route('/api/health/recommendations/list', methods=['GET'])
+def api_health_recommendations_list():
+    """标准化健康建议路由 - 别名，重定向到主路由"""
+    return api_health_recommendations()
+
+# 实时统计标准化路由
+@app.route('/api/statistics/realtime', methods=['GET'])
+def api_statistics_realtime():
+    """标准化实时统计路由 - 别名"""
+    return get_realtime_stats()
+
+# 用户列表标准化路由
+@app.route('/api/users/list', methods=['GET'])
+def api_users_list():
+    """标准化用户列表路由 - 别名"""
+    return fetch_users()
+
+# 用户信息标准化路由
+@app.route('/api/users/info', methods=['GET'])
+def api_users_info():
+    """标准化用户信息路由 - 别名"""
+    return get_user_info()
+
+# 告警处理标准化路由
+@app.route('/api/alerts/handle', methods=['GET'])
+def api_alerts_handle():
+    """标准化告警处理路由 - 别名"""
+    return deal_alert()
+
+# 告警确认标准化路由
+@app.route('/api/alerts/acknowledge', methods=['POST'])
+def api_alerts_acknowledge():
+    """标准化告警确认路由"""
+    try:
+        data = request.get_json()
+        alert_id = data.get('alertId')
+        
+        if alert_id:
+            # 调用现有的告警处理逻辑
+            result = deal_alert(alert_id)
+            return result
+        else:
+            return jsonify({'success': False, 'error': '缺少alertId参数'}), 400
+            
+    except Exception as e:
+        api_logger.error(f"告警确认接口错误: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# 健康基线生成标准化路由
+@app.route('/api/health/baseline/generate', methods=['POST'])
+def api_health_baseline_generate():
+    """标准化健康基线生成路由 - 别名"""
+    return api_generate_baseline()
+
+# 健康基线状态标准化路由
+@app.route('/api/health/baseline/status', methods=['GET'])
+def api_health_baseline_status():
+    """标准化健康基线状态路由 - 别名"""
+    return api_baseline_status()
+
+# 健康数据详情标准化路由
+@app.route('/api/health/data/detail', methods=['GET'])
+def api_health_data_detail():
+    """标准化健康数据详情路由 - 别名"""
+    return fetch_health_data_by_id()
+
+system_logger.info('✅ 标准化API路由别名注册完成')
 
 if __name__ == '__main__':
     main()

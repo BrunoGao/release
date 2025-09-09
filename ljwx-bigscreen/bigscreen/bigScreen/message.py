@@ -7,6 +7,12 @@ from .org import fetch_departments_by_orgId
 from typing import List, Dict, Optional, Tuple
 import logging
 
+# 导入日志配置
+try:
+    from .logging_config import device_logger
+except ImportError:
+    device_logger = logging.getLogger(__name__)
+
 logger = logging.getLogger(__name__)
 redis = RedisHelper()
 
@@ -1296,4 +1302,78 @@ def get_user_message(deviceSn):
     redis.publish(f"message_info_channel:{deviceSn}", message_json) 
     
     return message_json
+
+
+# =============================================================================
+# 设备消息管理功能 (Device Message Management Functions)
+# =============================================================================
+
+def save_device_message_data(data):
+    """保存设备消息数据"""
+    try:
+        print("save_message::data", data)
+
+        # 创建新的消息记录
+        new_message = DeviceMessage(
+            message=data.get('message'),
+            message_type=data.get('message_type'),
+            sender_type=data.get('sender_type'),
+            receiver_type=data.get('receiver_type'),
+            message_status=data.get('message_status'),
+            org_id=data.get('org_id') or data.get('department_info'),  # 修改: department_info -> org_id, 向后兼容
+            user_id=data.get('user_id'),
+            sent_time=datetime.now()
+        )
+
+        db.session.add(new_message)
+        db.session.commit()
+
+        return {
+            'success': True,
+            'message': '消息发送成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return {
+            'success': False,
+            'message': f'发送消息失败: {str(e)}'
+        }, 500
+
+
+def send_device_message_data(data):
+    """发送设备消息数据"""
+    try:
+        # 记录消息发送日志
+        device_logger.info('设备消息发送', extra={
+            'message_type': data.get('message_type'),
+            'receiver_type': data.get('receiver_type'),
+            'user_id': data.get('user_id'),
+            'data_count': 1
+        })
+        
+        return send_message(data)
+    except Exception as e:
+        device_logger.error('设备消息发送失败', extra={'error': str(e)}, exc_info=True)
+        raise
+
+
+def receive_device_messages_data(deviceSn):
+    """接收设备消息数据"""
+    try:
+        # 记录消息接收日志
+        device_logger.info('设备消息查询', extra={'device_sn': deviceSn})
+        
+        result = received_messages(deviceSn)
+        
+        # 记录查询结果
+        if hasattr(result, 'get_json'):
+            result_data = result.get_json()
+            if isinstance(result_data, dict) and 'data' in result_data:
+                message_count = len(result_data['data']) if isinstance(result_data['data'], list) else 1
+                device_logger.info('设备消息查询完成', extra={'device_sn': deviceSn, 'message_count': message_count})
+        
+        return result
+    except Exception as e:
+        device_logger.error('设备消息查询失败', extra={'device_sn': deviceSn, 'error': str(e)}, exc_info=True)
+        raise
 

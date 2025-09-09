@@ -47,6 +47,9 @@ public class HealthBaselineScoreTasks {
     @Autowired
     private com.ljwx.modules.health.service.HealthRecommendationService healthRecommendationService;
     
+    @Autowired
+    private com.ljwx.modules.health.service.UnifiedHealthBaselineService unifiedHealthBaselineService;
+    
     private final DateTimeFormatter TABLE_SUFFIX_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
     private final ExecutorService executorService = Executors.newFixedThreadPool(8); // #优化线程池大小
     
@@ -172,7 +175,7 @@ public class HealthBaselineScoreTasks {
 
     /**
      * 2. 生成用户健康基线 - 每日02:00执行
-     * 支持多表查询（主表+分表）
+     * 使用优化后的统一健康基线服务
      */
     @Scheduled(cron = "0 0 2 * * ?")
     @Transactional(rollbackFor = Exception.class)
@@ -180,35 +183,35 @@ public class HealthBaselineScoreTasks {
         LocalDate yesterday = LocalDate.now().minusDays(1);
         String dateStr = yesterday.toString();
         
-        log.info("🔄 开始生成用户健康基线，日期: {}", dateStr);
+        log.info("🔄 开始生成用户健康基线（统一服务），日期: {}", dateStr);
         
         try {
-            // 获取所有相关表数据
-            List<String> tablesToQuery = getHealthDataTables(yesterday);
-            Long totalDataCount = 0L;
+            // 获取昨天有数据的用户列表
+            List<Map<String, Object>> activeUsers = getActiveUsersForDate(dateStr);
             
-            for (String tableName : tablesToQuery) {
-                Long tableDataCount = getHealthDataCount(tableName, dateStr);
-                totalDataCount += tableDataCount;
-                log.info("📊 表 {} 找到 {} 条记录", tableName, tableDataCount);
-            }
-                
-            if (totalDataCount == 0) {
-                log.warn("⚠️ 日期 {} 无健康数据，跳过基线生成", dateStr);
+            if (activeUsers.isEmpty()) {
+                log.warn("⚠️ 日期 {} 无活跃用户，跳过基线生成", dateStr);
                 return;
             }
             
-            log.info("📊 总计 {} 条健康数据记录", totalDataCount);
+            log.info("📊 找到 {} 个活跃用户需要生成基线", activeUsers.size());
             
-            // 并行处理多个健康特征
-            CompletableFuture<Void>[] futures = new CompletableFuture[HEALTH_FEATURES.length];
-            
-            for (int i = 0; i < HEALTH_FEATURES.length; i++) {
-                final String feature = HEALTH_FEATURES[i];
-                futures[i] = CompletableFuture.runAsync(() -> {
-                    generateBaselineForFeatureMultiTable(tablesToQuery, feature, dateStr);
-                }, executorService);
-            }
+            // 使用统一基线服务并行处理用户基线生成
+            CompletableFuture<?>[] futures = activeUsers.stream()
+                .map(user -> CompletableFuture.runAsync(() -> {
+                    try {
+                        Long userId = ((Number) user.get("user_id")).longValue();
+                        Long customerId = ((Number) user.get("customer_id")).longValue();
+                        
+                        // 委托给优化的统一健康基线服务
+                        unifiedHealthBaselineService.generatePersonalBaseline(userId, customerId, 30);
+                        
+                    } catch (Exception e) {
+                        Long userId = ((Number) user.get("user_id")).longValue();
+                        log.error("❌ 用户{}基线生成失败: {}", userId, e.getMessage());
+                    }
+                }, executorService))
+                .toArray(CompletableFuture[]::new);
             
             // 等待所有任务完成
             CompletableFuture.allOf(futures).join();
@@ -440,6 +443,7 @@ public class HealthBaselineScoreTasks {
 
     /**
      * 4. 生成组织健康基线 - 每日02:10执行
+     * 使用统一健康基线服务
      */
     @Scheduled(cron = "0 10 2 * * ?")
     @Transactional(rollbackFor = Exception.class)
@@ -447,42 +451,40 @@ public class HealthBaselineScoreTasks {
         LocalDate yesterday = LocalDate.now().minusDays(1);
         String dateStr = yesterday.toString();
         
-        log.info("🔄 开始生成组织健康基线，日期: {}", dateStr);
+        log.info("🔄 开始生成组织健康基线（统一服务），日期: {}", dateStr);
         
         try {
-            // 清理当日旧数据
-            String deleteSql = "DELETE FROM t_org_health_baseline WHERE baseline_date = ?";
-            int deletedRows = jdbcTemplate.update(deleteSql, dateStr);
-            if (deletedRows > 0) {
-                log.info("🧹 清理组织旧基线数据: {} 条", deletedRows);
+            // 获取需要生成基线的组织列表
+            List<Map<String, Object>> activeOrganizations = getActiveOrganizationsForDate(dateStr);
+            
+            if (activeOrganizations.isEmpty()) {
+                log.warn("⚠️ 日期 {} 无活跃组织，跳过组织基线生成", dateStr);
+                return;
             }
             
-            // 生成新的组织基线
-            String sql = """
-                INSERT INTO t_org_health_baseline (
-                    org_id, feature_name, baseline_date, mean_value, std_value,
-                    min_value, max_value, user_count, sample_count, create_time, update_time
-                )
-                SELECT 
-                    b.org_id, 
-                    b.feature_name, 
-                    b.baseline_date,
-                    AVG(b.mean_value) as mean_value, 
-                    COALESCE(STD(b.mean_value), 0) as std_value, 
-                    MIN(b.min_value) as min_value, 
-                    MAX(b.max_value) as max_value,
-                    COUNT(DISTINCT b.device_sn) as user_count, 
-                    SUM(b.sample_count) as sample_count, 
-                    NOW() as create_time, 
-                    NOW() as update_time
-                FROM t_health_baseline b
-                WHERE b.baseline_date = ?
-                GROUP BY b.org_id, b.feature_name
-                HAVING COUNT(DISTINCT b.device_sn) >= 2
-                """;
-                
-            int rows = jdbcTemplate.update(sql, dateStr);
-            log.info("🎉 组织健康基线生成完成，日期: {}, 共 {} 条记录", dateStr, rows);
+            log.info("📊 找到 {} 个活跃组织需要生成基线", activeOrganizations.size());
+            
+            // 使用统一基线服务并行处理组织基线生成
+            CompletableFuture<?>[] futures = activeOrganizations.stream()
+                .map(org -> CompletableFuture.runAsync(() -> {
+                    try {
+                        Long orgId = ((Number) org.get("org_id")).longValue();
+                        Long customerId = ((Number) org.get("customer_id")).longValue();
+                        
+                        // 委托给优化的统一健康基线服务
+                        unifiedHealthBaselineService.generateOrganizationBaseline(orgId, customerId, 90);
+                        
+                    } catch (Exception e) {
+                        Long orgId = ((Number) org.get("org_id")).longValue();
+                        log.error("❌ 组织{}基线生成失败: {}", orgId, e.getMessage());
+                    }
+                }, executorService))
+                .toArray(CompletableFuture[]::new);
+            
+            // 等待所有任务完成
+            CompletableFuture.allOf(futures).join();
+            
+            log.info("🎉 组织健康基线生成完成，日期: {}", dateStr);
             
         } catch (Exception e) {
             log.error("❌ 组织健康基线生成失败，日期: {}, 错误: {}", dateStr, e.getMessage(), e);
@@ -990,6 +992,82 @@ public class HealthBaselineScoreTasks {
             
         } catch (Exception e) {
             log.error("❌ 获取预测用户列表失败: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * 获取指定日期的活跃用户列表（用于基线生成）
+     */
+    private List<Map<String, Object>> getActiveUsersForDate(String dateStr) {
+        try {
+            // 检查所有相关表
+            List<String> tables = getHealthDataTables(LocalDate.parse(dateStr));
+            StringBuilder unionQuery = new StringBuilder();
+            
+            for (int i = 0; i < tables.size(); i++) {
+                if (i > 0) unionQuery.append(" UNION ALL ");
+                
+                unionQuery.append(String.format("""
+                    SELECT DISTINCT user_id, customer_id, org_id
+                    FROM %s 
+                    WHERE DATE(timestamp) = '%s'
+                    AND is_deleted = 0
+                    AND user_id > 0
+                    AND (heart_rate > 0 OR blood_oxygen > 0 OR temperature > 0 
+                         OR pressure_high > 0 OR pressure_low > 0)
+                    """, tables.get(i), dateStr));
+            }
+            
+            String finalSql = String.format("""
+                SELECT user_id, customer_id, org_id, COUNT(*) as table_count
+                FROM (%s) unified_users
+                GROUP BY user_id, customer_id, org_id
+                ORDER BY user_id
+                """, unionQuery.toString());
+            
+            return jdbcTemplate.queryForList(finalSql);
+            
+        } catch (Exception e) {
+            log.error("❌ 获取活跃用户列表失败: date={}, error={}", dateStr, e.getMessage(), e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * 获取指定日期的活跃组织列表（用于基线生成）
+     */
+    private List<Map<String, Object>> getActiveOrganizationsForDate(String dateStr) {
+        try {
+            // 检查所有相关表
+            List<String> tables = getHealthDataTables(LocalDate.parse(dateStr));
+            StringBuilder unionQuery = new StringBuilder();
+            
+            for (int i = 0; i < tables.size(); i++) {
+                if (i > 0) unionQuery.append(" UNION ALL ");
+                
+                unionQuery.append(String.format("""
+                    SELECT DISTINCT org_id, customer_id
+                    FROM %s 
+                    WHERE DATE(timestamp) = '%s'
+                    AND is_deleted = 0
+                    AND org_id > 0
+                    AND (heart_rate > 0 OR blood_oxygen > 0 OR temperature > 0)
+                    """, tables.get(i), dateStr));
+            }
+            
+            String finalSql = String.format("""
+                SELECT org_id, customer_id, COUNT(*) as user_count
+                FROM (%s) unified_orgs
+                GROUP BY org_id, customer_id
+                HAVING user_count >= 2
+                ORDER BY org_id
+                """, unionQuery.toString());
+            
+            return jdbcTemplate.queryForList(finalSql);
+            
+        } catch (Exception e) {
+            log.error("❌ 获取活跃组织列表失败: date={}, error={}", dateStr, e.getMessage(), e);
             return new ArrayList<>();
         }
     }
