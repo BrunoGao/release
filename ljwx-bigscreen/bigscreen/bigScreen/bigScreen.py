@@ -1,3 +1,8 @@
+# =============================================================================
+# bigScreen.py - 健康监控大屏系统主应用
+# 功能模块化组织：org、user、device、alert、message、health_data
+# =============================================================================
+
 from random import uniform
 from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
@@ -36,19 +41,15 @@ import requests  # 用于发送HTTP请求
 import json
 import threading
 import time
-from .models import db, DeviceMessage, UserHealthData, AlertInfo, DeviceInfo
+from .models import db, DeviceMessage, UserHealthData, AlertInfo, DeviceInfo, UserInfo
 from flask_socketio import SocketIO, emit
 from decimal import Decimal
-from sqlalchemy import func
+from sqlalchemy import func, and_
 from .redis_helper import RedisHelper
 import logging
-from .models import UserInfo
-from sqlalchemy import and_
 import sys
 import os
 import random
-from .device import gather_device_info as device_gather_device_info
-import os
 from dotenv import load_dotenv
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -74,6 +75,10 @@ query_logger = logging.getLogger('query')
 
 app = Flask(__name__, static_folder='../static')
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# =============================================================================
+# 系统初始化和配置
+# =============================================================================
 
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -380,6 +385,10 @@ with app.app_context():
 
 logger = api_logger#使用API专用记录器
 
+# =============================================================================
+# 系统状态和健康检查接口
+# =============================================================================
+
 # 健康检查端点
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -481,6 +490,10 @@ def generate_track_points():
 @app.route("/test_body")
 def test_body():
     return render_template("personal_body.html")
+
+# =============================================================================
+# 页面路由 (Page Routes)
+# =============================================================================
 
 @app.route("/health_table")
 def health_table():
@@ -674,6 +687,11 @@ def chat_page():
 def get_customer_id_by_deviceSn():
     deviceSn = request.args.get('deviceSn')
     return fetch_customer_id_by_deviceSn(deviceSn)
+
+# =============================================================================
+# 用户管理接口 (User Management APIs)
+# =============================================================================
+
 @app.route('/getUserInfo', methods=['GET'])
 def get_user_info(deviceSn=None):
     if deviceSn is None:
@@ -694,6 +712,10 @@ def get_user_id(phone=None):
 @app.route('/get_all_users', methods=['GET'])
 def get_all_users():
     return user_get_all_users()
+
+# =============================================================================
+# 消息管理接口 (Message Management APIs)
+# =============================================================================
 
 @app.route('/DeviceMessage/save_message', methods=['POST'])
 def save_message():
@@ -774,6 +796,10 @@ def received_messages(deviceSn=None):
 
 # Initialize the heart_rate_timestamps list
 
+# =============================================================================
+# 组织管理接口 (Organization Management APIs)
+# =============================================================================
+
 @app.route("/get_departments_by_orgId", methods=['GET'])
 def get_departments_by_orgId():
     orgId = request.args.get('orgId')
@@ -795,6 +821,10 @@ def get_users_by_orgIdAndUserId():
 def fetch_users_stats():
     orgId = request.args.get('orgId')
     return fetch_users_stats_by_orgId(orgId)
+
+# =============================================================================
+# 设备管理接口 (Device Management APIs)
+# =============================================================================
 
 @app.route("/upload_device_info", methods=['POST'])
 @log_api_request('/upload_device_info','POST')
@@ -833,6 +863,10 @@ def handle_device_info():
     result = upload_device_info(device_info, current_app._get_current_object())
     print(f"📱 upload_device_info处理结果: {result.get_json() if hasattr(result, 'get_json') else result}")
     return result
+
+# =============================================================================
+# 健康数据管理接口 (Health Data Management APIs)
+# =============================================================================
 
 @app.route("/upload_health_data", methods=['POST'])
 @log_api_request('/upload_health_data','POST')
@@ -928,6 +962,10 @@ def phone_process_alert():
             'status': 'error',
             'message': f'告警处理失败: {str(e)}'
         }), 500
+
+# =============================================================================
+# 告警管理接口 (Alert Management APIs)
+# =============================================================================
 
 @app.route('/dealAlert', methods=['GET'])
 def deal_alert(alertId=None):
@@ -7090,6 +7128,6 @@ def debug_device_info(device_sn):
             'error': str(e),
             'deviceSn': device_sn
         }), 500
-        
+
 if __name__ == '__main__':
     main()
