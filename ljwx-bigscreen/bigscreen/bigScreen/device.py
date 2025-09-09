@@ -1083,10 +1083,11 @@ def fetch_devices_by_orgIdAndUserId2(orgId, userId):
         }
     }
     return result
-def fetch_devices_by_orgIdAndUserId(orgId, userId):
-    """通过sys_user_org关联表和用户device_sn查询设备信息"""
+def fetch_devices_by_orgIdAndUserId(orgId, userId, customerId=None):
+    """🚀 优化后的设备查询 - 直接使用用户表的组织字段，消除JOIN操作"""
     print("fetch_devices_by_orgIdAndUserId:orgId:", orgId)
     print("fetch_devices_by_orgIdAndUserId:userId:", userId)
+    print("fetch_devices_by_orgIdAndUserId:customerId:", customerId)
     
     try:
         from .admin_helper import is_admin_user, filter_non_admin_users  # 导入admin判断工具
@@ -1100,67 +1101,48 @@ def fetch_devices_by_orgIdAndUserId(orgId, userId):
             if is_admin_user(userId):
                 return {'devices': [], 'statistics': {}}
             
-            # 单用户模式：直接查询指定用户的设备
-            user_query = db.session.query(
-                UserInfo.id,
-                UserInfo.user_name,
-                UserInfo.device_sn,
-                OrgInfo.name.label('department_name'),
-                OrgInfo.id.label('org_id')
-            ).outerjoin(
-                UserOrg, UserInfo.id == UserOrg.user_id
-            ).outerjoin(
-                OrgInfo, UserOrg.org_id == OrgInfo.id
-            ).filter(
-                UserInfo.id == userId,
-                UserInfo.is_deleted.is_(False)
+            # 🚀 优化：单用户模式 - 直接查询用户表，无需JOIN！
+            user = UserInfo.query.filter_by(
+                id=userId,
+                is_deleted=False
             ).first()
             
-            if user_query and user_query.device_sn:
-                device_serial_numbers.append(user_query.device_sn)
-                user_device_mapping[user_query.device_sn] = {
-                    'user_id': user_query.id,
-                    'user_name': user_query.user_name,
-                    'department_name': user_query.department_name or '未分配',
-                    'org_id': user_query.org_id
+            if user and user.device_sn:
+                device_serial_numbers.append(user.device_sn)
+                user_device_mapping[user.device_sn] = {
+                    'user_id': user.id,
+                    'user_name': user.user_name,
+                    # 🎉 直接获取组织信息，无需JOIN！
+                    'department_name': user.org_name or '未分配',
+                    'org_id': user.org_id
                 }
                 # 为单用户模式设置org_ids
-                if user_query.org_id:
-                    org_ids = [user_query.org_id]
+                if user.org_id:
+                    org_ids = [user.org_id]
                 
         elif orgId:
-            # 组织模式：通过sys_user_org关联表查询组织下所有用户的设备
+            # 🚀 优化：组织模式 - 直接通过org_id查询用户，无需关联表！
             from .org import get_org_descendants
             org_ids = get_org_descendants(orgId)  # 获取组织及其子组织ID列表
             
-            # 通过sys_user_org关联表查询组织下的用户
-            users_query = db.session.query(
-                UserInfo.id,
-                UserInfo.user_name,
-                UserInfo.device_sn,
-                OrgInfo.name.label('department_name'),
-                OrgInfo.id.label('org_id')
-            ).join(
-                UserOrg, UserInfo.id == UserOrg.user_id
-            ).join(
-                OrgInfo, UserOrg.org_id == OrgInfo.id
-            ).filter(
-                UserOrg.org_id.in_(org_ids),
+            # 🎉 直接查询用户表的org_id字段，消除JOIN操作！
+            users = UserInfo.query.filter(
+                UserInfo.org_id.in_(org_ids),
                 UserInfo.is_deleted.is_(False),
-                UserOrg.is_deleted.is_(False),
-                OrgInfo.is_deleted.is_(False),
                 UserInfo.device_sn.isnot(None),
-                UserInfo.device_sn != ''
+                UserInfo.device_sn != '',
+                UserInfo.device_sn != '-'
             ).all()
             
-            # 构建用户列表并过滤admin用户
+            # 🎉 构建用户列表，直接使用用户表字段，无需额外查询！
             user_list = [{
                 'id': user.id,
                 'user_name': user.user_name,
                 'device_sn': user.device_sn,
-                'department_name': user.department_name or '未分配',
+                # 🚀 直接访问组织名称，无需JOIN！
+                'department_name': user.org_name or '未分配',
                 'org_id': user.org_id
-            } for user in users_query]
+            } for user in users]
             
             # 过滤掉管理员用户
             filtered_users = filter_non_admin_users(user_list, 'id')
@@ -1206,8 +1188,11 @@ def fetch_devices_by_orgIdAndUserId(orgId, userId):
         
         print(f"Found {len(devices)} devices in t_device_info")
         
-        # 获取customer_id用于状态判断
-        customer_id=fetch_customer_id_by_deviceSn(device_serial_numbers[0]) if device_serial_numbers else '0' #获取customer_id#
+        # 获取customer_id用于状态判断 - 优先使用传入的customerId
+        if customerId:
+            customer_id = customerId
+        else:
+            customer_id=fetch_customer_id_by_deviceSn(device_serial_numbers[0]) if device_serial_numbers else '0' #获取customer_id#
         
         # 转换为字典格式，关联用户信息，动态判断状态
         devices_data = []

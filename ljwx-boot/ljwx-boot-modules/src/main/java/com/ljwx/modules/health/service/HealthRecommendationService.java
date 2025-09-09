@@ -607,6 +607,13 @@ public class HealthRecommendationService {
         public List<String> getActions() { return actions; }
         public void setActions(List<String> actions) { this.actions = actions; }
         
+        public void addAction(String action) {
+            if (this.actions == null) {
+                this.actions = new ArrayList<>();
+            }
+            this.actions.add(action);
+        }
+        
         public String getTimeline() { return timeline; }
         public void setTimeline(String timeline) { this.timeline = timeline; }
         
@@ -749,9 +756,8 @@ public class HealthRecommendationService {
                 return;
             }
 
-            // 使用现有的方法生成建议
-            // 生成个性化建议 - 暂时使用空列表，待实现具体逻辑
-            List<HealthRecommendation> recommendations = new ArrayList<>();
+            // 基于实际体征数据生成个性化建议
+            List<HealthRecommendation> recommendations = generateVitalSignsBasedRecommendations(userId, customerId);
             
             // 保存建议到跟踪表
             saveRecommendationsToTrack(userId, customerId, recommendations);
@@ -956,6 +962,183 @@ public class HealthRecommendationService {
         } catch (Exception e) {
             log.error("❌ 计算改善评分失败: {}", e.getMessage(), e);
             return 0.0;
+        }
+    }
+
+    /**
+     * 基于实际体征数据生成健康建议
+     */
+    private List<HealthRecommendation> generateVitalSignsBasedRecommendations(Long userId, Long customerId) {
+        List<HealthRecommendation> recommendations = new ArrayList<>();
+        
+        try {
+            // 获取用户最近30天的健康基线数据
+            QueryWrapper<HealthBaseline> baselineQuery = new QueryWrapper<>();
+            baselineQuery.eq("user_id", userId)
+                        .eq("customer_id", customerId)
+                        .ge("baseline_date", LocalDate.now().minusDays(30))
+                        .orderByDesc("baseline_date");
+            
+            List<HealthBaseline> baselines = healthBaselineMapper.selectList(baselineQuery);
+            
+            if (baselines == null || baselines.isEmpty()) {
+                log.debug("🔍 用户 {} 无健康基线数据，跳过建议生成", userId);
+                return recommendations;
+            }
+            
+            // 按特征分组处理
+            Map<String, HealthBaseline> featureBaselines = baselines.stream()
+                .collect(Collectors.toMap(
+                    HealthBaseline::getFeatureName, 
+                    baseline -> baseline, 
+                    (existing, replacement) -> replacement // 保留最新的
+                ));
+            
+            // 基于各项体征数据生成具体建议
+            for (Map.Entry<String, HealthBaseline> entry : featureBaselines.entrySet()) {
+                String feature = entry.getKey();
+                HealthBaseline baseline = entry.getValue();
+                
+                HealthRecommendation recommendation = createFeatureBasedRecommendation(feature, baseline, userId);
+                if (recommendation != null) {
+                    recommendations.add(recommendation);
+                }
+            }
+            
+            log.debug("✅ 为用户 {} 生成了 {} 条基于体征的健康建议", userId, recommendations.size());
+            
+        } catch (Exception e) {
+            log.error("❌ 基于体征数据生成建议失败: {}", e.getMessage(), e);
+        }
+        
+        return recommendations;
+    }
+    
+    /**
+     * 基于特定健康特征创建建议
+     */
+    private HealthRecommendation createFeatureBasedRecommendation(String feature, HealthBaseline baseline, Long userId) {
+        try {
+            HealthRecommendation recommendation = new HealthRecommendation();
+            
+            switch (feature) {
+                case "heart_rate":
+                    recommendation.setType("cardiovascular_exercise");
+                    recommendation.setTitle("心率健康管理建议");
+                    recommendation.setDescription(String.format(
+                        "基于用户%s的心率监测数据，建议进行有氧运动来改善心率变异性和心血管健康", userId));
+                    recommendation.setPriority(Priority.MEDIUM);
+                    recommendation.addAction("每周进行3-4次中等强度有氧运动（如快走、游泳）");
+                    recommendation.addAction("监测运动时心率保持在目标心率区间");
+                    recommendation.addAction("避免过度激烈运动，循序渐进");
+                    recommendation.addAction("保证充足睡眠以维持心率稳定");
+                    break;
+                    
+                case "blood_oxygen":
+                    recommendation.setType("breathing_exercise");
+                    recommendation.setTitle("血氧水平优化建议");
+                    recommendation.setDescription(String.format(
+                        "根据用户%s的血氧饱和度数据，建议进行深呼吸练习和有氧运动来提升血氧水平", userId));
+                    recommendation.setPriority(Priority.HIGH);
+                    recommendation.addAction("每日进行10-15分钟深呼吸练习");
+                    recommendation.addAction("保持室内空气流通，避免污染环境");
+                    recommendation.addAction("进行规律的有氧运动提升心肺功能");
+                    recommendation.addAction("监测血氧水平变化趋势");
+                    break;
+                    
+                case "temperature":
+                    recommendation.setType("rest_recovery");
+                    recommendation.setTitle("体温调节建议");
+                    recommendation.setDescription(String.format(
+                        "基于用户%s的体温数据，建议注意休息恢复和环境温度调节", userId));
+                    recommendation.setPriority(Priority.LOW);
+                    recommendation.addAction("注意环境温度调节，避免过冷过热");
+                    recommendation.addAction("发热时及时休息和补充水分");
+                    recommendation.addAction("保持规律作息，避免过度疲劳");
+                    recommendation.addAction("监测体温变化，异常时及时就医");
+                    break;
+                    
+                case "pressure_high":
+                    recommendation.setType("hypertension_management");
+                    recommendation.setTitle("收缩压管理建议");
+                    recommendation.setDescription(String.format(
+                        "根据用户%s的收缩压数据，建议进行适度运动和放松训练来控制血压", userId));
+                    recommendation.setPriority(Priority.HIGH);
+                    recommendation.addAction("每日进行30分钟低强度运动（如散步）");
+                    recommendation.addAction("学习放松技巧，如深呼吸、冥想");
+                    recommendation.addAction("避免剧烈运动和情绪波动");
+                    recommendation.addAction("定期监测血压变化");
+                    break;
+                    
+                case "pressure_low":
+                    recommendation.setType("hypotension_care");
+                    recommendation.setTitle("舒张压优化建议");
+                    recommendation.setDescription(String.format(
+                        "基于用户%s的舒张压数据，建议进行规律运动来改善血液循环", userId));
+                    recommendation.setPriority(Priority.MEDIUM);
+                    recommendation.addAction("进行适度的力量训练和有氧运动");
+                    recommendation.addAction("保持良好的身体姿态，避免长时间静坐");
+                    recommendation.addAction("注意补充水分，维持血容量");
+                    recommendation.addAction("监测血压趋势，必要时咨询医生");
+                    break;
+                    
+                case "stress":
+                    recommendation.setType("stress_management");
+                    recommendation.setTitle("压力管理建议");
+                    recommendation.setDescription(String.format(
+                        "根据用户%s的压力指数数据，建议进行冥想、瑜伽等放松活动来缓解压力", userId));
+                    recommendation.setPriority(Priority.HIGH);
+                    recommendation.addAction("每日进行15-20分钟冥想或瑜伽练习");
+                    recommendation.addAction("保持规律的睡眠作息");
+                    recommendation.addAction("进行轻松的户外活动缓解压力");
+                    recommendation.addAction("学习时间管理和压力应对技巧");
+                    break;
+                    
+                case "step":
+                    recommendation.setType("daily_activity");
+                    recommendation.setTitle("步数活动建议");
+                    recommendation.setDescription(String.format(
+                        "基于用户%s的步数数据，建议增加日常走路活动量来提升整体活跃度", userId));
+                    recommendation.setPriority(Priority.MEDIUM);
+                    recommendation.addAction("设定每日步数目标，逐步增加至10000步");
+                    recommendation.addAction("利用楼梯代替电梯，增加日常活动");
+                    recommendation.addAction("安排定期的散步或徒步活动");
+                    recommendation.addAction("使用计步器或app记录活动进度");
+                    break;
+                    
+                case "calorie":
+                    recommendation.setType("metabolic_health");
+                    recommendation.setTitle("代谢健康建议");
+                    recommendation.setDescription(String.format(
+                        "根据用户%s的热量消耗数据，建议合理安排运动强度来优化代谢健康", userId));
+                    recommendation.setPriority(Priority.MEDIUM);
+                    recommendation.addAction("根据消耗目标调整运动强度和时间");
+                    recommendation.addAction("结合有氧运动和力量训练");
+                    recommendation.addAction("监测运动后的恢复情况");
+                    recommendation.addAction("保持运动与休息的平衡");
+                    break;
+                    
+                case "distance":
+                    recommendation.setType("endurance_training");
+                    recommendation.setTitle("运动距离建议");
+                    recommendation.setDescription(String.format(
+                        "基于用户%s的运动距离数据，建议逐步增加运动距离来提升耐力", userId));
+                    recommendation.setPriority(Priority.LOW);
+                    recommendation.addAction("制定渐进式的距离增加计划");
+                    recommendation.addAction("选择适合的运动类型（跑步、骑行、徒步）");
+                    recommendation.addAction("注意运动前后的热身和放松");
+                    recommendation.addAction("记录运动距离和感受，调整计划");
+                    break;
+                    
+                default:
+                    return null; // 不支持的特征，返回null
+            }
+            
+            return recommendation;
+            
+        } catch (Exception e) {
+            log.error("❌ 创建{}特征建议失败: {}", feature, e.getMessage(), e);
+            return null;
         }
     }
 }

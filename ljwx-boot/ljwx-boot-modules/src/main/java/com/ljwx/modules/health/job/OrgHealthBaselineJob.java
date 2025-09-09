@@ -111,7 +111,7 @@ public class OrgHealthBaselineJob implements Job {
             if (sysOrgUnitsService != null) {
                 // 使用组织服务获取活跃组织
                 return sysOrgUnitsService.list().stream()
-                    .filter(org -> org != null && !org.getIsDeleted())
+                    .filter(org -> org != null && (org.getIsDeleted() == null || org.getIsDeleted() == 0))
                     .map(org -> org.getId())
                     .toList();
             } else {

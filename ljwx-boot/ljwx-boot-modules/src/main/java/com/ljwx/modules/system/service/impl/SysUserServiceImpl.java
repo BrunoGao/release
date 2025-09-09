@@ -63,6 +63,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.ljwx.modules.system.domain.entity.SysOrg;
+import org.springframework.context.ApplicationContext;
+
 /**
  * 用户管理 Service 服务接口实现层
  *
@@ -1150,5 +1154,98 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 ));
         System.out.println("🔍 返回的用户名映射: " + result);
         return result;
+    }
+
+    @Override
+    public int updateOrgNameByOrgId(Long orgId, String newOrgName) {
+        log.info("🔄 开始更新组织{}的用户组织名称: {}", orgId, newOrgName);
+        
+        if (orgId == null || !StringUtils.hasText(newOrgName)) {
+            log.warn("⚠️ 组织ID或新组织名称为空，跳过更新");
+            return 0;
+        }
+        
+        try {
+            UpdateWrapper<SysUser> updateWrapper = new UpdateWrapper<>();
+            updateWrapper.eq("org_id", orgId)
+                        .set("org_name", newOrgName)
+                        .set("update_time", LocalDateTime.now());
+            
+            int updatedCount = baseMapper.update(null, updateWrapper);
+            log.info("✅ 组织{}的用户组织名称更新完成，更新用户数: {}", orgId, updatedCount);
+            
+            return updatedCount;
+        } catch (Exception e) {
+            log.error("❌ 更新组织用户名称失败: orgId={}, error={}", orgId, e.getMessage(), e);
+            throw new BizException("更新组织用户名称失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public int clearOrgInfoByOrgId(Long orgId) {
+        log.info("🗑️ 开始清理组织{}的用户关联信息", orgId);
+        
+        if (orgId == null) {
+            log.warn("⚠️ 组织ID为空，跳过清理");
+            return 0;
+        }
+        
+        try {
+            UpdateWrapper<SysUser> updateWrapper = new UpdateWrapper<>();
+            updateWrapper.eq("org_id", orgId)
+                        .set("org_id", null)
+                        .set("org_name", null)
+                        .set("update_time", LocalDateTime.now());
+            
+            int clearedCount = baseMapper.update(null, updateWrapper);
+            log.info("✅ 组织{}的用户关联清理完成，清理用户数: {}", orgId, clearedCount);
+            
+            return clearedCount;
+        } catch (Exception e) {
+            log.error("❌ 清理组织用户关联失败: orgId={}, error={}", orgId, e.getMessage(), e);
+            throw new BizException("清理组织用户关联失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public boolean saveOrUpdateUser(SysUser user) {
+        log.info("💾 开始保存/更新用户，自动设置组织信息: userId={}, orgId={}", 
+                user.getId(), user.getOrgId());
+        
+        try {
+            // 如果设置了组织ID，自动填充组织名称
+            if (user.getOrgId() != null) {
+                SysOrgUnits org = sysOrgUnitsService.getById(user.getOrgId());
+                if (org != null) {
+                    user.setOrgName(org.getName());
+                    log.debug("📋 自动设置组织名称: orgId={}, orgName={}", user.getOrgId(), org.getName());
+                } else {
+                    log.warn("⚠️ 未找到组织信息: orgId={}", user.getOrgId());
+                }
+            }
+            
+            // 设置更新时间
+            if (user.getId() != null) {
+                user.setUpdateTime(LocalDateTime.now());
+            } else {
+                user.setCreateTime(LocalDateTime.now());
+                user.setUpdateTime(LocalDateTime.now());
+            }
+            
+            boolean result = saveOrUpdate(user);
+            
+            if (result) {
+                log.info("✅ 用户保存/更新成功: userId={}, orgId={}, orgName={}", 
+                        user.getId(), user.getOrgId(), user.getOrgName());
+            } else {
+                log.error("❌ 用户保存/更新失败: userId={}", user.getId());
+            }
+            
+            return result;
+        } catch (Exception e) {
+            log.error("❌ 保存/更新用户失败: userId={}, error={}", user.getId(), e.getMessage(), e);
+            throw new BizException("保存/更新用户失败: " + e.getMessage());
+        }
     }
 }

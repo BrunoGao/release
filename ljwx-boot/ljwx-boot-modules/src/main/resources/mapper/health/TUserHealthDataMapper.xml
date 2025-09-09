@@ -38,10 +38,10 @@
                 AND device_sn = #{params.deviceSn}
             </if>
             <if test="params.startDate != null">
-                AND timestamp >= #{params.startDate}
+                AND timestamp &gt;= #{params.startDate}
             </if>
             <if test="params.endDate != null">
-                AND timestamp <= #{params.endDate}
+                AND timestamp &lt;= #{params.endDate}
             </if>
             <!-- 过滤特殊数据 -->
             AND upload_method != 'common_event'

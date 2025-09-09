@@ -71,7 +71,7 @@ def get_all_alert_data_optimized(orgId=None, userId=None, startDate=None, endDat
             result['performance'] = {'cached': True, 'response_time': round(time.time() - start_time, 3)}
             return result
         
-        # 构建查询条件
+        # 🚀 优化：构建查询条件，消除OrgInfo的JOIN操作
         query = db.session.query(
             AlertInfo.id,
             AlertInfo.alert_type,
@@ -88,11 +88,11 @@ def get_all_alert_data_optimized(orgId=None, userId=None, startDate=None, endDat
             AlertInfo.longitude,
             AlertInfo.altitude,
             UserInfo.user_name,
-            OrgInfo.name.label('org_name')
+            # 🎉 优化：直接从UserInfo获取组织名，无需JOIN OrgInfo！
+            UserInfo.org_name.label('org_name')
         ).outerjoin(
             UserInfo, AlertInfo.user_id == UserInfo.id
-        ).outerjoin(
-            OrgInfo, AlertInfo.org_id == OrgInfo.id
+            # 🎉 省去了OrgInfo的JOIN操作，减少一次表关联！
         )
         
         if userId:
@@ -739,12 +739,12 @@ def upload_alerts():
 
     return jsonify({'message': 'Alert uploaded successfully'}), 201
 
-def fetch_alerts_by_orgIdAndUserId(orgId=None, userId=None, severityLevel=None):
+def fetch_alerts_by_orgIdAndUserId(orgId=None, userId=None, severityLevel=None, customerId=None):
     """获取告警信息 - 使用AlertInfo表中的org_id和user_id字段"""
     try:
-        print(f"查询参数: orgId={orgId}, userId={userId}, severityLevel={severityLevel}")
+        print(f"查询参数: orgId={orgId}, userId={userId}, severityLevel={severityLevel}, customerId={customerId}")
         
-        # 构建基础查询
+        # 🚀 优化：构建基础查询，消除OrgInfo的JOIN操作
         query = db.session.query(
             AlertInfo.id,
             AlertInfo.alert_type,
@@ -761,11 +761,11 @@ def fetch_alerts_by_orgIdAndUserId(orgId=None, userId=None, severityLevel=None):
             AlertInfo.longitude,
             AlertInfo.altitude,
             UserInfo.user_name,
-            OrgInfo.name.label('org_name')
+            # 🎉 优化：直接从UserInfo获取组织名，无需JOIN OrgInfo！
+            UserInfo.org_name.label('org_name')
         ).outerjoin(
             UserInfo, AlertInfo.user_id == UserInfo.id
-        ).outerjoin(
-            OrgInfo, AlertInfo.org_id == OrgInfo.id
+            # 🎉 省去了OrgInfo的JOIN操作，减少一次表关联！
         )
         
         # 添加过滤条件
@@ -2201,6 +2201,374 @@ def fetch_alert_rules():
         redis.set('alert_rules', json.dumps(alert_rules_data))
     
     return jsonify({'success': True, 'alert_rules': alert_rules})
+
+
+# =============================================================================
+# upload_common_event 优化版本实现
+# =============================================================================
+
+import queue
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Any
+from cachetools import TTLCache
+import time
+
+class EventQueryOptimizer:
+    """查询优化器 - 缓存和批量查询"""
+    def __init__(self):
+        self.device_cache = TTLCache(maxsize=10000, ttl=300)  # 5分钟缓存
+        self.rule_cache = TTLCache(maxsize=1000, ttl=600)   # 10分钟缓存
+        self.cache_lock = threading.RLock()
+        
+    def get_device_info_cached(self, device_sn):
+        """缓存设备信息查询"""
+        with self.cache_lock:
+            cache_key = f"device:{device_sn}"
+            if cache_key in self.device_cache:
+                return self.device_cache[cache_key]
+        
+        # 查询数据库
+        try:
+            result = db.session.query(
+                DeviceInfo.device_sn,
+                DeviceInfo.user_id,
+                DeviceInfo.org_id,
+                DeviceInfo.customer_id,
+                UserInfo.user_name,
+                UserInfo.org_name
+            ).join(
+                UserInfo, DeviceInfo.user_id == UserInfo.id
+            ).filter(
+                DeviceInfo.device_sn == device_sn
+            ).first()
+            
+            if result:
+                device_info = {
+                    'success': True,
+                    'device_sn': result.device_sn,
+                    'user_id': result.user_id,
+                    'org_id': result.org_id,
+                    'customer_id': result.customer_id,
+                    'user_name': result.user_name,
+                    'org_name': result.org_name
+                }
+                
+                # 更新缓存
+                with self.cache_lock:
+                    self.device_cache[cache_key] = device_info
+                
+                return device_info
+            else:
+                return {'success': False, 'message': '设备未找到'}
+                
+        except Exception as e:
+            logger.error(f"查询设备信息失败: {e}")
+            return {'success': False, 'message': '查询失败'}
+    
+    def get_alert_rule_cached(self, rule_type):
+        """缓存告警规则查询"""
+        with self.cache_lock:
+            cache_key = f"rule:{rule_type}"
+            if cache_key in self.rule_cache:
+                return self.rule_cache[cache_key]
+        
+        # 查询数据库
+        try:
+            rule = AlertRules.query.filter_by(rule_type=rule_type, is_deleted=False).first()
+            
+            # 更新缓存
+            with self.cache_lock:
+                self.rule_cache[cache_key] = rule
+            
+            return rule
+            
+        except Exception as e:
+            logger.error(f"查询告警规则失败: {e}")
+            return None
+
+# 全局优化器实例
+query_optimizer = EventQueryOptimizer()
+
+class OptimizedEventProcessor:
+    """优化的事件处理器"""
+    def __init__(self):
+        self.event_queue = queue.Queue(maxsize=5000)
+        self.batch_size = 50
+        self.max_wait_time = 2.0
+        self.workers = 4
+        self.executor = ThreadPoolExecutor(max_workers=self.workers)
+        self.running = False
+        
+        # 性能统计
+        self.stats = {
+            'total_processed': 0,
+            'total_failed': 0,
+            'avg_processing_time': 0.0,
+            'queue_size': 0
+        }
+        
+    def start(self):
+        """启动处理器"""
+        self.running = True
+        for i in range(self.workers):
+            self.executor.submit(self._worker_loop)
+    
+    def stop(self):
+        """停止处理器"""
+        self.running = False
+        self.executor.shutdown(wait=True)
+    
+    def submit_event(self, event_data):
+        """提交事件到队列"""
+        try:
+            self.event_queue.put_nowait(event_data)
+            return True
+        except queue.Full:
+            return False
+    
+    def _worker_loop(self):
+        """工作线程主循环"""
+        batch = []
+        last_process_time = time.time()
+        
+        while self.running:
+            try:
+                # 收集批次
+                while len(batch) < self.batch_size and (time.time() - last_process_time) < self.max_wait_time:
+                    try:
+                        event = self.event_queue.get(timeout=0.5)
+                        batch.append(event)
+                    except queue.Empty:
+                        break
+                
+                # 处理批次
+                if batch:
+                    self._process_batch(batch)
+                    batch.clear()
+                    last_process_time = time.time()
+                    
+            except Exception as e:
+                logger.error(f"工作线程异常: {e}")
+                batch.clear()
+    
+    def _process_batch(self, events):
+        """批量处理事件"""
+        start_time = time.time()
+        processed_count = 0
+        failed_count = 0
+        
+        try:
+            # 批量数据库操作
+            alerts_to_insert = []
+            health_data_to_process = []
+            websocket_pushes = []
+            
+            for event_data in events:
+                try:
+                    data = event_data['data']
+                    
+                    # 提取事件信息
+                    event_type = data.get('eventType', '').split('.')[-1]
+                    device_sn = data.get('deviceSn', '')
+                    
+                    # 获取缓存的设备信息
+                    device_info = query_optimizer.get_device_info_cached(device_sn)
+                    if not device_info.get('success'):
+                        logger.warning(f"设备信息获取失败: {device_sn}")
+                        failed_count += 1
+                        continue
+                    
+                    # 获取缓存的告警规则
+                    rule = query_optimizer.get_alert_rule_cached(event_type)
+                    if not rule:
+                        logger.warning(f"告警规则未找到: {event_type}")
+                        failed_count += 1
+                        continue
+                    
+                    # 准备告警数据
+                    alert_data = {
+                        'rule_id': rule.id,
+                        'alert_type': event_type,
+                        'device_sn': device_sn,
+                        'alert_desc': f"{rule.alert_message}(事件值:{data.get('eventValue', '')})",
+                        'severity_level': rule.severity_level,
+                        'latitude': data.get('latitude', 22.54036796),
+                        'longitude': data.get('longitude', 114.01508952),
+                        'altitude': data.get('altitude', 0),
+                        'customer_id': device_info['customer_id'],
+                        'org_id': device_info['org_id'],
+                        'user_id': device_info['user_id'],
+                        'alert_timestamp': data.get('timestamp', get_now().strftime('%Y-%m-%d %H:%M:%S'))
+                    }
+                    
+                    alerts_to_insert.append(alert_data)
+                    
+                    # 收集健康数据
+                    if data.get('healthData'):
+                        health_data_to_process.append({
+                            'health_data': data['healthData'],
+                            'user_id': device_info['user_id'],
+                            'device_sn': device_sn
+                        })
+                    
+                    # 收集需要WebSocket推送的Critical告警
+                    if rule.severity_level == 'critical':
+                        websocket_pushes.append({
+                            'event_type': event_type,
+                            'device_sn': device_sn,
+                            'alert_desc': alert_data['alert_desc'],
+                            'severity_level': 'critical',
+                            'alert_timestamp': alert_data['alert_timestamp'],
+                            'user_name': device_info['user_name'],
+                            'org_name': device_info['org_name'],
+                            'latitude': alert_data['latitude'],
+                            'longitude': alert_data['longitude']
+                        })
+                    
+                    processed_count += 1
+                    
+                except Exception as e:
+                    logger.error(f"处理单个事件失败: {e}")
+                    failed_count += 1
+            
+            # 批量插入告警
+            if alerts_to_insert:
+                try:
+                    db.session.bulk_insert_mappings(AlertInfo, alerts_to_insert)
+                    db.session.commit()
+                    logger.info(f"批量插入告警成功: {len(alerts_to_insert)}条")
+                except Exception as e:
+                    db.session.rollback()
+                    logger.error(f"批量插入告警失败: {e}")
+                    failed_count += len(alerts_to_insert)
+                    processed_count -= len(alerts_to_insert)
+            
+            # 批量处理健康数据
+            if health_data_to_process:
+                self._process_health_data_batch(health_data_to_process)
+            
+            # 批量WebSocket推送
+            if websocket_pushes:
+                self._batch_websocket_push(websocket_pushes)
+            
+        except Exception as e:
+            logger.error(f"批量处理异常: {e}")
+            db.session.rollback()
+        
+        # 更新统计信息
+        processing_time = time.time() - start_time
+        self.stats['total_processed'] += processed_count
+        self.stats['total_failed'] += failed_count
+        self.stats['avg_processing_time'] = (
+            self.stats['avg_processing_time'] * 0.9 + processing_time * 0.1
+        )
+        self.stats['queue_size'] = self.event_queue.qsize()
+        
+        logger.info(f"批量处理完成: 成功{processed_count}条, 失败{failed_count}条, 耗时{processing_time:.3f}s")
+    
+    def _process_health_data_batch(self, health_data_list):
+        """批量处理健康数据"""
+        try:
+            from .user_health_data import process_single_health_data
+            
+            for item in health_data_list:
+                health_data = item['health_data']
+                if isinstance(health_data, dict):
+                    actual_data = health_data.get('data', health_data)
+                    process_single_health_data(actual_data)
+                    
+        except Exception as e:
+            logger.error(f"批量处理健康数据失败: {e}")
+    
+    def _batch_websocket_push(self, push_data_list):
+        """批量WebSocket推送"""
+        try:
+            from .bigScreen import socketio
+            
+            for data in push_data_list:
+                socketio.emit('critical_alert', data, namespace='/')
+            
+            logger.info(f"批量WebSocket推送完成: {len(push_data_list)}条")
+            
+        except Exception as e:
+            logger.error(f"批量WebSocket推送失败: {e}")
+
+# 全局处理器实例
+event_processor = OptimizedEventProcessor()
+
+def upload_common_event_v3():
+    """优化版本3 - 异步队列处理 + 缓存优化"""
+    try:
+        start_time = time.time()
+        data = request.json
+        
+        # 快速数据验证
+        if not data or not isinstance(data, dict):
+            return jsonify({"status": "error", "message": "无效的数据格式"}), 400
+        
+        if not data.get('deviceSn') or not data.get('eventType'):
+            return jsonify({"status": "error", "message": "缺少必要参数"}), 400
+        
+        # 生成事件ID
+        event_id = f"evt_{int(time.time()*1000)}_{threading.get_ident()}"
+        
+        # 构造事件数据
+        event_data = {
+            'event_id': event_id,
+            'data': data,
+            'timestamp': time.time(),
+            'source_ip': request.remote_addr
+        }
+        
+        # 提交到队列
+        if not event_processor.submit_event(event_data):
+            return jsonify({
+                "status": "error", 
+                "message": "系统繁忙，请稍后重试"
+            }), 503
+        
+        # 立即返回成功
+        processing_time = round((time.time() - start_time) * 1000, 2)
+        
+        return jsonify({
+            "status": "success",
+            "message": "事件已接收，正在异步处理",
+            "event_id": event_id,
+            "device_sn": data.get('deviceSn'),
+            "event_type": data.get('eventType', '').split('.')[-1],
+            "processing_time_ms": processing_time,
+            "queue_size": event_processor.stats['queue_size']
+        })
+        
+    except Exception as e:
+        logger.error(f"接收事件失败: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"事件接收失败: {str(e)}"
+        }), 500
+
+def get_event_processor_stats():
+    """获取事件处理器统计信息"""
+    try:
+        stats = event_processor.stats.copy()
+        stats['cache_stats'] = {
+            'device_cache_size': len(query_optimizer.device_cache),
+            'rule_cache_size': len(query_optimizer.rule_cache),
+            'device_cache_hits': getattr(query_optimizer.device_cache, 'hits', 0),
+            'rule_cache_hits': getattr(query_optimizer.rule_cache, 'hits', 0)
+        }
+        
+        return jsonify({
+            "status": "success",
+            "stats": stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"获取统计失败: {str(e)}"
+        }), 500
 
 def generate_alerts(data, health_data_id):
     try:

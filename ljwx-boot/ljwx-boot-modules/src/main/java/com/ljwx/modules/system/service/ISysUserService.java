@@ -272,4 +272,35 @@ public interface ISysUserService extends IService<SysUser> {
      * @CreateTime 2025-01-25
      */
     Map<Long, String> getUserNamesMapByIds(List<Long> userIds);
+
+    /**
+     * 根据组织ID更新用户组织名称（组织名称变更时同步）
+     *
+     * @param orgId 组织ID
+     * @param newOrgName 新组织名称
+     * @return 更新的用户数量
+     * @author bruno.gao
+     * @CreateTime 2025-01-26
+     */
+    int updateOrgNameByOrgId(Long orgId, String newOrgName);
+
+    /**
+     * 清理指定组织的用户关联信息（组织删除时清理）
+     *
+     * @param orgId 组织ID
+     * @return 清理的用户数量
+     * @author bruno.gao
+     * @CreateTime 2025-01-26
+     */
+    int clearOrgInfoByOrgId(Long orgId);
+
+    /**
+     * 保存或更新用户时自动设置组织信息
+     *
+     * @param user 用户对象
+     * @return 保存结果
+     * @author bruno.gao
+     * @CreateTime 2025-01-26
+     */
+    boolean saveOrUpdateUser(SysUser user);
 }

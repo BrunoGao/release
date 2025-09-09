@@ -31,6 +31,9 @@ public class LicenseManager {
     @Autowired
     private LicenseValidator licenseValidator;
     
+    @Autowired(required = false)
+    private org.springframework.context.ApplicationContext applicationContext;
+    
     @Value("${ljwx.license.file-path:./license/ljwx.lic}")
     private String licenseFilePath;
     
@@ -48,6 +51,13 @@ public class LicenseManager {
         log.info("🔐 初始化LJWX许可证系统...");
         
         try {
+            // 0. 检查是否启用许可证功能
+            if (!isLicenseSupportEnabled()) {
+                log.info("⚙️ 许可证功能已禁用 - 系统将跳过许可证验证");
+                licenseValid = true; // 禁用许可证时默认为有效
+                return;
+            }
+            
             // 1. 加载许可证文件
             loadLicenseFile();
             
@@ -293,6 +303,54 @@ public class LicenseManager {
             log.debug("记录功能使用: {}", feature);
         } catch (Exception e) {
             log.error("记录功能使用失败: " + feature, e);
+        }
+    }
+    
+    /**
+     * 检查许可证支持是否启用
+     * 通过ApplicationContext获取SysConfigService来检查数据库配置
+     * 
+     * @return 是否启用许可证验证
+     */
+    private boolean isLicenseSupportEnabled() {
+        try {
+            if (applicationContext == null) {
+                log.debug("ApplicationContext未注入，默认启用许可证验证");
+                return true; // 如果没有应用上下文，默认启用许可证验证
+            }
+            
+            // 尝试获取SysConfigService bean
+            Object sysConfigService = null;
+            try {
+                // 首先尝试根据类型获取
+                sysConfigService = applicationContext.getBean("sysConfigServiceImpl");
+            } catch (Exception e1) {
+                try {
+                    // 如果失败，尝试通过接口类型获取
+                    Class<?> serviceClass = Class.forName("com.ljwx.modules.system.service.ISysConfigService");
+                    sysConfigService = applicationContext.getBean(serviceClass);
+                } catch (Exception e2) {
+                    log.debug("无法找到SysConfigService，默认启用许可证验证");
+                    return true; // 默认启用许可证验证
+                }
+            }
+            
+            if (sysConfigService == null) {
+                log.debug("SysConfigService为null，默认启用许可证验证");
+                return true;
+            }
+            
+            // 通过反射调用isLicenseSupportEnabled方法
+            java.lang.reflect.Method method = sysConfigService.getClass()
+                .getMethod("isLicenseSupportEnabled");
+            Boolean result = (Boolean) method.invoke(sysConfigService);
+            
+            log.debug("从数据库配置获取许可证支持状态: {}", result);
+            return result != null ? result : true; // 默认启用
+            
+        } catch (Exception e) {
+            log.debug("检查许可证配置失败: {}，默认启用许可证验证", e.getMessage());
+            return true; // 出现异常时默认启用许可证验证
         }
     }
     

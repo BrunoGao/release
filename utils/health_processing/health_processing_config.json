@@ -1,0 +1,64 @@
+{
+  "ljwx_boot": {
+    "base_url": "http://localhost:9998",
+    "auth_url": "http://192.168.1.83:3333/proxy-default/auth/user_name",
+    "username": "admin",
+    "password": "80a3d119ee1501354755dfc3c4638d74c67c801689efbed4f25f06cb4b1cd776",
+    "token": null,
+    "timeout": 30,
+    "api_version": "v1"
+  },
+  "personal_processing": {
+    "enabled": true,
+    "generate_baseline": true,
+    "generate_score": true,
+    "generate_prediction": true,
+    "generate_recommendation": true,
+    "generate_profile": true,
+    "baseline_days": 30,
+    "score_days": 30,
+    "prediction_days": 30,
+    "profile_days": 90,
+    "user_days": 30,
+    "max_workers": 5,
+    "batch_size": 50,
+    "retry_attempts": 3,
+    "retry_delay": 5
+  },
+  "department_processing": {
+    "enabled": true,
+    "generate_baseline": true,
+    "generate_score": true,
+    "generate_prediction": true,
+    "generate_recommendation": true,
+    "generate_profile": true,
+    "baseline_days": 90,
+    "score_days": 30,
+    "prediction_days": 30,
+    "profile_days": 180,
+    "org_days": 30,
+    "max_workers": 3,
+    "min_users_per_org": 2,
+    "retry_attempts": 3,
+    "retry_delay": 5
+  },
+  "output": {
+    "save_results": true,
+    "output_dir": "./results",
+    "generate_report": true,
+    "compress_results": false,
+    "keep_raw_data": true
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(levelname)s - %(message)s",
+    "max_log_size_mb": 100,
+    "backup_count": 5
+  },
+  "performance": {
+    "request_timeout": 30,
+    "connection_pool_size": 10,
+    "max_retries": 3,
+    "backoff_factor": 0.3
+  }
+}

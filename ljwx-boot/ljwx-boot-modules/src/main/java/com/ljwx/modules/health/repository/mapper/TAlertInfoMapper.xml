@@ -68,7 +68,7 @@
         alert_status, assigned_user, assigned_user_id, health_id, user_id, org_id, customer_id, level, occur_at
     </sql>
 
-    <!-- 查询告警信息并关联用户名 -->
+    <!-- 查询告警信息并关联用户名 - 优化版本，利用sys_user的org_id和org_name字段 -->
     <select id="listAlertInfoWithUserName" resultMap="TAlertInfoResultMap">
         SELECT
             a.id,
@@ -94,7 +94,9 @@
             a.update_user,
             a.update_user_id,
             a.update_time,
-            u.user_name
+            u.user_name,
+            u.org_name as user_org_name,
+            u.real_name as user_real_name
         FROM
             t_alert_info a
         LEFT JOIN sys_user u ON a.user_id = u.id
@@ -115,6 +117,60 @@
             AND a.alert_status = #{bo.alertStatus}
         </if>
         ORDER BY a.alert_timestamp DESC
+    </select>
+
+    <!-- 高性能组织级告警查询 - 利用sys_user优化 -->
+    <select id="listAlertInfoByOrgOptimized" resultMap="TAlertInfoResultMap">
+        SELECT
+            a.*,
+            u.user_name,
+            u.org_name as user_org_name,
+            u.real_name as user_real_name
+        FROM
+            t_alert_info a
+        INNER JOIN sys_user u ON a.user_id = u.id
+        WHERE a.is_deleted = 0
+            AND u.org_id = #{orgId}
+        <if test="customerId != null and customerId != 0">
+            AND a.customer_id = #{customerId}
+        </if>
+        <if test="alertType != null and alertType != ''">
+            AND a.alert_type = #{alertType}
+        </if>
+        <if test="alertStatus != null and alertStatus != ''">
+            AND a.alert_status = #{alertStatus}
+        </if>
+        ORDER BY a.alert_timestamp DESC
+    </select>
+
+    <!-- 用户告警统计查询 - 利用sys_user优化避免多表JOIN -->
+    <select id="getAlertStatsByUser" resultType="java.util.Map">
+        SELECT
+            a.user_id,
+            u.user_name,
+            u.org_name,
+            u.org_id,
+            COUNT(*) as alert_count,
+            COUNT(CASE WHEN a.severity_level = 'HIGH' THEN 1 END) as high_severity_count,
+            COUNT(CASE WHEN a.alert_status = 'UNRESOLVED' THEN 1 END) as unresolved_count
+        FROM
+            t_alert_info a
+        INNER JOIN sys_user u ON a.user_id = u.id
+        WHERE a.is_deleted = 0
+        <if test="orgId != null">
+            AND u.org_id = #{orgId}
+        </if>
+        <if test="customerId != null">
+            AND a.customer_id = #{customerId}
+        </if>
+        <if test="startTime != null">
+            AND a.alert_timestamp &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND a.alert_timestamp &lt;= #{endTime}
+        </if>
+        GROUP BY a.user_id, u.user_name, u.org_name, u.org_id
+        ORDER BY alert_count DESC
     </select>
 
 </mapper>

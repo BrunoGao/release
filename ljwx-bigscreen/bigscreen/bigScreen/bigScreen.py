@@ -613,40 +613,93 @@ def fetch_users_stats():
 @app.route("/upload_device_info", methods=['POST'])
 @log_api_request('/upload_device_info','POST')
 def handle_device_info():
+    """优化版设备信息上传接口 - 使用异步处理器"""
     device_info = request.get_json()
-    print(f"📱 /upload_device_info 接口收到请求")
-    print(f"📱 请求头: {dict(request.headers)}")
-    print(f"📱 请求体大小: {len(str(device_info)) if device_info else 0} 字符")
-    print(f"📱 原始JSON数据: {json.dumps(device_info, ensure_ascii=False, indent=2) if device_info else 'None'}")
     
+    # 快速参数验证
     if not device_info:
-        print(f"❌ 请求体为空")
         return jsonify({"status": "error", "message": "请求体不能为空"}), 400
     
-    # 检查是否为列表（批量上传）还是单个对象
+    # 提取设备标识用于日志
     if isinstance(device_info, list):
-        print(f"📱 检测到批量设备信息上传，设备数量: {len(device_info)}")
         device_count = len(device_info)
-        
-        # 提取第一个设备的SN用于日志记录
         first_device_sn = "unknown"
         if device_count > 0 and isinstance(device_info[0], dict):
-            first_device_sn = device_info[0].get('SerialNumber') or device_info[0].get('serial_number') or device_info[0].get('deviceSn') or "unknown"
+            first_device_sn = (device_info[0].get('SerialNumber') or 
+                              device_info[0].get('serial_number') or 
+                              device_info[0].get('deviceSn') or "unknown")
         
-        print(f"📱 批量上传首个设备SN: {first_device_sn}")
         device_logger.info('批量设备信息上传',extra={'device_sn':first_device_sn,'data_count':device_count})
+        print(f"📱 批量设备上传: {device_count}台, 首个设备: {first_device_sn}")
     else:
-        print(f"📱 检测到单个设备信息上传")
-        device_sn = device_info.get('SerialNumber') or device_info.get('serial_number') or device_info.get('deviceSn') or "unknown"
-        print(f"📱 提取的设备SN: {device_sn}")
+        device_sn = (device_info.get('SerialNumber') or 
+                    device_info.get('serial_number') or 
+                    device_info.get('deviceSn') or "unknown")
         device_logger.info('设备信息上传',extra={'device_sn':device_sn,'data_count':1})
+        print(f"📱 单设备上传: {device_sn}")
     
-    # 传递Flask应用上下文给批量处理器
-    from flask import current_app
-    print(f"📱 调用upload_device_info处理函数")
-    result = upload_device_info(device_info, current_app._get_current_object())
-    print(f"📱 upload_device_info处理结果: {result.get_json() if hasattr(result, 'get_json') else result}")
-    return result
+    try:
+        # 使用优化的异步处理器
+        from .optimized_device_processor import get_optimized_device_processor
+        from flask import current_app
+        
+        processor = get_optimized_device_processor(current_app._get_current_object())
+        
+        # 快速提交到异步队列
+        import asyncio
+        
+        # 检查是否有运行的事件循环
+        try:
+            loop = asyncio.get_running_loop()
+            # 如果有运行的循环，创建任务
+            task = loop.create_task(processor.submit_fast(device_info))
+            # 注意：这里不等待任务完成，立即返回响应
+            success = True
+        except RuntimeError:
+            # 没有运行的事件循环，使用同步方式
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                success = loop.run_until_complete(processor.submit_fast(device_info))
+                loop.close()
+            except Exception as e:
+                print(f"❌ 异步处理器提交失败: {e}")
+                success = False
+        
+        if success:
+            return jsonify({
+                "status": "success", 
+                "message": "设备信息已接收，正在异步处理"
+            })
+        else:
+            # 降级到原有处理方式
+            print(f"📱 降级到原有处理方式")
+            result = upload_device_info(device_info, current_app._get_current_object())
+            return result
+            
+    except Exception as e:
+        print(f"❌ 优化处理器异常: {e}")
+        # 降级到原有处理方式
+        try:
+            from flask import current_app
+            result = upload_device_info(device_info, current_app._get_current_object())
+            return result
+        except Exception as fallback_error:
+            print(f"❌ 降级处理也失败: {fallback_error}")
+            return jsonify({"status": "error", "message": "设备信息处理失败"}), 500
+
+@app.route("/api/device_processor/stats", methods=['GET'])
+def get_device_processor_stats():
+    """获取优化设备处理器性能统计"""
+    try:
+        from .optimized_device_processor import get_device_processor_stats
+        stats = get_device_processor_stats()
+        if stats:
+            return jsonify({"success": True, "data": stats})
+        else:
+            return jsonify({"success": False, "message": "设备处理器未初始化"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 # =============================================================================
 # 健康数据管理接口 (Health Data Management APIs)
@@ -905,6 +958,18 @@ def check_license():
 @log_api_request('/upload_common_event','POST')
 def upload_common_event():
     return alert_upload_common_event()
+
+# 优化版本接口
+@app.route('/upload_common_event_v3', methods=['POST'])
+@log_api_request('/upload_common_event_v3','POST')
+def upload_common_event_v3():
+    from .alert import upload_common_event_v3
+    return upload_common_event_v3()
+
+@app.route('/api/event_processor_stats', methods=['GET'])
+def event_processor_stats():
+    from .alert import get_event_processor_stats
+    return get_event_processor_stats()
 
 @app.route("/upload_watch_log", methods=['POST'])
 def upload_watch_log():
@@ -1332,14 +1397,16 @@ def get_health_stats():
     return jsonify(fetch_health_stats_by_dimension(org_id, user_id, dimension))
 
 @app.route('/get_devices_by_orgIdAndUserId', methods=['GET'])
-def get_devices_by_orgIdAndUserId(orgId=None, userId=None):
+def get_devices_by_orgIdAndUserId(orgId=None, userId=None, customerId=None):
     if orgId is None:
         orgId = request.args.get('orgId')
     if userId is None:
         userId = request.args.get('userId')
-    return fetch_devices_by_orgIdAndUserId(orgId, userId)
+    if customerId is None:
+        customerId = request.args.get('customerId')
+    return fetch_devices_by_orgIdAndUserId(orgId, userId, customerId)
 @app.route('/get_alerts_by_orgIdAndUserId', methods=['GET'])
-def get_alerts_by_orgIdAndUserId(orgId=None, userId=None, severityLevel=None):
+def get_alerts_by_orgIdAndUserId(orgId=None, userId=None, severityLevel=None, customerId=None):
     try:
         # Only try to get from request.args if we're in a request context
         if request and hasattr(request, 'args'):
@@ -1349,27 +1416,33 @@ def get_alerts_by_orgIdAndUserId(orgId=None, userId=None, severityLevel=None):
                 userId = request.args.get('userId')
             if severityLevel is None:
                 severityLevel = request.args.get('severityLevel')
-        return alert_fetch_alerts_by_orgIdAndUserId(orgId, userId, severityLevel)
+            if customerId is None:
+                customerId = request.args.get('customerId')
+        return alert_fetch_alerts_by_orgIdAndUserId(orgId, userId, severityLevel, customerId)
     except RuntimeError as e:
         # If we're outside a request context, just use the provided parameters
         return alert_fetch_alerts_by_orgIdAndUserId(orgId, userId, severityLevel)
 
 @app.route('/get_messages_by_orgIdAndUserId', methods=['GET'])
-def get_messages_by_orgIdAndUserId(orgId=None, userId=None,messageType=None):
+def get_messages_by_orgIdAndUserId(orgId=None, userId=None, messageType=None, customerId=None):
     if orgId is None:
         orgId = request.args.get('orgId')
     if userId is None:
         userId = request.args.get('userId')
     if messageType is None:
         messageType = request.args.get('messageType')
-    return message_fetch_messages_by_orgIdAndUserId(orgId, userId,messageType)
+    if customerId is None:
+        customerId = request.args.get('customerId')
+    return message_fetch_messages_by_orgIdAndUserId(orgId, userId, messageType, customerId)
 @app.route('/get_health_data_by_orgIdAndUserId', methods=['GET'])
-def get_health_data_by_orgIdAndUserId(orgId=None, userId=None):
+def get_health_data_by_orgIdAndUserId(orgId=None, userId=None, customerId=None):
     if orgId is None:
         orgId = request.args.get('orgId')
     if userId is None:
         userId = request.args.get('userId')
-    return fetch_health_data_by_orgIdAndUserId(orgId, userId)
+    if customerId is None:
+        customerId = request.args.get('customerId')
+    return fetch_health_data_by_orgIdAndUserId(orgId, userId, customerId)
 @app.route('/get_health_data_by_date', methods=['GET'])
 def get_health_data_by_date(date=None,orgId=None,userId=None):
     if date is None:

@@ -55,4 +55,161 @@
         heart_rate, pressure_high, pressure_low, blood_oxygen, temperature, step, `timestamp`, latitude, longitude, altitude, device_sn, distance, calorie, stress, is_deleted, create_user, create_user_id, create_time, update_user, update_user_id, update_time
     </sql>
 
+    <!-- 高性能组织健康数据查询 - 利用sys_user的org_id优化 -->
+    <select id="listHealthDataByOrgOptimized" resultMap="TUserHealthDataResultMap">
+        SELECT
+            h.*,
+            u.user_name,
+            u.org_name as user_org_name,
+            u.real_name as user_real_name
+        FROM
+            t_user_health_data h
+        INNER JOIN sys_user u ON h.user_id = u.id
+        WHERE h.is_deleted = 0
+            AND u.org_id = #{orgId}
+        <if test="customerId != null">
+            AND h.customer_id = #{customerId}
+        </if>
+        <if test="deviceSn != null and deviceSn != ''">
+            AND h.device_sn = #{deviceSn}
+        </if>
+        <if test="startTime != null">
+            AND h.timestamp &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND h.timestamp &lt;= #{endTime}
+        </if>
+        ORDER BY h.timestamp DESC
+        <if test="limit != null and limit &gt; 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <!-- 组织健康数据统计 - 避免复杂JOIN查询 -->
+    <select id="getHealthStatsByOrg" resultType="java.util.Map">
+        SELECT
+            u.org_id,
+            u.org_name,
+            COUNT(h.id) as data_count,
+            COUNT(DISTINCT h.user_id) as user_count,
+            COUNT(DISTINCT h.device_sn) as device_count,
+            AVG(h.heart_rate) as avg_heart_rate,
+            AVG(h.blood_oxygen) as avg_blood_oxygen,
+            AVG(h.temperature) as avg_temperature,
+            AVG(h.pressure_high) as avg_pressure_high,
+            AVG(h.pressure_low) as avg_pressure_low,
+            SUM(h.step) as total_steps,
+            SUM(h.calorie) as total_calories
+        FROM
+            t_user_health_data h
+        INNER JOIN sys_user u ON h.user_id = u.id
+        WHERE h.is_deleted = 0
+        <if test="orgIds != null and orgIds.size() &gt; 0">
+            AND u.org_id IN
+            <foreach item="orgId" collection="orgIds" open="(" separator="," close=")">
+                #{orgId}
+            </foreach>
+        </if>
+        <if test="customerId != null">
+            AND h.customer_id = #{customerId}
+        </if>
+        <if test="startTime != null">
+            AND h.timestamp &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND h.timestamp &lt;= #{endTime}
+        </if>
+        GROUP BY u.org_id, u.org_name
+        ORDER BY data_count DESC
+    </select>
+
+    <!-- 用户健康趋势分析 - 优化版本 -->
+    <select id="getUserHealthTrends" resultType="java.util.Map">
+        SELECT
+            h.user_id,
+            u.user_name,
+            u.org_name,
+            u.org_id,
+            DATE(h.timestamp) as health_date,
+            AVG(h.heart_rate) as avg_heart_rate,
+            AVG(h.blood_oxygen) as avg_blood_oxygen,
+            AVG(h.temperature) as avg_temperature,
+            MAX(h.pressure_high) as max_pressure_high,
+            MIN(h.pressure_low) as min_pressure_low,
+            SUM(h.step) as daily_steps,
+            SUM(h.calorie) as daily_calories,
+            COUNT(*) as record_count
+        FROM
+            t_user_health_data h
+        INNER JOIN sys_user u ON h.user_id = u.id
+        WHERE h.is_deleted = 0
+        <if test="userId != null">
+            AND h.user_id = #{userId}
+        </if>
+        <if test="orgId != null">
+            AND u.org_id = #{orgId}
+        </if>
+        <if test="customerId != null">
+            AND h.customer_id = #{customerId}
+        </if>
+        <if test="startTime != null">
+            AND h.timestamp &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND h.timestamp &lt;= #{endTime}
+        </if>
+        GROUP BY h.user_id, u.user_name, u.org_name, u.org_id, DATE(h.timestamp)
+        ORDER BY health_date DESC, h.user_id
+    </select>
+
+    <!-- 异常健康数据检测 - 利用sys_user优化 -->
+    <select id="getAbnormalHealthData" resultType="java.util.Map">
+        SELECT
+            h.id,
+            h.user_id,
+            u.user_name,
+            u.org_name,
+            u.org_id,
+            h.device_sn,
+            h.timestamp,
+            h.heart_rate,
+            h.blood_oxygen,
+            h.temperature,
+            h.pressure_high,
+            h.pressure_low,
+            CASE
+                WHEN h.heart_rate &gt; 120 OR h.heart_rate &lt; 50 THEN 'HEART_RATE_ABNORMAL'
+                WHEN h.blood_oxygen &lt; 90 THEN 'LOW_BLOOD_OXYGEN'
+                WHEN h.temperature &gt; 37.5 OR h.temperature &lt; 35.0 THEN 'TEMPERATURE_ABNORMAL'
+                WHEN h.pressure_high &gt; 160 OR h.pressure_low &gt; 100 THEN 'HIGH_BLOOD_PRESSURE'
+                ELSE 'OTHER'
+            END as abnormal_type
+        FROM
+            t_user_health_data h
+        INNER JOIN sys_user u ON h.user_id = u.id
+        WHERE h.is_deleted = 0
+        AND (
+            h.heart_rate &gt; 120 OR h.heart_rate &lt; 50
+            OR h.blood_oxygen &lt; 90
+            OR h.temperature &gt; 37.5 OR h.temperature &lt; 35.0
+            OR h.pressure_high &gt; 160 OR h.pressure_low &gt; 100
+        )
+        <if test="orgId != null">
+            AND u.org_id = #{orgId}
+        </if>
+        <if test="customerId != null">
+            AND h.customer_id = #{customerId}
+        </if>
+        <if test="startTime != null">
+            AND h.timestamp &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND h.timestamp &lt;= #{endTime}
+        </if>
+        ORDER BY h.timestamp DESC
+        <if test="limit != null and limit &gt; 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
 </mapper>

@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.io.Serial;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -92,7 +93,25 @@ public class SysUser extends BaseEntity {
     private Integer workingYears;
 
     @TableField(exist = false)  // #标记为非数据库字段
-    private String position;   
+    private String position;
+
+    /**
+     * 组织ID
+     */
+    @TableField("org_id")
+    private Long orgId;
+
+    /**
+     * 组织名称（冗余存储）
+     */
+    @TableField("org_name")
+    private String orgName;
+
+    /**
+     * 生日（用于年龄计算）
+     */
+    @TableField("birthday")
+    private LocalDate birthday;   
 
     /**
      * 最后登录时间

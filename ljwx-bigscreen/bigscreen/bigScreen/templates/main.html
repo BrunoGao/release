@@ -3138,10 +3138,10 @@
         // 数据管理API
         data: {
           getTotal: (customerId) => api.get('/get_total_info', {customerId}),
-          getAlerts: (orgId, userId, severityLevel) => api.get('/get_alerts_by_orgIdAndUserId', {orgId, userId, severityLevel}),
-          getMessages: (orgId, userId, messageType) => api.get('/get_messages_by_orgIdAndUserId', {orgId, userId, messageType}),
-          getDevices: (orgId, userId) => api.get('/get_devices_by_orgIdAndUserId', {orgId, userId}),
-          getHealthData: (orgId, userId) => api.get('/get_health_data_by_orgIdAndUserId', {orgId, userId})
+          getAlerts: (orgId, userId, severityLevel, customerId) => api.get('/get_alerts_by_orgIdAndUserId', {orgId, userId, severityLevel, customerId}),
+          getMessages: (orgId, userId, messageType, customerId) => api.get('/get_messages_by_orgIdAndUserId', {orgId, userId, messageType, customerId}),
+          getDevices: (orgId, userId, customerId) => api.get('/get_devices_by_orgIdAndUserId', {orgId, userId, customerId}),
+          getHealthData: (orgId, userId, customerId) => api.get('/get_health_data_by_orgIdAndUserId', {orgId, userId, customerId})
         },
         
         // 批处理和并发请求
@@ -5473,9 +5473,9 @@ function refreshData() {
         statsOverview: api.statistics.getOverview(GLOBAL_CUSTOMER_ID, formatDate(new Date())).then(r => r.json()).catch(() => null),
         
         // 获取细分数据（备用）
-        alerts: api.data.getAlerts(GLOBAL_CUSTOMER_ID, null, null).then(r => r.json()).catch(() => null),
-        messages: api.data.getMessages(GLOBAL_CUSTOMER_ID, null, null).then(r => r.json()).catch(() => null),
-        devices: api.data.getDevices(GLOBAL_CUSTOMER_ID, null).then(r => r.json()).catch(() => null)
+        alerts: api.data.getAlerts(GLOBAL_CUSTOMER_ID, null, null, GLOBAL_CUSTOMER_ID).then(r => r.json()).catch(() => null),
+        messages: api.data.getMessages(GLOBAL_CUSTOMER_ID, null, null, GLOBAL_CUSTOMER_ID).then(r => r.json()).catch(() => null),
+        devices: api.data.getDevices(GLOBAL_CUSTOMER_ID, null, GLOBAL_CUSTOMER_ID).then(r => r.json()).catch(() => null)
     };
 
     // 并行处理所有数据请求
@@ -8139,15 +8139,13 @@ div.innerHTML=`
         return isValid;
     });
     
-    // 为每个健康点获取预计算的健康评分
-    const deviceSns = validHealths.map(h => h.deviceSn).filter(sn => sn);
+    // 获取健康评分 - 以人为本，使用customerId查询
     let healthScores = {};
     
-    // 如果有设备序列号，获取健康评分
-    if (deviceSns.length > 0) {
+    // 使用customerId获取所有用户的健康评分
+    if (currentCustomerId) {
         try {
-            const deviceSnsParam = deviceSns.map(sn => `deviceSns[]=${encodeURIComponent(sn)}`).join('&');
-            const scoreResponse = await apiCall(`/api/health/score/comprehensive?${deviceSnsParam}&includeDeviceBreakdown=true`);
+            const scoreResponse = await apiCall(`/api/health/score/comprehensive?customerId=${currentCustomerId}&includeDeviceBreakdown=true`);
             
             if (scoreResponse.ok) {
                 const scoreData = await scoreResponse.json();
@@ -9863,7 +9861,7 @@ function initOverviewChart() {
       if (loadingEl) loadingEl.style.display = 'flex';
       if (itemsEl) itemsEl.style.display = 'none';
       
-      apiCall(`/api/health/score/comprehensive?days=7`)
+      apiCall(`/api/health/score/comprehensive?customerId=${currentCustomerId}&days=7`)
       .then(response => response.json())
       .then(result => {
         if (result.success && result.data && result.data.predictions) {
@@ -9914,7 +9912,7 @@ function initOverviewChart() {
       const scoreEl = document.getElementById('compactHealthScore');
       const statusEl = document.getElementById('compactHealthStatus');
       
-      apiCall(`/api/health/score/comprehensive?startDate=${formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000))}&endDate=${formatDate(new Date())}`)
+      apiCall(`/api/health/score/comprehensive?customerId=${currentCustomerId}&startDate=${formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000))}&endDate=${formatDate(new Date())}`)
       .then(response => response.json())
       .then(result => {
         if (result.success && result.data && result.data.summary) {

@@ -32,6 +32,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -60,6 +61,19 @@ public class TAlertInfoServiceImpl extends ServiceImpl<TAlertInfoMapper, TAlertI
         // 使用自定义查询，直接包含用户名关联
         IPage<TAlertInfo> page = pageQuery.buildPage();
         return baseMapper.listAlertInfoWithUserName(page, tTAlertInfoBO);
+    }
+    
+    @Override
+    public IPage<TAlertInfo> listAlertInfoByOrgOptimized(PageQuery pageQuery, Long orgId, 
+            Long customerId, String alertType, String alertStatus) {
+        IPage<TAlertInfo> page = pageQuery.buildPage();
+        return baseMapper.listAlertInfoByOrgOptimized(page, orgId, customerId, alertType, alertStatus);
+    }
+    
+    @Override
+    public List<Map<String, Object>> getAlertStatsByUser(Long orgId, Long customerId, 
+            LocalDateTime startTime, LocalDateTime endTime) {
+        return baseMapper.getAlertStatsByUser(orgId, customerId, startTime, endTime);
     }
 }
 

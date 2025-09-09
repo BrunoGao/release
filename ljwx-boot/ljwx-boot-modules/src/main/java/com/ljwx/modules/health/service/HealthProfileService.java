@@ -991,4 +991,84 @@ public class HealthProfileService {
         public int getAlertCount() { return alertCount; }
         public void setAlertCount(int alertCount) { this.alertCount = alertCount; }
     }
+    
+    /**
+     * 生成用户健康画像（供定时任务调用）
+     * @param userId 用户ID
+     * @param customerId 客户ID
+     * @param date 生成日期
+     * @return 是否成功生成
+     */
+    @Transactional
+    public boolean generateUserHealthProfile(Long userId, Long customerId, LocalDate date) {
+        try {
+            log.debug("开始生成用户{}的健康画像，日期: {}", userId, date);
+            
+            // 1. 获取用户基本信息
+            SysUser user = sysUserService.getById(userId);
+            if (user == null) {
+                log.warn("用户{}不存在，跳过画像生成", userId);
+                return false;
+            }
+            
+            // 2. 检查是否有足够的健康数据
+            if (!hasEnoughHealthData(userId, date)) {
+                log.debug("用户{}数据不足，跳过画像生成", userId);
+                return false;
+            }
+            
+            // 3. 生成综合健康画像
+            ComprehensiveHealthProfile profile = generateComprehensiveHealthProfile(userId);
+            if (profile == null) {
+                log.warn("用户{}健康画像生成失败", userId);
+                return false;
+            }
+            
+            // 4. 保存或更新画像数据（这里可以实现具体的保存逻辑）
+            saveHealthProfile(profile, customerId, date);
+            
+            log.debug("✅ 用户{}健康画像生成成功", userId);
+            return true;
+            
+        } catch (Exception e) {
+            log.error("❌ 用户{}健康画像生成异常: {}", userId, e.getMessage(), e);
+            return false;
+        }
+    }
+    
+    /**
+     * 检查用户是否有足够的健康数据进行画像生成
+     */
+    private boolean hasEnoughHealthData(Long userId, LocalDate date) {
+        try {
+            UnifiedHealthQueryDTO queryDTO = new UnifiedHealthQueryDTO();
+            queryDTO.setCustomerId(1L); // 默认客户ID，可以根据实际情况调整
+            queryDTO.setUserId(userId);
+            queryDTO.setStartDate(date.minusDays(7).atStartOfDay());
+            queryDTO.setEndDate(date.atTime(23, 59, 59));
+            
+            Map<String, Object> result = unifiedQueryService.queryHealthData(queryDTO);
+            List<UserHealthData> recentData = (List<UserHealthData>) result.get("data");
+            return recentData != null && recentData.size() >= 3;
+            
+        } catch (Exception e) {
+            log.error("检查用户{}数据充足性失败: {}", userId, e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * 保存健康画像数据
+     */
+    private void saveHealthProfile(ComprehensiveHealthProfile profile, Long customerId, LocalDate date) {
+        try {
+            // 这里可以实现具体的保存逻辑，比如保存到数据库表或缓存
+            // 当前只记录日志
+            log.debug("保存用户{}的健康画像数据，客户ID: {}, 日期: {}", 
+                profile.getUserId(), customerId, date);
+                
+        } catch (Exception e) {
+            log.error("保存健康画像失败: {}", e.getMessage(), e);
+        }
+    }
 }

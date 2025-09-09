@@ -35,8 +35,29 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.ljwx.modules.health.domain.bo.TAlertInfoBO;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
 public interface TAlertInfoMapper extends BaseMapper<TAlertInfo> {
 
     IPage<TAlertInfo> listAlertInfoWithUserName(IPage<TAlertInfo> page, @Param("bo") TAlertInfoBO tAlertInfoBO);
+    
+    /**
+     * 高性能组织级告警查询 - 利用sys_user的org_id优化
+     */
+    IPage<TAlertInfo> listAlertInfoByOrgOptimized(IPage<TAlertInfo> page, 
+            @Param("orgId") Long orgId,
+            @Param("customerId") Long customerId,
+            @Param("alertType") String alertType,
+            @Param("alertStatus") String alertStatus);
+    
+    /**
+     * 用户告警统计查询 - 利用sys_user优化避免多表JOIN
+     */
+    List<Map<String, Object>> getAlertStatsByUser(@Param("orgId") Long orgId,
+            @Param("customerId") Long customerId,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime);
 
 }

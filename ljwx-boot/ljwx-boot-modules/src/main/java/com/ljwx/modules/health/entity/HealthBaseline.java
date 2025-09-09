@@ -8,6 +8,7 @@ import lombok.experimental.Accessors;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * 健康基线实体类
@@ -137,4 +138,22 @@ public class HealthBaseline implements Serializable {
     @TableField("is_deleted")
     @TableLogic
     private Integer isDeleted;
+
+    /**
+     * 组织ID（用于组织级基线）
+     */
+    @TableField("org_id")
+    private String orgId;
+
+    /**
+     * 创建时间
+     */
+    @TableField("create_time")
+    private LocalDateTime createTime;
+
+    /**
+     * 更新时间
+     */
+    @TableField("update_time")
+    private LocalDateTime updateTime;
 }

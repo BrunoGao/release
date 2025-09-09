@@ -235,6 +235,9 @@ class UserInfo(db.Model):
     is_deleted = db.Column(db.Boolean, default=False, comment='是否删除(0:否,1:是)')
     device_sn = db.Column(db.String(50), nullable=True)
     customer_id = db.Column(db.BigInteger, nullable=True)
+    # 🚀 新增：组织信息字段 - 优化查询性能
+    org_id = db.Column(db.BigInteger, nullable=True, comment='组织ID，直接关联sys_org_info.id')
+    org_name = db.Column(db.String(100), nullable=True, comment='组织名称，冗余字段用于快速查询')
     
 
     def to_dict(self):
@@ -248,6 +251,10 @@ class UserInfo(db.Model):
             'user_name': self.user_name,
             'phone': self.phone,
             'device_sn': self.device_sn,
+            'customer_id': self.customer_id,
+            # 🚀 新增：组织信息直接返回
+            'org_id': str(self.org_id) if self.org_id else None,
+            'org_name': self.org_name,
             'status': self.status,
             'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
             'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None

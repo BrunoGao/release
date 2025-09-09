@@ -85,10 +85,10 @@ def get_all_message_data_optimized(orgId=None, userId=None, startDate=None, endD
             if is_admin_user(userId):
                 return {"success": True, "data": {"messageData": [], "totalRecords": 0, "pagination": {"currentPage": page, "pageSize": pageSize, "totalCount": 0, "totalPages": 0}}}
             
-            # 获取用户所在组织ID
-            user_org = UserOrg.query.filter_by(user_id=userId).first()
-            if user_org:
-                org_id = user_org.org_id
+            # 🚀 优化：直接从用户表获取组织ID，无需关联表查询！
+            user_info = UserInfo.query.filter_by(id=userId).first()
+            if user_info and user_info.org_id:
+                org_id = user_info.org_id
                 # 获取组织及其所有上级组织的ID
                 org_info = OrgInfo.query.filter_by(id=org_id).first()
                 if org_info and org_info.ancestors:
@@ -1100,24 +1100,22 @@ def fetch_messages_by_orgIdAndUserId(orgId, userId=None, messageType=None):
                 }
             
             #print(f"DEBUG: 查询用户 {userId} 的消息")
-            # 获取用户所在的组织ID
-            user_org = UserOrg.query.filter_by(user_id=userId).first()
-            print(f"DEBUG: user_org 查询结果: {user_org}")
-            if not user_org:
-                ##print(f"DEBUG: 用户 {userId} 没有找到组织关联，尝试查找用户信息")
-                # 尝试直接查找用户信息
-                user_info = UserInfo.query.filter_by(id=userId).first()
-                #print(f"DEBUG: user_info 查询结果: {user_info}")
-                if not user_info:
-                    raise Exception(f"User {userId} not found")
-                # 尝试使用orgId作为组织ID
+            # 🚀 优化：直接从用户表获取组织ID，无需关联表查询！
+            user_info = UserInfo.query.filter_by(id=userId).first()
+            print(f"DEBUG: user_info 查询结果: {user_info}")
+            
+            if not user_info:
+                raise Exception(f"User {userId} not found")
+            
+            # 🎉 直接使用用户表的org_id字段！
+            org_id = user_info.org_id
+            if not org_id:
+                # 如果用户表中没有org_id，尝试使用传入的orgId
                 org_id = int(orgId) if orgId else None
                 if not org_id:
                     raise Exception("User organization not found and no orgId provided")
-                #print(f"DEBUG: 使用提供的orgId {org_id} 作为用户组织")
-            else:
-                org_id = user_org.org_id
-                #print(f"DEBUG: 从user_org获取到org_id: {org_id}")
+            
+            print(f"DEBUG: 从用户表直接获取org_id: {org_id}")
             
             # 1. 获取用户个人消息
             personal_messages = base_query.filter(DeviceMessage.user_id == userId).all()
@@ -1170,8 +1168,21 @@ def fetch_messages_by_orgIdAndUserId(orgId, userId=None, messageType=None):
             
             print(f"📊 公告消息: {len(announcement_messages)} 条，个人消息: {len(personal_messages)} 条")
 
+        # 🚀 优化：批量预加载组织信息，消除N+1查询问题！
+        def get_org_info_batch(messages):
+            """批量获取组织信息，避免N+1查询"""
+            org_ids = list(set(str(msg.org_id) for msg in messages if msg.org_id))
+            if not org_ids:
+                return {}
+            
+            orgs = OrgInfo.query.filter(OrgInfo.id.in_(org_ids)).all()
+            return {str(org.id): org.name for org in orgs}
+        
         # 处理消息并添加到结果列表
         def process_messages(messages, is_public=False):
+            # 🎉 批量预加载组织信息，一次查询解决所有消息的组织名称！
+            org_info_cache = get_org_info_batch(messages)
+            
             for msg in messages:
                 #print("process_messages.sg:", msg)
                 if msg.id not in seen_message_ids:
@@ -1189,9 +1200,10 @@ def fetch_messages_by_orgIdAndUserId(orgId, userId=None, messageType=None):
                             status = '2'
                     seen_message_ids.add(msg.id)
                     dept_id = str(msg.org_id)  # 修改: department_info -> org_id
-                    dept_name = OrgInfo.query.filter_by(id=dept_id).first()
+                    # 🎉 从缓存中获取组织名称，无需每次查询数据库！
+                    dept_name = org_info_cache.get(dept_id, 'Unknown Department')
                     message_dict = {
-                        'department_name': dept_name.name if dept_name else 'Unknown Department',
+                        'department_name': dept_name,
                         'department_id': dept_id,
                         'message_id': str(msg.id),
                         'device_sn': msg.device_sn,

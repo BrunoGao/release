@@ -57,7 +57,7 @@
         INNER JOIN sys_org_units org ON c.descendant_id = org.id
         WHERE c.ancestor_id = #{ancestorId}
           AND c.customer_id = #{customerId}
-          AND c.depth > 0
+          AND c.depth &gt; 0
           AND org.is_deleted = 0
           AND org.status = '1'
         ORDER BY c.depth ASC, org.sort ASC, org.id ASC
@@ -83,7 +83,7 @@
         INNER JOIN sys_org_units org ON c.ancestor_id = org.id
         WHERE c.descendant_id = #{descendantId}
           AND c.customer_id = #{customerId}
-          AND c.depth > 0
+          AND c.depth &gt; 0
           AND org.is_deleted = 0
           AND org.status = '1'
         ORDER BY c.depth DESC
@@ -112,7 +112,7 @@
             #{ancestorId}
         </foreach>
           AND c.customer_id = #{customerId}
-          AND c.depth > 0
+          AND c.depth &gt; 0
           AND org.is_deleted = 0
           AND org.status = '1'
         ORDER BY org.level ASC, org.sort ASC, org.id ASC
@@ -131,12 +131,12 @@
 
     <!-- 检查组织A是否为组织B的祖先 -->
     <select id="isAncestor" resultType="java.lang.Boolean">
-        SELECT COUNT(*) > 0
+        SELECT COUNT(*) &gt; 0
         FROM sys_org_closure
         WHERE ancestor_id = #{ancestorId}
           AND descendant_id = #{descendantId}
           AND customer_id = #{customerId}
-          AND depth > 0
+          AND depth &gt; 0
     </select>
 
     <!-- 获取组织的层级深度 -->

@@ -17,16 +17,19 @@ redis = RedisHelper()
 def get_user_info(deviceSn):
     # 从查询参数获取 deviceSn
     print("get_user_info:deviceSn", deviceSn)
-    user = UserInfo.query.filter_by(device_sn=deviceSn).first()
+    user = UserInfo.query.filter_by(device_sn=deviceSn, is_deleted=False).first()
     print("get_user_info:user:", user)
     if user:
-        # Convert user object to dictionary with specific fields
+        # Convert user object to dictionary with specific fields - 🚀 优化：直接包含组织信息
         user_dict = {
             "user_name": user.user_name,
             "user_id": user.id,
             "device_sn": user.device_sn,
             "customer_id": user.customer_id,
-            "phone": user.phone
+            "phone": user.phone,
+            # 🚀 新增：组织信息直接获取，无需JOIN查询
+            "org_id": str(user.org_id) if user.org_id else None,
+            "org_name": user.org_name or "未分配"
         }
         # Convert dictionary to JSON
         user_json = json.dumps(user_dict)
@@ -1082,3 +1085,77 @@ def get_user_statistics_unified(customer_id: int = None, org_id: int = None,
     """统一的用户统计接口"""
     service = get_unified_user_service()
     return service.get_user_statistics_by_common_params(customer_id, org_id, user_id, start_date, end_date)
+
+# ===============================================================================
+# 🚀 sys_user表增加org_id和org_name字段后的优化函数
+# ===============================================================================
+
+def get_user_with_org_info_optimized(user_id):
+    """获取用户及组织信息 - 优化后的单表查询"""
+    try:
+        user = UserInfo.query.filter_by(
+            id=user_id,
+            is_deleted=False
+        ).first()
+        
+        if user:
+            return {
+                'success': True,
+                'data': {
+                    'id': user.id,
+                    'user_name': user.user_name,
+                    'device_sn': user.device_sn,
+                    'org_id': user.org_id,
+                    'org_name': user.org_name,
+                    'customer_id': user.customer_id,
+                    'phone': user.phone,
+                    'status': user.status
+                }
+            }
+        return {'success': False, 'error': 'User not found'}
+    except Exception as e:
+        logger.error(f"获取用户组织信息失败: {e}")
+        return {'success': False, 'error': str(e)}
+
+def get_users_by_org_optimized(org_id, customer_id=None):
+    """通过组织ID获取用户列表 - 优化后的单表查询"""
+    try:
+        query = UserInfo.query.filter(
+            UserInfo.org_id == org_id,
+            UserInfo.is_deleted.is_(False),
+            UserInfo.status == '1'
+        )
+        
+        if customer_id:
+            query = query.filter(UserInfo.customer_id == customer_id)
+        
+        users = query.all()
+        return {
+            'success': True,
+            'data': {
+                'users': [user.to_dict() for user in users],
+                'total': len(users)
+            }
+        }
+    except Exception as e:
+        logger.error(f"按组织查询用户失败: {e}")
+        return {'success': False, 'error': str(e)}
+
+def sync_user_org_info(org_id):
+    """组织信息变更时同步用户表中的org_name字段"""
+    try:
+        from .models import OrgInfo  # 避免循环导入
+        org = OrgInfo.query.get(org_id)
+        if org:
+            updated_count = UserInfo.query.filter_by(org_id=org_id).update({
+                'org_name': org.name
+            })
+            db.session.commit()
+            logger.info(f"同步组织信息成功: org_id={org_id}, 更新用户数={updated_count}")
+            return {'success': True, 'updated_count': updated_count}
+        else:
+            return {'success': False, 'error': 'Organization not found'}
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"同步组织信息失败: {e}")
+        return {'success': False, 'error': str(e)}

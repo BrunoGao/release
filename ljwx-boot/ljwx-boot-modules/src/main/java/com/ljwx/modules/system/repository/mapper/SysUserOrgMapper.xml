@@ -67,7 +67,7 @@
         AND suo.is_deleted = 0;
         
         <!-- 如果有指定的主管组织ID，则设置主管标记 -->
-        <if test="orgIds != null and orgIds.size() > 0">
+        <if test="orgIds != null and orgIds.size() &gt; 0">
             UPDATE sys_user_org suo
             SET suo.principal = 1
             WHERE suo.user_id = #{userId}
@@ -86,7 +86,7 @@
     
     <!-- 设置用户主管标记 -->
     <update id="setPrincipal">
-        <if test="orgIds != null and orgIds.size() > 0">
+        <if test="orgIds != null and orgIds.size() &gt; 0">
             UPDATE sys_user_org suo SET suo.principal = 1 WHERE suo.user_id = #{userId} AND suo.is_deleted = 0 AND suo.org_id IN
             <foreach collection="orgIds" item="orgId" open="(" separator="," close=")">#{orgId}</foreach>
         </if>

@@ -50,6 +50,9 @@ public class HealthBaselineScoreTasks {
     @Autowired
     private com.ljwx.modules.health.service.UnifiedHealthBaselineService unifiedHealthBaselineService;
     
+    @Autowired
+    private com.ljwx.modules.health.service.HealthProfileService healthProfileService;
+    
     private final DateTimeFormatter TABLE_SUFFIX_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
     private final ExecutorService executorService = Executors.newFixedThreadPool(8); // #优化线程池大小
     
@@ -793,7 +796,64 @@ public class HealthBaselineScoreTasks {
     }
     
     /**
-     * 10. 数据清理任务 - 每日07:00执行
+     * 10. 生成健康画像 - 每日06:30执行
+     */
+    @Scheduled(cron = "0 30 6 * * ?")
+    @Transactional(rollbackFor = Exception.class)
+    public void generateHealthProfiles() {
+        log.info("🎨 开始生成健康画像");
+        
+        try {
+            // 获取所有活跃用户
+            List<Map<String, Object>> activeUsers = getActiveUsersForProcessing();
+            log.info("📊 找到 {} 个用户需要生成健康画像", activeUsers.size());
+            
+            int processedUsers = 0;
+            int successfulProfiles = 0;
+            int failedProfiles = 0;
+            
+            for (Map<String, Object> user : activeUsers) {
+                try {
+                    Long userId = ((Number) user.get("user_id")).longValue();
+                    Long customerId = ((Number) user.get("customer_id")).longValue();
+                    
+                    // 生成用户健康画像
+                    boolean profileGenerated = healthProfileService.generateUserHealthProfile(
+                        userId, customerId, LocalDate.now());
+                    
+                    if (profileGenerated) {
+                        successfulProfiles++;
+                        log.debug("✅ 用户 {} 健康画像生成完成", userId);
+                    } else {
+                        failedProfiles++;
+                        log.warn("⚠️ 用户 {} 健康画像生成失败", userId);
+                    }
+                    
+                    processedUsers++;
+                    
+                } catch (Exception e) {
+                    Long userId = ((Number) user.get("user_id")).longValue();
+                    log.warn("⚠️ 用户 {} 健康画像生成异常: {}", userId, e.getMessage());
+                    failedProfiles++;
+                }
+                
+                // 批次间短暂休息，避免数据库压力
+                if (processedUsers % 20 == 0) {
+                    Thread.sleep(500);
+                }
+            }
+            
+            log.info("🎉 健康画像生成完成 - 处理用户: {}, 成功生成: {}, 失败: {}", 
+                processedUsers, successfulProfiles, failedProfiles);
+                
+        } catch (Exception e) {
+            log.error("❌ 健康画像生成失败: {}", e.getMessage(), e);
+            throw new RuntimeException("健康画像生成失败: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 11. 数据清理任务 - 每日07:00执行
      */
     @Scheduled(cron = "0 0 7 * * ?")
     public void cleanupOldData() {
@@ -1030,6 +1090,36 @@ public class HealthBaselineScoreTasks {
             
         } catch (Exception e) {
             log.error("❌ 获取活跃用户列表失败: date={}, error={}", dateStr, e.getMessage(), e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * 获取活跃用户列表（用于健康画像处理）
+     */
+    private List<Map<String, Object>> getActiveUsersForProcessing() {
+        try {
+            String sql = """
+                SELECT DISTINCT 
+                    u.user_id, 
+                    u.customer_id, 
+                    u.org_id,
+                    COUNT(*) as data_count
+                FROM t_user_health_data u
+                WHERE u.timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                AND u.is_deleted = 0
+                AND u.user_id > 0
+                AND (u.heart_rate > 0 OR u.blood_oxygen > 0 OR u.temperature > 0 
+                     OR u.pressure_high > 0 OR u.pressure_low > 0)
+                GROUP BY u.user_id, u.customer_id, u.org_id
+                HAVING data_count >= 3
+                ORDER BY data_count DESC
+                """;
+            
+            return jdbcTemplate.queryForList(sql);
+            
+        } catch (Exception e) {
+            log.error("❌ 获取处理用户列表失败: {}", e.getMessage(), e);
             return new ArrayList<>();
         }
     }

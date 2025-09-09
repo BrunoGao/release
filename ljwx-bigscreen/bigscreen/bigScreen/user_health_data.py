@@ -1012,21 +1012,50 @@ def fetch_health_data_by_orgIdAndUserId1(orgId=None, userId=None): #极致优化
         cached=redis.get_data(cache_key)
         if cached:return json.loads(cached)
         
-        if userId: #单用户模式#
+        if userId: #单用户模式 - 🚀 优化：消除JOIN查询#
             # 检查是否为管理员用户，如果是则不返回健康数据
             if is_admin_user(userId):
                 return {"success": False, "message": "管理员用户无健康数据"}
             
-            u=db.session.query(UserInfo,OrgInfo.name.label('dept_name')).join(UserOrg,UserInfo.id==UserOrg.user_id).join(OrgInfo,UserOrg.org_id==OrgInfo.id).filter(UserInfo.id==userId,UserInfo.is_deleted.is_(False)).first()
-            if not u:return {"success":False,"message":"用户不存在"}
-            from .user import get_org_info_by_user_id
-            org_info=get_org_info_by_user_id(u[0].id)
-            user_list=[(u[0].device_sn,u[0].user_name,u[1],org_info.id,u[0].id,u[0].avatar)]
-        elif orgId: #组织模式-移除数量限制#
-            from .org import fetch_users_by_orgId
-            users=fetch_users_by_orgId(orgId) #移除限制，获取所有用户，已自动过滤admin#
-            from .user import get_org_info_by_user_id
-            user_list=[(u['device_sn'],u['user_name'],get_org_info_by_user_id(u['id']).name,get_org_info_by_user_id(u['id']).id,u['id'],u['avatar']) for u in users if u['device_sn'] and u['device_sn']!='-']
+            # 🚀 优化：直接单表查询用户信息，利用新增的org_name字段
+            user = UserInfo.query.filter_by(
+                id=userId,
+                is_deleted=False
+            ).first()
+            
+            if not user:
+                return {"success": False, "message": "用户不存在"}
+            
+            # 🎉 直接使用用户表的组织字段，无需任何JOIN或额外查询！
+            user_list = [(
+                user.device_sn,
+                user.user_name,
+                user.org_name or '未分配',  # 直接获取组织名！
+                user.org_id,                # 直接获取组织ID！
+                user.id,
+                user.avatar
+            )]
+            
+        elif orgId: #组织模式 - 🚀 优化：消除N+1查询问题#
+            # 🚀 优化：直接通过org_id查询用户，一次性获取所有数据
+            users = UserInfo.query.filter(
+                UserInfo.org_id == orgId,
+                UserInfo.is_deleted.is_(False),
+                UserInfo.status == '1',
+                UserInfo.device_sn.isnot(None),
+                UserInfo.device_sn != '',
+                UserInfo.device_sn != '-'
+            ).all()
+            
+            # 🎉 循环中直接使用用户表字段，完全消除N+1查询问题！
+            user_list = [(
+                user.device_sn,
+                user.user_name,
+                user.org_name or '未分配',  # 直接访问，无需查询！
+                user.org_id,                # 直接访问，无需查询！
+                user.id,
+                user.avatar
+            ) for user in users]
         else:return {"success":False,"message":"缺少参数"}
         
         health_data_list,all_sns=[],[x[0] for x in user_list if x[0]]
@@ -1158,41 +1187,37 @@ def get_basic_health_data_by_orgIdAndUserId(orgId=None, userId=None, startDate=N
             if is_admin_user(userId):
                 return {"success": False, "message": "管理员用户无健康数据"}
             
-            # 获取单个用户信息，包括部门信息
-            user_info = db.session.query(
-                UserInfo,
-                OrgInfo.name.label('dept_name')
-            ).join(
-                UserOrg,
-                UserInfo.id == UserOrg.user_id
-            ).join(
-                OrgInfo,
-                UserOrg.org_id == OrgInfo.id
-            ).filter(
-                UserInfo.id == userId,
-                UserInfo.is_deleted.is_(False)
+            # 🚀 优化：直接查询用户表，使用org_name字段，无需JOIN！
+            user = UserInfo.query.filter_by(
+                id=userId,
+                is_deleted=False
             ).first()
             
-            if not user_info:
+            if not user:
                 return {"success": False, "message": "User not found"}
                 
             user_serial_numbers = [(
-                user_info[0].device_sn,
-                user_info[0].user_name,
-                user_info[1]  # dept_name
+                user.device_sn,
+                user.user_name,
+                # 🎉 直接获取组织名称，无需JOIN！
+                user.org_name or '未分配'
             )]
         elif orgId:
-            # 获取组织下所有用户信息，包括部门信息（已自动过滤admin）
-            from .org import fetch_users_by_orgId
-            users = fetch_users_by_orgId(orgId)
-            #print("fetch_health_data_by_orgIdAndUserId.users:", users)
+            # 🚀 优化：直接通过org_id查询用户，消除N+1查询问题！
+            users = UserInfo.query.filter(
+                UserInfo.org_id == orgId,
+                UserInfo.is_deleted.is_(False),
+                UserInfo.device_sn.isnot(None),
+                UserInfo.device_sn != '',
+                UserInfo.device_sn != '-'
+            ).all()
             
-            from  .user import get_org_info_by_user_id
+            # 🎉 循环中直接使用用户表字段，完全消除N+1查询！
             user_serial_numbers = [(
-                user['device_sn'],
-                user['user_name'],
-                get_org_info_by_user_id(user['id']).name
-            ) for user in users if user['device_sn'] and user['device_sn'] not in ['-', '']]
+                user.device_sn,
+                user.user_name,
+                user.org_name or '未分配'  # 🚀 直接访问，无需函数调用！
+            ) for user in users]
         else:
             return {"success": False, "message": "No orgId or userId provided"}
 
@@ -2057,30 +2082,79 @@ def get_all_health_data_optimized(orgId=None, userId=None, startDate=None, endDa
             if is_admin_user(userId):
                 return {"success": False, "message": "管理员用户无健康数据", "data": {"healthData": [], "totalRecords": 0}}
             
-            u = db.session.query(UserInfo, OrgInfo.name.label('dept_name'), OrgInfo.id.label('dept_id')).join(UserOrg, UserInfo.id == UserOrg.user_id).join(OrgInfo, UserOrg.org_id == OrgInfo.id).filter(UserInfo.id == userId, UserInfo.is_deleted == False).first()
-            if not u or not u[0].device_sn or u[0].device_sn in ['-', '']:
+            # 🚀 优化：直接查询用户信息，利用新增的org_id和org_name字段
+            user = UserInfo.query.filter_by(
+                id=userId,
+                is_deleted=False
+            ).first()
+            
+            if not user or not user.device_sn or user.device_sn in ['-', '']:
                 return {"success": False, "message": "用户不存在或无设备", "data": {"healthData": [], "totalRecords": 0}}
-            user_list = [(u[0].device_sn, u[0].user_name, u[0].id, u[1], u[2])]  # 添加部门名和部门ID
-            query_org_id = u[2]
+            
+            # 🎉 直接使用用户表字段，无需JOIN查询！
+            user_list = [(user.device_sn, user.user_name, user.id, user.org_name or '未分配', user.org_id)]
+            query_org_id = user.org_id
         elif orgId:
-            # 优化查询：直接基于orgId查询健康数据，不依赖device_sn
+            # 🚀 重大优化：消除N+1查询问题，直接使用用户表的org字段！
             query_org_id = orgId
             
-            # 获取组织下所有用户信息，用于构建用户映射
-            from .org import fetch_users_by_orgId
-            all_users = fetch_users_by_orgId(orgId)
-            
-            # 获取部门信息，构建用户列表（包含没有设备的用户）
-            from .user import get_org_info_by_user_id
-            user_list = []
-            for u in all_users:
-                org_info = get_org_info_by_user_id(u['id'])
-                dept_name = org_info.name if org_info else '未知部门'
-                dept_id = org_info.id if org_info else orgId
-                # 修改：不再要求device_sn，直接使用user_id
-                user_list.append((u.get('device_sn', ''), u['user_name'], u['id'], dept_name, dept_id))
-            
-            print(f"📊 组织 {orgId} 共找到 {len(all_users)} 用户")
+            # 🎉 方式1：直接通过org_id查询用户，一次性获取所有数据
+            try:
+                users = UserInfo.query.filter(
+                    UserInfo.org_id == orgId,
+                    UserInfo.is_deleted.is_(False)
+                ).all()
+                
+                if users:
+                    # 🚀 完全消除N+1查询！直接使用用户表字段
+                    user_list = [(
+                        user.device_sn or '', 
+                        user.user_name, 
+                        user.id, 
+                        user.org_name or '未分配',  # 🎉 直接获取组织名！
+                        user.org_id  # 🎉 直接获取组织ID！
+                    ) for user in users]
+                    
+                    print(f"✅ 组织 {orgId} 直接查询到 {len(users)} 用户（消除N+1查询）")
+                else:
+                    # 🔄 如果直接查询没有结果，尝试层级查询
+                    from .org import get_org_descendants
+                    org_ids = get_org_descendants(orgId)
+                    users = UserInfo.query.filter(
+                        UserInfo.org_id.in_(org_ids),
+                        UserInfo.is_deleted.is_(False)
+                    ).all()
+                    
+                    user_list = [(
+                        user.device_sn or '', 
+                        user.user_name, 
+                        user.id, 
+                        user.org_name or '未分配',  # 🎉 直接获取！
+                        user.org_id  # 🎉 直接获取！
+                    ) for user in users]
+                    
+                    print(f"✅ 组织 {orgId} 层级查询到 {len(users)} 用户（消除N+1查询）")
+                    
+            except Exception as e:
+                print(f"⚠️ 优化查询失败，使用降级方案: {e}")
+                # 🔄 降级方案：使用原有逻辑
+                from .org import fetch_users_by_orgId
+                all_users = fetch_users_by_orgId(orgId)
+                
+                # 即使在降级方案中，也尽量避免N+1查询
+                user_ids = [u['id'] for u in all_users]
+                users = UserInfo.query.filter(UserInfo.id.in_(user_ids)).all()
+                user_org_map = {u.id: (u.org_name or '未知部门', u.org_id or orgId) for u in users}
+                
+                user_list = [(
+                    u.get('device_sn', ''), 
+                    u['user_name'], 
+                    u['id'], 
+                    user_org_map.get(u['id'], ('未知部门', orgId))[0],
+                    user_org_map.get(u['id'], ('未知部门', orgId))[1]
+                ) for u in all_users]
+                
+                print(f"🔄 组织 {orgId} 降级方案找到 {len(all_users)} 用户")
         else:
             return {"success": False, "message": "缺少orgId或userId参数", "data": {"healthData": [], "totalRecords": 0}}
         
@@ -2266,9 +2340,22 @@ def get_all_health_data_optimized(orgId=None, userId=None, startDate=None, endDa
         sn_to_user = {x[0]: (x[1], x[2], x[3], x[4]) for x in user_list if x[0]}  # device_sn -> (user_name, user_id, dept_name, dept_id)
         userid_to_user = {x[2]: (x[1], x[2], x[3], x[4]) for x in user_list}  # user_id -> (user_name, user_id, dept_name, dept_id)
         
-        # 获取组织名称
+        # 🚀 优化：从已有的用户数据中获取组织名称，避免额外查询
         org_name = "未知组织"
-        if query_org_id:
+        if user_list and len(user_list) > 0:
+            # 🎉 直接从用户列表中获取组织名称，无需额外查询！
+            first_user_org_name = user_list[0][3]  # user_list结构: (device_sn, user_name, user_id, dept_name, dept_id)
+            if first_user_org_name and first_user_org_name != '未分配':
+                org_name = first_user_org_name
+            else:
+                # 🔄 如果第一个用户的组织名为空，尝试其他用户
+                for user_data in user_list:
+                    if user_data[3] and user_data[3] != '未分配':
+                        org_name = user_data[3]
+                        break
+        
+        # 🔄 降级方案：如果仍然无法获取组织名称，才查询数据库
+        if org_name == "未知组织" and query_org_id:
             try:
                 org_info = db.session.query(OrgInfo).filter_by(id=query_org_id).first()
                 org_name = org_info.name if org_info else "未知组织"

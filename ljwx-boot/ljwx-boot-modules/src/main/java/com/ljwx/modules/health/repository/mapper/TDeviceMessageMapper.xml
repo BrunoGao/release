@@ -56,4 +56,98 @@
         message_id, device_sn, message, message_type, sender_type, receiver_type, responded_number, message_status, sent_time, received_time
     </sql>
 
+    <!-- 高性能消息查询 - 利用sys_user的org_id优化 -->
+    <select id="listMessagesByOrgOptimized" resultMap="TDeviceMessageResultMap">
+        SELECT
+            m.*,
+            u.user_name,
+            u.org_name as user_org_name,
+            u.real_name as user_real_name
+        FROM
+            t_device_message m
+        INNER JOIN sys_user u ON m.user_id = u.id
+        WHERE m.is_deleted = 0
+            AND u.org_id = #{orgId}
+        <if test="customerId != null">
+            AND m.customer_id = #{customerId}
+        </if>
+        <if test="messageType != null and messageType != ''">
+            AND m.message_type = #{messageType}
+        </if>
+        <if test="messageStatus != null and messageStatus != ''">
+            AND m.message_status = #{messageStatus}
+        </if>
+        <if test="deviceSn != null and deviceSn != ''">
+            AND m.device_sn = #{deviceSn}
+        </if>
+        ORDER BY m.create_time DESC
+    </select>
+
+    <!-- 消息统计查询 - 按组织统计 -->
+    <select id="getMessageStatsByOrg" resultType="java.util.Map">
+        SELECT
+            u.org_id,
+            u.org_name,
+            COUNT(*) as message_count,
+            COUNT(CASE WHEN m.message_status = 'SENT' THEN 1 END) as sent_count,
+            COUNT(CASE WHEN m.message_status = 'DELIVERED' THEN 1 END) as delivered_count,
+            COUNT(CASE WHEN m.message_status = 'READ' THEN 1 END) as read_count,
+            COUNT(CASE WHEN m.message_type = 'ALERT' THEN 1 END) as alert_message_count
+        FROM
+            t_device_message m
+        INNER JOIN sys_user u ON m.user_id = u.id
+        WHERE m.is_deleted = 0
+        <if test="customerId != null">
+            AND m.customer_id = #{customerId}
+        </if>
+        <if test="orgIds != null and orgIds.size() &gt; 0">
+            AND u.org_id IN
+            <foreach item="orgId" collection="orgIds" open="(" separator="," close=")">
+                #{orgId}
+            </foreach>
+        </if>
+        <if test="startTime != null">
+            AND m.create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND m.create_time &lt;= #{endTime}
+        </if>
+        GROUP BY u.org_id, u.org_name
+        ORDER BY message_count DESC
+    </select>
+
+    <!-- 用户消息响应性能分析 - 利用sys_user优化 -->
+    <select id="getUserMessagePerformance" resultType="java.util.Map">
+        SELECT
+            m.user_id,
+            u.user_name,
+            u.org_name,
+            u.org_id,
+            COUNT(*) as total_messages,
+            COUNT(CASE WHEN m.message_status = 'READ' THEN 1 END) as read_messages,
+            AVG(TIMESTAMPDIFF(MINUTE, m.sent_time, m.received_time)) as avg_response_minutes,
+            COUNT(CASE WHEN TIMESTAMPDIFF(MINUTE, m.sent_time, m.received_time) &gt; 30 THEN 1 END) as delayed_responses
+        FROM
+            t_device_message m
+        INNER JOIN sys_user u ON m.user_id = u.id
+        WHERE m.is_deleted = 0
+            AND m.sent_time IS NOT NULL
+            AND m.received_time IS NOT NULL
+        <if test="orgId != null">
+            AND u.org_id = #{orgId}
+        </if>
+        <if test="customerId != null">
+            AND m.customer_id = #{customerId}
+        </if>
+        <if test="startTime != null">
+            AND m.create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND m.create_time &lt;= #{endTime}
+        </if>
+        GROUP BY m.user_id, u.user_name, u.org_name, u.org_id
+        HAVING total_messages &gt; 0
+        ORDER BY avg_response_minutes ASC
+    </select>
+
 </mapper>

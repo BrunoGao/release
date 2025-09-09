@@ -59,7 +59,7 @@
         system_software_version, wifi_address, bluetooth_address, ip_address, network_access_mode, serial_number, device_name, imei, created_at, battery_level, voltage, timestamp, model, `status`, wearable_status, charging_status, update_time, user_id, org_id, customer_id
     </sql>
 
-    <!-- Updated SQL query to include user_name -->
+    <!-- Updated SQL query to include user_name - 优化版本，利用sys_user的org_id和org_name -->
     <select id="listDeviceInfoWithUserName" resultMap="TDeviceInfoResultMap">
         SELECT
             d.id,
@@ -89,7 +89,9 @@
             d.user_id,
             d.org_id,
             d.customer_id,
-            u.user_name
+            u.user_name,
+            u.org_name as user_org_name,
+            u.real_name as user_real_name
         FROM
             t_device_info d
         LEFT JOIN sys_user u ON d.user_id = u.id
@@ -125,5 +127,108 @@
         ORDER BY d.update_time DESC
     </select>
 
+    <!-- 高性能组织设备查询 - 利用sys_user的org_id优化 -->
+    <select id="listDevicesByOrgOptimized" resultMap="TDeviceInfoResultMap">
+        SELECT
+            d.*,
+            u.user_name,
+            u.org_name as user_org_name,
+            u.real_name as user_real_name
+        FROM
+            t_device_info d
+        INNER JOIN sys_user u ON d.user_id = u.id
+        WHERE d.is_deleted = 0
+            AND u.org_id = #{orgId}
+        <if test="customerId != null">
+            AND d.customer_id = #{customerId}
+        </if>
+        <if test="status != null and status != ''">
+            AND d.status = #{status}
+        </if>
+        <if test="model != null and model != ''">
+            AND d.model = #{model}
+        </if>
+        ORDER BY d.update_time DESC
+    </select>
+
+    <!-- 设备状态统计 - 按组织统计 -->
+    <select id="getDeviceStatsByOrg" resultType="java.util.Map">
+        SELECT
+            u.org_id,
+            u.org_name,
+            COUNT(DISTINCT d.serial_number) as device_count,
+            COUNT(DISTINCT d.user_id) as user_count,
+            COUNT(CASE WHEN d.status = 'ONLINE' THEN 1 END) as online_count,
+            COUNT(CASE WHEN d.status = 'OFFLINE' THEN 1 END) as offline_count,
+            COUNT(CASE WHEN d.wearable_status = 'WEARING' THEN 1 END) as wearing_count,
+            COUNT(CASE WHEN d.charging_status = 'CHARGING' THEN 1 END) as charging_count,
+            AVG(d.battery_level) as avg_battery_level
+        FROM
+            t_device_info d
+        INNER JOIN sys_user u ON d.user_id = u.id
+        WHERE d.is_deleted = 0
+        <if test="orgIds != null and orgIds.size() &gt; 0">
+            AND u.org_id IN
+            <foreach item="orgId" collection="orgIds" open="(" separator="," close=")">
+                #{orgId}
+            </foreach>
+        </if>
+        <if test="customerId != null">
+            AND d.customer_id = #{customerId}
+        </if>
+        GROUP BY u.org_id, u.org_name
+        ORDER BY device_count DESC
+    </select>
+
+    <!-- 设备健康状况分析 - 利用sys_user优化 -->
+    <select id="getDeviceHealthAnalysis" resultType="java.util.Map">
+        SELECT
+            d.serial_number,
+            d.device_name,
+            d.model,
+            d.user_id,
+            u.user_name,
+            u.org_name,
+            u.org_id,
+            d.battery_level,
+            d.status,
+            d.wearable_status,
+            d.charging_status,
+            d.update_time,
+            CASE
+                WHEN d.battery_level &lt; 10 THEN 'LOW_BATTERY'
+                WHEN d.status = 'OFFLINE' THEN 'DEVICE_OFFLINE'
+                WHEN d.wearable_status = 'NOT_WEARING' THEN 'NOT_WEARING'
+                WHEN TIMESTAMPDIFF(HOUR, d.update_time, NOW()) &gt; 24 THEN 'NO_DATA_UPDATE'
+                ELSE 'NORMAL'
+            END as health_status
+        FROM
+            t_device_info d
+        INNER JOIN sys_user u ON d.user_id = u.id
+        WHERE d.is_deleted = 0
+        <if test="orgId != null">
+            AND u.org_id = #{orgId}
+        </if>
+        <if test="customerId != null">
+            AND d.customer_id = #{customerId}
+        </if>
+        <if test="includeHealthy != true">
+            AND (
+                d.battery_level &lt; 10
+                OR d.status = 'OFFLINE'
+                OR d.wearable_status = 'NOT_WEARING'
+                OR TIMESTAMPDIFF(HOUR, d.update_time, NOW()) &gt; 24
+            )
+        </if>
+        ORDER BY 
+            CASE 
+                WHEN d.battery_level &lt; 10 THEN 1
+                WHEN d.status = 'OFFLINE' THEN 2
+                WHEN d.wearable_status = 'NOT_WEARING' THEN 3
+                WHEN TIMESTAMPDIFF(HOUR, d.update_time, NOW()) &gt; 24 THEN 4
+                ELSE 5
+            END,
+            d.update_time DESC
+    </select>
 
 </mapper>

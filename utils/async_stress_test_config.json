@@ -1,0 +1,75 @@
+{
+    "test_scenarios": [
+        {
+            "name": "基础并发测试",
+            "description": "100台设备并发上传，验证基础处理能力",
+            "config": {
+                "total_devices": 100,
+                "concurrent_requests": 50,
+                "test_duration_minutes": 5,
+                "upload_interval_seconds": 1.0,
+                "enable_batch_upload": false
+            }
+        },
+        {
+            "name": "中等并发测试", 
+            "description": "500台设备并发上传，测试中等负载",
+            "config": {
+                "total_devices": 500,
+                "concurrent_requests": 80,
+                "test_duration_minutes": 8,
+                "upload_interval_seconds": 0.8,
+                "enable_batch_upload": true
+            }
+        },
+        {
+            "name": "高并发压力测试",
+            "description": "1000台设备并发上传，极限压力测试",
+            "config": {
+                "total_devices": 1000,
+                "concurrent_requests": 100,
+                "test_duration_minutes": 10,
+                "upload_interval_seconds": 0.5,
+                "enable_batch_upload": true
+            }
+        },
+        {
+            "name": "批量处理优化测试",
+            "description": "专门测试批量处理能力",
+            "config": {
+                "total_devices": 500,
+                "concurrent_requests": 50,
+                "test_duration_minutes": 5,
+                "upload_interval_seconds": 2.0,
+                "enable_batch_upload": true
+            }
+        },
+        {
+            "name": "极限负载测试",
+            "description": "2000台设备超高并发，测试系统极限",
+            "config": {
+                "total_devices": 2000,
+                "concurrent_requests": 150,
+                "test_duration_minutes": 15,
+                "upload_interval_seconds": 0.3,
+                "enable_batch_upload": true
+            }
+        }
+    ],
+    "expected_performance": {
+        "target_qps": 500,
+        "max_response_time": 0.2,
+        "min_success_rate": 99.0,
+        "max_concurrent_devices": 1000,
+        "async_optimization_improvement": {
+            "response_time_improvement": "85-90%",
+            "throughput_improvement": "500+ records/s",
+            "concurrent_improvement": "30x"
+        }
+    },
+    "endpoints": {
+        "local_debug": "http://localhost:5225",
+        "docker_deployment": "http://localhost:5001",
+        "production": "http://192.168.1.83:5001"
+    }
+}
