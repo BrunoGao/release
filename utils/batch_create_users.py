@@ -18,7 +18,7 @@ def generate_password_hash(password, salt):
 def generate_random_salt():
     """生成随机盐值"""
     import string
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=6))
 
 def generate_user_data(serial_number, index):
     """生成单个用户的数据"""
@@ -38,8 +38,11 @@ def generate_user_data(serial_number, index):
     password_hash = generate_password_hash(password, salt)
     
     now = datetime.now()
+    # 生成唯一ID (雪花算法模拟)
+    user_id = 1939964806110937090 + index
     
     return {
+        'id': user_id,
         'userName': serial_number,
         'password': password_hash,
         'userCardNumber': f"{random.randint(100000000000000000, 999999999999999999)}",  # 18位身份证号
@@ -59,22 +62,24 @@ def generate_user_data(serial_number, index):
         'birthday': birthday,
         'lastLoginTime': None,
         'updatePasswordTime': None,
-        'createBy': 'system',
+        'createUser': 'system',
+        'createUserId': 1,
         'createTime': now,
-        'updateBy': 'system',
+        'updateUser': 'system',
+        'updateUserId': 1,
         'updateTime': now,
-        'delFlag': '0'
+        'isDeleted': 0
     }
 
 def get_db_connection():
     """获取数据库连接"""
     try:
         connection = mysql.connector.connect(
-            host='192.168.1.6',
+            host='127.0.0.1',
             port=3306,
-            database='ljwx',
+            database='test',
             user='root',
-            password='ljwx@admin123',
+            password='123456',
             charset='utf8mb4',
             autocommit=False
         )
@@ -87,15 +92,16 @@ def insert_user(cursor, user_data):
     """插入单个用户"""
     sql = """
     INSERT INTO sys_user (
-        user_name, password, user_card_number, nick_name, real_name, avatar, email, phone, 
+        id, user_name, password, user_card_number, nick_name, real_name, avatar, email, phone, 
         gender, status, salt, device_sn, customer_id, working_years, org_id, org_name, 
-        birthday, last_login_time, update_password_time, create_by, create_time, 
-        update_by, update_time, del_flag
+        birthday, last_login_time, update_password_time, create_user, create_user_id, create_time, 
+        update_user, update_user_id, update_time, is_deleted
     ) VALUES (
-        %(userName)s, %(password)s, %(userCardNumber)s, %(nickName)s, %(realName)s, %(avatar)s, 
+        %(id)s, %(userName)s, %(password)s, %(userCardNumber)s, %(nickName)s, %(realName)s, %(avatar)s, 
         %(email)s, %(phone)s, %(gender)s, %(status)s, %(salt)s, %(deviceSn)s, %(customerId)s, 
         %(workingYears)s, %(orgId)s, %(orgName)s, %(birthday)s, %(lastLoginTime)s, 
-        %(updatePasswordTime)s, %(createBy)s, %(createTime)s, %(updateBy)s, %(updateTime)s, %(delFlag)s
+        %(updatePasswordTime)s, %(createUser)s, %(createUserId)s, %(createTime)s, 
+        %(updateUser)s, %(updateUserId)s, %(updateTime)s, %(isDeleted)s
     )
     """
     cursor.execute(sql, user_data)

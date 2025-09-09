@@ -70,12 +70,19 @@ class AsyncHealthStressTester:
         signal.signal(signal.SIGTERM, self._signal_handler)
     
     def _generate_device_list(self) -> List[str]:
-        """生成设备SN列表"""
+        """生成设备SN列表，使用实际创建的1000个手表序列号"""
         devices = []
-        for i in range(self.config.total_devices):
-            # 使用类似真实设备SN的格式
-            device_sn = f"CRFTQ{random.randint(20000, 99999)}{random.randint(100000, 999999)}"
+        for i in range(min(self.config.total_devices, 1000)):
+            # 使用实际创建的手表序列号格式：CRFTQ23409000000 到 CRFTQ23409000999
+            device_sn = f"CRFTQ23409{i:06d}"
             devices.append(device_sn)
+        
+        # 如果需要更多设备，继续用随机序列号
+        if self.config.total_devices > 1000:
+            for i in range(1000, self.config.total_devices):
+                device_sn = f"CRFTQ{random.randint(20000, 99999)}{random.randint(100000, 999999)}"
+                devices.append(device_sn)
+                
         return devices
     
     def _setup_logging(self):
