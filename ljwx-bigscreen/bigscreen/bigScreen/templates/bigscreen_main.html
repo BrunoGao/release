@@ -2685,7 +2685,7 @@
                     <div class="tenant-info-compact">
                         <div class="tenant-name-compact" id="tenantName">{{ COMPANY_NAME }}</div>
                         <div class="tenant-meta-compact">
-                            <span class="tenant-id-compact">ID: <span id="tenantId">{{ customerId }}</span></span>
+                            <span class="tenant-id-compact">ID: <span id="tenantId"></span></span>
                             <span class="tenant-separator">•</span>
                             <span class="tenant-status-compact online">运行中</span>
                         </div>
@@ -2898,9 +2898,39 @@
 
     <script>
 
+      // 全局配置变量
+      const urlParams = new URLSearchParams(window.location.search);
+      const GLOBAL_CUSTOMER_ID = urlParams.get('customerId') || '1939964806110937090';
+      
+      // 设置租户ID显示
+      document.addEventListener('DOMContentLoaded', function() {
+        const tenantIdElement = document.getElementById('tenantId');
+        if (tenantIdElement) {
+          tenantIdElement.textContent = GLOBAL_CUSTOMER_ID;
+        }
+      });
+      
       // 在全局作用域声明图表变量
       let globalCharts = null;
       let currentDept = '', currentUser = '';
+      
+      // 统一的API调用函数
+      function apiCall(url, options = {}) {
+        // 自动添加customerId参数
+        const separator = url.includes('?') ? '&' : '?';
+        const urlWithCustomerId = `${url}${separator}customerId=${GLOBAL_CUSTOMER_ID}`;
+        
+        // 设置默认选项
+        const defaultOptions = {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        };
+        
+        const finalOptions = { ...defaultOptions, ...options };
+        
+        console.log('API调用:', urlWithCustomerId, finalOptions);
+        return fetch(urlWithCustomerId, finalOptions);
+      }
       const ALERT_TYPE_MAP = {
         heart_rate: '心率',
         blood_pressure: '血压',
@@ -2989,10 +3019,6 @@
             if (healthScoreContainer) {
                 charts.healthScore = echarts.init(healthScoreContainer);
                 
-                // 从URL获取customerId参数
-                const urlParams = new URLSearchParams(window.location.search);
-                const customerId = urlParams.get('customerId') || '1';
-                
                 // 获取日期范围
                 const today = new Date();
                 const yesterday = new Date(today);
@@ -3002,16 +3028,7 @@
                 const endDate = formatDate(today);
                 
                 // 调用接口获取健康评分数据
-                fetch(`/api/health/score/comprehensive`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                orgId: customerId,
-                startDate: startDate,
-                endDate: endDate,
-                includeFactors: true
-            })
-        })
+                apiCall(`/api/health/score/comprehensive?orgId=${GLOBAL_CUSTOMER_ID}&startDate=${startDate}&endDate=${endDate}&includeFactors=true`)
                     .then(response => response.json())
                     .then(result => {
                         if (result.success && result.data && result.data.healthScores) {
@@ -3553,7 +3570,7 @@
             // 从URL获取userId参数，如果没有则不传递
             const urlParams = new URLSearchParams(window.location.search);
             const userId = urlParams.get('userId') || null;
-            initializeMap('{{ customerId }}', userId);
+            initializeMap(GLOBAL_CUSTOMER_ID, userId);
             console.log('✅ 地图初始化完成');
         } catch (error) {
             console.error('❌ 地图初始化失败:', error);
@@ -3916,9 +3933,7 @@
 
     // 添加消息面板点击处理函数 - 统一版本
     function openMessagePanel() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const customerId = urlParams.get('customerId') || '1';
-        createModalWindow('/message_view.html?customerId=' + customerId, '消息管理', '90%', '90%');
+        createModalWindow('/message_view.html?customerId=' + GLOBAL_CUSTOMER_ID, '消息管理', '90%', '90%');
     }
 
     // 消息项点击事件已移至面板级别，无需单独处理
@@ -3998,14 +4013,15 @@
         //console.log('initializeMap.severityLevel',`./generateAlertJson?customerId=${deptId}&userId=${userId}&severityLevel=critical`);
 
         // v1.0.32 - 添加medium级别告警点支持，优化URL构建逻辑
-        const baseParams = `customerId=${deptId}`;
+        const baseParams = `customerId=${GLOBAL_CUSTOMER_ID}`;
+        const deptParam = (deptId && deptId !== '-1' && deptId !== 'all') ? `&deptId=${deptId}` : '';
         const userParam = (userId && userId !== '-1' && userId !== 'all') ? `&userId=${userId}` : '';
         
         const dataUrls = {
-          critical: `./generateAlertJson?${baseParams}${userParam}&severityLevel=critical`,
-          high: `./generateAlertJson?${baseParams}${userParam}&severityLevel=high`,
-          medium: `./generateAlertJson?${baseParams}${userParam}&severityLevel=medium`,
-          health: `./generateHealthJson?${baseParams}${userParam}`
+          critical: `./generateAlertJson?${baseParams}${deptParam}${userParam}&severityLevel=critical`,
+          high: `./generateAlertJson?${baseParams}${deptParam}${userParam}&severityLevel=high`,
+          medium: `./generateAlertJson?${baseParams}${deptParam}${userParam}&severityLevel=medium`,
+          health: `./generateHealthJson?${baseParams}${deptParam}${userParam}`
         };
         
         console.log('🔗 数据URL准备完成，等待地图加载');
@@ -4290,7 +4306,7 @@
 
 
   function handleAlert(alertId) {
-    fetch(`./dealAlert?alertId=${alertId}`)
+    apiCall(`./dealAlert?alertId=${alertId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -4630,8 +4646,8 @@ function getPastDateStr(daysAgo) {
     d.setDate(d.getDate() - daysAgo);
     return d.toISOString().slice(0,10);
   }
-  function loadHealthScoreChart(customerId) {
-    console.log('loadHealthScoreChart 开始执行，customerId:', customerId);
+  function loadHealthScoreChart() {
+    console.log('loadHealthScoreChart 开始执行，使用全局customerId:', GLOBAL_CUSTOMER_ID);
     
     const endDate = getPastDateStr(0), startDate = getPastDateStr(6);
     
@@ -4644,16 +4660,7 @@ function getPastDateStr(daysAgo) {
       const startDate = formatDate(yesterday);
       const endDate = formatDate(today);
       
-      fetch(`/api/health/score/comprehensive`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              orgId: customerId,
-              startDate: startDate,
-              endDate: endDate,
-              includeFactors: true
-          })
-      })
+      apiCall(`/api/health/score/comprehensive?orgId=${GLOBAL_CUSTOMER_ID}&startDate=${startDate}&endDate=${endDate}&includeFactors=true`)
           .then(response => response.json())
           .then(result => {
               if (result.success && result.data && result.data.healthScores) {
@@ -4914,7 +4921,7 @@ function getPastDateStr(daysAgo) {
     
     const endDate = getPastDateStr(0), startDate = getPastDateStr(6);
     
-    fetch(`/health_data/chart/baseline?orgId=${orgId}&startDate=${startDate}&endDate=${endDate}`)
+    apiCall(`/health_data/chart/baseline?orgId=${orgId}&startDate=${startDate}&endDate=${endDate}`)
       .then(r=>r.json())
       .then(result=>{
         console.log('健康数据接口返回:', result);
@@ -4938,7 +4945,7 @@ function getPastDateStr(daysAgo) {
   function generateBaselineAndRetry(orgId, startDate, endDate) {
     console.log('正在生成baseline数据...');
     
-    fetch('/api/baseline/generate', {
+    apiCall('/api/baseline/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target_date: endDate })
@@ -4949,7 +4956,7 @@ function getPastDateStr(daysAgo) {
       
       if (generateResult.success) {
         // 生成成功后重新获取数据
-        return fetch(`/health_data/chart/baseline?orgId=${orgId}&startDate=${startDate}&endDate=${endDate}`);
+        return apiCall(`/health_data/chart/baseline?orgId=${orgId}&startDate=${startDate}&endDate=${endDate}`);
       } else {
         throw new Error('baseline生成失败: ' + generateResult.error);
       }
@@ -5205,16 +5212,14 @@ function getPastDateStr(daysAgo) {
 // 修改数据刷新函数
 function refreshData() {
     // 从 URL 获取 customerId 参数
-    const urlParams = new URLSearchParams(window.location.search);
-    console.log('urlParams', urlParams.get('customerId'));
-    const customerId = urlParams.get('customerId') || '1';
-    loadBaselineTrendChart(customerId);
-    loadHealthScoreChart(customerId);
+    console.log('使用全局customerId:', GLOBAL_CUSTOMER_ID);
+    loadBaselineTrendChart(GLOBAL_CUSTOMER_ID);
+    loadHealthScoreChart();
     // 只使用实时统计API，移除其他统计方法
-    updateRealtimeStats(customerId); // 更新实时统计数据
+    updateRealtimeStats(GLOBAL_CUSTOMER_ID); // 更新实时统计数据
     //loadMessages(); // 加载消息数据
 
-    fetch(`/get_total_info?customer_id=${customerId}`)
+    apiCall(`/get_total_info`)
         .then(response => response.json())
         .then(result => {
             if (result.success) {
@@ -5372,7 +5377,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 从URL获取userId参数，如果没有则不传递
             const urlParams = new URLSearchParams(window.location.search);
             const userId = urlParams.get('userId') || null;
-            initializeMap('{{ customerId }}', userId);
+            initializeMap(GLOBAL_CUSTOMER_ID, userId);
             console.log('✅ 地图初始化完成');
         } catch (error) {
             console.error('❌ 地图初始化失败:', error);
@@ -6650,7 +6655,7 @@ function showStatusDetails(statusName, statusValue) {
 
                 // 获取该部门的用户数据并添加到全局数组
                 try {
-                    const response = await fetch(`/fetch_users?orgId=${dept.id}`);
+                    const response = await apiCall(`/fetch_users?orgId=${dept.id}`);
                     const users = await response.json();
                     if (users) {
                         users.forEach(user => {
@@ -7313,7 +7318,7 @@ div.innerHTML=`
     
     panelDisplaying = true; // 标记面板正在显示
     
-    fetch(`/fetchHealthDataById?id=${healthId}`).then(r=>r.json()).then(j=>{
+    apiCall(`/fetchHealthDataById?id=${healthId}`).then(r=>r.json()).then(j=>{
       if(!j.success||!j.data)return showCustomAlert('无健康数据');
       const d=j.data,g=(...k)=>k.map(x=>d[x]).find(x=>x!==undefined&&x!==null&&x!=='')||'-';
       let sleepStr=g('sleepData','scientificSleepData'),sleep='-';
@@ -7783,11 +7788,9 @@ div.innerHTML=`
         console.warn('🗺️ 地图未初始化，正在重新初始化...');
         try {
             // 重新初始化地图
-            const urlParams = new URLSearchParams(window.location.search);
-            const customerId = urlParams.get('customerId') || '{{ customerId }}' || '1';
             // 从URL获取userId参数，如果没有则不传递
             const userId = urlParams.get('userId') || null;
-            initializeMap(customerId, userId);
+            initializeMap(GLOBAL_CUSTOMER_ID, userId);
             
             // 等待地图初始化完成再更新数据
             setTimeout(() => {
@@ -7841,17 +7844,8 @@ div.innerHTML=`
     // 如果有设备序列号，获取健康评分
     if (deviceSns.length > 0) {
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const customerId = urlParams.get('customerId') || '1';
-            const scoreResponse = await fetch(`/api/health/score/comprehensive`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customerId: customerId,
-                    deviceSns: deviceSns,
-                    includeDeviceBreakdown: true
-                })
-            });
+            const deviceSnsParam = deviceSns.map(sn => `deviceSns[]=${encodeURIComponent(sn)}`).join('&');
+            const scoreResponse = await apiCall(`/api/health/score/comprehensive?${deviceSnsParam}&includeDeviceBreakdown=true`);
             
             if (scoreResponse.ok) {
                 const scoreData = await scoreResponse.json();
@@ -8694,7 +8688,7 @@ function loadStatisticsData() {
   }
   
     // 获取统计概览数据
-    fetch(`/api/statistics/overview?orgId=${customerId}&date=${today}`)
+    apiCall(`/api/statistics/overview?orgId=${GLOBAL_CUSTOMER_ID}&date=${today}`)
     .then(response => response.json())
     .then(result => {
       if (result.success) {
@@ -8751,7 +8745,7 @@ function loadStatisticsData() {
         updateSystemStatus(mockSummary);
         
         // 使用实时统计API获取真实的增长率数据
-        fetch(`/api/realtime_stats?customerId=${customerId}&date=${today}`)
+        apiCall(`/api/realtime_stats?date=${today}`)
           .then(response => response.json())
           .then(statsResult => {
             if (statsResult.success) {
@@ -8945,7 +8939,7 @@ function showStatsErrorState() {
 
 // 已弃用：降级版本函数（不再使用）
 function updateRealtimeStatsLegacy(customerId) {
-  fetch(`/get_total_info?customer_id=${customerId}`)
+  apiCall(`/get_total_info`)
     .then(response => response.json())
     .then(result => {
       if (result.success) {
@@ -9328,7 +9322,7 @@ function initOverviewChart() {
     function acknowledgeAlert() {
       if (currentAlert) {
         // 发送确认请求到后端 (可选)
-        fetch('/acknowledge_alert', {
+        apiCall('/acknowledge_alert', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -9566,14 +9560,7 @@ function initOverviewChart() {
       if (loadingEl) loadingEl.style.display = 'flex';
       if (itemsEl) itemsEl.style.display = 'none';
       
-      // 获取customerId
-      const urlParams = new URLSearchParams(window.location.search);
-      const customerId = urlParams.get('customerId') || '1';
-      
-      fetch(`/api/health/analysis/comprehensive?customerId=${customerId}&days=7`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      })
+      apiCall(`/api/health/score/comprehensive?days=7`)
       .then(response => response.json())
       .then(result => {
         if (result.success && result.data && result.data.predictions) {
@@ -9624,14 +9611,7 @@ function initOverviewChart() {
       const scoreEl = document.getElementById('compactHealthScore');
       const statusEl = document.getElementById('compactHealthStatus');
       
-      // 获取customerId
-      const urlParams = new URLSearchParams(window.location.search);
-      const customerId = urlParams.get('customerId') || '1';
-      
-      fetch(`/api/health/score/comprehensive?customerId=${customerId}&startDate=${formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000))}&endDate=${formatDate(new Date())}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      })
+      apiCall(`/api/health/score/comprehensive?startDate=${formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000))}&endDate=${formatDate(new Date())}`)
       .then(response => response.json())
       .then(result => {
         if (result.success && result.data && result.data.summary) {
@@ -9689,14 +9669,7 @@ function initOverviewChart() {
       if (loadingEl) loadingEl.style.display = 'flex';
       if (itemsEl) itemsEl.style.display = 'none';
       
-      // 获取customerId
-      const urlParams = new URLSearchParams(window.location.search);
-      const customerId = urlParams.get('customerId') || '1';
-      
-      fetch(`/api/health/recommendations?customerId=${customerId}&analysisType=comprehensive`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      })
+      apiCall(`/api/health/recommendations?analysisType=comprehensive`)
       .then(response => response.json())
       .then(result => {
         if (result.success && result.data && result.data.recommendations) {
