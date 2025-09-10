@@ -67,5 +67,33 @@ public class TAlertRules extends BaseEntity {
     private String notificationType;
 
     private Long customerId;
+    
+    // 新增字段 - 根据数据库迁移脚本
+    private String ruleCategory;  // SINGLE, COMPOSITE, COMPLEX
+    
+    private Object conditionExpression;  // JSON类型
+    
+    private Integer timeWindowSeconds;
+    
+    private Integer cooldownSeconds;
+    
+    private Integer priorityLevel;
+    
+    private Object ruleTags;  // JSON类型
+    
+    private java.sql.Time effectiveTimeStart;
+    
+    private java.sql.Time effectiveTimeEnd;
+    
+    private String effectiveDays;
+    
+    private Long version;
+    
+    private Object enabledChannels;  // JSON类型
+    
+    // 兼容字段名
+    private String level;  // 映射到 severityLevel
+    
+    private Boolean isEnabled;  // 是否启用
 
 }

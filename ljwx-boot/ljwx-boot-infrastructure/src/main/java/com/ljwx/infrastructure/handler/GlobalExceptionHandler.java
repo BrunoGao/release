@@ -13,6 +13,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -78,6 +79,29 @@ public class GlobalExceptionHandler {
     public Result<Object> handleRouteException(@NonNull RouteException routeException) {
         log.error("[路由异常]{}", routeException.getMessage(), routeException);
         return Result.failure(routeException.getCode(), routeException.getMsg());
+    }
+
+    /**
+     * 数据库重复键异常（唯一约束冲突）
+     *
+     * @param exception 异常信息
+     * @return {@link Result} 统一返回结果
+     * @author bruno.gao
+     * @CreateTime 2025-09-10 19:52
+     */
+    @ResponseBody
+    @ExceptionHandler(value = DuplicateKeyException.class)
+    public Result<Object> handleDuplicateKeyException(@NonNull DuplicateKeyException exception) {
+        String message = exception.getMessage();
+        log.error("[数据库重复键异常]{}", message, exception);
+        
+        // 解析具体的错误信息，提供友好的用户提示
+        if (message != null && message.contains("uk_rule_type_physical_sign_severity_customer")) {
+            return Result.failure(ResultCode.BAD_REQUEST.getCode(), "告警规则配置冲突：相同客户下已存在相同规则类型、监控指标和严重级别的规则，请修改后重试");
+        }
+        
+        // 其他重复键错误的通用处理
+        return Result.failure(ResultCode.BAD_REQUEST.getCode(), "数据重复，请检查输入信息是否与现有记录冲突");
     }
 
     /**

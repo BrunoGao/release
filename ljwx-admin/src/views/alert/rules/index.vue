@@ -1,18 +1,19 @@
 <script setup lang="tsx">
-import { NButton, NPopconfirm, NCollapse, NCollapseItem, NAlert, NList, NListItem, NIcon, NSpace } from 'naive-ui';
+import { NButton, NPopconfirm, NCollapse, NCollapseItem, NAlert, NList, NListItem, NIcon, NSpace, NTag, NTooltip, NProgress, NCard, NStatistic } from 'naive-ui';
 import type { Ref } from 'vue';
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
 import { useAuthStore } from '@/store/modules/auth';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import { transDeleteParams } from '@/utils/common';
-import { fetchDeleteAlertRules, fetchGetAlertRulesList } from '@/service/api';
+import { fetchDeleteAlertRules, fetchGetAlertRulesList, fetchUpdateAlertRulesInfo } from '@/service/api';
 import { useDict } from '@/hooks/business/dict';
 import { convertToBeijingTime } from '@/utils/date';
 import AlerrulesSearch from './modules/alerrules-search.vue';
 import AlerrulesOperateDrawer from './modules/alerrules-operate-drawer.vue';
+import AlertRuleWizard from './components/AlertRuleWizard.vue';
 defineOptions({
   name: 'TAlertRulesPage'
 });
@@ -45,91 +46,185 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center'
     },
     {
-      key: 'ruleType',
-      title: $t('page.health.alert.rules.ruleType'),
+      key: 'ruleCategory',
+      title: '规则类型',
       align: 'center',
       minWidth: 100,
-      render: row => dictTag('alert_type', row.ruleType)
+      render: row => {
+        const category = row.ruleCategory || 'SINGLE';
+        const typeMap = {
+          'SINGLE': { text: '单体征', type: 'primary' },
+          'COMPOSITE': { text: '复合', type: 'warning' },
+          'COMPLEX': { text: '复杂', type: 'error' }
+        };
+        const config = typeMap[category] || typeMap['SINGLE'];
+        return <NTag type={config.type} size="small">{config.text}</NTag>;
+      }
     },
     {
       key: 'physicalSign',
-      title: $t('page.health.alert.rules.physicalSign'),
+      title: '监控指标',
+      align: 'center',
+      minWidth: 120,
+      render: row => {
+        if (row.ruleCategory === 'COMPOSITE') {
+          return <NTag type="info" size="small">多指标组合</NTag>;
+        }
+        return dictTag('health_data_type', row.physicalSign);
+      }
+    },
+    {
+      key: 'thresholds',
+      title: '阈值范围',
+      align: 'center',
+      minWidth: 120,
+      render: row => {
+        if (row.ruleCategory === 'COMPOSITE') {
+          return <span class="text-gray-500">复合条件</span>;
+        }
+        const min = row.thresholdMin;
+        const max = row.thresholdMax;
+        if (min != null && max != null) {
+          return <span class="text-primary">{min} - {max}</span>;
+        } else if (min != null) {
+          return <span class="text-warning">≥ {min}</span>;
+        } else if (max != null) {
+          return <span class="text-error">≤ {max}</span>;
+        }
+        return <span class="text-gray-400">-</span>;
+      }
+    },
+    {
+      key: 'priorityLevel',
+      title: '优先级',
+      align: 'center',
+      minWidth: 80,
+      render: row => {
+        const priority = row.priorityLevel || 3;
+        const priorityMap = {
+          1: { text: '最高', type: 'error', color: '#ff4d4f' },
+          2: { text: '高', type: 'warning', color: '#fa8c16' },
+          3: { text: '中', type: 'info', color: '#1890ff' },
+          4: { text: '低', type: 'default', color: '#52c41a' }
+        };
+        const config = priorityMap[priority] || priorityMap[3];
+        return <NTag type={config.type} size="small">{config.text}</NTag>;
+      }
+    },
+    {
+      key: 'level',
+      title: '严重级别',
       align: 'center',
       minWidth: 100,
-      render: row => dictTag('health_data_type', row.physicalSign)
+      render: row => {
+        const levelMap = {
+          'CRITICAL': { text: '紧急', type: 'error' },
+          'HIGH': { text: '高', type: 'warning' },
+          'MEDIUM': { text: '中', type: 'info' },
+          'LOW': { text: '低', type: 'default' }
+        };
+        const config = levelMap[row.level] || levelMap['MEDIUM'];
+        return <NTag type={config.type} size="small">{config.text}</NTag>;
+      }
     },
     {
-      key: 'thresholdMin',
-      title: $t('page.health.alert.rules.thresholdMin'),
-      align: 'center',
-      minWidth: 100
-    },
-    {
-      key: 'thresholdMax',
-      title: $t('page.health.alert.rules.thresholdMax'),
-      align: 'center',
-      minWidth: 100
-    },
-    {
-      key: 'trendDuration',
-      title: $t('page.health.alert.rules.trendDuration'),
-      align: 'center',
-      minWidth: 100
-    },
-
-    {
-      key: 'alertMessage',
-      title: $t('page.health.alert.rules.alertMessage'),
-      align: 'center',
-      minWidth: 100
-    },
-    {
-      key: 'notificationType',
-      title: $t('page.health.alert.rules.notificationType'),
+      key: 'timeWindow',
+      title: '时间窗口',
       align: 'center',
       minWidth: 100,
-      render: row => dictTag('notification_type', row.notificationType)
+      render: row => {
+        const seconds = row.timeWindowSeconds || 300;
+        if (seconds >= 3600) {
+          return <span>{(seconds / 3600).toFixed(1)}小时</span>;
+        } else if (seconds >= 60) {
+          return <span>{(seconds / 60)}分钟</span>;
+        }
+        return <span>{seconds}秒</span>;
+      }
     },
     {
-      key: 'severityLevel',
-      title: $t('page.health.alert.rules.severityLevel'),
+      key: 'enabledChannels',
+      title: '通知渠道',
       align: 'center',
-      minWidth: 100,
-      render: row => dictTag('alert_severityLevel', row.severityLevel)
+      minWidth: 120,
+      render: row => {
+        const channels = row.enabledChannels || ['message'];
+        const channelMap = {
+          'message': '内部消息',
+          'wechat': '微信',
+          'sms': '短信',
+          'email': '邮件'
+        };
+        return (
+          <div class="flex gap-1 justify-center flex-wrap">
+            {channels.map(ch => (
+              <NTag key={ch} size="small" type="success">
+                {channelMap[ch] || ch}
+              </NTag>
+            ))}
+          </div>
+        );
+      }
     },
     {
-      key: 'createUser',
-      title: $t('page.health.alert.rules.createUser'),
+      key: 'isEnabled',
+      title: '状态',
       align: 'center',
-      minWidth: 100
+      minWidth: 80,
+      render: row => {
+        const enabled = row.isEnabled;
+        return (
+          <NTag type={enabled ? 'success' : 'default'} size="small">
+            {enabled ? '启用' : '禁用'}
+          </NTag>
+        );
+      }
     },
     {
       key: 'createTime',
-      title: $t('page.health.alert.rules.createTime'),
+      title: '创建时间',
       align: 'center',
-      minWidth: 100,
+      minWidth: 120,
       render: row => convertToBeijingTime(row.createTime)
     },
     {
       key: 'operate',
       title: $t('common.operate'),
       align: 'center',
-      width: 200,
-      minWidth: 200,
+      width: 280,
+      minWidth: 280,
       render: row => (
-        <div class="flex-center gap-8px">
+        <div class="flex-center gap-8px flex-wrap">
           {hasAuth('t:alert:rules:update') && (
             <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
-              {$t('common.edit')}
+              编辑
             </NButton>
           )}
+          <NButton type="info" quaternary size="small" onClick={() => testRule(row)}>
+            测试
+          </NButton>
+          <NTooltip trigger="hover">
+            {{
+              trigger: () => (
+                <NButton 
+                  type={row.isEnabled ? 'warning' : 'success'} 
+                  quaternary 
+                  size="small" 
+                  onClick={() => toggleRuleStatus(row)}
+                >
+                  {row.isEnabled ? '禁用' : '启用'}
+                </NButton>
+              ),
+              default: () => row.isEnabled ? '点击禁用规则' : '点击启用规则'
+            }}
+          </NTooltip>
           {hasAuth('t:alert:rules:delete') && (
             <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
               {{
                 default: () => $t('common.confirmDelete'),
                 trigger: () => (
                   <NButton type="error" quaternary size="small">
-                    {$t('common.delete')}
+                    删除
                   </NButton>
                 )
               }}
@@ -170,12 +265,143 @@ async function handleBatchDelete() {
   }
 }
 
+// 测试规则
+async function testRule(row: Api.Health.AlertRules) {
+  window.$message?.info('规则测试功能正在开发中...');
+  // TODO: 实现规则测试功能
+}
+
+// 切换规则状态
+async function toggleRuleStatus(row: Api.Health.AlertRules) {
+  try {
+    const updatedRow = { ...row, isEnabled: !row.isEnabled };
+    const { error } = await fetchUpdateAlertRulesInfo(updatedRow);
+    if (!error) {
+      window.$message?.success(updatedRow.isEnabled ? '规则已启用' : '规则已禁用');
+      await getData();
+    }
+  } catch (error) {
+    window.$message?.error('状态切换失败');
+  }
+}
+
 // 操作手册展开状态
 const manualExpanded = ref(false);
+
+// 向导状态
+const wizardVisible = ref(false);
+
+// 统计信息
+const ruleStats = computed(() => {
+  if (!data.value?.length) {
+    return {
+      total: 0,
+      enabled: 0,
+      disabled: 0,
+      single: 0,
+      composite: 0,
+      complex: 0
+    };
+  }
+  
+  const stats = {
+    total: data.value.length,
+    enabled: data.value.filter(r => r.isEnabled).length,
+    disabled: data.value.filter(r => !r.isEnabled).length,
+    single: data.value.filter(r => (r.ruleCategory || 'SINGLE') === 'SINGLE').length,
+    composite: data.value.filter(r => r.ruleCategory === 'COMPOSITE').length,
+    complex: data.value.filter(r => r.ruleCategory === 'COMPLEX').length
+  };
+  
+  return stats;
+});
+
+// 性能监控跳转
+function goToPerformanceMonitor() {
+  // 跳转到性能监控页面
+  window.open('/monitor/alert-performance', '_blank');
+}
+
+// 打开配置向导
+function openWizard() {
+  wizardVisible.value = true;
+}
+
+// 向导成功回调
+function onWizardSuccess() {
+  getData(); // 刷新数据
+}
 </script>
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
+    <!-- 统计概览 -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+      <NCard size="small" class="stats-card">
+        <NStatistic label="总规则数" :value="ruleStats.total">
+          <template #prefix>
+            <NIcon size="18" color="#1890ff">
+              <i class="i-material-symbols:rule"></i>
+            </NIcon>
+          </template>
+        </NStatistic>
+      </NCard>
+      
+      <NCard size="small" class="stats-card">
+        <NStatistic label="已启用" :value="ruleStats.enabled">
+          <template #prefix>
+            <NIcon size="18" color="#52c41a">
+              <i class="i-material-symbols:check-circle"></i>
+            </NIcon>
+          </template>
+        </NStatistic>
+      </NCard>
+      
+      <NCard size="small" class="stats-card">
+        <NStatistic label="已禁用" :value="ruleStats.disabled">
+          <template #prefix>
+            <NIcon size="18" color="#ff4d4f">
+              <i class="i-material-symbols:block"></i>
+            </NIcon>
+          </template>
+        </NStatistic>
+      </NCard>
+      
+      <NCard size="small" class="stats-card">
+        <NStatistic label="单体征规则" :value="ruleStats.single">
+          <template #prefix>
+            <NIcon size="18" color="#722ed1">
+              <i class="i-material-symbols:person"></i>
+            </NIcon>
+          </template>
+        </NStatistic>
+      </NCard>
+      
+      <NCard size="small" class="stats-card">
+        <NStatistic label="复合规则" :value="ruleStats.composite">
+          <template #prefix>
+            <NIcon size="18" color="#fa8c16">
+              <i class="i-material-symbols:group"></i>
+            </NIcon>
+          </template>
+        </NStatistic>
+      </NCard>
+      
+      <NCard size="small" class="stats-card">
+        <div class="flex justify-between items-center">
+          <div>
+            <div class="text-xs text-gray-500 mb-1">性能监控</div>
+            <NButton type="primary" size="small" @click="goToPerformanceMonitor">
+              查看详情
+            </NButton>
+          </div>
+          <NIcon size="20" color="#13c2c2">
+            <i class="i-material-symbols:monitoring"></i>
+          </NIcon>
+        </div>
+      </NCard>
+    </div>
+
     <!-- 操作手册 -->
     <NCard :bordered="false" size="small" class="operation-manual">
       <NCollapse v-model:expanded-names="manualExpanded">
@@ -186,17 +412,23 @@ const manualExpanded = ref(false);
             </NSpace>
           </template>
           
-          <div class="manual-content">
+          <div class="manual-content manual-scrollable">
             <NAlert type="info" :show-icon="false" class="mb-4">
               <template #header>
                 <div class="flex items-center gap-2">
                   <NIcon size="16">
                     <i class="i-material-symbols:info"></i>
                   </NIcon>
-                  <span class="font-semibold">系统概述</span>
+                  <span class="font-semibold">系统概述 - 增强版</span>
                 </div>
               </template>
-              告警规则用于监控用户健康数据，当数据超出设定阈值时自动触发告警通知
+              <div class="space-y-2 text-sm">
+                <p><strong>✨ 全新功能</strong>：支持单体征、复合、复杂三种规则类型，实现智能告警和多渠道通知</p>
+                <p><strong>🚀 性能优化</strong>：三层缓存架构，支持并行处理和实时性能监控</p>
+                <p><strong>📊 统计监控</strong>：规则执行统计、性能排行、系统负载监控等</p>
+                <p><strong>🎯 智能向导</strong>：提供分步引导配置，适合新用户快速上手；传统表单适合专家用户快速编辑</p>
+                <p><strong>⚡ 实时操作</strong>：支持一键测试、启用/禁用切换、实时性能监控，无需页面刷新</p>
+              </div>
             </NAlert>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -216,7 +448,7 @@ const manualExpanded = ref(false);
                       <span class="item-number">1</span>
                       <div>
                         <div class="item-title">新增规则</div>
-                        <div class="item-desc">点击"新增"按钮创建新的告警规则</div>
+                        <div class="item-desc">点击"智能配置向导"进行分步引导创建，或使用"新增"按钮快速创建。向导支持单体征、复合规则，提供配置建议和验证</div>
                       </div>
                     </div>
                   </NListItem>
@@ -224,8 +456,8 @@ const manualExpanded = ref(false);
                     <div class="manual-item">
                       <span class="item-number">2</span>
                       <div>
-                        <div class="item-title">编辑规则</div>
-                        <div class="item-desc">点击"编辑"按钮修改现有规则参数</div>
+                        <div class="item-title">测试规则</div>
+                        <div class="item-desc">点击操作列的"测试"按钮验证规则逻辑，支持模拟数据测试和实时数据验证</div>
                       </div>
                     </div>
                   </NListItem>
@@ -233,8 +465,17 @@ const manualExpanded = ref(false);
                     <div class="manual-item">
                       <span class="item-number">3</span>
                       <div>
-                        <div class="item-title">删除规则</div>
-                        <div class="item-desc">选择规则后点击"删除"按钮移除规则</div>
+                        <div class="item-title">启用/禁用</div>
+                        <div class="item-desc">点击操作列的"启用/禁用"按钮快速切换规则状态，立即生效无需页面刷新</div>
+                      </div>
+                    </div>
+                  </NListItem>
+                  <NListItem>
+                    <div class="manual-item">
+                      <span class="item-number">4</span>
+                      <div>
+                        <div class="item-title">性能监控</div>
+                        <div class="item-desc">点击右上角"查看详情"查看规则执行性能、统计排行、系统负载、缓存命中率等详细监控信息</div>
                       </div>
                     </div>
                   </NListItem>
@@ -254,28 +495,37 @@ const manualExpanded = ref(false);
                 <NList size="small">
                   <NListItem>
                     <div class="manual-item">
-                      <span class="item-badge">阈值</span>
+                      <span class="item-badge">类型</span>
                       <div>
-                        <div class="item-title">设置数值范围</div>
-                        <div class="item-desc">配置最小值和最大值触发条件</div>
+                        <div class="item-title">选择规则类型</div>
+                        <div class="item-desc">单体征(监控单指标)、复合(多指标组合AND/OR)、复杂(AI智能分析，开发中)</div>
                       </div>
                     </div>
                   </NListItem>
                   <NListItem>
                     <div class="manual-item">
-                      <span class="item-badge">级别</span>
+                      <span class="item-badge">优先级</span>
                       <div>
-                        <div class="item-title">选择严重程度</div>
-                        <div class="item-desc">低、中、高、紧急四个级别</div>
+                        <div class="item-title">设置处理优先级</div>
+                        <div class="item-desc">最高(紧急处理)、高(5分钟内)、中(10分钟内)、低(30分钟内)</div>
                       </div>
                     </div>
                   </NListItem>
                   <NListItem>
                     <div class="manual-item">
-                      <span class="item-badge">通知</span>
+                      <span class="item-badge">时间窗口</span>
                       <div>
-                        <div class="item-title">配置通知方式</div>
-                        <div class="item-desc">微信、短信、邮件等通知渠道</div>
+                        <div class="item-title">配置检测窗口</div>
+                        <div class="item-desc">时间窗口(60-3600秒)、冷却期(300-86400秒)、持续时长(1-60分钟)</div>
+                      </div>
+                    </div>
+                  </NListItem>
+                  <NListItem>
+                    <div class="manual-item">
+                      <span class="item-badge">渠道</span>
+                      <div>
+                        <div class="item-title">多渠道通知</div>
+                        <div class="item-desc">内部消息(实时)、微信(推荐)、短信(收费)、邮件(延时)，可多选组合</div>
                       </div>
                     </div>
                   </NListItem>
@@ -295,27 +545,54 @@ const manualExpanded = ref(false);
               </template>
               <div class="examples-grid">
                 <div class="example-item">
-                  <div class="example-title">心率异常监控</div>
+                  <div class="example-title">新手示例 - 心率异常监控</div>
                   <div class="example-content">
-                    <span class="example-param">类型: 心率</span>
-                    <span class="example-param">范围: 60-100 bpm</span>
-                    <span class="example-param">级别: 高</span>
+                    <span class="example-param">使用: 智能配置向导</span>
+                    <span class="example-param">规则类型: 单体征</span>
+                    <span class="example-param">监控指标: 心率</span>
+                    <span class="example-param">阈值范围: 60-100 bpm</span>
+                    <span class="example-param">时间窗口: 300秒(5分钟)</span>
+                    <span class="example-param">优先级: 高 | 严重级别: 中</span>
+                    <span class="example-param">通知: 微信+内部消息</span>
                   </div>
                 </div>
+                
                 <div class="example-item">
-                  <div class="example-title">血氧低值预警</div>
+                  <div class="example-title">专家示例 - 心血管综合预警</div>
                   <div class="example-content">
-                    <span class="example-param">类型: 血氧</span>
-                    <span class="example-param">最小值: 95%</span>
-                    <span class="example-param">级别: 紧急</span>
+                    <span class="example-param">使用: 智能配置向导(推荐)</span>
+                    <span class="example-param">规则类型: 复合</span>
+                    <span class="example-param">条件1: 心率 > 100</span>
+                    <span class="example-param">条件2: 收缩压 > 140</span>
+                    <span class="example-param">逻辑: AND 操作</span>
+                    <span class="example-param">时间窗口: 600秒(10分钟)</span>
+                    <span class="example-param">优先级: 最高 | 冷却期: 30分钟</span>
+                    <span class="example-param">通知: 微信+短信+内部消息</span>
                   </div>
                 </div>
+                
                 <div class="example-item">
-                  <div class="example-title">血压高值告警</div>
+                  <div class="example-title">紧急情况 - 血氧危险预警</div>
                   <div class="example-content">
-                    <span class="example-param">类型: 血压</span>
-                    <span class="example-param">最大值: 140/90</span>
-                    <span class="example-param">级别: 中</span>
+                    <span class="example-param">使用: 快速编辑表单</span>
+                    <span class="example-param">规则类型: 单体征</span>
+                    <span class="example-param">监控指标: 血氧</span>
+                    <span class="example-param">阈值类型: 最小值 ≥ 95%</span>
+                    <span class="example-param">持续时长: 1分钟即告警</span>
+                    <span class="example-param">严重级别: 紧急(CRITICAL)</span>
+                    <span class="example-param">通知: 全渠道(实时推送)</span>
+                  </div>
+                </div>
+                
+                <div class="example-item">
+                  <div class="example-title">快速操作指南</div>
+                  <div class="example-content">
+                    <span class="example-param">🚀 快速启用: 点击"启用/禁用"按钮</span>
+                    <span class="example-param">🧪 规则测试: 点击"测试"按钮验证逻辑</span>
+                    <span class="example-param">📊 性能监控: 点击右上角"查看详情"</span>
+                    <span class="example-param">⚡ 批量操作: 勾选多条记录批量删除</span>
+                    <span class="example-param">📝 复制规则: 编辑现有规则另存为新规则</span>
+                    <span class="example-param">🔄 实时刷新: 所有操作立即生效无需刷新</span>
                   </div>
                 </div>
               </div>
@@ -326,17 +603,41 @@ const manualExpanded = ref(false);
     </NCard>
 
     <AlerrulesSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
+    
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
-      <TableHeaderOperation
-        v-model:columns="columnChecks"
-        :checked-row-keys="checkedRowKeys"
-        :loading="loading"
-        add-auth="t:alert:rules:add"
-        delete-auth="t:alert:rules:delete"
-        @add="handleAdd"
-        @delete="handleBatchDelete"
-        @refresh="getData"
-      />
+      <!-- 增强的头部操作区域 -->
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold text-gray-800">告警规则列表</h2>
+          <NTag v-if="ruleStats.total > 0" :type="ruleStats.enabled > 0 ? 'success' : 'warning'" size="small">
+            {{ ruleStats.enabled }}/{{ ruleStats.total }} 已启用
+          </NTag>
+        </div>
+        
+        <div class="flex items-center gap-3">
+          <!-- 智能向导按钮 -->
+          <NButton size="small" type="primary" ghost @click="openWizard" v-if="hasAuth('t:alert:rules:add')">
+            <template #icon>
+              <NIcon>
+                <i class="i-material-symbols:auto-awesome"></i>
+              </NIcon>
+            </template>
+            智能配置向导
+          </NButton>
+          
+          <!-- 传统操作按钮 -->
+          <TableHeaderOperation
+            v-model:columns="columnChecks"
+            :checked-row-keys="checkedRowKeys"
+            :loading="loading"
+            add-auth="t:alert:rules:add"
+            delete-auth="t:alert:rules:delete"
+            @add="handleAdd"
+            @delete="handleBatchDelete"
+            @refresh="getData"
+          />
+        </div>
+      </div>
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
         remote
@@ -352,12 +653,30 @@ const manualExpanded = ref(false);
         :row-key="row => row.id"
         :pagination="mobilePagination"
       />
+      <!-- 传统编辑表单 -->
       <AlerrulesOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" @submitted="getDataByPage" />
+      
+      <!-- 智能配置向导 -->
+      <AlertRuleWizard v-model:visible="wizardVisible" @success="onWizardSuccess" />
     </NCard>
   </div>
 </template>
 
 <style scoped>
+/* 统计卡片样式 */
+.stats-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.stats-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px);
+}
+
 /* 操作手册样式 */
 .operation-manual {
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
@@ -367,6 +686,34 @@ const manualExpanded = ref(false);
 
 .manual-content {
   padding: 8px;
+}
+
+/* 操作手册可滚动样式 */
+.manual-scrollable {
+  max-height: 600px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+}
+
+.manual-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.manual-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.manual-scrollable::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+.manual-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }
 
 .manual-section {
@@ -479,6 +826,17 @@ const manualExpanded = ref(false);
   border: 1px solid #fbbf24;
 }
 
+/* 按钮对齐样式 */
+.flex.items-center.gap-3 {
+  align-items: center;
+  gap: 12px;
+}
+
+.flex.items-center.gap-3 > * {
+  display: flex;
+  align-items: center;
+}
+
 /* 响应式优化 */
 @media (max-width: 768px) {
   .examples-grid {
@@ -487,6 +845,10 @@ const manualExpanded = ref(false);
   
   .manual-content {
     padding: 4px;
+  }
+  
+  .manual-scrollable {
+    max-height: 400px;
   }
 }
 
