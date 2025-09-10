@@ -49,6 +49,7 @@ declare module "@elegant-router/types" {
     "device_config": "/device/config";
     "device_info": "/device/info";
     "device_message": "/device/message";
+    "device_message-v2": "/device/message-v2";
     "device_user": "/device/user";
     "function": "/function";
     "function_hide-child": "/function/hide-child";
@@ -70,6 +71,7 @@ declare module "@elegant-router/types" {
     "health_config": "/health/config";
     "health_echarts": "/health/echarts";
     "health_info": "/health/info";
+    "health_prediction": "/health/prediction";
     "health_profile": "/health/profile";
     "health_score": "/health/score";
     "home": "/home";
@@ -208,6 +210,7 @@ declare module "@elegant-router/types" {
     | "device_bind"
     | "device_config"
     | "device_info"
+    | "device_message-v2"
     | "device_message"
     | "device_user"
     | "function_hide-child_one"
@@ -227,6 +230,7 @@ declare module "@elegant-router/types" {
     | "health_config"
     | "health_echarts"
     | "health_info"
+    | "health_prediction"
     | "health_profile"
     | "health_score"
     | "home"

@@ -49,7 +49,11 @@ public class TDeviceMessageVO extends BaseVO {
 
     private Long orgId;
 
+    private Long customerId;
+
     private String userId;
+
+    private String title;
 
     private String userName;
     private String departmentName;
@@ -77,5 +81,7 @@ public class TDeviceMessageVO extends BaseVO {
     private String createUser;
 
     private LocalDateTime createTime;
+
+    private LocalDateTime updateTime;
 
 }

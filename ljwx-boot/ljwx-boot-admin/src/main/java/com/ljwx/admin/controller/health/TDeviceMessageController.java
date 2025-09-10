@@ -51,7 +51,7 @@ import java.time.LocalDateTime;
 @RestController
 @Tag(name = "")
 @RequiredArgsConstructor
-@RequestMapping("t_device_message")
+@RequestMapping("/api/v1/t_device_message")
 public class TDeviceMessageController {
 
     @NonNull

@@ -37,6 +37,12 @@ from .health_recommendation_engine import RealTimeHealthRecommendationEngine
 from .health_cache_integration import health_data_cache_integration, cache_health_data, cache_health_chart, cache_health_stats
 from redis import Redis
 from .health_data_batch_processor import optimized_upload_health_data, save_health_data_fast, get_optimizer_stats
+from .health_config_cache_listener import get_health_config_listener, get_enabled_metrics, get_listener_stats
+from .redis_stream_manager import get_stream_manager
+from .stream_consumers import get_consumer_manager
+from .stream_gradual_switch_manager import get_switch_manager, should_use_stream_processing
+from .stream_monitoring_dashboard import monitoring_bp
+from .stream_rollback_plan import get_rollback_plan
 from .statistics import get_realtime_stats_data, get_statistics_overview_data
 from .message import save_device_message_data, send_device_message_data, receive_device_messages_data
 from .device import get_device_analysis_data
@@ -91,6 +97,9 @@ db.init_app(app)
 
 # 注册蓝图
 app.register_blueprint(config_bp, url_prefix='/api')
+
+# 注册Stream监控仪表板蓝图
+app.register_blueprint(monitoring_bp)
 
 # 注册健康系统API蓝图
 try:
@@ -180,7 +189,7 @@ def inject_global_vars():
     }
 
 # Configure logging
-from logging_config import api_logger,health_logger,device_logger,db_logger,log_api_request,log_data_processing,system_logger #添加system_logger导入
+from logging_config import api_logger,health_logger,device_logger,db_logger,log_api_request,log_data_processing,system_logger,alert_logger #添加system_logger和alert_logger导入
 
 # 安全的Redis连接初始化 - 避免递归错误
 try:
@@ -221,6 +230,31 @@ with app.app_context():
         print(f"⚠️系统事件处理器启动失败: {e}")
         import traceback
         traceback.print_exc()
+
+# 初始化Redis Stream系统
+stream_manager = None
+consumer_manager = None
+
+def initialize_stream_system():
+    """初始化Stream系统"""
+    global stream_manager, consumer_manager
+    
+    try:
+        stream_manager = get_stream_manager()
+        consumer_manager = get_consumer_manager()
+        
+        # 启动消费者（仅在验证阶段，不写数据库）
+        consumer_manager.start_all_consumers()
+        
+        logger.info("✅ Stream系统初始化完成")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Stream系统初始化失败: {e}")
+        return False
+
+# 在应用启动时调用
+with app.app_context():
+    initialize_stream_system()
 
 logger = api_logger#使用API专用记录器
 
@@ -751,6 +785,38 @@ def handle_health_data():
     print(f"🏥 最终提取的设备SN: {device_sn}")
     health_logger.info('健康数据上传开始',extra={'device_sn':device_sn,'data_size':len(str(health_data))})
     
+    # 检查是否应该使用Stream处理
+    try:
+        use_stream = should_use_stream_processing(device_sn)
+        if use_stream:
+            print(f"🌊 设备 {device_sn} 使用Stream处理")
+            # 使用Stream处理
+            stream_manager = get_stream_manager()
+            stream_id = stream_manager.add_health_data({
+                'data': health_data.get('data'),
+                'device_sn': device_sn,
+                'message_type': 'health_data',
+                'timestamp': int(time.time()),
+                'api_version': 'v1_stream_auto'
+            })
+            
+            health_logger.info('健康数据Stream处理', extra={
+                'device_sn': device_sn,
+                'stream_id': stream_id,
+                'processing_type': 'stream_auto'
+            })
+            
+            return jsonify({
+                "status": "accepted",
+                "message": "数据已提交Stream处理",
+                "stream_id": stream_id,
+                "processing_type": "stream"
+            })
+        else:
+            print(f"🔄 设备 {device_sn} 使用传统处理")
+    except Exception as stream_error:
+        print(f"⚠️ Stream切换检查失败，回退到传统处理: {stream_error}")
+    
     print(f"🏥 调用optimized_upload_health_data处理函数")
     result = optimized_upload_health_data(health_data)
     print(f"🏥 optimized_upload_health_data处理结果: {result.get_json() if hasattr(result, 'get_json') else result}")
@@ -775,6 +841,198 @@ def handle_health_data_optimized():
     health_logger.info('优化版健康数据上传',extra={'device_sn':device_sn})
     
     return optimized_upload_health_data(health_data)
+
+# ============= Stream版本API接口 =============
+
+@app.route("/upload_health_data_v2", methods=['POST'])
+@log_api_request('/upload_health_data_v2', 'POST')
+def upload_health_data_stream():
+    """Redis Stream版本 - 健康数据上传"""
+    try:
+        health_data = request.get_json()
+        
+        if not health_data:
+            return jsonify({
+                "status": "error", 
+                "message": "请求体不能为空"
+            }), 400
+        
+        # 提取设备SN用于日志
+        data_field = health_data.get('data', {})
+        if isinstance(data_field, list) and len(data_field) > 0:
+            device_sn = data_field[0].get('deviceSn') or data_field[0].get('id')
+        elif isinstance(data_field, dict):
+            device_sn = data_field.get('deviceSn') or data_field.get('id')
+        else:
+            device_sn = "unknown"
+        
+        # 添加到Stream
+        stream_id = stream_manager.add_health_data({
+            'data': health_data.get('data'),
+            'device_sn': device_sn,
+            'message_type': 'health_data',
+            'timestamp': int(time.time()),
+            'api_version': 'v2'
+        })
+        
+        # 立即响应
+        health_logger.info('健康数据Stream上传', extra={
+            'device_sn': device_sn,
+            'stream_id': stream_id,
+            'api_version': 'v2'
+        })
+        
+        return jsonify({
+            "status": "accepted",
+            "stream_id": stream_id,
+            "message": "数据已加入处理队列",
+            "processing": "async"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Stream健康数据上传失败: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"上传失败: {str(e)}"
+        }), 500
+
+@app.route("/upload_device_info_v2", methods=['POST'])
+@log_api_request('/upload_device_info_v2', 'POST')
+def upload_device_info_stream():
+    """Redis Stream版本 - 设备信息上传"""
+    try:
+        device_info = request.get_json()
+        
+        if not device_info:
+            return jsonify({
+                "status": "error", 
+                "message": "请求体不能为空"
+            }), 400
+        
+        # 提取设备SN
+        device_sn = (device_info.get('SerialNumber') or 
+                    device_info.get('deviceSn') or 
+                    "unknown")
+        
+        # 添加到Stream
+        stream_id = stream_manager.add_device_info({
+            'data': device_info,
+            'device_sn': device_sn,
+            'message_type': 'device_info',
+            'timestamp': int(time.time()),
+            'api_version': 'v2'
+        })
+        
+        device_logger.info('设备信息Stream上传', extra={
+            'device_sn': device_sn,
+            'stream_id': stream_id
+        })
+        
+        return jsonify({
+            "status": "accepted",
+            "stream_id": stream_id,
+            "message": "设备信息已加入处理队列"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Stream设备信息上传失败: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"上传失败: {str(e)}"
+        }), 500
+
+@app.route("/upload_common_event_v2", methods=['POST'])
+@log_api_request('/upload_common_event_v2', 'POST')  
+def upload_common_event_stream():
+    """Redis Stream版本 - 通用事件上传"""
+    try:
+        event_data = request.get_json()
+        
+        if not event_data:
+            return jsonify({
+                "status": "error",
+                "message": "请求体不能为空"
+            }), 400
+        
+        # 提取设备SN
+        device_sn = (event_data.get('deviceSn') or 
+                    event_data.get('id') or
+                    "unknown")
+        
+        # 添加到Stream  
+        stream_id = stream_manager.add_common_event({
+            'data': event_data,
+            'device_sn': device_sn,
+            'message_type': 'common_event',
+            'timestamp': int(time.time()),
+            'api_version': 'v2'
+        })
+        
+        alert_logger.info('通用事件Stream上传', extra={
+            'device_sn': device_sn,
+            'stream_id': stream_id,
+            'event_type': event_data.get('eventType', 'unknown')
+        })
+        
+        return jsonify({
+            "status": "accepted", 
+            "stream_id": stream_id,
+            "message": "事件已加入处理队列"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Stream事件上传失败: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"上传失败: {str(e)}"
+        }), 500
+
+# ============= Stream监控接口 =============
+
+@app.route("/api/stream_stats", methods=['GET'])
+def get_stream_stats():
+    """获取Stream统计信息"""
+    try:
+        if stream_manager is None:
+            return jsonify({"error": "Stream系统未初始化"}), 503
+            
+        stats = stream_manager.get_all_streams_stats()
+        consumer_stats = consumer_manager.get_all_stats() if consumer_manager else {}
+        
+        return jsonify({
+            "stream_stats": stats,
+            "consumer_stats": consumer_stats,
+            "timestamp": int(time.time())
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ 获取Stream统计失败: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/stream_health", methods=['GET'])
+def check_stream_health():
+    """Stream健康检查"""
+    try:
+        if stream_manager is None:
+            return jsonify({
+                "healthy": False,
+                "error": "Stream系统未初始化"
+            }), 503
+        
+        healthy = stream_manager.health_check()
+        
+        return jsonify({
+            "healthy": healthy,
+            "timestamp": int(time.time()),
+            "streams": list(stream_manager.streams_config.keys())
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Stream健康检查失败: {e}")
+        return jsonify({
+            "healthy": False,
+            "error": str(e)
+        }), 500
 
 @app.route("/optimizer_stats", methods=['GET'])
 def get_optimizer_stats():
@@ -4742,7 +5000,8 @@ def main():#应用启动入口
     """应用启动入口"""
     import os
     port=int(os.environ.get('APP_PORT',5225))#支持环境变量配置端口 - 本地调试默认5225
-    socketio.run(app,host='0.0.0.0',port=port,debug=True,allow_unsafe_werkzeug=True)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'  # 通过环境变量控制调试模式
+    socketio.run(app,host='0.0.0.0',port=port,debug=debug_mode,allow_unsafe_werkzeug=True)
 
 if __name__ == "__main__":
     # 在应用启动后初始化系统事件处理器
@@ -4753,6 +5012,13 @@ if __name__ == "__main__":
             print("🚀系统事件处理器已初始化")
         except Exception as e:
             print(f"⚠️系统事件处理器初始化失败:{e}")
+        
+        # 初始化健康配置缓存监听器
+        try:
+            health_config_listener = get_health_config_listener()
+            print("🎧 健康配置缓存监听器已初始化")
+        except Exception as e:
+            print(f"⚠️健康配置监听器初始化失败:{e}")
         
         # 初始化健康基线和评分定时任务调度器
         try:
@@ -4780,11 +5046,38 @@ if __name__ == "__main__":
             
         except Exception as e:
             print(f"⚠️健康缓存服务初始化失败:{e}")
-            print("📅 定时任务配置:")
-            print("  - 每日02:00 生成个人健康基线")
-            print("  - 每日03:00 生成组织健康基线")
-            print("  - 每日04:00 生成健康评分")
-            print("  - 每周日01:00 生成周基线")
+        
+        # 初始化Redis Stream系统
+        try:
+            # 初始化Stream管理器
+            stream_manager = get_stream_manager()
+            print("🌊 Redis Stream管理器已初始化")
+            
+            # 初始化消费者管理器
+            consumer_manager = get_consumer_manager()
+            consumer_manager.start_all_consumers()
+            print("🔄 Stream消费者已启动")
+            
+            # 初始化灰度切换管理器
+            switch_manager = get_switch_manager()
+            print("🎛️  灰度切换管理器已初始化")
+            
+            # 初始化回滚预案
+            rollback_plan = get_rollback_plan()
+            backup_result = rollback_plan.create_migration_backup()
+            if 'error' not in backup_result:
+                print(f"💾 迁移备份已创建: {backup_result['backup_id']}")
+            else:
+                print(f"⚠️ 迁移备份创建失败: {backup_result['error']}")
+            
+            print("🚀 Redis Stream系统初始化完成")
+            print("📊 监控仪表板: http://localhost:5225/stream_monitor/")
+            
+        except Exception as e:
+            print(f"⚠️ Redis Stream系统初始化失败:{e}")
+            import traceback
+            print(f"详细错误: {traceback.format_exc()}")
+            
         except Exception as e:
             print(f"⚠️健康基线调度器初始化失败:{e}")
             import traceback
@@ -5500,7 +5793,7 @@ def api_health_comprehensive_score():
         })
         
     except Exception as e:
-        logger.error(f"综合健康评分计算失败: {e}")
+        api_logger.error(f"综合健康评分计算失败: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -6878,6 +7171,51 @@ def api_health_baseline_status():
 def api_health_data_detail():
     """标准化健康数据详情路由 - 别名"""
     return fetch_health_data_by_id()
+
+# 健康配置监听器状态API
+@app.route('/api/health/config/listener/stats', methods=['GET'])
+def api_health_config_listener_stats():
+    """获取健康配置监听器状态"""
+    try:
+        stats = get_listener_stats()
+        return jsonify({
+            'success': True,
+            'data': stats,
+            'message': '健康配置监听器状态获取成功'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'获取监听器状态失败: {str(e)}'
+        }), 500
+
+# 租户启用指标查询API
+@app.route('/api/health/config/enabled-metrics', methods=['GET'])
+def api_health_config_enabled_metrics():
+    """获取租户启用的指标"""
+    try:
+        customer_id = request.args.get('customerId', request.args.get('customer_id'))
+        if not customer_id:
+            return jsonify({
+                'success': False,
+                'error': '缺少customerId参数'
+            }), 400
+            
+        metrics = get_enabled_metrics(int(customer_id))
+        return jsonify({
+            'success': True,
+            'data': {
+                'customer_id': int(customer_id),
+                'enabled_metrics': metrics,
+                'metrics_count': len(metrics)
+            },
+            'message': '租户启用指标获取成功'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'获取启用指标失败: {str(e)}'
+        }), 500
 
 system_logger.info('✅ 标准化API路由别名注册完成')
 

@@ -219,6 +219,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'device_message-v2',
+        path: '/device/message-v2',
+        component: 'view.device_message-v2',
+        meta: {
+          title: 'device_message-v2',
+          i18nKey: 'route.device_message-v2'
+        }
+      },
+      {
         name: 'device_user',
         path: '/device/user',
         component: 'view.device_user',
@@ -435,6 +444,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'health_info',
           i18nKey: 'route.health_info'
+        }
+      },
+      {
+        name: 'health_prediction',
+        path: '/health/prediction',
+        component: 'view.health_prediction',
+        meta: {
+          title: 'health_prediction',
+          i18nKey: 'route.health_prediction'
         }
       },
       {

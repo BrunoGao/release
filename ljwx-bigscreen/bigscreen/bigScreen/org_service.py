@@ -34,19 +34,23 @@ class OrgService:
         """
         if customer_id is None:
             try:
-                customer_id = request.args.get('customerId', 0, type=int)
+                customer_id = request.args.get('customerId', None, type=int)
             except RuntimeError:
-                # 在没有Flask上下文时，使用默认值0
-                customer_id = 0
-                logger.warning("无Flask上下文，使用默认customer_id=0")
+                # 在没有Flask上下文时，不设置默认customer_id，让查询逻辑根据org_id自动处理
+                customer_id = None
+                logger.info("无Flask上下文，不设置默认customer_id，将根据org_id查询")
         
         try:
             # 优先使用闭包表查询
-            current_org = db.session.query(OrgInfo)\
+            query = db.session.query(OrgInfo)\
                 .filter(OrgInfo.id == org_id)\
-                .filter(OrgInfo.is_deleted == 0)\
-                .filter(OrgInfo.customer_id == customer_id)\
-                .first()
+                .filter(OrgInfo.is_deleted == 0)
+            
+            # 仅在customer_id不为None时添加customer_id过滤
+            if customer_id is not None:
+                current_org = query.filter(OrgInfo.customer_id == customer_id).first()
+            else:
+                current_org = query.first()
             
             if not current_org:
                 return {
@@ -130,11 +134,15 @@ class OrgService:
                 return departments_data
 
             # 获取当前组织
-            current_org = db.session.query(OrgInfo)\
+            query = db.session.query(OrgInfo)\
                 .filter(OrgInfo.id == org_id)\
-                .filter(OrgInfo.is_deleted == 0)\
-                .filter(OrgInfo.customer_id == customer_id)\
-                .first()
+                .filter(OrgInfo.is_deleted == 0)
+            
+            # 仅在customer_id不为None时添加customer_id过滤
+            if customer_id is not None:
+                current_org = query.filter(OrgInfo.customer_id == customer_id).first()
+            else:
+                current_org = query.first()
 
             if not current_org:
                 return {
@@ -178,11 +186,11 @@ class OrgService:
         """
         if customer_id is None:
             try:
-                customer_id = request.args.get('customerId', 0, type=int)
+                customer_id = request.args.get('customerId', None, type=int)
             except RuntimeError:
-                # 在没有Flask上下文时，使用默认值0
-                customer_id = 0
-                logger.warning("无Flask上下文，使用默认customer_id=0")
+                # 在没有Flask上下文时，不设置默认customer_id，让查询逻辑根据org_id自动处理
+                customer_id = None
+                logger.info("无Flask上下文，不设置默认customer_id，将根据org_id查询")
         
         try:
             # 优先使用闭包表查询
@@ -233,11 +241,11 @@ class OrgService:
         """
         if customer_id is None:
             try:
-                customer_id = request.args.get('customerId', 0, type=int)
+                customer_id = request.args.get('customerId', None, type=int)
             except RuntimeError:
-                # 在没有Flask上下文时，使用默认值0
-                customer_id = 0
-                logger.warning("无Flask上下文，使用默认customer_id=0")
+                # 在没有Flask上下文时，不设置默认customer_id，让查询逻辑根据org_id自动处理
+                customer_id = None
+                logger.info("无Flask上下文，不设置默认customer_id，将根据org_id查询")
         
         try:
             # 优先使用闭包表查询
@@ -293,11 +301,11 @@ class OrgService:
         """
         if customer_id is None:
             try:
-                customer_id = request.args.get('customerId', 0, type=int)
+                customer_id = request.args.get('customerId', None, type=int)
             except RuntimeError:
-                # 在没有Flask上下文时，使用默认值0
-                customer_id = 0
-                logger.warning("无Flask上下文，使用默认customer_id=0")
+                # 在没有Flask上下文时，不设置默认customer_id，让查询逻辑根据org_id自动处理
+                customer_id = None
+                logger.info("无Flask上下文，不设置默认customer_id，将根据org_id查询")
         
         try:
             # 优先使用闭包表查询
@@ -389,11 +397,11 @@ class OrgService:
         """
         if customer_id is None:
             try:
-                customer_id = request.args.get('customerId', 0, type=int)
+                customer_id = request.args.get('customerId', None, type=int)
             except RuntimeError:
-                # 在没有Flask上下文时，使用默认值0
-                customer_id = 0
-                logger.warning("无Flask上下文，使用默认customer_id=0")
+                # 在没有Flask上下文时，不设置默认customer_id，让查询逻辑根据org_id自动处理
+                customer_id = None
+                logger.info("无Flask上下文，不设置默认customer_id，将根据org_id查询")
         
         try:
             # 优先使用闭包表批量查询

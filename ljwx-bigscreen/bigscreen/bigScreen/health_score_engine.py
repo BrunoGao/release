@@ -385,6 +385,87 @@ class RealTimeHealthScoreEngine:
             'scored_features': scored_features,
             'total_features': total_features
         }
+    
+    def calculate_comprehensive_health_score(self, user_id: int, customer_id: int, days: int = 7) -> Dict:
+        """
+        计算综合健康评分 - API兼容方法
+        
+        Args:
+            user_id: 用户ID
+            customer_id: 租户ID (用于兼容，暂时忽略)
+            days: 计算天数 (用于兼容，暂时忽略)
+            
+        Returns:
+            Dict: 包含健康评分和详细信息
+        """
+        try:
+            # 使用现有的实时计算方法
+            result = self.calculate_user_health_score_realtime(user_id)
+            
+            if result.get('success'):
+                # 重新格式化返回结果以符合API期望
+                data = result.get('data', {})
+                return {
+                    'overall_score': data.get('overall_score', 0),
+                    'health_level': data.get('health_level', 'unknown'),
+                    'feature_scores': data.get('feature_scores', {}),
+                    'quality': data.get('quality', {}),
+                    'last_update': data.get('last_update', datetime.now().isoformat()),
+                    'user_id': user_id,
+                    'customer_id': customer_id,
+                    'days': days
+                }
+            else:
+                logger.warning(f"用户 {user_id} 健康评分计算失败: {result.get('error')}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"综合健康评分计算异常: {e}")
+            return None
+    
+    def calculate_comprehensive_score(self, user_id: int, device_sn: str = None, 
+                                     include_prediction: bool = True, 
+                                     include_factors: bool = True) -> Dict:
+        """
+        计算综合健康评分 - POST API兼容方法
+        
+        Args:
+            user_id: 用户ID
+            device_sn: 设备序列号 (用于兼容，暂时忽略)
+            include_prediction: 是否包含预测 (用于兼容，暂时忽略)
+            include_factors: 是否包含因子分析 (用于兼容，暂时忽略)
+            
+        Returns:
+            Dict: 包含健康评分和详细信息
+        """
+        try:
+            # 使用现有的实时计算方法
+            result = self.calculate_user_health_score_realtime(user_id)
+            
+            if result.get('success'):
+                # 重新格式化返回结果以符合API期望
+                data = result.get('data', {})
+                return {
+                    'overall_score': data.get('overall_score', 0),
+                    'health_level': data.get('health_level', 'unknown'),
+                    'feature_scores': data.get('feature_scores', {}),
+                    'quality': data.get('quality', {}),
+                    'last_update': data.get('last_update', datetime.now().isoformat()),
+                    'user_id': user_id,
+                    'device_sn': device_sn,
+                    'prediction_included': include_prediction,
+                    'factors_included': include_factors,
+                    # 添加预测和因子分析的占位符
+                    'predictions': [] if include_prediction else None,
+                    'health_factors': {} if include_factors else None
+                }
+            else:
+                logger.warning(f"用户 {user_id} 健康评分计算失败: {result.get('error')}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"综合健康评分计算异常: {e}")
+            return None
 
 
 # 全局实例

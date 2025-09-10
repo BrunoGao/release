@@ -20,11 +20,17 @@
 package com.ljwx.modules.health.service;
 
 import com.ljwx.modules.health.domain.model.AlertResult;
+import com.ljwx.modules.health.domain.entity.TDeviceMessageV2;
+import com.ljwx.modules.health.domain.entity.TDeviceMessageDetailV2;
+import com.ljwx.infrastructure.util.RedisUtil;
 import lombok.Data;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -46,11 +52,30 @@ import java.util.stream.Collectors;
 @Slf4j
 public class UnifiedMessagePublisher {
     
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    // RedisUtil使用静态方法，不需要注入
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
     // 消息处理器线程池
     private ExecutorService messageExecutorPool;
     
     // 性能统计
     private final MessageStats messageStats = new MessageStats();
+    
+    // Redis 消息主题
+    private static final String REDIS_TOPIC_MESSAGE_CREATED = "ljwx:message:created";
+    private static final String REDIS_TOPIC_MESSAGE_DISTRIBUTED = "ljwx:message:distributed";
+    private static final String REDIS_TOPIC_MESSAGE_ACKNOWLEDGED = "ljwx:message:acknowledged";
+    private static final String REDIS_TOPIC_MESSAGE_BATCH = "ljwx:message:batch";
+    
+    // Redis 键前缀
+    private static final String REDIS_KEY_MESSAGE_CACHE = "ljwx:message:cache:";
+    private static final String REDIS_KEY_MESSAGE_STATUS = "ljwx:message:status:";
+    private static final String REDIS_KEY_MESSAGE_QUEUE = "ljwx:message:queue:";
     
     @PostConstruct
     public void init() {
@@ -621,6 +646,286 @@ public class UnifiedMessagePublisher {
         return messageStats.getStats();
     }
     
+    // ==================== V2 消息系统 Redis 集成方法 ====================
+    
+    /**
+     * 发布 V2 消息创建事件到 Redis 消息总线
+     */
+    @Async
+    public CompletableFuture<Boolean> publishMessageCreated(TDeviceMessageV2 message) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                V2MessageEvent event = V2MessageEvent.builder()
+                    .eventType("MESSAGE_CREATED")
+                    .messageId(message.getId())
+                    .deviceSn(message.getDeviceSn())
+                    .userId(message.getUserId())
+                    .orgId(message.getOrgId())
+                    .messageType(message.getMessageType().name())
+                    .timestamp(System.currentTimeMillis())
+                    .payload(message)
+                    .build();
+                
+                redisTemplate.convertAndSend(REDIS_TOPIC_MESSAGE_CREATED, event);
+                
+                // 缓存消息到Redis，TTL 24小时
+                String cacheKey = REDIS_KEY_MESSAGE_CACHE + message.getId();
+                RedisUtil.set(cacheKey, message, 24 * 60 * 60);
+                
+                log.debug("V2消息创建事件已发布到Redis: messageId={}, deviceSn={}", 
+                    message.getId(), message.getDeviceSn());
+                return true;
+                
+            } catch (Exception e) {
+                log.error("发布V2消息创建事件失败: messageId={}", message.getId(), e);
+                return false;
+            }
+        }, messageExecutorPool);
+    }
+    
+    /**
+     * 发布 V2 消息分发事件到 Redis 消息总线
+     */
+    @Async
+    public CompletableFuture<Boolean> publishMessageDistributed(TDeviceMessageV2 message, List<String> targetDevices) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                V2MessageDistributionEvent event = V2MessageDistributionEvent.builder()
+                    .eventType("MESSAGE_DISTRIBUTED")
+                    .messageId(message.getId())
+                    .deviceSn(message.getDeviceSn())
+                    .targetDevices(targetDevices)
+                    .distributionTime(System.currentTimeMillis())
+                    .build();
+                
+                redisTemplate.convertAndSend(REDIS_TOPIC_MESSAGE_DISTRIBUTED, event);
+                
+                // 更新消息状态缓存
+                String statusKey = REDIS_KEY_MESSAGE_STATUS + message.getId();
+                Map<String, Object> status = new HashMap<>();
+                status.put("status", "DISTRIBUTED");
+                status.put("targetCount", targetDevices.size());
+                status.put("distributionTime", System.currentTimeMillis());
+                RedisUtil.set(statusKey, status, 24 * 60 * 60);
+                
+                log.debug("V2消息分发事件已发布到Redis: messageId={}, targets={}", 
+                    message.getId(), targetDevices.size());
+                return true;
+                
+            } catch (Exception e) {
+                log.error("发布V2消息分发事件失败: messageId={}", message.getId(), e);
+                return false;
+            }
+        }, messageExecutorPool);
+    }
+    
+    /**
+     * 发布 V2 批量消息分发事件到 Redis 消息总线
+     */
+    @Async
+    public CompletableFuture<Boolean> publishBatchMessageDistributed(List<TDeviceMessageV2> messages, 
+                                                                    Map<Long, List<String>> targetMap) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                V2BatchMessageEvent event = V2BatchMessageEvent.builder()
+                    .eventType("BATCH_MESSAGE_DISTRIBUTED")
+                    .messageIds(messages.stream().map(TDeviceMessageV2::getId).collect(Collectors.toList()))
+                    .batchSize(messages.size())
+                    .totalTargets(targetMap.values().stream().mapToInt(List::size).sum())
+                    .distributionTime(System.currentTimeMillis())
+                    .targetMap(targetMap)
+                    .build();
+                
+                redisTemplate.convertAndSend(REDIS_TOPIC_MESSAGE_BATCH, event);
+                
+                // 批量更新消息状态
+                messages.parallelStream().forEach(message -> {
+                    String statusKey = REDIS_KEY_MESSAGE_STATUS + message.getId();
+                    Map<String, Object> status = new HashMap<>();
+                    status.put("status", "BATCH_DISTRIBUTED");
+                    status.put("batchId", event.getBatchId());
+                    status.put("distributionTime", System.currentTimeMillis());
+                    RedisUtil.set(statusKey, status, 24 * 60 * 60);
+                });
+                
+                log.info("V2批量消息分发事件已发布到Redis: batchSize={}, totalTargets={}", 
+                    messages.size(), event.getTotalTargets());
+                return true;
+                
+            } catch (Exception e) {
+                log.error("发布V2批量消息分发事件失败: batchSize={}", messages.size(), e);
+                return false;
+            }
+        }, messageExecutorPool);
+    }
+    
+    /**
+     * 发布 V2 消息确认事件到 Redis 消息总线
+     */
+    @Async
+    public CompletableFuture<Boolean> publishMessageAcknowledged(Long messageId, String deviceSn, 
+                                                                String ackType, Map<String, Object> ackData) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                V2MessageAckEvent event = V2MessageAckEvent.builder()
+                    .eventType("MESSAGE_ACKNOWLEDGED")
+                    .messageId(messageId)
+                    .deviceSn(deviceSn)
+                    .ackType(ackType)
+                    .ackTime(System.currentTimeMillis())
+                    .ackData(ackData)
+                    .build();
+                
+                redisTemplate.convertAndSend(REDIS_TOPIC_MESSAGE_ACKNOWLEDGED, event);
+                
+                // 更新确认状态
+                String statusKey = REDIS_KEY_MESSAGE_STATUS + messageId;
+                Map<String, Object> ackStatus = new HashMap<>();
+                ackStatus.put("ackStatus", ackType);
+                ackStatus.put("ackTime", System.currentTimeMillis());
+                ackStatus.put("ackDevice", deviceSn);
+                RedisUtil.set(statusKey, ackStatus, 24 * 60 * 60);
+                
+                log.debug("V2消息确认事件已发布到Redis: messageId={}, deviceSn={}, ackType={}", 
+                    messageId, deviceSn, ackType);
+                return true;
+                
+            } catch (Exception e) {
+                log.error("发布V2消息确认事件失败: messageId={}, deviceSn={}", messageId, deviceSn, e);
+                return false;
+            }
+        }, messageExecutorPool);
+    }
+    
+    /**
+     * 将 V2 消息推送到设备队列
+     */
+    @Async
+    public CompletableFuture<Boolean> pushToDeviceQueue(String deviceSn, TDeviceMessageV2 message, Integer priority) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String queueKey = REDIS_KEY_MESSAGE_QUEUE + deviceSn;
+                
+                V2QueuedMessage queuedMessage = V2QueuedMessage.builder()
+                    .messageId(message.getId())
+                    .messageType(message.getMessageType().name())
+                    .priority(priority != null ? priority : 5)
+                    .queueTime(System.currentTimeMillis())
+                    .expireTime(System.currentTimeMillis() + 24 * 60 * 60 * 1000L) // 24小时过期
+                    .message(message)
+                    .build();
+                
+                // 使用有序集合存储，以优先级为分数
+                double score = priority != null ? priority : 5.0;
+                redisTemplate.opsForZSet().add(queueKey, queuedMessage, score);
+                redisTemplate.expire(queueKey, 24, TimeUnit.HOURS);
+                
+                log.debug("V2消息已推送到设备队列: deviceSn={}, messageId={}, priority={}", 
+                    deviceSn, message.getId(), priority);
+                return true;
+                
+            } catch (Exception e) {
+                log.error("推送V2消息到设备队列失败: deviceSn={}, messageId={}", deviceSn, message.getId(), e);
+                return false;
+            }
+        }, messageExecutorPool);
+    }
+    
+    /**
+     * 从设备队列获取待发送消息 (高优先级优先)
+     */
+    public List<V2QueuedMessage> getQueuedMessages(String deviceSn, int limit) {
+        try {
+            String queueKey = REDIS_KEY_MESSAGE_QUEUE + deviceSn;
+            
+            // 获取高优先级消息 (按分数倒序，分数越高优先级越高)
+            Set<Object> messages = redisTemplate.opsForZSet().reverseRange(queueKey, 0, limit - 1);
+            
+            return messages.stream()
+                .map(obj -> {
+                    try {
+                        if (obj instanceof V2QueuedMessage) {
+                            return (V2QueuedMessage) obj;
+                        } else {
+                            return objectMapper.readValue(obj.toString(), V2QueuedMessage.class);
+                        }
+                    } catch (Exception e) {
+                        log.error("解析队列消息失败", e);
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+                
+        } catch (Exception e) {
+            log.error("获取设备队列消息失败: deviceSn={}", deviceSn, e);
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * 从设备队列移除已处理的消息
+     */
+    public boolean removeFromQueue(String deviceSn, Long messageId) {
+        try {
+            String queueKey = REDIS_KEY_MESSAGE_QUEUE + deviceSn;
+            
+            // 查找并移除指定消息ID的队列项
+            Set<Object> allMessages = redisTemplate.opsForZSet().range(queueKey, 0, -1);
+            
+            for (Object obj : allMessages) {
+                try {
+                    V2QueuedMessage queuedMessage = (obj instanceof V2QueuedMessage) 
+                        ? (V2QueuedMessage) obj
+                        : objectMapper.readValue(obj.toString(), V2QueuedMessage.class);
+                        
+                    if (messageId.equals(queuedMessage.getMessageId())) {
+                        redisTemplate.opsForZSet().remove(queueKey, obj);
+                        log.debug("已从设备队列移除消息: deviceSn={}, messageId={}", deviceSn, messageId);
+                        return true;
+                    }
+                } catch (Exception e) {
+                    log.warn("解析队列消息时出错，跳过: {}", obj, e);
+                }
+            }
+            
+            return false;
+            
+        } catch (Exception e) {
+            log.error("从设备队列移除消息失败: deviceSn={}, messageId={}", deviceSn, messageId, e);
+            return false;
+        }
+    }
+    
+    /**
+     * 获取设备队列状态
+     */
+    public Map<String, Object> getDeviceQueueStatus(String deviceSn) {
+        try {
+            String queueKey = REDIS_KEY_MESSAGE_QUEUE + deviceSn;
+            
+            Long queueSize = redisTemplate.opsForZSet().count(queueKey, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
+            Long highPriorityCount = redisTemplate.opsForZSet().count(queueKey, 8.0, Double.POSITIVE_INFINITY);
+            Long ttl = redisTemplate.getExpire(queueKey);
+            
+            Map<String, Object> status = new HashMap<>();
+            status.put("deviceSn", deviceSn);
+            status.put("queueSize", queueSize != null ? queueSize : 0);
+            status.put("highPriorityCount", highPriorityCount != null ? highPriorityCount : 0);
+            status.put("ttlSeconds", ttl != null ? ttl : -1);
+            status.put("lastUpdateTime", System.currentTimeMillis());
+            
+            return status;
+            
+        } catch (Exception e) {
+            log.error("获取设备队列状态失败: deviceSn={}", deviceSn, e);
+            Map<String, Object> errorStatus = new HashMap<>();
+            errorStatus.put("deviceSn", deviceSn);
+            errorStatus.put("error", "获取队列状态失败: " + e.getMessage());
+            return errorStatus;
+        }
+    }
+    
     // 内部类和枚举定义
     
     public enum NotificationChannel {
@@ -776,5 +1081,90 @@ public class UnifiedMessagePublisher {
             stats.put("avgProcessingTime", publishCount > 0 ? (double) totalProcessingTime / publishCount : 0);
             return stats;
         }
+    }
+    
+    // ==================== V2 消息事件类定义 ====================
+    
+    /**
+     * V2 消息事件基类
+     */
+    @Data
+    @Builder
+    public static class V2MessageEvent {
+        private String eventType;
+        private Long messageId;
+        private String deviceSn;
+        private String userId;
+        private Long orgId;
+        private String messageType;
+        private Long timestamp;
+        private TDeviceMessageV2 payload;
+    }
+    
+    /**
+     * V2 消息分发事件
+     */
+    @Data
+    @Builder
+    public static class V2MessageDistributionEvent {
+        private String eventType;
+        private Long messageId;
+        private String deviceSn;
+        private List<String> targetDevices;
+        private Long distributionTime;
+    }
+    
+    /**
+     * V2 批量消息分发事件
+     */
+    @Data
+    @Builder
+    public static class V2BatchMessageEvent {
+        private String eventType;
+        private String batchId;
+        private List<Long> messageIds;
+        private Integer batchSize;
+        private Integer totalTargets;
+        private Long distributionTime;
+        private Map<Long, List<String>> targetMap;
+        
+        @Builder.Default
+        private String batchIdDefault = generateBatchId();
+        
+        private static String generateBatchId() {
+            return "batch_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8);
+        }
+        
+        public String getBatchId() {
+            return batchId != null ? batchId : batchIdDefault;
+        }
+    }
+    
+    /**
+     * V2 消息确认事件
+     */
+    @Data
+    @Builder
+    public static class V2MessageAckEvent {
+        private String eventType;
+        private Long messageId;
+        private String deviceSn;
+        private String ackType;
+        private Long ackTime;
+        private Map<String, Object> ackData;
+    }
+    
+    /**
+     * V2 队列消息
+     */
+    @Data
+    @Builder
+    public static class V2QueuedMessage {
+        private Long messageId;
+        private String messageType;
+        private Integer priority;
+        private Long queueTime;
+        private Long expireTime;
+        private TDeviceMessageV2 message;
     }
 }

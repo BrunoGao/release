@@ -30,8 +30,10 @@ import com.ljwx.modules.customer.service.ITHealthDataConfigService;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.stereotype.Service;
 import com.ljwx.modules.system.service.ISysOrgUnitsService;
+import com.ljwx.modules.customer.service.HealthDataConfigCacheService;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
 import java.util.List;
@@ -44,12 +46,16 @@ import java.util.List;
  * @CreateTime 2024-12-29 - 15:02:31
  */
 
+@Slf4j
 @Service
 @RequiredArgsConstructor 
 public class THealthDataConfigServiceImpl extends ServiceImpl<THealthDataConfigMapper, THealthDataConfig> implements ITHealthDataConfigService {
 
     @NonNull
     private ISysOrgUnitsService sysOrgUnitsService;
+    
+    @NonNull
+    private HealthDataConfigCacheService healthDataConfigCacheService;
 
     @Override
     public IPage<THealthDataConfig> listTHealthDataConfigPage(PageQuery pageQuery, THealthDataConfigBO tHealthDataConfigBO) {
@@ -123,6 +129,60 @@ public class THealthDataConfigServiceImpl extends ServiceImpl<THealthDataConfigM
             .eq(THealthDataConfig::getCustomerId, topLevelDeptId)
             .notIn(THealthDataConfig::getDataType, excludedTypes)
             .orderByDesc(THealthDataConfig::getWeight));
+    }
+
+    /**
+     * 覆盖保存方法，添加缓存失效
+     */
+    @Override
+    public boolean save(THealthDataConfig entity) {
+        boolean result = super.save(entity);
+        if (result && entity.getCustomerId() != null) {
+            // 失效缓存并发布事件
+            healthDataConfigCacheService.invalidateCache(entity.getCustomerId());
+            log.info("🔄 健康配置保存后缓存失效: customer_id={}", entity.getCustomerId());
+        }
+        return result;
+    }
+
+    /**
+     * 覆盖更新方法，添加缓存失效
+     */
+    @Override
+    public boolean updateById(THealthDataConfig entity) {
+        boolean result = super.updateById(entity);
+        if (result && entity.getCustomerId() != null) {
+            // 失效缓存并发布事件
+            healthDataConfigCacheService.invalidateCache(entity.getCustomerId());
+            log.info("🔄 健康配置更新后缓存失效: customer_id={}", entity.getCustomerId());
+        }
+        return result;
+    }
+
+    /**
+     * 覆盖批量删除方法，添加缓存失效
+     */
+    @Override
+    public boolean removeBatchByIds(java.util.Collection<?> list) {
+        // 删除前先获取所有相关的customer_id
+        List<THealthDataConfig> configsToDelete = listByIds((java.util.Collection<? extends java.io.Serializable>) list);
+        List<Long> customerIds = configsToDelete.stream()
+            .map(THealthDataConfig::getCustomerId)
+            .distinct()
+            .filter(id -> id != null)
+            .collect(java.util.stream.Collectors.toList());
+        
+        boolean result = super.removeBatchByIds(list);
+        
+        if (result && !customerIds.isEmpty()) {
+            // 失效所有相关租户的缓存
+            customerIds.forEach(customerId -> {
+                healthDataConfigCacheService.invalidateCache(customerId);
+                log.info("🔄 健康配置删除后缓存失效: customer_id={}", customerId);
+            });
+        }
+        
+        return result;
     }
 
 }

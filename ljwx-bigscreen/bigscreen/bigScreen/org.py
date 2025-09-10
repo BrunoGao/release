@@ -22,11 +22,11 @@ def fetch_departments_by_orgId(org_id, customer_id=None):
         # 如果没有提供customer_id，尝试从请求获取
         if customer_id is None:
             try:
-                customer_id = request.args.get('customerId', 0, type=int)
+                customer_id = request.args.get('customerId', None, type=int)
             except RuntimeError:
-                # 在没有Flask上下文时，使用默认值0
-                customer_id = 0
-                logger.warning("无Flask上下文，使用默认customer_id=0")
+                # 在没有Flask上下文时，不设置默认customer_id，让查询逻辑根据org_id自动处理
+                customer_id = None
+                logger.info("无Flask上下文，不设置默认customer_id，将根据org_id查询")
         
         logger.info(f"查询组织部门: org_id={org_id}, customer_id={customer_id}")
         
@@ -35,9 +35,9 @@ def fetch_departments_by_orgId(org_id, customer_id=None):
                 .filter(OrgInfo.parent_id == parent_id)\
                 .filter(OrgInfo.is_deleted.is_(False))
             
-            # 🔧 修复：优化子部门的customer_id过滤逻辑
-            # 如果提供了customer_id，先尝试严格匹配，如果没有结果则放宽条件
+            # 🔧 修复：简化子部门查询逻辑
             if customer_id is not None:
+                # 如果提供了customer_id，先尝试严格匹配
                 strict_departments = query.filter(OrgInfo.customer_id == customer_id).all()
                 if strict_departments:
                     departments = strict_departments
@@ -56,6 +56,7 @@ def fetch_departments_by_orgId(org_id, customer_id=None):
                     if not departments:
                         departments = all_departments
             else:
+                # customer_id为None时，直接查询所有子部门，不做customer_id过滤
                 departments = query.all()
             
             departments_data = []
@@ -83,7 +84,7 @@ def fetch_departments_by_orgId(org_id, customer_id=None):
         
         logger.info(f"🔍 查询组织: org_id={org_id}, customer_id={customer_id}")
         
-        # 🔧 修复：优化customer_id过滤逻辑，支持多种情况
+        # 🔧 修复：简化查询逻辑，优先根据org_id查询
         if customer_id is not None:
             # 尝试多种查询策略
             # 策略1：直接customer_id匹配
@@ -114,8 +115,9 @@ def fetch_departments_by_orgId(org_id, customer_id=None):
                     if not is_valid_org:
                         current_org = None
         else:
+            # customer_id为None时，直接根据org_id查询，不做customer_id过滤
             current_org = query.first()
-            logger.info(f"🔍 customer_id为None，直接查询结果: current_org={current_org}")
+            logger.info(f"🔍 customer_id为None，直接根据org_id查询: org_id={org_id}, found_org={current_org.name if current_org else 'None'}")
             
         if not current_org:
             logger.warning(f"❌ Organization not found: {org_id}, customer_id: {customer_id}")

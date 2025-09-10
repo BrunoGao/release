@@ -2,6 +2,7 @@ export * from './device-config';
 export * from './device-info';
 export * from './user-device';
 export * from './device-message';
+export * from './device-message-v2';
 export * from './alert-rules';
 export * from './alert-info';
 export * from './aleraction-log';
