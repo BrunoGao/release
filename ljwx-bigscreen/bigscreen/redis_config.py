@@ -66,6 +66,16 @@ def test_redis_connection():
     """测试Redis连接的便捷函数"""
     return redis_config.test_connection()
 
+def get_mysql_config():
+    """获取MySQL配置的便捷函数"""
+    return {
+        'host': os.getenv('MYSQL_HOST', '127.0.0.1'),
+        'port': int(os.getenv('MYSQL_PORT', 3306)),
+        'user': os.getenv('MYSQL_USER', 'root'),
+        'password': os.getenv('MYSQL_PASSWORD', 'admin123'),
+        'database': os.getenv('MYSQL_DATABASE', 'ljwx')
+    }
+
 if __name__ == "__main__":
     # 测试脚本
     print("🔧 Redis配置测试")

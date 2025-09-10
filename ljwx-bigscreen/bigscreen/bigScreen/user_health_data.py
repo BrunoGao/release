@@ -1823,10 +1823,10 @@ def process_single_health_data(data):
     scientificSleepData = data.get("scientificSleepData") or data.get("kxsmData")
     workoutData = data.get("workoutData") or data.get("ydData")
     
-    # 提取客户信息字段 - 优先使用直接传递的参数
-    customerId = data.get("customer_id")
-    orgId = data.get("org_id") 
-    userId = data.get("user_id")
+    # 提取客户信息字段 - 支持两种格式：下划线和驼峰命名
+    customerId = data.get("customer_id") or data.get("customerId")
+    orgId = data.get("org_id") or data.get("orgId") 
+    userId = data.get("user_id") or data.get("userId")
     
     print(f"🏥 解析后的关键字段:")
     print(f"  - deviceSn: {deviceSn}")
@@ -1913,6 +1913,10 @@ def process_single_health_data(data):
         "latitude": safe_str(latitude),
         "longitude": safe_str(longitude),
         "altitude": safe_str(altitude),
+        "customerId": customerId,  # 添加customerId用于告警规则缓存
+        "customer_id": customerId,  # 兼容性字段名
+        "orgId": orgId,            # 添加orgId
+        "userId": userId,          # 添加userId
         "sleepData": json.dumps(sleepData) if sleepData else '',
         "exerciseDailyData": json.dumps(exerciseDailyData) if exerciseDailyData else '',
         "exerciseDailyWeekData": json.dumps(exerciseDailyWeekData) if exerciseDailyWeekData else '',

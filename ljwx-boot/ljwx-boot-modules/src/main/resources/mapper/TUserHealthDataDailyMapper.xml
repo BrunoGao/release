@@ -8,6 +8,7 @@
         <result column="device_sn" property="deviceSn"/>
         <result column="org_id" property="orgId"/>
         <result column="user_id" property="userId"/>
+        <result column="customer_id" property="customerId"/>
         <result column="date" property="timestamp"/>
         <result column="sleep_data" property="sleepData"/>
         <result column="exercise_daily_data" property="exerciseDailyData"/>
@@ -19,7 +20,7 @@
 
     <!-- 通用查询结果列 -->
     <sql id="TUserHealthDataDailyColumnList">
-        id, device_sn, org_id, user_id, date, sleep_data, exercise_daily_data, scientific_sleep_data, workout_data, create_time, update_time
+        id, device_sn, org_id, user_id, customer_id, date, sleep_data, exercise_daily_data, scientific_sleep_data, workout_data, create_time, update_time
     </sql>
 
 </mapper> 

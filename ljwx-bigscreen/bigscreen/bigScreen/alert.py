@@ -1970,10 +1970,10 @@ def upload_common_event():
         time_cfg = TimeConfig()
         alert_timestamp=data.get('timestamp', time_cfg.now().strftime('%Y-%m-%d %H:%M:%S'))
         
-        # 优先使用直接传递的客户信息参数
-        customerId = data.get("customer_id")
-        orgId = data.get("org_id") 
-        userId = data.get("user_id")
+        # 优先使用直接传递的客户信息参数 - 支持两种字段名格式
+        customerId = data.get("customer_id") or data.get("customerId")
+        orgId = data.get("org_id") or data.get("orgId")
+        userId = data.get("user_id") or data.get("userId")
         
         print(f"📡 [upload_common_event] 客户信息: customerId={customerId}, orgId={orgId}, userId={userId}")
         
@@ -2571,26 +2571,73 @@ def get_event_processor_stats():
         }), 500
 
 def generate_alerts(data, health_data_id):
+    start_time = time.time()  # 开始计时
     try:
         print(f"🔍 generate_alerts started with data keys: {list(data.keys()) if data else 'None'}")
         
-        # 从数据库获取告警规则并转换为字典格式
-        alert_rules = AlertRules.query.all()
-        alert_rules_dict = {}
+        # 获取客户ID用于缓存查询
+        customer_id = data.get('customer_id') or data.get('customerId')
         
-        # 将 SQLAlchemy 对象转换为字典
-        for rule in alert_rules:
-            rule_dict = {
-                'id': rule.id,
-                'rule_type': rule.rule_type,
-                'physical_sign': rule.physical_sign,
-                'threshold_min': rule.threshold_min,
-                'threshold_max': rule.threshold_max,
-                'trend_duration': rule.trend_duration,
-                'severity_level': rule.severity_level,
-                'alert_message': rule.alert_message
-            }
-            alert_rules_dict[rule.id] = rule_dict
+        # 优化：优先从Redis缓存获取告警规则
+        alert_rules_dict = {}
+        cache_hit = False
+        
+        if customer_id:
+            try:
+                # 尝试从Redis缓存获取告警规则
+                from alert_rules_cache_manager import get_alert_rules_cache_manager
+                cache_manager = get_alert_rules_cache_manager()
+                cached_rules = cache_manager.get_alert_rules(customer_id)
+                
+                if cached_rules:
+                    cache_hit = True
+                    print(f"🎯 Redis缓存命中：customer_id={customer_id}, 规则数量={len(cached_rules)}")
+                    
+                    # 转换缓存的AlertRule对象为字典格式
+                    for rule in cached_rules:
+                        if rule.is_enabled:  # 只处理启用的规则
+                            rule_dict = {
+                                'id': rule.id,
+                                'rule_type': rule.rule_type,
+                                'physical_sign': rule.physical_sign,
+                                'threshold_min': rule.threshold_min,
+                                'threshold_max': rule.threshold_max,
+                                'trend_duration': rule.trend_duration,
+                                'severity_level': rule.severity_level,
+                                'alert_message': rule.alert_message,
+                                'is_enabled': rule.is_enabled
+                            }
+                            alert_rules_dict[rule.id] = rule_dict
+                            
+                else:
+                    print(f"⚠️ Redis缓存未命中：customer_id={customer_id}")
+                    
+            except Exception as cache_e:
+                print(f"⚠️ Redis缓存获取失败，回退到数据库查询: {cache_e}")
+        
+        # 数据库兜底：如果Redis缓存失败或未命中，从数据库获取
+        if not cache_hit or not alert_rules_dict:
+            print("📊 使用数据库兜底查询告警规则")
+            
+            # 从数据库获取所有告警规则（AlertRules表无customer_id字段）
+            alert_rules = AlertRules.query.filter_by(is_deleted=False).all()
+            
+            # 将 SQLAlchemy 对象转换为字典
+            for rule in alert_rules:
+                rule_dict = {
+                    'id': rule.id,
+                    'rule_type': rule.rule_type,
+                    'physical_sign': rule.physical_sign,
+                    'threshold_min': rule.threshold_min,
+                    'threshold_max': rule.threshold_max,
+                    'trend_duration': rule.trend_duration,
+                    'severity_level': rule.severity_level,
+                    'alert_message': rule.alert_message,
+                    'is_enabled': True  # 默认启用，数据库表无此字段
+                }
+                alert_rules_dict[rule.id] = rule_dict
+                
+        print(f"📋 获取到告警规则 {len(alert_rules_dict)} 条 (Redis缓存: {'✅' if cache_hit else '❌'})")
 
         # 初始化异常计数器
         abnormal_counts = {}
@@ -2712,8 +2759,21 @@ def generate_alerts(data, health_data_id):
                 db.session.add(alert_info_instance)
 
         db.session.commit()
+        
+        # 记录性能统计
+        processing_time = time.time() - start_time if 'start_time' in locals() else 0
         print(f"✅ generate_alerts completed successfully")
-        return jsonify({'success': True})
+        print(f"📊 性能统计: 处理时间={processing_time:.3f}s, 规则数量={len(alert_rules_dict)}, Redis缓存={'命中' if cache_hit else '未命中'}")
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'processing_time': round(processing_time, 3),
+                'rules_count': len(alert_rules_dict),
+                'cache_hit': cache_hit,
+                'customer_id': customer_id
+            }
+        })
 
     except Exception as e:
         import traceback

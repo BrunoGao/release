@@ -34,6 +34,22 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
     // 分批处理大小
     private static final int BATCH_SIZE = 1000;
     
+    /**
+     * 安全获取Long值，防止NPE
+     */
+    private Long safeLongValue(Map<String, Object> row, String key) {
+        Object value = row.get(key);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return ((Number) value).longValue();
+        } catch (ClassCastException e) {
+            log.warn("字段{}类型转换失败，值: {}", key, value);
+            return null;
+        }
+    }
+    
     // 预热状态追踪
     private boolean warmupCompleted = false;
     
@@ -77,19 +93,30 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
             String userSql = """
                 SELECT customer_id, GROUP_CONCAT(id) as user_ids
                 FROM sys_user 
-                WHERE is_deleted = 0 AND status = '1' 
+                WHERE is_deleted = 0 AND status = '1' AND customer_id IS NOT NULL
                 GROUP BY customer_id
                 """;
             
             List<Map<String, Object>> tenantUsers = jdbcTemplate.queryForList(userSql);
             for (Map<String, Object> row : tenantUsers) {
-                Long customerId = ((Number) row.get("customer_id")).longValue();
+                Long customerId = safeLongValue(row, "customer_id");
+                if (customerId == null) {
+                    log.warn("发现customer_id为null的用户记录，跳过处理: {}", row);
+                    continue;
+                }
+                
                 String userIdsStr = (String) row.get("user_ids");
-                if (userIdsStr != null) {
-                    Set<Long> userIds = Arrays.stream(userIdsStr.split(","))
-                            .map(Long::valueOf)
-                            .collect(Collectors.toSet());
-                    relationCacheService.cacheTenantUsers(customerId, userIds);
+                if (userIdsStr != null && !userIdsStr.trim().isEmpty()) {
+                    try {
+                        Set<Long> userIds = Arrays.stream(userIdsStr.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .map(Long::valueOf)
+                                .collect(Collectors.toSet());
+                        relationCacheService.cacheTenantUsers(customerId, userIds);
+                    } catch (NumberFormatException e) {
+                        log.warn("用户ID格式转换失败，租户ID: {}, 用户IDs: {}", customerId, userIdsStr);
+                    }
                 }
             }
             
@@ -97,19 +124,30 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
             String orgSql = """
                 SELECT customer_id, GROUP_CONCAT(id) as org_ids
                 FROM sys_org_units 
-                WHERE is_deleted = 0 AND status = '1'
+                WHERE is_deleted = 0 AND status = '1' AND customer_id IS NOT NULL
                 GROUP BY customer_id
                 """;
             
             List<Map<String, Object>> tenantOrgs = jdbcTemplate.queryForList(orgSql);
             for (Map<String, Object> row : tenantOrgs) {
-                Long customerId = ((Number) row.get("customer_id")).longValue();
+                Long customerId = safeLongValue(row, "customer_id");
+                if (customerId == null) {
+                    log.warn("发现customer_id为null的组织记录，跳过处理: {}", row);
+                    continue;
+                }
+                
                 String orgIdsStr = (String) row.get("org_ids");
-                if (orgIdsStr != null) {
-                    Set<Long> orgIds = Arrays.stream(orgIdsStr.split(","))
-                            .map(Long::valueOf)
-                            .collect(Collectors.toSet());
-                    relationCacheService.cacheTenantOrgs(customerId, orgIds);
+                if (orgIdsStr != null && !orgIdsStr.trim().isEmpty()) {
+                    try {
+                        Set<Long> orgIds = Arrays.stream(orgIdsStr.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .map(Long::valueOf)
+                                .collect(Collectors.toSet());
+                        relationCacheService.cacheTenantOrgs(customerId, orgIds);
+                    } catch (NumberFormatException e) {
+                        log.warn("组织ID格式转换失败，租户ID: {}, 组织IDs: {}", customerId, orgIdsStr);
+                    }
                 }
             }
             
@@ -136,19 +174,30 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
                 SELECT uo.user_id, GROUP_CONCAT(uo.org_id) as org_ids
                 FROM sys_user_org uo
                 INNER JOIN sys_user u ON uo.user_id = u.id
-                WHERE uo.is_deleted = 0 AND u.is_deleted = 0
+                WHERE uo.is_deleted = 0 AND u.is_deleted = 0 AND uo.user_id IS NOT NULL
                 GROUP BY uo.user_id
                 """;
             
             List<Map<String, Object>> userOrgs = jdbcTemplate.queryForList(userOrgSql);
             for (Map<String, Object> row : userOrgs) {
-                Long userId = ((Number) row.get("user_id")).longValue();
+                Long userId = safeLongValue(row, "user_id");
+                if (userId == null) {
+                    log.warn("发现user_id为null的用户组织记录，跳过处理: {}", row);
+                    continue;
+                }
+                
                 String orgIdsStr = (String) row.get("org_ids");
-                if (orgIdsStr != null) {
-                    Set<Long> orgIds = Arrays.stream(orgIdsStr.split(","))
-                            .map(Long::valueOf)
-                            .collect(Collectors.toSet());
-                    relationCacheService.cacheUserOrgs(userId, orgIds);
+                if (orgIdsStr != null && !orgIdsStr.trim().isEmpty()) {
+                    try {
+                        Set<Long> orgIds = Arrays.stream(orgIdsStr.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .map(Long::valueOf)
+                                .collect(Collectors.toSet());
+                        relationCacheService.cacheUserOrgs(userId, orgIds);
+                    } catch (NumberFormatException e) {
+                        log.warn("组织ID格式转换失败，用户ID: {}, 组织IDs: {}", userId, orgIdsStr);
+                    }
                 }
             }
             
@@ -159,19 +208,28 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
                 FROM sys_org_units o
                 LEFT JOIN sys_user_org uo ON o.id = uo.org_id AND uo.is_deleted = 0
                 LEFT JOIN sys_user u ON uo.user_id = u.id AND u.is_deleted = 0
-                WHERE o.is_deleted = 0 AND o.status = '1'
+                WHERE o.is_deleted = 0 AND o.status = '1' AND o.id IS NOT NULL
                 GROUP BY o.id
                 """;
             
             List<Map<String, Object>> orgUsers = jdbcTemplate.queryForList(orgUserSql);
             for (Map<String, Object> row : orgUsers) {
-                Long orgId = ((Number) row.get("org_id")).longValue();
+                Long orgId = safeLongValue(row, "org_id");
+                if (orgId == null) {
+                    log.warn("发现org_id为null的组织用户记录，跳过处理: {}", row);
+                    continue;
+                }
+                
                 String userIdsStr = (String) row.get("direct_user_ids");
                 
                 // 获取包含子部门的所有用户
-                Set<Long> allUserIds = getAllOrgUsers(orgId);
-                if (!allUserIds.isEmpty()) {
-                    relationCacheService.cacheOrgUsers(orgId, allUserIds);
+                try {
+                    Set<Long> allUserIds = getAllOrgUsers(orgId);
+                    if (!allUserIds.isEmpty()) {
+                        relationCacheService.cacheOrgUsers(orgId, allUserIds);
+                    }
+                } catch (Exception e) {
+                    log.warn("获取组织用户失败，组织ID: {}, 错误: {}", orgId, e.getMessage());
                 }
             }
             
@@ -199,16 +257,23 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
                 FROM t_device_user du
                 INNER JOIN sys_user u ON du.user_id = u.id
                 INNER JOIN t_device_info d ON du.device_sn COLLATE utf8mb4_general_ci = d.serial_number
-                WHERE u.is_deleted = 0 AND d.status = 'online'
+                WHERE u.is_deleted = 0 AND d.status = 'online' AND du.user_id IS NOT NULL
                 GROUP BY du.user_id
                 """;
             
             List<Map<String, Object>> userDevices = jdbcTemplate.queryForList(userDeviceSql);
             for (Map<String, Object> row : userDevices) {
-                Long userId = ((Number) row.get("user_id")).longValue();
+                Long userId = safeLongValue(row, "user_id");
+                if (userId == null) {
+                    log.warn("发现user_id为null的用户设备记录，跳过处理: {}", row);
+                    continue;
+                }
+                
                 String deviceSnsStr = (String) row.get("device_sns");
-                if (deviceSnsStr != null) {
+                if (deviceSnsStr != null && !deviceSnsStr.trim().isEmpty()) {
                     Set<String> deviceSns = Arrays.stream(deviceSnsStr.split(","))
+                            .map(String::trim)
+                            .filter(s -> !s.isEmpty())
                             .collect(Collectors.toSet());
                     relationCacheService.cacheUserDevices(userId, deviceSns);
                 }
@@ -220,14 +285,20 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
                 FROM t_device_user du
                 INNER JOIN sys_user u ON du.user_id = u.id
                 INNER JOIN t_device_info d ON du.device_sn COLLATE utf8mb4_general_ci = d.serial_number
-                WHERE u.is_deleted = 0 AND d.status = 'online'
+                WHERE u.is_deleted = 0 AND d.status = 'online' AND du.user_id IS NOT NULL
                 """;
             
             List<Map<String, Object>> deviceUsers = jdbcTemplate.queryForList(deviceUserSql);
             for (Map<String, Object> row : deviceUsers) {
                 String deviceSn = (String) row.get("device_sn");
-                Long userId = ((Number) row.get("user_id")).longValue();
-                relationCacheService.cacheDeviceUser(deviceSn, userId);
+                Long userId = safeLongValue(row, "user_id");
+                if (userId == null) {
+                    log.warn("发现user_id为null的设备用户记录，跳过处理: {}", row);
+                    continue;
+                }
+                if (deviceSn != null && !deviceSn.trim().isEmpty()) {
+                    relationCacheService.cacheDeviceUser(deviceSn, userId);
+                }
             }
             
             // 3. 预热设备-部门关系 (解决字符集冲突问题)
@@ -237,14 +308,20 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
                 INNER JOIN t_device_user du ON d.serial_number = du.device_sn COLLATE utf8mb4_general_ci
                 INNER JOIN sys_user u ON du.user_id = u.id
                 INNER JOIN sys_user_org uo ON u.id = uo.user_id
-                WHERE d.status = 'online' AND u.is_deleted = 0 AND uo.is_deleted = 0
+                WHERE d.status = 'online' AND u.is_deleted = 0 AND uo.is_deleted = 0 AND uo.org_id IS NOT NULL
                 """;
             
             List<Map<String, Object>> deviceOrgs = jdbcTemplate.queryForList(deviceOrgSql);
             for (Map<String, Object> row : deviceOrgs) {
                 String deviceSn = (String) row.get("serial_number");
-                Long orgId = ((Number) row.get("org_id")).longValue();
-                relationCacheService.cacheDeviceOrg(deviceSn, orgId);
+                Long orgId = safeLongValue(row, "org_id");
+                if (orgId == null) {
+                    log.warn("发现org_id为null的设备组织记录，跳过处理: {}", row);
+                    continue;
+                }
+                if (deviceSn != null && !deviceSn.trim().isEmpty()) {
+                    relationCacheService.cacheDeviceOrg(deviceSn, orgId);
+                }
             }
             
             // 4. 预热部门-设备关系（包含子部门设备）
@@ -272,19 +349,30 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
             String descendantsSql = """
                 SELECT ancestor_id, GROUP_CONCAT(descendant_id) as descendant_ids
                 FROM sys_org_closure
-                WHERE depth > 0
+                WHERE depth > 0 AND ancestor_id IS NOT NULL
                 GROUP BY ancestor_id
                 """;
             
             List<Map<String, Object>> orgDescendants = jdbcTemplate.queryForList(descendantsSql);
             for (Map<String, Object> row : orgDescendants) {
-                Long ancestorId = ((Number) row.get("ancestor_id")).longValue();
+                Long ancestorId = safeLongValue(row, "ancestor_id");
+                if (ancestorId == null) {
+                    log.warn("发现ancestor_id为null的组织层级记录，跳过处理: {}", row);
+                    continue;
+                }
+                
                 String descendantIdsStr = (String) row.get("descendant_ids");
-                if (descendantIdsStr != null) {
-                    Set<Long> descendantIds = Arrays.stream(descendantIdsStr.split(","))
-                            .map(Long::valueOf)
-                            .collect(Collectors.toSet());
-                    relationCacheService.cacheOrgDescendants(ancestorId, descendantIds);
+                if (descendantIdsStr != null && !descendantIdsStr.trim().isEmpty()) {
+                    try {
+                        Set<Long> descendantIds = Arrays.stream(descendantIdsStr.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .map(Long::valueOf)
+                                .collect(Collectors.toSet());
+                        relationCacheService.cacheOrgDescendants(ancestorId, descendantIds);
+                    } catch (NumberFormatException e) {
+                        log.warn("后代组织ID格式转换失败，祖先ID: {}, 后代IDs: {}", ancestorId, descendantIdsStr);
+                    }
                 }
             }
             
@@ -342,14 +430,30 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
                 FROM t_user_health_data
                 WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
                   AND is_deleted = 0
+                  AND user_id IS NOT NULL
                 GROUP BY user_id
             ) latest ON h.user_id = latest.user_id AND h.timestamp = latest.latest_time
             WHERE h.is_deleted = 0
+              AND h.user_id IS NOT NULL
             """;
         
         List<Map<String, Object>> latestHealthData = jdbcTemplate.queryForList(sql);
         for (Map<String, Object> row : latestHealthData) {
-            Long userId = ((Number) row.get("user_id")).longValue();
+            // 安全获取user_id，防止NPE
+            Object userIdObj = row.get("user_id");
+            if (userIdObj == null) {
+                log.warn("发现user_id为null的健康数据记录，跳过处理: {}", row);
+                continue;
+            }
+            
+            Long userId;
+            try {
+                userId = ((Number) userIdObj).longValue();
+            } catch (ClassCastException e) {
+                log.warn("user_id类型转换失败，跳过处理: {}, 值: {}", row, userIdObj);
+                continue;
+            }
+            
             Map<String, Object> healthData = new HashMap<>(row);
             healthData.remove("user_id");
             relationCacheService.cacheUserLatestHealth(userId, healthData);
@@ -367,18 +471,39 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
             FROM t_alert_info
             WHERE alert_status IN ('PENDING', 'IN_PROGRESS')
               AND create_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+              AND user_id IS NOT NULL
             GROUP BY user_id
             """;
         
         List<Map<String, Object>> activeAlerts = jdbcTemplate.queryForList(sql);
         for (Map<String, Object> row : activeAlerts) {
-            Long userId = ((Number) row.get("user_id")).longValue();
+            // 安全获取user_id，防止NPE
+            Object userIdObj = row.get("user_id");
+            if (userIdObj == null) {
+                log.warn("发现user_id为null的告警记录，跳过处理: {}", row);
+                continue;
+            }
+            
+            Long userId;
+            try {
+                userId = ((Number) userIdObj).longValue();
+            } catch (ClassCastException e) {
+                log.warn("user_id类型转换失败，跳过处理: {}, 值: {}", row, userIdObj);
+                continue;
+            }
+            
             String alertIdsStr = (String) row.get("alert_ids");
-            if (alertIdsStr != null) {
-                Set<Long> alertIds = Arrays.stream(alertIdsStr.split(","))
-                        .map(Long::valueOf)
-                        .collect(Collectors.toSet());
-                relationCacheService.cacheUserActiveAlerts(userId, alertIds);
+            if (alertIdsStr != null && !alertIdsStr.trim().isEmpty()) {
+                try {
+                    Set<Long> alertIds = Arrays.stream(alertIdsStr.split(","))
+                            .map(String::trim)
+                            .filter(s -> !s.isEmpty())
+                            .map(Long::valueOf)
+                            .collect(Collectors.toSet());
+                    relationCacheService.cacheUserActiveAlerts(userId, alertIds);
+                } catch (NumberFormatException e) {
+                    log.warn("告警ID格式转换失败，用户ID: {}, 告警IDs: {}", userId, alertIdsStr);
+                }
             }
         }
         
@@ -401,14 +526,19 @@ public class RedisCacheWarmupService implements ApplicationRunner, ICacheWarmupS
             LEFT JOIN t_user_health_data h ON u.id = h.user_id 
                 AND h.timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
                 AND h.is_deleted = 0
-            WHERE uo.is_deleted = 0 AND u.is_deleted = 0
+            WHERE uo.is_deleted = 0 AND u.is_deleted = 0 AND uo.org_id IS NOT NULL
             GROUP BY uo.org_id
             HAVING total_records > 0
             """;
         
         List<Map<String, Object>> orgSummaries = jdbcTemplate.queryForList(sql);
         for (Map<String, Object> row : orgSummaries) {
-            Long orgId = ((Number) row.get("org_id")).longValue();
+            Long orgId = safeLongValue(row, "org_id");
+            if (orgId == null) {
+                log.warn("发现org_id为null的部门健康汇总记录，跳过处理: {}", row);
+                continue;
+            }
+            
             Map<String, Object> summary = new HashMap<>(row);
             summary.remove("org_id");
             relationCacheService.cacheOrgHealthSummary(orgId, summary);

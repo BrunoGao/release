@@ -485,10 +485,10 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
             #确保批处理器已启动
             self._ensure_processor_started()
             
-            # 优先使用直接传递的客户信息参数
-            user_id = raw_data.get("user_id")
-            org_id = raw_data.get("org_id") 
-            customer_id = raw_data.get("customer_id")
+            # 优先使用直接传递的客户信息参数 - 支持两种字段名格式
+            user_id = raw_data.get("user_id") or raw_data.get("userId")
+            org_id = raw_data.get("org_id") or raw_data.get("orgId")
+            customer_id = raw_data.get("customer_id") or raw_data.get("customerId")
             
             print(f"🔍 直接传入的客户信息: user_id={user_id}, org_id={org_id}, customer_id={customer_id}")
             
@@ -598,7 +598,7 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
             else:
                 print(f"⚠️ 无每周数据字段")
             
-            #构建Redis数据(只包含配置字段)
+            #构建Redis数据(包含配置字段和客户信息)
             redis_data={}
             for field in config_fields:
                 if field in self.field_mapping:
@@ -607,7 +607,12 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
                     if value is not None:
                         redis_data[api_field]=str(value)
             redis_data['deviceSn']=device_sn
-            print(f"✅ Redis数据: {redis_data}")
+            # 添加客户信息用于告警规则缓存
+            redis_data['customer_id']=customer_id
+            redis_data['customerId']=customer_id  # 兼容性字段名
+            redis_data['org_id']=org_id
+            redis_data['user_id']=user_id
+            print(f"✅ Redis数据(含客户信息): {redis_data}")
                 
             item={'device_sn':device_sn,'main_data':main_data,'daily_data':daily_data,'weekly_data':weekly_data,'redis_data':redis_data,'enable_alerts':enable_alerts,'config_info':config_info}
             print(f"🔧 准备加入队列的数据项: {json.dumps(item, ensure_ascii=False, default=str)}")
@@ -746,10 +751,19 @@ def optimized_upload_health_data(health_data):#优化的健康数据上传V3.1
             
         data=health_data.get("data",{})
         
-        # 提取顶级的客户信息参数
-        customer_id = health_data.get("customer_id")
-        org_id = health_data.get("org_id") 
-        user_id = health_data.get("user_id")
+        # 提取顶级的客户信息参数 - 支持两种字段名格式
+        customer_id = health_data.get("customer_id") or health_data.get("customerId")
+        org_id = health_data.get("org_id") or health_data.get("orgId")
+        user_id = health_data.get("user_id") or health_data.get("userId")
+        
+        # 如果顶级没有，从data字段中提取
+        if not customer_id and isinstance(data, dict):
+            customer_id = data.get("customer_id") or data.get("customerId")
+        if not org_id and isinstance(data, dict):
+            org_id = data.get("org_id") or data.get("orgId")
+        if not user_id and isinstance(data, dict):
+            user_id = data.get("user_id") or data.get("userId")
+        
         print(f"🔍 提取客户信息: customer_id={customer_id}, org_id={org_id}, user_id={user_id}")
         print(f"🔍 解析data字段: {json.dumps(data, ensure_ascii=False, indent=2)}")
         

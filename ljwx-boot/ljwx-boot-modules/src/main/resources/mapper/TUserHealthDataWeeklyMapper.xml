@@ -8,6 +8,7 @@
         <result column="device_sn" property="deviceSn"/>
         <result column="org_id" property="orgId"/>
         <result column="user_id" property="userId"/>
+        <result column="customer_id" property="customerId"/>
         <result column="week_start" property="timestamp"/>
         <result column="exercise_week_data" property="exerciseWeekData"/>
         <result column="create_time" property="createTime"/>
@@ -16,7 +17,7 @@
 
     <!-- 通用查询结果列 -->
     <sql id="TUserHealthDataWeeklyColumnList">
-        id, device_sn, org_id, user_id, week_start, exercise_week_data, create_time, update_time
+        id, device_sn, org_id, user_id, customer_id, week_start, exercise_week_data, create_time, update_time
     </sql>
 
 </mapper> 

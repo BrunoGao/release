@@ -77,14 +77,7 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
         TAlertRulesBO tAlertRulesBO = CglibUtil.convertObj(tAlertRulesAddDTO, TAlertRulesBO::new);
         boolean result = tAlertRulesService.save(tAlertRulesBO);
         if (result) {
-            // 更新Redis缓存 - 按customer_id分别缓存
-            Long customerId = tAlertRulesBO.getCustomerId();
-            List<TAlertRules> list = tAlertRulesService.list(new QueryWrapper<TAlertRules>().eq("customer_id", customerId));
-            // 转换为 JSON 字符串存储
-            String jsonString = JSON.toJSONString(list);
-            RedisUtil.set("alert_rules_" + customerId, jsonString);
-            // 发布更新消息
-            RedisUtil.publish("alert_rules_channel", "update:" + customerId);
+            updateAlertRulesCache(tAlertRulesBO.getCustomerId());
         }
         return result;
     }
@@ -94,16 +87,8 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
     public boolean update(TAlertRulesUpdateDTO tAlertRulesUpdateDTO) {
         TAlertRulesBO tAlertRulesBO = CglibUtil.convertObj(tAlertRulesUpdateDTO, TAlertRulesBO::new);
         boolean result = tAlertRulesService.updateById(tAlertRulesBO);
-        System.out.println("更新缓存" + tAlertRulesBO.toString());
         if (result) {
-            // 更新Redis缓存 - 按customer_id分别缓存
-            Long customerId = tAlertRulesBO.getCustomerId();
-            List<TAlertRules> list = tAlertRulesService.list(new QueryWrapper<TAlertRules>().eq("customer_id", customerId));
-            // 转换为 JSON 字符串存储
-            String jsonString = JSON.toJSONString(list);
-            RedisUtil.set("alert_rules_" + customerId, jsonString);
-            // 发布更新消息
-            RedisUtil.publish("alert_rules_channel", "update:" + customerId);
+            updateAlertRulesCache(tAlertRulesBO.getCustomerId());
         }
         return result;
     }
@@ -116,16 +101,49 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
         List<TAlertRules> toDelete = tAlertRulesService.listByIds(tAlertRulesBO.getIds());
         boolean result = tAlertRulesService.removeBatchByIds(tAlertRulesBO.getIds(), true);
         if (result && !toDelete.isEmpty()) {
-            // 更新Redis缓存 - 按customer_id分别缓存
             Long customerId = toDelete.get(0).getCustomerId();
-            List<TAlertRules> list = tAlertRulesService.list(new QueryWrapper<TAlertRules>().eq("customer_id", customerId));
-            // 转换为 JSON 字符串存储
-            String jsonString = JSON.toJSONString(list);
-            RedisUtil.set("alert_rules_" + customerId, jsonString);
-            // 发布更新消息
-            RedisUtil.publish("alert_rules_channel", "update:" + customerId);
+            updateAlertRulesCache(customerId);
         }
         return result;
+    }
+    
+    /**
+     * 更新告警规则缓存 - 支持版本控制和24小时TTL
+     * @param customerId 客户ID
+     */
+    private void updateAlertRulesCache(Long customerId) {
+        String versionKey = "alert_rules_version_" + customerId;
+        
+        try {
+            // 增加版本号
+            Long version = RedisUtil.incr(versionKey, 1L);
+            
+            // 查询最新的告警规则
+            List<TAlertRules> rules = tAlertRulesService.list(
+                new QueryWrapper<TAlertRules>().eq("customer_id", customerId)
+            );
+            
+            // 构建缓存数据（包含版本信息）
+            java.util.Map<String, Object> cacheData = new java.util.HashMap<>();
+            cacheData.put("version", version);
+            cacheData.put("rules", rules);
+            cacheData.put("updateTime", System.currentTimeMillis());
+            
+            String cacheKey = "alert_rules_" + customerId;
+            String jsonString = JSON.toJSONString(cacheData);
+            
+            // 设置24小时TTL
+            RedisUtil.set(cacheKey, jsonString, 86400L);
+            
+            // 发布更新通知（包含版本号）
+            RedisUtil.publish("alert_rules_channel", "update:" + customerId + ":" + version);
+            
+            System.out.println("告警规则缓存更新成功: customerId=" + customerId + ", version=" + version + ", rules=" + rules.size());
+            
+        } catch (Exception e) {
+            System.err.println("更新告警规则缓存失败: customerId=" + customerId + ", error=" + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
 }
