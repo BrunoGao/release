@@ -63,6 +63,7 @@ declare module "@elegant-router/types" {
     "geofence": "/geofence";
     "health": "/health";
     "health_ai": "/health/ai";
+    "health_alert-rules": "/health/alert-rules";
     "health_analysis": "/health/analysis";
     "health_baseline": "/health/baseline";
     "health_chart": "/health/chart";
@@ -86,6 +87,7 @@ declare module "@elegant-router/types" {
     "manage_user-detail": "/manage/user-detail/:id";
     "map": "/map";
     "monitor": "/monitor";
+    "monitor_alert-performance": "/monitor/alert-performance";
     "monitor_cache": "/monitor/cache";
     "monitor_file": "/monitor/file";
     "monitor_logs": "/monitor/logs";
@@ -218,6 +220,7 @@ declare module "@elegant-router/types" {
     | "function_toggle-auth"
     | "geofence"
     | "health_ai"
+    | "health_alert-rules"
     | "health_analysis"
     | "health_baseline"
     | "health_chart"
@@ -237,6 +240,7 @@ declare module "@elegant-router/types" {
     | "manage_user-detail"
     | "manage_user"
     | "map"
+    | "monitor_alert-performance"
     | "monitor_cache"
     | "monitor_file"
     | "monitor_logs_error"

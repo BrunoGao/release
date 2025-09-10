@@ -375,6 +375,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'health_alert-rules',
+        path: '/health/alert-rules',
+        component: 'view.health_alert-rules',
+        meta: {
+          title: 'health_alert-rules',
+          i18nKey: 'route.health_alert-rules'
+        }
+      },
+      {
         name: 'health_analysis',
         path: '/health/analysis',
         component: 'view.health_analysis',
@@ -611,6 +620,15 @@ export const generatedRoutes: GeneratedRoute[] = [
       i18nKey: 'route.monitor'
     },
     children: [
+      {
+        name: 'monitor_alert-performance',
+        path: '/monitor/alert-performance',
+        component: 'view.monitor_alert-performance',
+        meta: {
+          title: 'monitor_alert-performance',
+          i18nKey: 'route.monitor_alert-performance'
+        }
+      },
       {
         name: 'monitor_cache',
         path: '/monitor/cache',
