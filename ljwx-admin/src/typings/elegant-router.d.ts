@@ -35,9 +35,11 @@ declare module "@elegant-router/types" {
     "about": "/about";
     "about_video": "/about/video";
     "alert": "/alert";
+    "alert_auto-process": "/alert/auto-process";
     "alert_config": "/alert/config";
     "alert_info": "/alert/info";
     "alert_log": "/alert/log";
+    "alert_monitor": "/alert/monitor";
     "alert_rules": "/alert/rules";
     "bigscreen": "/bigscreen";
     "customer": "/customer";
@@ -73,6 +75,7 @@ declare module "@elegant-router/types" {
     "health_info": "/health/info";
     "health_prediction": "/health/prediction";
     "health_profile": "/health/profile";
+    "health_recommendation": "/health/recommendation";
     "health_score": "/health/score";
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
@@ -199,9 +202,11 @@ declare module "@elegant-router/types" {
     | "login"
     | "about"
     | "about_video"
+    | "alert_auto-process"
     | "alert_config"
     | "alert_info"
     | "alert_log"
+    | "alert_monitor"
     | "alert_rules"
     | "bigscreen"
     | "customer_config"
@@ -232,6 +237,7 @@ declare module "@elegant-router/types" {
     | "health_info"
     | "health_prediction"
     | "health_profile"
+    | "health_recommendation"
     | "health_score"
     | "home"
     | "job"

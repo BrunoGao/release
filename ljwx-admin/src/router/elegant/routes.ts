@@ -71,6 +71,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'alert_auto-process',
+        path: '/alert/auto-process',
+        component: 'view.alert_auto-process',
+        meta: {
+          title: 'alert_auto-process',
+          i18nKey: 'route.alert_auto-process'
+        }
+      },
+      {
         name: 'alert_config',
         path: '/alert/config',
         meta: {
@@ -105,6 +114,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'alert_log',
           i18nKey: 'route.alert_log'
+        }
+      },
+      {
+        name: 'alert_monitor',
+        path: '/alert/monitor',
+        component: 'view.alert_monitor',
+        meta: {
+          title: 'alert_monitor',
+          i18nKey: 'route.alert_monitor'
         }
       },
       {
@@ -462,6 +480,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'health_profile',
           i18nKey: 'route.health_profile'
+        }
+      },
+      {
+        name: 'health_recommendation',
+        path: '/health/recommendation',
+        component: 'view.health_recommendation',
+        meta: {
+          title: 'health_recommendation',
+          i18nKey: 'route.health_recommendation'
         }
       },
       {

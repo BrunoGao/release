@@ -18,11 +18,11 @@ ENV TZ=Asia/Shanghai
 # 复制配置文件
 COPY docker/alertmanager/alertmanager.yml /etc/alertmanager/alertmanager.yml
 
-# 设置权限
-RUN chown -R alertmanager:alertmanager /etc/alertmanager
+# 设置权限 (使用nobody用户，与其他监控组件保持一致)
+RUN chown -R nobody:nobody /etc/alertmanager
 
-# 切换回alertmanager用户
-USER alertmanager
+# 切换回nobody用户
+USER nobody
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

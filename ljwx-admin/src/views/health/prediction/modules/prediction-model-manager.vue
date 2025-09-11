@@ -104,6 +104,14 @@ const models = ref([
 ]);
 
 const selectedModel = ref(null);
+const showModelDetails = computed({
+  get: () => !!selectedModel.value,
+  set: (value) => {
+    if (!value) {
+      selectedModel.value = null;
+    }
+  }
+});
 const trainingProgress = ref(0);
 const isTraining = ref(false);
 
@@ -379,7 +387,7 @@ function createNewModel() {
       </NCard>
 
       <!-- 模型详情 -->
-      <NModal v-model:show="!!selectedModel" preset="card" title="模型详情" class="w-full max-w-4xl">
+      <NModal v-model:show="showModelDetails" preset="card" title="模型详情" class="w-full max-w-4xl">
         <div v-if="selectedModel" class="space-y-4">
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- 基本信息 -->

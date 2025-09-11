@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -1061,7 +1062,7 @@ public class HealthBaselineScoreTasks {
      */
     private List<Map<String, Object>> getActiveUsersForDate(String dateStr) {
         try {
-            // 检查所有相关表
+            // 检查所有相关表，只获取有健康数据的用户ID
             List<String> tables = getHealthDataTables(LocalDate.parse(dateStr));
             StringBuilder unionQuery = new StringBuilder();
             
@@ -1069,7 +1070,7 @@ public class HealthBaselineScoreTasks {
                 if (i > 0) unionQuery.append(" UNION ALL ");
                 
                 unionQuery.append(String.format("""
-                    SELECT DISTINCT user_id, customer_id, org_id
+                    SELECT DISTINCT user_id
                     FROM %s 
                     WHERE DATE(timestamp) = '%s'
                     AND is_deleted = 0
@@ -1079,14 +1080,30 @@ public class HealthBaselineScoreTasks {
                     """, tables.get(i), dateStr));
             }
             
-            String finalSql = String.format("""
-                SELECT user_id, customer_id, org_id, COUNT(*) as table_count
+            String userIdsSql = String.format("""
+                SELECT DISTINCT user_id
                 FROM (%s) unified_users
-                GROUP BY user_id, customer_id, org_id
                 ORDER BY user_id
                 """, unionQuery.toString());
             
-            return jdbcTemplate.queryForList(finalSql);
+            List<Map<String, Object>> healthUsers = jdbcTemplate.queryForList(userIdsSql);
+            List<Map<String, Object>> result = new ArrayList<>();
+            
+            // 为每个有健康数据的用户查询正确的customerId
+            for (Map<String, Object> healthUser : healthUsers) {
+                Long userId = ((Number) healthUser.get("user_id")).longValue();
+                
+                // 查询用户的正确customerId
+                Long customerId = getUserCustomerId(userId);
+                if (customerId != null) {
+                    Map<String, Object> userInfo = new HashMap<>();
+                    userInfo.put("user_id", userId);
+                    userInfo.put("customer_id", customerId);
+                    result.add(userInfo);
+                }
+            }
+            
+            return result;
             
         } catch (Exception e) {
             log.error("❌ 获取活跃用户列表失败: date={}, error={}", dateStr, e.getMessage(), e);
@@ -1099,11 +1116,10 @@ public class HealthBaselineScoreTasks {
      */
     private List<Map<String, Object>> getActiveUsersForProcessing() {
         try {
-            String sql = """
+            // 首先获取有健康数据的活跃用户
+            String healthDataSql = """
                 SELECT DISTINCT 
-                    u.user_id, 
-                    u.customer_id, 
-                    u.org_id,
+                    u.user_id,
                     COUNT(*) as data_count
                 FROM t_user_health_data u
                 WHERE u.timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)
@@ -1111,12 +1127,37 @@ public class HealthBaselineScoreTasks {
                 AND u.user_id > 0
                 AND (u.heart_rate > 0 OR u.blood_oxygen > 0 OR u.temperature > 0 
                      OR u.pressure_high > 0 OR u.pressure_low > 0)
-                GROUP BY u.user_id, u.customer_id, u.org_id
+                GROUP BY u.user_id
                 HAVING data_count >= 3
-                ORDER BY data_count DESC
                 """;
             
-            return jdbcTemplate.queryForList(sql);
+            List<Map<String, Object>> healthUsers = jdbcTemplate.queryForList(healthDataSql);
+            List<Map<String, Object>> result = new ArrayList<>();
+            
+            // 为每个有健康数据的用户查询正确的customerId
+            for (Map<String, Object> healthUser : healthUsers) {
+                Long userId = ((Number) healthUser.get("user_id")).longValue();
+                Long dataCount = ((Number) healthUser.get("data_count")).longValue();
+                
+                // 查询用户的正确customerId
+                Long customerId = getUserCustomerId(userId);
+                if (customerId != null) {
+                    Map<String, Object> userInfo = new HashMap<>();
+                    userInfo.put("user_id", userId);
+                    userInfo.put("customer_id", customerId);
+                    userInfo.put("data_count", dataCount);
+                    result.add(userInfo);
+                }
+            }
+            
+            // 按数据量排序
+            result.sort((a, b) -> {
+                Long countA = ((Number) a.get("data_count")).longValue();
+                Long countB = ((Number) b.get("data_count")).longValue();
+                return countB.compareTo(countA);
+            });
+            
+            return result;
             
         } catch (Exception e) {
             log.error("❌ 获取处理用户列表失败: {}", e.getMessage(), e);
@@ -1125,11 +1166,204 @@ public class HealthBaselineScoreTasks {
     }
     
     /**
+     * 根据用户ID获取正确的customerId
+     * 逻辑：从用户所在部门向上查询到顶级部门ID作为customerId
+     */
+    private Long getUserCustomerId(Long userId) {
+        try {
+            // 首先尝试从sys_user表直接获取customerId
+            String userSql = "SELECT customer_id FROM sys_user WHERE user_id = ? AND is_deleted = 0";
+            List<Map<String, Object>> userResults = jdbcTemplate.queryForList(userSql, userId);
+            
+            if (!userResults.isEmpty()) {
+                Object customerIdObj = userResults.get(0).get("customer_id");
+                if (customerIdObj != null && !customerIdObj.equals(0L)) {
+                    Long customerId = ((Number) customerIdObj).longValue();
+                    log.debug("✅ 用户 {} 从sys_user表获取customerId: {}", userId, customerId);
+                    return customerId;
+                }
+            }
+            
+            // 如果sys_user表中没有customerId，则从用户组织关系查询
+            String orgSql = """
+                SELECT DISTINCT uo.customer_id 
+                FROM sys_user_org uo 
+                WHERE uo.user_id = ? 
+                AND uo.is_deleted = 0 
+                AND uo.customer_id IS NOT NULL 
+                AND uo.customer_id > 0
+                LIMIT 1
+                """;
+            
+            List<Map<String, Object>> orgResults = jdbcTemplate.queryForList(orgSql, userId);
+            if (!orgResults.isEmpty()) {
+                Object customerIdObj = orgResults.get(0).get("customer_id");
+                if (customerIdObj != null) {
+                    Long customerId = ((Number) customerIdObj).longValue();
+                    log.debug("✅ 用户 {} 从sys_user_org表获取customerId: {}", userId, customerId);
+                    
+                    // 同步更新sys_user表的customerId
+                    updateUserCustomerId(userId, customerId);
+                    return customerId;
+                }
+            }
+            
+            // 如果仍然没有找到，尝试从用户的顶级部门查询
+            Long topOrgId = getUserTopOrganizationId(userId);
+            if (topOrgId != null) {
+                log.debug("✅ 用户 {} 从顶级部门获取customerId: {}", userId, topOrgId);
+                
+                // 同步更新sys_user和sys_user_org表的customerId
+                updateUserCustomerId(userId, topOrgId);
+                updateUserOrgCustomerId(userId, topOrgId);
+                return topOrgId;
+            }
+            
+            log.warn("⚠️ 无法获取用户 {} 的customerId，使用默认值1", userId);
+            return 1L; // 默认值
+            
+        } catch (Exception e) {
+            log.error("❌ 获取用户 {} customerId失败: {}", userId, e.getMessage(), e);
+            return 1L; // 默认值
+        }
+    }
+    
+    /**
+     * 获取用户的顶级组织ID
+     */
+    private Long getUserTopOrganizationId(Long userId) {
+        try {
+            String sql = """
+                WITH RECURSIVE org_hierarchy AS (
+                    -- 获取用户直接所属的组织
+                    SELECT o.org_id, o.parent_id, 1 as level
+                    FROM sys_user_org uo
+                    JOIN sys_org o ON uo.org_id = o.org_id
+                    WHERE uo.user_id = ? AND uo.is_deleted = 0 AND o.is_deleted = 0
+                    
+                    UNION ALL
+                    
+                    -- 递归查询父级组织
+                    SELECT o.org_id, o.parent_id, oh.level + 1
+                    FROM sys_org o
+                    JOIN org_hierarchy oh ON o.org_id = oh.parent_id
+                    WHERE o.is_deleted = 0 AND oh.level < 10
+                )
+                SELECT org_id 
+                FROM org_hierarchy 
+                WHERE parent_id IS NULL OR parent_id = 0
+                ORDER BY level DESC
+                LIMIT 1
+                """;
+            
+            List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, userId);
+            if (!results.isEmpty()) {
+                return ((Number) results.get(0).get("org_id")).longValue();
+            }
+            
+            // 如果没有找到递归结果，尝试简单查询
+            String simpleSql = """
+                SELECT uo.org_id
+                FROM sys_user_org uo
+                WHERE uo.user_id = ? AND uo.is_deleted = 0
+                LIMIT 1
+                """;
+            
+            List<Map<String, Object>> simpleResults = jdbcTemplate.queryForList(simpleSql, userId);
+            if (!simpleResults.isEmpty()) {
+                return ((Number) simpleResults.get(0).get("org_id")).longValue();
+            }
+            
+            return null;
+            
+        } catch (Exception e) {
+            log.error("❌ 获取用户 {} 顶级组织失败: {}", userId, e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    /**
+     * 更新用户表的customerId
+     */
+    private void updateUserCustomerId(Long userId, Long customerId) {
+        try {
+            String updateSql = "UPDATE sys_user SET customer_id = ? WHERE user_id = ?";
+            int updated = jdbcTemplate.update(updateSql, customerId, userId);
+            if (updated > 0) {
+                log.debug("✅ 已更新用户 {} 的customerId为 {}", userId, customerId);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ 更新用户 {} customerId失败: {}", userId, e.getMessage());
+        }
+    }
+    
+    /**
+     * 更新用户组织关系表的customerId
+     */
+    private void updateUserOrgCustomerId(Long userId, Long customerId) {
+        try {
+            String updateSql = "UPDATE sys_user_org SET customer_id = ? WHERE user_id = ? AND customer_id IS NULL";
+            int updated = jdbcTemplate.update(updateSql, customerId, userId);
+            if (updated > 0) {
+                log.debug("✅ 已更新用户组织关系 {} 的customerId为 {}", userId, customerId);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ 更新用户组织关系 {} customerId失败: {}", userId, e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取组织的customerId
+     * 逻辑：向上查询到顶级部门ID作为customerId
+     */
+    private Long getOrganizationCustomerId(Long orgId) {
+        try {
+            // 递归查询到顶级组织
+            String sql = """
+                WITH RECURSIVE org_hierarchy AS (
+                    -- 起始组织
+                    SELECT org_id, parent_id, 1 as level
+                    FROM sys_org
+                    WHERE org_id = ? AND is_deleted = 0
+                    
+                    UNION ALL
+                    
+                    -- 递归查询父级组织
+                    SELECT o.org_id, o.parent_id, oh.level + 1
+                    FROM sys_org o
+                    JOIN org_hierarchy oh ON o.org_id = oh.parent_id
+                    WHERE o.is_deleted = 0 AND oh.level < 10
+                )
+                SELECT org_id 
+                FROM org_hierarchy 
+                WHERE parent_id IS NULL OR parent_id = 0
+                ORDER BY level DESC
+                LIMIT 1
+                """;
+            
+            List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, orgId);
+            if (!results.isEmpty()) {
+                Long topOrgId = ((Number) results.get(0).get("org_id")).longValue();
+                log.debug("✅ 组织 {} 的顶级组织customerId: {}", orgId, topOrgId);
+                return topOrgId;
+            }
+            
+            // 如果没有找到递归结果，则使用当前组织ID
+            log.debug("✅ 组织 {} 作为customerId（无父级）", orgId);
+            return orgId;
+            
+        } catch (Exception e) {
+            log.error("❌ 获取组织 {} customerId失败: {}", orgId, e.getMessage(), e);
+            return orgId; // 默认使用当前组织ID
+        }
+    }
+    
+    /**
      * 获取指定日期的活跃组织列表（用于基线生成）
      */
     private List<Map<String, Object>> getActiveOrganizationsForDate(String dateStr) {
         try {
-            // 检查所有相关表
+            // 检查所有相关表，获取有健康数据的组织ID
             List<String> tables = getHealthDataTables(LocalDate.parse(dateStr));
             StringBuilder unionQuery = new StringBuilder();
             
@@ -1137,24 +1371,44 @@ public class HealthBaselineScoreTasks {
                 if (i > 0) unionQuery.append(" UNION ALL ");
                 
                 unionQuery.append(String.format("""
-                    SELECT DISTINCT org_id, customer_id
+                    SELECT DISTINCT org_id, user_id
                     FROM %s 
                     WHERE DATE(timestamp) = '%s'
                     AND is_deleted = 0
                     AND org_id > 0
+                    AND user_id > 0
                     AND (heart_rate > 0 OR blood_oxygen > 0 OR temperature > 0)
                     """, tables.get(i), dateStr));
             }
             
-            String finalSql = String.format("""
-                SELECT org_id, customer_id, COUNT(*) as user_count
+            String orgUsersSql = String.format("""
+                SELECT org_id, COUNT(DISTINCT user_id) as user_count
                 FROM (%s) unified_orgs
-                GROUP BY org_id, customer_id
+                GROUP BY org_id
                 HAVING user_count >= 2
                 ORDER BY org_id
                 """, unionQuery.toString());
             
-            return jdbcTemplate.queryForList(finalSql);
+            List<Map<String, Object>> orgUsers = jdbcTemplate.queryForList(orgUsersSql);
+            List<Map<String, Object>> result = new ArrayList<>();
+            
+            // 为每个活跃组织获取正确的customerId
+            for (Map<String, Object> orgData : orgUsers) {
+                Long orgId = ((Number) orgData.get("org_id")).longValue();
+                Long userCount = ((Number) orgData.get("user_count")).longValue();
+                
+                // 获取组织的customerId（可以从组织的顶级部门获取）
+                Long customerId = getOrganizationCustomerId(orgId);
+                if (customerId != null) {
+                    Map<String, Object> orgInfo = new HashMap<>();
+                    orgInfo.put("org_id", orgId);
+                    orgInfo.put("customer_id", customerId);
+                    orgInfo.put("user_count", userCount);
+                    result.add(orgInfo);
+                }
+            }
+            
+            return result;
             
         } catch (Exception e) {
             log.error("❌ 获取活跃组织列表失败: date={}, error={}", dateStr, e.getMessage(), e);

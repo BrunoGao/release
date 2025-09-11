@@ -22,6 +22,8 @@ package com.ljwx.modules.health.service;
 import com.ljwx.modules.health.domain.model.AlertResult;
 import com.ljwx.modules.health.domain.entity.TDeviceMessageV2;
 import com.ljwx.modules.health.domain.entity.TDeviceMessageDetailV2;
+import com.ljwx.modules.health.domain.entity.TAlertInfo;
+import com.ljwx.modules.health.domain.entity.TAlertRules;
 import com.ljwx.infrastructure.util.RedisUtil;
 import lombok.Data;
 import lombok.Builder;
@@ -121,6 +123,300 @@ public class UnifiedMessagePublisher {
                 return PublishResult.failed("异步发布失败: " + e.getMessage());
             }
         }, messageExecutorPool);
+    }
+    
+    /**
+     * 带自动处理的告警发布入口
+     * 基于现有告警规则实现自动处理
+     */
+    public CompletableFuture<PublishResult> publishAlertWithAutoProcess(AlertMessage alertMessage) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // 1. 查询告警规则
+                TAlertRules alertRule = getAlertRuleById(alertMessage.getRuleId());
+                if (alertRule == null) {
+                    log.warn("告警规则不存在: ruleId={}", alertMessage.getRuleId());
+                    return PublishResult.failed("告警规则不存在");
+                }
+                
+                // 2. 保存告警到数据库
+                TAlertInfo alertInfo = saveAlertInfo(alertMessage, alertRule);
+                if (alertInfo == null) {
+                    return PublishResult.failed("保存告警信息失败");
+                }
+                
+                // 3. 检查是否启用自动处理
+                if (Boolean.TRUE.equals(alertRule.getAutoProcessEnabled()) && alertRule.getAutoProcessAction() != null) {
+                    return processAutoAlert(alertInfo, alertRule, alertMessage);
+                }
+                
+                // 4. 常规告警处理流程
+                return publishAlertSync(alertMessage);
+                
+            } catch (Exception e) {
+                log.error("告警自动处理失败", e);
+                return PublishResult.failed("自动处理失败: " + e.getMessage());
+            }
+        }, messageExecutorPool);
+    }
+    
+    /**
+     * 自动处理告警
+     */
+    private PublishResult processAutoAlert(TAlertInfo alertInfo, TAlertRules rule, AlertMessage alertMessage) {
+        try {
+            String autoAction = rule.getAutoProcessAction();
+            int delaySeconds = rule.getAutoProcessDelaySeconds() != null ? rule.getAutoProcessDelaySeconds() : 0;
+            
+            log.info("开始自动处理告警: alertId={}, action={}, delay={}s", 
+                alertInfo.getId(), autoAction, delaySeconds);
+            
+            // 延迟处理
+            if (delaySeconds > 0) {
+                scheduleDelayedAutoProcess(alertInfo.getId(), autoAction, delaySeconds);
+                updateAlertProcessingStage(alertInfo.getId(), "AUTO_PROCESSING");
+                
+                return PublishResult.builder()
+                    .messageId(generateMessageId())
+                    .success(true)
+                    .message("告警已安排自动处理")
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+            }
+            
+            // 立即处理
+            return executeAutoProcessAction(alertInfo, rule, autoAction);
+            
+        } catch (Exception e) {
+            log.error("执行自动处理失败: alertId={}", alertInfo.getId(), e);
+            
+            // 自动处理失败，回退到正常流程
+            updateAlertProcessingStage(alertInfo.getId(), "MANUAL_REVIEW");
+            return publishAlertSync(alertMessage);
+        }
+    }
+    
+    /**
+     * 执行自动处理动作
+     */
+    private PublishResult executeAutoProcessAction(TAlertInfo alertInfo, TAlertRules rule, String action) {
+        try {
+            switch (action) {
+                case "AUTO_RESOLVE":
+                    return handleAutoResolve(alertInfo, rule);
+                case "AUTO_ACKNOWLEDGE":
+                    return handleAutoAcknowledge(alertInfo, rule);
+                case "AUTO_ESCALATE":
+                    return handleAutoEscalate(alertInfo, rule);
+                case "AUTO_SUPPRESS":
+                    return handleAutoSuppress(alertInfo, rule);
+                default:
+                    log.warn("未知的自动处理动作: action={}, alertId={}", action, alertInfo.getId());
+                    return PublishResult.failed("未知的自动处理动作: " + action);
+            }
+        } catch (Exception e) {
+            log.error("执行自动处理动作失败: action={}, alertId={}", action, alertInfo.getId(), e);
+            return PublishResult.failed("动作执行失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 自动解决告警
+     */
+    private PublishResult handleAutoResolve(TAlertInfo alertInfo, TAlertRules rule) {
+        // 检查是否满足自动解决条件
+        if (!canAutoResolve(alertInfo, rule)) {
+            log.info("不满足自动解决条件，转为人工处理: alertId={}", alertInfo.getId());
+            return continueNormalProcess(alertInfo);
+        }
+        
+        try {
+            // 更新告警状态
+            updateAlertStatus(alertInfo.getId(), "RESOLVED", "系统自动解决", LocalDateTime.now());
+            
+            // 记录自动处理日志
+            logAutoProcessAction(alertInfo.getId(), "AUTO_RESOLVE", "基于规则自动解决告警", rule.getId());
+            
+            // 发送自动解决通知(低优先级)
+            sendAutoProcessNotification(alertInfo, "AUTO_RESOLVED");
+            
+            log.info("告警已自动解决: alertId={}, ruleId={}, deviceSn={}", 
+                alertInfo.getId(), rule.getId(), alertInfo.getDeviceSn());
+            
+            return PublishResult.builder()
+                .messageId(generateMessageId())
+                .success(true)
+                .message("告警已自动解决")
+                .timestamp(System.currentTimeMillis())
+                .build();
+                
+        } catch (Exception e) {
+            log.error("自动解决告警失败: alertId={}", alertInfo.getId(), e);
+            return continueNormalProcess(alertInfo);
+        }
+    }
+    
+    /**
+     * 自动确认告警
+     */
+    private PublishResult handleAutoAcknowledge(TAlertInfo alertInfo, TAlertRules rule) {
+        try {
+            // 更新告警状态为已确认
+            updateAlertStatus(alertInfo.getId(), "ACKNOWLEDGED", "系统自动确认", LocalDateTime.now());
+            
+            // 记录处理日志
+            logAutoProcessAction(alertInfo.getId(), "AUTO_ACKNOWLEDGE", "系统自动确认告警", rule.getId());
+            
+            // 发送低优先级通知
+            sendAutoProcessNotification(alertInfo, "AUTO_ACKNOWLEDGED");
+            
+            log.info("告警已自动确认: alertId={}, ruleId={}, deviceSn={}", 
+                alertInfo.getId(), rule.getId(), alertInfo.getDeviceSn());
+            
+            return PublishResult.builder()
+                .messageId(generateMessageId())
+                .success(true)
+                .message("告警已自动确认")
+                .timestamp(System.currentTimeMillis())
+                .build();
+                
+        } catch (Exception e) {
+            log.error("自动确认告警失败: alertId={}", alertInfo.getId(), e);
+            return continueNormalProcess(alertInfo);
+        }
+    }
+    
+    /**
+     * 自动抑制告警
+     */
+    private PublishResult handleAutoSuppress(TAlertInfo alertInfo, TAlertRules rule) {
+        try {
+            int suppressDuration = rule.getSuppressDurationMinutes() != null ? rule.getSuppressDurationMinutes() : 60;
+            LocalDateTime suppressUntil = LocalDateTime.now().plusMinutes(suppressDuration);
+            
+            // 设置抑制状态
+            updateAlertStatus(alertInfo.getId(), "SUPPRESSED", 
+                "系统自动抑制" + suppressDuration + "分钟", suppressUntil);
+            
+            // 记录处理日志
+            logAutoProcessAction(alertInfo.getId(), "AUTO_SUPPRESS", 
+                "自动抑制告警" + suppressDuration + "分钟", rule.getId());
+            
+            // 安排抑制到期后的处理
+            scheduleSuppressionExpiry(alertInfo.getId(), suppressUntil);
+            
+            log.info("告警已自动抑制: alertId={}, duration={}min, deviceSn={}", 
+                alertInfo.getId(), suppressDuration, alertInfo.getDeviceSn());
+            
+            return PublishResult.builder()
+                .messageId(generateMessageId())
+                .success(true)
+                .message("告警已自动抑制" + suppressDuration + "分钟")
+                .timestamp(System.currentTimeMillis())
+                .build();
+                
+        } catch (Exception e) {
+            log.error("自动抑制告警失败: alertId={}", alertInfo.getId(), e);
+            return continueNormalProcess(alertInfo);
+        }
+    }
+    
+    /**
+     * 自动升级告警
+     */
+    private PublishResult handleAutoEscalate(TAlertInfo alertInfo, TAlertRules rule) {
+        try {
+            // 提升告警优先级
+            int newPriority = Math.max(1, alertInfo.getPriority() - 2); // 优先级数字越小越高
+            
+            // 更新告警信息
+            updateAlertPriority(alertInfo.getId(), newPriority, "系统自动升级");
+            
+            // 记录处理日志
+            logAutoProcessAction(alertInfo.getId(), "AUTO_ESCALATE", "自动升级告警优先级", rule.getId());
+            
+            // 发送高优先级通知
+            AlertMessage escalatedMessage = buildEscalatedAlertMessage(alertInfo, newPriority);
+            PublishResult result = publishAlertSync(escalatedMessage);
+            
+            log.info("告警已自动升级: alertId={}, newPriority={}, deviceSn={}", 
+                alertInfo.getId(), newPriority, alertInfo.getDeviceSn());
+            
+            return result;
+            
+        } catch (Exception e) {
+            log.error("自动升级告警失败: alertId={}", alertInfo.getId(), e);
+            return continueNormalProcess(alertInfo);
+        }
+    }
+    
+    /**
+     * 判断是否可以自动解决
+     */
+    private boolean canAutoResolve(TAlertInfo alertInfo, TAlertRules rule) {
+        try {
+            // 检查告警类型是否允许自动解决
+            String alertType = alertInfo.getAlertType();
+            List<String> autoResolvableTypes = Arrays.asList(
+                "heart_rate_abnormal", "blood_oxygen_low", "temperature_abnormal",
+                "device_offline", "battery_low", "step_insufficient"
+            );
+            
+            if (!autoResolvableTypes.contains(alertType)) {
+                log.debug("告警类型不支持自动解决: alertType={}", alertType);
+                return false;
+            }
+            
+            // 检查告警严重程度(critical级别不自动解决)
+            if ("critical".equalsIgnoreCase(alertInfo.getSeverityLevel())) {
+                log.debug("Critical级别告警不自动解决: alertId={}", alertInfo.getId());
+                return false;
+            }
+            
+            // 检查是否在指定时间窗口内
+            if (rule.getTimeWindowSeconds() != null) {
+                LocalDateTime windowStart = alertInfo.getAlertTimestamp().minusSeconds(rule.getTimeWindowSeconds());
+                if (LocalDateTime.now().isBefore(windowStart)) {
+                    log.debug("不在时间窗口内: alertId={}", alertInfo.getId());
+                    return false;
+                }
+            }
+            
+            // 检查最近是否有类似告警自动解决
+            int thresholdCount = rule.getAutoResolveThresholdCount() != null ? rule.getAutoResolveThresholdCount() : 1;
+            long recentAutoResolveCount = countRecentAutoResolvedAlerts(
+                alertInfo.getDeviceSn(), alertType, 24); // 24小时内
+            
+            if (recentAutoResolveCount >= thresholdCount) {
+                log.debug("超过自动解决阈值: alertId={}, count={}/{}", 
+                    alertInfo.getId(), recentAutoResolveCount, thresholdCount);
+                return false;
+            }
+            
+            return true;
+            
+        } catch (Exception e) {
+            log.error("检查自动解决条件失败: alertId={}", alertInfo.getId(), e);
+            return false;
+        }
+    }
+    
+    /**
+     * 继续正常处理流程
+     */
+    private PublishResult continueNormalProcess(TAlertInfo alertInfo) {
+        try {
+            // 更新处理阶段为人工审核
+            updateAlertProcessingStage(alertInfo.getId(), "MANUAL_REVIEW");
+            
+            // 构建告警消息进行正常发布
+            AlertMessage normalMessage = buildAlertMessageFromInfo(alertInfo);
+            return publishAlertSync(normalMessage);
+            
+        } catch (Exception e) {
+            log.error("继续正常处理失败: alertId={}", alertInfo.getId(), e);
+            return PublishResult.failed("处理失败: " + e.getMessage());
+        }
     }
     
     /**
@@ -1081,6 +1377,128 @@ public class UnifiedMessagePublisher {
             stats.put("avgProcessingTime", publishCount > 0 ? (double) totalProcessingTime / publishCount : 0);
             return stats;
         }
+    }
+    
+    // ==================== 自动处理辅助方法 ====================
+    
+    /**
+     * 查询告警规则
+     */
+    private TAlertRules getAlertRuleById(Long ruleId) {
+        // TODO: 实现告警规则查询逻辑
+        // return alertRulesService.getById(ruleId);
+        log.debug("查询告警规则: ruleId={}", ruleId);
+        return null; // 临时返回null，实际实现时需要注入service
+    }
+    
+    /**
+     * 保存告警信息
+     */
+    private TAlertInfo saveAlertInfo(AlertMessage alertMessage, TAlertRules rule) {
+        // TODO: 实现告警信息保存逻辑
+        // return alertInfoService.save(alertInfo);
+        log.debug("保存告警信息: ruleId={}, deviceSn={}", rule.getId(), alertMessage.getDeviceSn());
+        return null; // 临时返回null，实际实现时需要注入service
+    }
+    
+    /**
+     * 更新告警状态
+     */
+    private void updateAlertStatus(Long alertId, String status, String reason, LocalDateTime time) {
+        // TODO: 实现告警状态更新逻辑
+        // alertInfoService.updateStatus(alertId, status, reason, time);
+        log.debug("更新告警状态: alertId={}, status={}, reason={}", alertId, status, reason);
+    }
+    
+    /**
+     * 更新告警处理阶段
+     */
+    private void updateAlertProcessingStage(Long alertId, String stage) {
+        // TODO: 实现处理阶段更新逻辑
+        // alertInfoService.updateProcessingStage(alertId, stage);
+        log.debug("更新处理阶段: alertId={}, stage={}", alertId, stage);
+    }
+    
+    /**
+     * 更新告警优先级
+     */
+    private void updateAlertPriority(Long alertId, int newPriority, String reason) {
+        // TODO: 实现优先级更新逻辑
+        // alertInfoService.updatePriority(alertId, newPriority, reason);
+        log.debug("更新告警优先级: alertId={}, priority={}, reason={}", alertId, newPriority, reason);
+    }
+    
+    /**
+     * 记录自动处理日志
+     */
+    private void logAutoProcessAction(Long alertId, String action, String reason, Long ruleId) {
+        // TODO: 实现自动处理日志记录逻辑
+        // alertActionLogService.logAutoAction(alertId, action, reason, ruleId);
+        log.info("记录自动处理日志: alertId={}, action={}, reason={}, ruleId={}", 
+            alertId, action, reason, ruleId);
+    }
+    
+    /**
+     * 发送自动处理通知
+     */
+    private void sendAutoProcessNotification(TAlertInfo alertInfo, String actionType) {
+        // TODO: 实现自动处理通知发送逻辑
+        log.debug("发送自动处理通知: alertId={}, actionType={}", alertInfo.getId(), actionType);
+    }
+    
+    /**
+     * 安排延迟自动处理
+     */
+    private void scheduleDelayedAutoProcess(Long alertId, String action, int delaySeconds) {
+        // TODO: 实现延迟处理任务调度逻辑
+        // 可以使用Spring的@Scheduled或者Quartz等调度框架
+        log.info("安排延迟自动处理: alertId={}, action={}, delay={}s", alertId, action, delaySeconds);
+    }
+    
+    /**
+     * 安排抑制到期处理
+     */
+    private void scheduleSuppressionExpiry(Long alertId, LocalDateTime suppressUntil) {
+        // TODO: 实现抑制到期处理调度逻辑
+        log.info("安排抑制到期处理: alertId={}, expiry={}", alertId, suppressUntil);
+    }
+    
+    /**
+     * 统计最近自动解决的告警数量
+     */
+    private long countRecentAutoResolvedAlerts(String deviceSn, String alertType, int hours) {
+        // TODO: 实现统计查询逻辑
+        // return alertInfoService.countRecentAutoResolved(deviceSn, alertType, hours);
+        log.debug("统计最近自动解决告警: deviceSn={}, alertType={}, hours={}", deviceSn, alertType, hours);
+        return 0; // 临时返回0，实际实现时需要查询数据库
+    }
+    
+    /**
+     * 从告警信息构建告警消息
+     */
+    private AlertMessage buildAlertMessageFromInfo(TAlertInfo alertInfo) {
+        // TODO: 实现从TAlertInfo到AlertMessage的转换
+        log.debug("构建告警消息: alertId={}", alertInfo.getId());
+        return AlertMessage.builder()
+            .ruleId(alertInfo.getRuleId())
+            .alertType(alertInfo.getAlertType())
+            .deviceSn(alertInfo.getDeviceSn())
+            .alertDesc(alertInfo.getAlertDesc())
+            .severityLevel(alertInfo.getSeverityLevel())
+            .userId(alertInfo.getUserId())
+            .orgId(alertInfo.getOrgId())
+            .customerId(alertInfo.getCustomerId())
+            .build();
+    }
+    
+    /**
+     * 构建升级的告警消息
+     */
+    private AlertMessage buildEscalatedAlertMessage(TAlertInfo alertInfo, int newPriority) {
+        AlertMessage message = buildAlertMessageFromInfo(alertInfo);
+        // TODO: 设置升级后的属性
+        log.debug("构建升级告警消息: alertId={}, newPriority={}", alertInfo.getId(), newPriority);
+        return message;
     }
     
     // ==================== V2 消息事件类定义 ====================

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import type { FormInst, FormRules, SelectOption } from 'naive-ui';
-import { NDrawer, NDrawerContent, NSpace, NButton, NForm, NFormItem, NInput, NSelect, NDatePicker, NSwitch, NCard, NGrid, NGridItem, NDynamicTags, NAlert, NTextarea } from 'naive-ui';
+import { NDrawer, NDrawerContent, NSpace, NButton, NForm, NFormItem, NInput, NSelect, NDatePicker, NSwitch, NCard, NGrid, NGridItem, NDynamicTags, NAlert } from 'naive-ui';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 import { fetchCreateDeviceMessageV2, fetchUpdateDeviceMessageV2 } from '@/service/api/health/device-message-v2';
@@ -344,7 +344,8 @@ watch(() => model.enableExpiration, (enabled) => {
               
               <NGridItem :span="2">
                 <NFormItem label="消息内容" path="message">
-                  <NTextarea
+                  <NInput
+                    type="textarea"
                     v-model:value="model.message"
                     placeholder="请输入消息内容"
                     :rows="4"

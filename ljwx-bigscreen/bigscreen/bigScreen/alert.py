@@ -2785,3 +2785,601 @@ def generate_alerts(data, health_data_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
 
+# ==================== 自动处理功能 ====================
+
+def generate_alert_with_auto_process(health_data, rule, user_info=None, device_info=None):
+    """
+    基于规则的自动告警生成和处理
+    
+    Args:
+        health_data: 健康数据 (来自upload_health_data)
+        rule: 告警规则 (t_alert_rules)
+        user_info: 用户信息
+        device_info: 设备信息
+    
+    Returns:
+        dict: 包含告警信息和自动处理结果
+    """
+    try:
+        # 1. 基础告警判断
+        basic_alert = evaluate_basic_threshold(health_data, rule)
+        if not basic_alert['triggered']:
+            return {'alert_generated': False, 'reason': 'threshold_not_exceeded'}
+        
+        # 2. 检查告警抑制
+        if is_alert_suppressed(health_data, rule, device_info):
+            return {'alert_generated': False, 'reason': 'alert_suppressed'}
+        
+        # 3. 生成告警信息
+        alert_info = create_alert_info(health_data, rule, user_info, device_info, basic_alert)
+        
+        # 4. 保存到数据库
+        alert_id = save_alert_to_database(alert_info)
+        if not alert_id:
+            return {'alert_generated': False, 'reason': 'database_save_failed'}
+        
+        alert_info['id'] = alert_id
+        
+        # 5. 检查是否启用自动处理
+        if rule.get('auto_process_enabled') and rule.get('auto_process_action'):
+            auto_result = handle_auto_processing(alert_info, rule)
+            
+            # 6. 根据自动处理结果决定是否发送到boot系统
+            if auto_result['auto_processed']:
+                # 已自动处理，只发送低优先级通知
+                send_auto_process_notification(alert_info, auto_result)
+                
+                return {
+                    'alert_generated': True,
+                    'alert_id': alert_id,
+                    'auto_processed': True,
+                    'auto_result': auto_result,
+                    'alert_info': alert_info
+                }
+            else:
+                # 需要人工处理，发送到boot系统
+                publish_to_boot_system(alert_info, alert_id)
+                
+                return {
+                    'alert_generated': True,
+                    'alert_id': alert_id,
+                    'auto_processed': False,
+                    'alert_info': alert_info
+                }
+        else:
+            # 未启用自动处理，正常流程
+            publish_to_boot_system(alert_info, alert_id)
+            
+            return {
+                'alert_generated': True,
+                'alert_id': alert_id,
+                'auto_processed': False,
+                'alert_info': alert_info
+            }
+        
+    except Exception as e:
+        logger.error(f"告警生成失败: {e}")
+        return {'alert_generated': False, 'reason': 'generation_error', 'error': str(e)}
+
+def handle_auto_processing(alert_info, rule):
+    """
+    处理自动告警处理逻辑
+    """
+    try:
+        auto_action = rule.get('auto_process_action')
+        delay_seconds = rule.get('auto_process_delay_seconds', 0)
+        
+        if delay_seconds > 0:
+            # 安排延迟处理
+            schedule_auto_process(alert_info['id'], auto_action, delay_seconds)
+            update_alert_processing_stage(alert_info['id'], 'AUTO_PROCESSING')
+            
+            return {
+                'auto_processed': False,
+                'action': auto_action,
+                'scheduled': True,
+                'delay_seconds': delay_seconds,
+                'message': f'已安排{delay_seconds}秒后自动{auto_action}'
+            }
+        
+        # 立即处理
+        return execute_auto_process_action(alert_info, rule, auto_action)
+        
+    except Exception as e:
+        logger.error(f"自动处理失败: {e}")
+        return {
+            'auto_processed': False,
+            'error': str(e),
+            'message': '自动处理失败，转为人工处理'
+        }
+
+def execute_auto_process_action(alert_info, rule, action):
+    """
+    执行自动处理动作
+    """
+    try:
+        if action == 'AUTO_RESOLVE':
+            return handle_auto_resolve(alert_info, rule)
+        elif action == 'AUTO_ACKNOWLEDGE':
+            return handle_auto_acknowledge(alert_info, rule)
+        elif action == 'AUTO_SUPPRESS':
+            return handle_auto_suppress(alert_info, rule)
+        elif action == 'AUTO_ESCALATE':
+            return handle_auto_escalate(alert_info, rule)
+        else:
+            return {
+                'auto_processed': False,
+                'error': f'未知的自动处理动作: {action}',
+                'message': '转为人工处理'
+            }
+            
+    except Exception as e:
+        logger.error(f"执行自动处理动作失败: {action}, {e}")
+        return {
+            'auto_processed': False,
+            'error': str(e),
+            'message': '自动处理执行失败，转为人工处理'
+        }
+
+def handle_auto_resolve(alert_info, rule):
+    """
+    自动解决告警
+    """
+    # 检查是否可以自动解决
+    if not can_auto_resolve(alert_info, rule):
+        return {
+            'auto_processed': False,
+            'message': '不满足自动解决条件，转为人工处理'
+        }
+    
+    # 更新告警状态
+    update_alert_status(alert_info['id'], 'RESOLVED', '系统自动解决')
+    
+    # 记录处理日志
+    log_auto_process_action(alert_info['id'], 'AUTO_RESOLVE', '基于规则自动解决', rule['id'])
+    
+    logger.info(f"告警已自动解决: alert_id={alert_info['id']}, device_sn={alert_info['device_sn']}")
+    
+    return {
+        'auto_processed': True,
+        'action': 'AUTO_RESOLVE',
+        'message': '告警已自动解决',
+        'status': 'RESOLVED'
+    }
+
+def handle_auto_acknowledge(alert_info, rule):
+    """
+    自动确认告警
+    """
+    # 更新告警状态
+    update_alert_status(alert_info['id'], 'ACKNOWLEDGED', '系统自动确认')
+    
+    # 记录处理日志
+    log_auto_process_action(alert_info['id'], 'AUTO_ACKNOWLEDGE', '系统自动确认', rule['id'])
+    
+    logger.info(f"告警已自动确认: alert_id={alert_info['id']}, device_sn={alert_info['device_sn']}")
+    
+    return {
+        'auto_processed': True,
+        'action': 'AUTO_ACKNOWLEDGE',
+        'message': '告警已自动确认',
+        'status': 'ACKNOWLEDGED'
+    }
+
+def handle_auto_suppress(alert_info, rule):
+    """
+    自动抑制告警
+    """
+    suppress_duration = rule.get('suppress_duration_minutes', 60)
+    
+    # 更新告警状态
+    update_alert_status(alert_info['id'], 'SUPPRESSED', f'系统自动抑制{suppress_duration}分钟')
+    
+    # 设置抑制到期时间
+    suppress_until = get_now() + timedelta(minutes=suppress_duration)
+    schedule_suppression_expiry(alert_info['id'], suppress_until)
+    
+    # 记录处理日志
+    log_auto_process_action(alert_info['id'], 'AUTO_SUPPRESS', f'自动抑制{suppress_duration}分钟', rule['id'])
+    
+    logger.info(f"告警已自动抑制: alert_id={alert_info['id']}, duration={suppress_duration}min")
+    
+    return {
+        'auto_processed': True,
+        'action': 'AUTO_SUPPRESS',
+        'message': f'告警已自动抑制{suppress_duration}分钟',
+        'status': 'SUPPRESSED',
+        'suppress_until': suppress_until.isoformat()
+    }
+
+def handle_auto_escalate(alert_info, rule):
+    """
+    自动升级告警
+    """
+    try:
+        # 提升告警优先级
+        current_priority = alert_info.get('priority', 5)
+        new_priority = max(1, current_priority - 2)  # 优先级数字越小越高
+        
+        # 更新告警优先级
+        update_alert_priority(alert_info['id'], new_priority, '系统自动升级')
+        
+        # 记录处理日志
+        log_auto_process_action(alert_info['id'], 'AUTO_ESCALATE', '自动升级告警优先级', rule['id'])
+        
+        # 发送高优先级通知
+        publish_to_boot_system(alert_info, alert_info['id'])
+        
+        logger.info(f"告警已自动升级: alert_id={alert_info['id']}, newPriority={new_priority}")
+        
+        return {
+            'auto_processed': True,
+            'action': 'AUTO_ESCALATE',
+            'message': f'告警已自动升级至优先级{new_priority}',
+            'new_priority': new_priority
+        }
+        
+    except Exception as e:
+        logger.error(f"自动升级告警失败: {e}")
+        return {
+            'auto_processed': False,
+            'message': '自动升级失败，转为人工处理'
+        }
+
+def can_auto_resolve(alert_info, rule):
+    """
+    检查是否可以自动解决
+    """
+    try:
+        # 检查告警类型
+        alert_type = alert_info.get('alert_type', '')
+        auto_resolvable_types = [
+            'heart_rate_abnormal', 'blood_oxygen_low', 'temperature_abnormal',
+            'device_offline', 'battery_low', 'step_insufficient'
+        ]
+        
+        if alert_type not in auto_resolvable_types:
+            return False
+        
+        # 检查严重程度 (critical级别不自动解决)
+        if alert_info.get('severity_level', '').lower() == 'critical':
+            return False
+        
+        # 检查最近自动解决次数
+        threshold_count = rule.get('auto_resolve_threshold_count', 1)
+        recent_count = count_recent_auto_resolved_alerts(
+            alert_info['device_sn'], alert_type, hours=24
+        )
+        
+        return recent_count < threshold_count
+        
+    except Exception as e:
+        logger.error(f"检查自动解决条件失败: {e}")
+        return False
+
+def evaluate_basic_threshold(health_data, rule):
+    """
+    基础阈值判断
+    """
+    try:
+        # 获取健康数据值
+        value = float(health_data.get('value', 0))
+        
+        # 获取规则阈值
+        threshold_min = rule.get('threshold_min')
+        threshold_max = rule.get('threshold_max')
+        
+        triggered = False
+        reason = []
+        
+        if threshold_min is not None and value < float(threshold_min):
+            triggered = True
+            reason.append(f'值{value}低于最小阈值{threshold_min}')
+        
+        if threshold_max is not None and value > float(threshold_max):
+            triggered = True
+            reason.append(f'值{value}高于最大阈值{threshold_max}')
+        
+        return {
+            'triggered': triggered,
+            'value': value,
+            'threshold_min': threshold_min,
+            'threshold_max': threshold_max,
+            'reason': '; '.join(reason) if reason else None
+        }
+        
+    except Exception as e:
+        logger.error(f"基础阈值判断失败: {e}")
+        return {'triggered': False, 'error': str(e)}
+
+def is_alert_suppressed(health_data, rule, device_info):
+    """
+    检查告警是否被抑制
+    """
+    try:
+        # 检查同类型告警的抑制状态
+        alert_type = build_alert_type(health_data, rule)
+        device_sn = device_info.get('device_sn')
+        
+        # 查询最近的抑制记录
+        suppressed_alerts = db.session.query(AlertInfo).filter(
+            AlertInfo.device_sn == device_sn,
+            AlertInfo.alert_type == alert_type,
+            AlertInfo.alert_status == 'SUPPRESSED',
+            AlertInfo.auto_close_time > get_now()
+        ).count()
+        
+        return suppressed_alerts > 0
+        
+    except Exception as e:
+        logger.error(f"检查告警抑制状态失败: {e}")
+        return False
+
+def build_alert_type(health_data, rule):
+    """
+    构建告警类型
+    """
+    physical_sign = health_data.get('physical_sign', '')
+    return f"{physical_sign}_abnormal"
+
+def create_alert_info(health_data, rule, user_info, device_info, basic_alert):
+    """
+    创建告警信息对象
+    """
+    return {
+        'rule_id': rule['id'],
+        'alert_type': build_alert_type(health_data, rule),
+        'device_sn': device_info['device_sn'],
+        'alert_timestamp': get_now(),
+        'health_id': health_data.get('id'),
+        'alert_desc': rule.get('alert_message', '健康指标异常'),
+        'severity_level': rule.get('severity_level', 'minor'),
+        'priority': 5,  # 默认优先级
+        'alert_status': 'pending',
+        'user_id': user_info['id'] if user_info else None,
+        'org_id': user_info.get('org_id') if user_info else None,
+        'customer_id': rule.get('customer_id', 0),
+        'latitude': health_data.get('latitude'),
+        'longitude': health_data.get('longitude'),
+        'processing_stage': 'PENDING'
+    }
+
+def save_alert_to_database(alert_info):
+    """
+    保存告警到数据库
+    """
+    try:
+        alert_instance = AlertInfo(
+            rule_id=alert_info['rule_id'],
+            alert_type=alert_info['alert_type'],
+            device_sn=alert_info['device_sn'],
+            alert_timestamp=alert_info['alert_timestamp'],
+            health_id=alert_info['health_id'],
+            alert_desc=alert_info['alert_desc'],
+            severity_level=alert_info['severity_level'],
+            priority=alert_info['priority'],
+            alert_status=alert_info['alert_status'],
+            user_id=alert_info['user_id'],
+            org_id=alert_info['org_id'],
+            customer_id=alert_info['customer_id'],
+            latitude=alert_info.get('latitude'),
+            longitude=alert_info.get('longitude'),
+            processing_stage=alert_info['processing_stage']
+        )
+        
+        db.session.add(alert_instance)
+        db.session.commit()
+        
+        return alert_instance.id
+        
+    except Exception as e:
+        logger.error(f"保存告警到数据库失败: {e}")
+        db.session.rollback()
+        return None
+
+def update_alert_status(alert_id, status, reason):
+    """
+    更新告警状态
+    """
+    try:
+        alert = db.session.query(AlertInfo).filter(AlertInfo.id == alert_id).first()
+        if alert:
+            alert.alert_status = status
+            alert.responded_time = get_now()
+            alert.auto_processed = True
+            alert.auto_process_time = get_now()
+            alert.auto_process_reason = reason
+            alert.processing_stage = status
+            db.session.commit()
+            
+    except Exception as e:
+        logger.error(f"更新告警状态失败: alert_id={alert_id}, {e}")
+        db.session.rollback()
+
+def update_alert_processing_stage(alert_id, stage):
+    """
+    更新告警处理阶段
+    """
+    try:
+        alert = db.session.query(AlertInfo).filter(AlertInfo.id == alert_id).first()
+        if alert:
+            alert.processing_stage = stage
+            db.session.commit()
+            
+    except Exception as e:
+        logger.error(f"更新处理阶段失败: alert_id={alert_id}, {e}")
+        db.session.rollback()
+
+def update_alert_priority(alert_id, priority, reason):
+    """
+    更新告警优先级
+    """
+    try:
+        alert = db.session.query(AlertInfo).filter(AlertInfo.id == alert_id).first()
+        if alert:
+            alert.priority = priority
+            alert.auto_process_reason = reason
+            db.session.commit()
+            
+    except Exception as e:
+        logger.error(f"更新告警优先级失败: alert_id={alert_id}, {e}")
+        db.session.rollback()
+
+def log_auto_process_action(alert_id, action, reason, rule_id):
+    """
+    记录自动处理日志
+    """
+    try:
+        action_log = AlertLog(
+            alert_id=alert_id,
+            action_type=action,
+            action_result='SUCCESS',
+            action_reason=reason,
+            processed_by='SYSTEM',
+            rule_id=rule_id,
+            processed_time=get_now()
+        )
+        db.session.add(action_log)
+        db.session.commit()
+        
+    except Exception as e:
+        logger.error(f"记录自动处理日志失败: alert_id={alert_id}, {e}")
+        db.session.rollback()
+
+def count_recent_auto_resolved_alerts(device_sn, alert_type, hours):
+    """
+    统计最近自动解决的告警数量
+    """
+    try:
+        since_time = get_now() - timedelta(hours=hours)
+        count = db.session.query(AlertInfo).filter(
+            AlertInfo.device_sn == device_sn,
+            AlertInfo.alert_type == alert_type,
+            AlertInfo.alert_status == 'RESOLVED',
+            AlertInfo.auto_processed == True,
+            AlertInfo.alert_timestamp >= since_time
+        ).count()
+        
+        return count
+        
+    except Exception as e:
+        logger.error(f"统计自动解决告警失败: {e}")
+        return 0
+
+def send_auto_process_notification(alert_info, auto_result):
+    """
+    发送自动处理通知（低优先级）
+    """
+    try:
+        # 发送低优先级通知到Redis
+        notification = {
+            'type': 'auto_process_notification',
+            'alert_id': alert_info['id'],
+            'device_sn': alert_info['device_sn'],
+            'action': auto_result['action'],
+            'message': auto_result['message'],
+            'timestamp': get_now().isoformat()
+        }
+        
+        redis.redis_client.publish('ljwx:bigscreen:auto_process', json.dumps(notification))
+        
+    except Exception as e:
+        logger.error(f"发送自动处理通知失败: {e}")
+
+def publish_to_boot_system(alert_info, alert_id):
+    """
+    发送告警到ljwx-boot系统
+    """
+    try:
+        # 发送到ljwx-boot的Redis队列
+        message_payload = {
+            'messageType': 'ALERT_GENERATED',
+            'alertInfo': alert_info,
+            'alertId': alert_id,
+            'timestamp': time.time(),
+            'source': 'ljwx-bigscreen'
+        }
+        
+        redis.redis_client.lpush('ljwx:message:alert_generated', json.dumps(message_payload))
+        
+    except Exception as e:
+        logger.error(f"发送告警到boot系统失败: {e}")
+
+def schedule_auto_process(alert_id, action, delay_seconds):
+    """
+    安排延迟自动处理
+    """
+    # TODO: 实现延迟处理调度逻辑
+    logger.info(f"安排延迟自动处理: alertId={alert_id}, action={action}, delay={delay_seconds}s")
+
+def schedule_suppression_expiry(alert_id, suppress_until):
+    """
+    安排抑制到期处理
+    """
+    # TODO: 实现抑制到期处理调度逻辑
+    logger.info(f"安排抑制到期处理: alertId={alert_id}, expiry={suppress_until}")
+
+# 集成到现有的upload_health_data和upload_common_event流程
+def process_health_data_alerts(health_data, user_info, device_info):
+    """
+    处理health_data的告警 (集成到现有的upload_health_data)
+    """
+    try:
+        # 获取适用的告警规则
+        applicable_rules = get_applicable_alert_rules(health_data, user_info)
+        
+        results = []
+        for rule in applicable_rules:
+            # 使用新的自动处理方法
+            result = generate_alert_with_auto_process(health_data, rule, user_info, device_info)
+            if result['alert_generated']:
+                results.append(result)
+        
+        return {
+            'processed_count': len(results),
+            'auto_processed_count': sum(1 for r in results if r.get('auto_processed', False)),
+            'manual_review_count': sum(1 for r in results if not r.get('auto_processed', False)),
+            'results': results
+        }
+        
+    except Exception as e:
+        logger.error(f"处理健康数据告警失败: {e}")
+        return {'processed_count': 0, 'error': str(e)}
+
+def get_applicable_alert_rules(health_data, user_info):
+    """
+    获取适用的告警规则
+    """
+    try:
+        physical_sign = health_data.get('physical_sign', '')
+        customer_id = user_info.get('customer_id', 0) if user_info else 0
+        
+        rules = db.session.query(AlertRules).filter(
+            AlertRules.physical_sign == physical_sign,
+            AlertRules.customer_id == customer_id,
+            AlertRules.is_enabled == True
+        ).all()
+        
+        # 转换为字典格式
+        return [
+            {
+                'id': rule.id,
+                'physical_sign': rule.physical_sign,
+                'threshold_min': rule.threshold_min,
+                'threshold_max': rule.threshold_max,
+                'severity_level': rule.severity_level,
+                'alert_message': rule.alert_message,
+                'customer_id': rule.customer_id,
+                'auto_process_enabled': rule.auto_process_enabled,
+                'auto_process_action': rule.auto_process_action,
+                'auto_process_delay_seconds': rule.auto_process_delay_seconds,
+                'auto_resolve_threshold_count': rule.auto_resolve_threshold_count,
+                'suppress_duration_minutes': rule.suppress_duration_minutes
+            }
+            for rule in rules
+        ]
+        
+    except Exception as e:
+        logger.error(f"获取适用告警规则失败: {e}")
+        return []
+

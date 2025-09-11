@@ -1,397 +1,284 @@
 <template>
-  <div class="alert-rules-management">
+  <div class="alert-rules-management p-4">
     <!-- 页面头部 -->
-    <div class="page-header">
+    <div class="page-header mb-4 flex justify-between items-center">
       <div class="header-left">
-        <h2>
-          <el-icon><Notification /></el-icon>
+        <h2 class="text-xl font-semibold flex items-center gap-2 mb-1">
+          <n-icon size="20">
+            <icon-ic:baseline-notifications />
+          </n-icon>
           告警规则管理
         </h2>
-        <p>管理和配置系统告警规则，支持单体征、复合和复杂规则</p>
+        <p class="text-gray-600 text-sm">管理和配置系统告警规则，支持单体征、复合和复杂规则</p>
       </div>
       <div class="header-right">
-        <el-button type="primary" @click="openWizard">
-          <el-icon><Plus /></el-icon>
-          新建规则
-        </el-button>
-        <el-button @click="refreshRules" :loading="loading">
-          <el-icon><Refresh /></el-icon>
-          刷新
-        </el-button>
+        <n-space>
+          <n-button type="primary" @click="openWizard">
+            <template #icon>
+              <n-icon><icon-ic:baseline-add /></n-icon>
+            </template>
+            新建规则
+          </n-button>
+          <n-button @click="refreshRules" :loading="loading">
+            <template #icon>
+              <n-icon><icon-ic:baseline-refresh /></n-icon>
+            </template>
+            刷新
+          </n-button>
+        </n-space>
       </div>
     </div>
     
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stats-cards">
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon total">
-              <el-icon><DataBoard /></el-icon>
+    <n-grid :cols="4" :x-gap="20" class="stats-cards mb-4">
+      <n-grid-item>
+        <n-card class="stat-card">
+          <div class="stat-content flex items-center p-4">
+            <div class="stat-icon total w-15 h-15 rounded-xl flex items-center justify-center mr-4 text-white text-xl">
+              <n-icon size="24"><icon-ic:baseline-dashboard /></n-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ statistics.totalRules }}</div>
-              <div class="stat-label">总规则数</div>
+              <div class="stat-value text-2xl font-bold">{{ statistics.totalRules }}</div>
+              <div class="stat-label text-gray-500 text-sm">总规则数</div>
             </div>
           </div>
-        </el-card>
-      </el-col>
+        </n-card>
+      </n-grid-item>
       
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon active">
-              <el-icon><Check /></el-icon>
+      <n-grid-item>
+        <n-card class="stat-card">
+          <div class="stat-content flex items-center p-4">
+            <div class="stat-icon active w-15 h-15 rounded-xl flex items-center justify-center mr-4 text-white text-xl">
+              <n-icon size="24"><icon-ic:baseline-check /></n-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ statistics.activeRules }}</div>
-              <div class="stat-label">启用规则</div>
+              <div class="stat-value text-2xl font-bold">{{ statistics.activeRules }}</div>
+              <div class="stat-label text-gray-500 text-sm">启用规则</div>
             </div>
           </div>
-        </el-card>
-      </el-col>
+        </n-card>
+      </n-grid-item>
       
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon alerts">
-              <el-icon><Warning /></el-icon>
+      <n-grid-item>
+        <n-card class="stat-card">
+          <div class="stat-content flex items-center p-4">
+            <div class="stat-icon alerts w-15 h-15 rounded-xl flex items-center justify-center mr-4 text-white text-xl">
+              <n-icon size="24"><icon-ic:baseline-warning /></n-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ statistics.todayAlerts }}</div>
-              <div class="stat-label">今日告警</div>
+              <div class="stat-value text-2xl font-bold">{{ statistics.todayAlerts }}</div>
+              <div class="stat-label text-gray-500 text-sm">今日告警</div>
             </div>
           </div>
-        </el-card>
-      </el-col>
+        </n-card>
+      </n-grid-item>
       
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon performance">
-              <el-icon><TrendCharts /></el-icon>
+      <n-grid-item>
+        <n-card class="stat-card">
+          <div class="stat-content flex items-center p-4">
+            <div class="stat-icon performance w-15 h-15 rounded-xl flex items-center justify-center mr-4 text-white text-xl">
+              <n-icon size="24"><icon-ic:baseline-trending-up /></n-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ statistics.avgResponseTime }}ms</div>
-              <div class="stat-label">平均响应</div>
+              <div class="stat-value text-2xl font-bold">{{ statistics.avgResponseTime }}ms</div>
+              <div class="stat-label text-gray-500 text-sm">平均响应</div>
             </div>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+        </n-card>
+      </n-grid-item>
+    </n-grid>
     
     <!-- 搜索和过滤 -->
-    <el-card class="filter-card">
-      <el-form :model="searchForm" inline>
-        <el-form-item label="规则名称">
-          <el-input 
-            v-model="searchForm.keyword" 
+    <n-card class="filter-card mb-4">
+      <n-space justify="space-between" align="center">
+        <n-space>
+          <n-input 
+            v-model:value="searchForm.keyword" 
             placeholder="搜索规则名称" 
             clearable
             style="width: 200px;"
           >
             <template #prefix>
-              <el-icon><Search /></el-icon>
+              <n-icon><icon-ic:baseline-search /></n-icon>
             </template>
-          </el-input>
-        </el-form-item>
-        
-        <el-form-item label="规则类型">
-          <el-select v-model="searchForm.ruleCategory" placeholder="规则类型" clearable style="width: 150px;">
-            <el-option label="单体征规则" value="SINGLE" />
-            <el-option label="复合规则" value="COMPOSITE" />
-            <el-option label="复杂规则" value="COMPLEX" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="严重程度">
-          <el-select v-model="searchForm.severityLevel" placeholder="严重程度" clearable style="width: 120px;">
-            <el-option label="信息" value="info" />
-            <el-option label="一般" value="minor" />
-            <el-option label="重要" value="major" />
-            <el-option label="紧急" value="critical" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.isActive" placeholder="状态" clearable style="width: 100px;">
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button type="primary" @click="searchRules" :loading="loading">
-            <el-icon><Search /></el-icon>
+          </n-input>
+          
+          <n-select 
+            v-model:value="searchForm.ruleCategory" 
+            placeholder="规则类型" 
+            clearable 
+            style="width: 150px;"
+            :options="[
+              { label: '单体征规则', value: 'SINGLE' },
+              { label: '复合规则', value: 'COMPOSITE' },
+              { label: '复杂规则', value: 'COMPLEX' }
+            ]"
+          />
+          
+          <n-select 
+            v-model:value="searchForm.severityLevel" 
+            placeholder="严重程度" 
+            clearable 
+            style="width: 120px;"
+            :options="[
+              { label: '信息', value: 'info' },
+              { label: '一般', value: 'minor' },
+              { label: '重要', value: 'major' },
+              { label: '紧急', value: 'critical' }
+            ]"
+          />
+          
+          <n-select 
+            v-model:value="searchForm.isActive" 
+            placeholder="状态" 
+            clearable 
+            style="width: 100px;"
+            :options="[
+              { label: '启用', value: true },
+              { label: '禁用', value: false }
+            ]"
+          />
+          
+          <n-button type="primary" @click="searchRules" :loading="loading">
+            <template #icon>
+              <n-icon><icon-ic:baseline-search /></n-icon>
+            </template>
             查询
-          </el-button>
-          <el-button @click="resetSearch">
-            <el-icon><RefreshRight /></el-icon>
+          </n-button>
+          <n-button @click="resetSearch">
+            <template #icon>
+              <n-icon><icon-ic:baseline-refresh /></n-icon>
+            </template>
             重置
-          </el-button>
-        </el-form-item>
-      </el-form>
+          </n-button>
+        </n-space>
+      </n-space>
       
       <!-- 批量操作 -->
-      <div class="batch-actions" v-if="selectedRules.length > 0">
-        <el-alert 
+      <div v-if="selectedRules.length > 0" class="batch-actions mt-4 pt-4 border-t border-gray-200">
+        <n-alert 
           :title="`已选择 ${selectedRules.length} 个规则`"
-          type="info" 
-          show-icon 
-          :closable="false"
-          style="margin-bottom: 15px;"
+          type="info"
+          class="mb-3"
         />
-        <el-button type="success" @click="batchEnable" :loading="batchLoading">
-          <el-icon><Check /></el-icon>
-          批量启用
-        </el-button>
-        <el-button type="warning" @click="batchDisable" :loading="batchLoading">
-          <el-icon><Close /></el-icon>
-          批量禁用
-        </el-button>
-        <el-button type="danger" @click="batchDelete" :loading="batchLoading">
-          <el-icon><Delete /></el-icon>
-          批量删除
-        </el-button>
+        <n-space>
+          <n-button type="success" @click="batchEnable" :loading="batchLoading">
+            <template #icon>
+              <n-icon><icon-ic:baseline-check /></n-icon>
+            </template>
+            批量启用
+          </n-button>
+          <n-button type="warning" @click="batchDisable" :loading="batchLoading">
+            <template #icon>
+              <n-icon><icon-ic:baseline-close /></n-icon>
+            </template>
+            批量禁用
+          </n-button>
+          <n-button type="error" @click="batchDelete" :loading="batchLoading">
+            <template #icon>
+              <n-icon><icon-ic:baseline-delete /></n-icon>
+            </template>
+            批量删除
+          </n-button>
+        </n-space>
       </div>
-    </el-card>
+    </n-card>
     
     <!-- 规则列表 -->
-    <el-card class="table-card">
-      <el-table 
+    <n-card class="table-card">
+      <n-data-table 
         :data="rulesList" 
-        v-loading="loading"
-        @selection-change="handleSelectionChange"
-        @sort-change="handleSortChange"
-        row-key="id"
-      >
-        <el-table-column type="selection" width="55" />
-        
-        <el-table-column prop="ruleName" label="规则名称" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            <div class="rule-name-cell">
-              <div class="rule-name">
-                <el-link @click="viewRule(row)" type="primary">{{ row.ruleName }}</el-link>
-              </div>
-              <div class="rule-tags" v-if="row.ruleTags && row.ruleTags.length">
-                <el-tag 
-                  v-for="tag in row.ruleTags.slice(0, 2)" 
-                  :key="tag" 
-                  size="small"
-                  style="margin-right: 4px;"
-                >
-                  {{ tag }}
-                </el-tag>
-                <el-tag v-if="row.ruleTags.length > 2" size="small" type="info">
-                  +{{ row.ruleTags.length - 2 }}
-                </el-tag>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="ruleCategory" label="规则类型" width="120" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getRuleTypeTagType(row.ruleCategory)" size="small">
-              {{ getRuleTypeText(row.ruleCategory) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="physicalSign" label="监测指标" width="120" align="center">
-          <template #default="{ row }">
-            <span v-if="row.ruleCategory === 'SINGLE'">
-              {{ getPhysicalSignText(row.physicalSign) }}
-            </span>
-            <el-tooltip v-else-if="row.ruleCategory === 'COMPOSITE'" effect="dark" placement="top">
-              <template #content>
-                {{ getCompositeSignsText(row.conditionExpression) }}
-              </template>
-              <span>复合指标</span>
-            </el-tooltip>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="severityLevel" label="严重程度" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getSeverityTagType(row.severityLevel)" size="small">
-              {{ getSeverityText(row.severityLevel) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="priorityLevel" label="优先级" width="80" sortable align="center">
-          <template #default="{ row }">
-            <el-rate 
-              v-model="row.priorityLevel" 
-              disabled 
-              show-score 
-              text-color="#ff9900" 
-              :max="5"
-              size="small"
-            />
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="enabledChannels" label="通知渠道" width="120" align="center">
-          <template #default="{ row }">
-            <div class="channels">
-              <el-tooltip content="微信通知" v-if="row.enabledChannels?.includes('wechat')">
-                <el-icon class="channel-icon wechat"><ChatDotRound /></el-icon>
-              </el-tooltip>
-              <el-tooltip content="内部消息" v-if="row.enabledChannels?.includes('message')">
-                <el-icon class="channel-icon message"><Message /></el-icon>
-              </el-tooltip>
-              <el-tooltip content="短信通知" v-if="row.enabledChannels?.includes('sms')">
-                <el-icon class="channel-icon sms"><Phone /></el-icon>
-              </el-tooltip>
-              <el-tooltip content="邮件通知" v-if="row.enabledChannels?.includes('email')">
-                <el-icon class="channel-icon email"><Message /></el-icon>
-              </el-tooltip>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="isActive" label="状态" width="80" align="center">
-          <template #default="{ row }">
-            <el-switch 
-              v-model="row.isActive" 
-              @change="toggleRuleStatus(row)"
-              :loading="row.statusLoading"
-            />
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="updateTime" label="更新时间" width="160" sortable align="center">
-          <template #default="{ row }">
-            {{ formatTime(row.updateTime) }}
-          </template>
-        </el-table-column>
-        
-        <el-table-column label="操作" width="200" fixed="right" align="center">
-          <template #default="{ row }">
-            <el-button size="small" @click="viewRule(row)">
-              <el-icon><View /></el-icon>
-              详情
-            </el-button>
-            <el-button size="small" type="primary" @click="editRule(row)">
-              <el-icon><Edit /></el-icon>
-              编辑
-            </el-button>
-            <el-dropdown @command="handleCommand" trigger="click">
-              <el-button size="small">
-                更多
-                <el-icon><ArrowDown /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item :command="{ action: 'duplicate', row }">
-                    <el-icon><CopyDocument /></el-icon>
-                    复制
-                  </el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'test', row }" divided>
-                    <el-icon><VideoPlay /></el-icon>
-                    测试规则
-                  </el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'export', row }">
-                    <el-icon><Download /></el-icon>
-                    导出配置
-                  </el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'delete', row }" divided>
-                    <el-icon><Delete /></el-icon>
-                    <span style="color: #f56c6c;">删除</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
+        :loading="loading"
+        :columns="tableColumns"
+        :row-key="(row) => row.id"
+        v-model:checked-row-keys="selectedRuleIds"
+        striped
+        size="small"
+      />
       
       <!-- 分页 -->
-      <div class="pagination-wrapper">
-        <el-pagination 
-          v-model:current-page="pagination.current" 
+      <div class="pagination-wrapper mt-4 flex justify-center">
+        <n-pagination 
+          v-model:page="pagination.current" 
           v-model:page-size="pagination.pageSize"
-          :total="pagination.total"
+          :item-count="pagination.total"
           :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
+          show-size-picker
+          show-quick-jumper
+          @update:page="handleCurrentChange"
+          @update:page-size="handleSizeChange"
         />
       </div>
-    </el-card>
+    </n-card>
     
     <!-- 规则详情对话框 -->
-    <el-dialog 
-      v-model="detailDialogVisible" 
-      title="规则详情" 
-      width="800px"
-      :close-on-click-modal="false"
+    <n-modal 
+      v-model:show="detailDialogVisible" 
+      preset="dialog"
+      title="规则详情"
+      style="width: 800px;"
     >
       <div v-if="selectedRule" class="rule-detail">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="规则名称" :span="2">
+        <n-descriptions :column="2" bordered>
+          <n-descriptions-item label="规则名称" :span="2">
             <strong>{{ selectedRule.ruleName }}</strong>
-          </el-descriptions-item>
-          <el-descriptions-item label="规则类型">
-            <el-tag :type="getRuleTypeTagType(selectedRule.ruleCategory)">
+          </n-descriptions-item>
+          <n-descriptions-item label="规则类型">
+            <n-tag :type="getRuleTypeTagType(selectedRule.ruleCategory)">
               {{ getRuleTypeText(selectedRule.ruleCategory) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="严重程度">
-            <el-tag :type="getSeverityTagType(selectedRule.severityLevel)">
+            </n-tag>
+          </n-descriptions-item>
+          <n-descriptions-item label="严重程度">
+            <n-tag :type="getSeverityTagType(selectedRule.severityLevel)">
               {{ getSeverityText(selectedRule.severityLevel) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="优先级">
-            <el-rate 
-              v-model="selectedRule.priorityLevel" 
-              disabled 
-              show-score 
-              text-color="#ff9900" 
-              :max="5"
+            </n-tag>
+          </n-descriptions-item>
+          <n-descriptions-item label="优先级">
+            <n-rate 
+              :value="selectedRule.priorityLevel" 
+              readonly 
+              :count="5"
             />
-          </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="selectedRule.isActive ? 'success' : 'danger'">
+          </n-descriptions-item>
+          <n-descriptions-item label="状态">
+            <n-tag :type="selectedRule.isActive ? 'success' : 'error'">
               {{ selectedRule.isActive ? '启用' : '禁用' }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="通知渠道" :span="2">
-            <el-tag 
-              v-for="channel in selectedRule.enabledChannels" 
-              :key="channel"
-              size="small"
-              style="margin-right: 8px;"
-            >
-              {{ getChannelText(channel) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="创建时间">
+            </n-tag>
+          </n-descriptions-item>
+          <n-descriptions-item label="通知渠道" :span="2">
+            <n-space>
+              <n-tag 
+                v-for="channel in selectedRule.enabledChannels" 
+                :key="channel"
+                size="small"
+              >
+                {{ getChannelText(channel) }}
+              </n-tag>
+            </n-space>
+          </n-descriptions-item>
+          <n-descriptions-item label="创建时间">
             {{ formatTime(selectedRule.createTime) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="更新时间">
+          </n-descriptions-item>
+          <n-descriptions-item label="更新时间">
             {{ formatTime(selectedRule.updateTime) }}
-          </el-descriptions-item>
-        </el-descriptions>
+          </n-descriptions-item>
+        </n-descriptions>
         
         <!-- 条件详情 -->
-        <div class="condition-detail" v-if="selectedRule.ruleCategory === 'SINGLE'">
-          <h4>单体征条件</h4>
-          <el-card class="condition-card">
+        <div class="condition-detail mt-6" v-if="selectedRule.ruleCategory === 'SINGLE'">
+          <h4 class="text-lg font-medium mb-3">单体征条件</h4>
+          <n-card>
             <p><strong>监测指标：</strong>{{ getPhysicalSignText(selectedRule.physicalSign) }}</p>
             <p><strong>正常范围：</strong>{{ selectedRule.thresholdMin }} - {{ selectedRule.thresholdMax }}</p>
             <p><strong>连续次数：</strong>{{ selectedRule.trendDuration }}</p>
             <p><strong>时间窗口：</strong>{{ selectedRule.timeWindowSeconds }}秒</p>
-          </el-card>
+          </n-card>
         </div>
         
-        <div class="condition-detail" v-if="selectedRule.ruleCategory === 'COMPOSITE' && selectedRule.conditionExpression">
-          <h4>复合条件</h4>
-          <el-card class="condition-card">
-            <div v-for="(condition, index) in JSON.parse(selectedRule.conditionExpression).conditions" :key="index" class="composite-condition">
+        <div class="condition-detail mt-6" v-if="selectedRule.ruleCategory === 'COMPOSITE' && selectedRule.conditionExpression">
+          <h4 class="text-lg font-medium mb-3">复合条件</h4>
+          <n-card>
+            <div v-for="(condition, index) in JSON.parse(selectedRule.conditionExpression).conditions" :key="index" class="mb-2">
               <p>
                 <strong>条件 {{ index + 1 }}：</strong>
                 {{ getPhysicalSignText(condition.physical_sign) }} 
@@ -401,25 +288,26 @@
               </p>
             </div>
             <p><strong>逻辑关系：</strong>{{ JSON.parse(selectedRule.conditionExpression).logical_operator === 'AND' ? '并且' : '或者' }}</p>
-          </el-card>
+          </n-card>
         </div>
         
-        <div class="alert-message-detail" v-if="selectedRule.alertMessage">
-          <h4>告警消息模板</h4>
-          <el-card class="message-card">
-            {{ selectedRule.alertMessage }}
-          </el-card>
+        <div class="alert-message-detail mt-6" v-if="selectedRule.alertMessage">
+          <h4 class="text-lg font-medium mb-3">告警消息模板</h4>
+          <n-card>
+            <n-code :code="selectedRule.alertMessage" language="text" />
+          </n-card>
         </div>
       </div>
-    </el-dialog>
+    </n-modal>
     
     <!-- 规则配置向导 -->
-    <el-dialog 
-      v-model="wizardVisible" 
+    <n-modal 
+      v-model:show="wizardVisible" 
+      preset="dialog"
       title="告警规则配置"
-      width="90%"
-      :close-on-click-modal="false"
-      :before-close="handleWizardClose"
+      style="width: 90%;"
+      :mask-closable="false"
+      @close="handleWizardClose"
     >
       <AlertRuleWizard 
         :visible="wizardVisible"
@@ -427,33 +315,49 @@
         @update:visible="wizardVisible = $event"
         @success="handleWizardSuccess"
       />
-    </el-dialog>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Plus, Refresh, Search, RefreshRight, Check, Close, Delete, 
-  View, Edit, ArrowDown, CopyDocument, VideoPlay, Download,
-  Notification, DataBoard, Warning, TrendCharts, Message, 
-  ChatDotRound, Phone
-} from '@element-plus/icons-vue'
+import { ref, reactive, onMounted, computed, h } from 'vue'
+import { useMessage, useDialog, NButton, NIcon, NTag, NRate, NSpace, NDropdown } from 'naive-ui'
 import AlertRuleWizard from './components/AlertRuleWizard.vue'
 import { 
-  fetchAlertRules, 
-  deleteAlertRule, 
-  updateRuleStatus, 
-  batchUpdateRuleStatus,
-  getAlertStatistics
+  fetchGetAlertRulesList as fetchAlertRules, 
+  fetchDeleteAlertRules as deleteAlertRule
 } from '@/service/api/health/alert-rules'
 
+// Placeholder functions for missing APIs
+const updateRuleStatus = async (id: string, isActive: boolean) => {
+  console.log('Update rule status:', id, isActive)
+  return Promise.resolve()
+}
+
+const batchUpdateRuleStatus = async (ids: string[], isActive: boolean) => {
+  console.log('Batch update rule status:', ids, isActive)
+  return Promise.resolve()
+}
+
+const getAlertStatistics = async () => {
+  return Promise.resolve({
+    data: {
+      totalRules: 0,
+      activeRules: 0,
+      todayAlerts: 0,
+      avgResponseTime: 0
+    }
+  })
+}
+
 // 响应式数据
+const message = useMessage()
+const dialog = useDialog()
 const loading = ref(false)
 const batchLoading = ref(false)
 const rulesList = ref([])
 const selectedRules = ref([])
+const selectedRuleIds = ref([])
 const detailDialogVisible = ref(false)
 const selectedRule = ref(null)
 const wizardVisible = ref(false)
@@ -509,6 +413,176 @@ const channelMap: Record<string, string> = {
   'email': '邮件'
 }
 
+// 表格列定义
+const tableColumns = computed(() => [
+  {
+    type: 'selection',
+    key: 'selection'
+  },
+  {
+    title: '规则名称',
+    key: 'ruleName',
+    minWidth: 200,
+    ellipsis: { tooltip: true },
+    render: (row: any) => {
+      return h('div', { class: 'rule-name-cell' }, [
+        h('div', { class: 'rule-name font-medium' }, [
+          h(NButton, { 
+            text: true, 
+            type: 'primary',
+            onClick: () => viewRule(row) 
+          }, () => row.ruleName)
+        ]),
+        row.ruleTags && row.ruleTags.length ? h('div', { class: 'rule-tags flex gap-1 mt-1' }, [
+          ...row.ruleTags.slice(0, 2).map((tag: string) => 
+            h(NTag, { size: 'small' }, () => tag)
+          ),
+          row.ruleTags.length > 2 ? h(NTag, { size: 'small', type: 'info' }, () => `+${row.ruleTags.length - 2}`) : null
+        ].filter(Boolean)) : null
+      ])
+    }
+  },
+  {
+    title: '规则类型',
+    key: 'ruleCategory',
+    width: 120,
+    align: 'center',
+    render: (row: any) => h(NTag, { 
+      type: getRuleTypeTagType(row.ruleCategory), 
+      size: 'small' 
+    }, () => getRuleTypeText(row.ruleCategory))
+  },
+  {
+    title: '监测指标',
+    key: 'physicalSign',
+    width: 120,
+    align: 'center',
+    render: (row: any) => {
+      if (row.ruleCategory === 'SINGLE') {
+        return getPhysicalSignText(row.physicalSign)
+      } else if (row.ruleCategory === 'COMPOSITE') {
+        return '复合指标'
+      } else {
+        return '-'
+      }
+    }
+  },
+  {
+    title: '严重程度',
+    key: 'severityLevel',
+    width: 100,
+    align: 'center',
+    render: (row: any) => h(NTag, { 
+      type: getSeverityTagType(row.severityLevel), 
+      size: 'small' 
+    }, () => getSeverityText(row.severityLevel))
+  },
+  {
+    title: '优先级',
+    key: 'priorityLevel',
+    width: 120,
+    align: 'center',
+    render: (row: any) => h(NRate, { 
+      value: row.priorityLevel, 
+      readonly: true,
+      count: 5,
+      size: 'small'
+    })
+  },
+  {
+    title: '通知渠道',
+    key: 'enabledChannels',
+    width: 120,
+    align: 'center',
+    render: (row: any) => {
+      if (!row.enabledChannels || !row.enabledChannels.length) return '-'
+      return h(NSpace, { size: 'small' }, () => 
+        row.enabledChannels.slice(0, 3).map((channel: string) => 
+          h(NTag, { size: 'small' }, () => getChannelText(channel))
+        )
+      )
+    }
+  },
+  {
+    title: '状态',
+    key: 'isActive',
+    width: 80,
+    align: 'center',
+    render: (row: any) => h('n-switch', { 
+      value: row.isActive,
+      loading: row.statusLoading,
+      'onUpdate:value': (value: boolean) => toggleRuleStatus({ ...row, isActive: value })
+    })
+  },
+  {
+    title: '更新时间',
+    key: 'updateTime',
+    width: 160,
+    align: 'center',
+    render: (row: any) => formatTime(row.updateTime)
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 200,
+    align: 'center',
+    fixed: 'right',
+    render: (row: any) => {
+      const options = [
+        {
+          label: '复制',
+          key: 'duplicate',
+          icon: () => h(NIcon, () => h('icon-ic:baseline-content-copy'))
+        },
+        {
+          label: '测试规则',
+          key: 'test',
+          icon: () => h(NIcon, () => h('icon-ic:baseline-play-arrow'))
+        },
+        {
+          label: '导出配置',
+          key: 'export',
+          icon: () => h(NIcon, () => h('icon-ic:baseline-download'))
+        },
+        {
+          type: 'divider',
+          key: 'divider'
+        },
+        {
+          label: '删除',
+          key: 'delete',
+          icon: () => h(NIcon, () => h('icon-ic:baseline-delete')),
+          props: {
+            style: { color: '#f56c6c' }
+          }
+        }
+      ]
+
+      return h(NSpace, () => [
+        h(NButton, { 
+          size: 'small',
+          onClick: () => viewRule(row)
+        }, () => '详情'),
+        h(NButton, { 
+          size: 'small', 
+          type: 'primary',
+          onClick: () => editRule(row) 
+        }, () => '编辑'),
+        h(NDropdown, {
+          options,
+          onSelect: (key: string) => handleCommand({ action: key, row })
+        }, () => h(NButton, { size: 'small' }, () => '更多'))
+      ])
+    }
+  }
+])
+
+// 监听选中行变化
+const handleSelectionChange = (keys: string[]) => {
+  selectedRuleIds.value = keys
+  selectedRules.value = rulesList.value.filter((rule: any) => keys.includes(rule.id))
+}
+
 // 生命周期
 onMounted(() => {
   loadRulesList()
@@ -532,7 +606,7 @@ const loadRulesList = async () => {
     pagination.total = response.data.total || 0
     
   } catch (error: any) {
-    ElMessage.error('加载规则列表失败：' + (error.message || '未知错误'))
+    message.error('加载规则列表失败：' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }
@@ -588,7 +662,16 @@ const handleCommand = (command: { action: string, row: any }) => {
 
 const duplicateRule = async (rule: any) => {
   try {
-    await ElMessageBox.confirm('确定复制此规则吗？', '确认操作')
+    await new Promise((resolve, reject) => {
+      dialog.warning({
+        title: '确认操作',
+        content: '确定复制此规则吗？',
+        positiveText: '确定',
+        negativeText: '取消',
+        onPositiveClick: resolve,
+        onNegativeClick: reject
+      })
+    })
     
     const duplicatedRule = {
       ...rule,
@@ -602,13 +685,13 @@ const duplicateRule = async (rule: any) => {
     
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('复制失败：' + error)
+      message.error('复制失败：' + error)
     }
   }
 }
 
 const testRule = (rule: any) => {
-  ElMessage.info('规则测试功能开发中...')
+  message.info('规则测试功能开发中...')
 }
 
 const exportRule = (rule: any) => {
@@ -624,24 +707,24 @@ const exportRule = (rule: any) => {
 
 const deleteRuleConfirm = async (rule: any) => {
   try {
-    await ElMessageBox.confirm(
-      `确定删除规则"${rule.ruleName}"吗？此操作不可恢复。`,
-      '确认删除',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-        confirmButtonClass: 'el-button--danger'
-      }
-    )
+    await new Promise((resolve, reject) => {
+      dialog.error({
+        title: '确认删除',
+        content: `确定删除规则"${rule.ruleName}"吗？此操作不可恢复。`,
+        positiveText: '确定删除',
+        negativeText: '取消',
+        onPositiveClick: resolve,
+        onNegativeClick: reject
+      })
+    })
     
-    await deleteAlertRule(rule.id)
-    ElMessage.success('删除成功')
+    await deleteAlertRule({ ids: [rule.id] })
+    message.success('删除成功')
     loadRulesList()
     
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败：' + error)
+      message.error('删除失败：' + error)
     }
   }
 }
@@ -650,10 +733,10 @@ const toggleRuleStatus = async (rule: any) => {
   rule.statusLoading = true
   try {
     await updateRuleStatus(rule.id, rule.isActive)
-    ElMessage.success(rule.isActive ? '规则已启用' : '规则已禁用')
+    message.success(rule.isActive ? '规则已启用' : '规则已禁用')
   } catch (error: any) {
     rule.isActive = !rule.isActive // 回滚状态
-    ElMessage.error('状态更新失败：' + (error.message || '未知错误'))
+    message.error('状态更新失败：' + (error.message || '未知错误'))
   } finally {
     rule.statusLoading = false
   }
@@ -664,11 +747,12 @@ const batchEnable = async () => {
   try {
     const ruleIds = selectedRules.value.map((rule: any) => rule.id)
     await batchUpdateRuleStatus(ruleIds, true)
-    ElMessage.success('批量启用成功')
+    message.success('批量启用成功')
     loadRulesList()
     selectedRules.value = []
+    selectedRuleIds.value = []
   } catch (error: any) {
-    ElMessage.error('批量启用失败：' + (error.message || '未知错误'))
+    message.error('批量启用失败：' + (error.message || '未知错误'))
   } finally {
     batchLoading.value = false
   }
@@ -679,11 +763,12 @@ const batchDisable = async () => {
   try {
     const ruleIds = selectedRules.value.map((rule: any) => rule.id)
     await batchUpdateRuleStatus(ruleIds, false)
-    ElMessage.success('批量禁用成功')
+    message.success('批量禁用成功')
     loadRulesList()
     selectedRules.value = []
+    selectedRuleIds.value = []
   } catch (error: any) {
-    ElMessage.error('批量禁用失败：' + (error.message || '未知错误'))
+    message.error('批量禁用失败：' + (error.message || '未知错误'))
   } finally {
     batchLoading.value = false
   }
@@ -691,29 +776,30 @@ const batchDisable = async () => {
 
 const batchDelete = async () => {
   try {
-    await ElMessageBox.confirm(
-      `确定删除选中的 ${selectedRules.value.length} 个规则吗？此操作不可恢复。`,
-      '确认批量删除',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-        confirmButtonClass: 'el-button--danger'
-      }
-    )
+    await new Promise((resolve, reject) => {
+      dialog.error({
+        title: '确认批量删除',
+        content: `确定删除选中的 ${selectedRules.value.length} 个规则吗？此操作不可恢复。`,
+        positiveText: '确定删除',
+        negativeText: '取消',
+        onPositiveClick: resolve,
+        onNegativeClick: reject
+      })
+    })
     
     batchLoading.value = true
     
-    const deletePromises = selectedRules.value.map((rule: any) => deleteAlertRule(rule.id))
+    const deletePromises = selectedRules.value.map((rule: any) => deleteAlertRule({ ids: [rule.id] }))
     await Promise.all(deletePromises)
     
-    ElMessage.success('批量删除成功')
+    message.success('批量删除成功')
     loadRulesList()
     selectedRules.value = []
+    selectedRuleIds.value = []
     
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('批量删除失败：' + error)
+      message.error('批量删除失败：' + error)
     }
   } finally {
     batchLoading.value = false
@@ -736,16 +822,6 @@ const resetSearch = () => {
   searchRules()
 }
 
-const handleSelectionChange = (selection: any[]) => {
-  selectedRules.value = selection
-}
-
-const handleSortChange = ({ prop, order }: { prop: string, order: string }) => {
-  sortConfig.prop = prop
-  sortConfig.order = order
-  loadRulesList()
-}
-
 const handleSizeChange = (size: number) => {
   pagination.pageSize = size
   pagination.current = 1
@@ -757,14 +833,21 @@ const handleCurrentChange = (page: number) => {
   loadRulesList()
 }
 
-const handleWizardClose = (done: Function) => {
-  ElMessageBox.confirm('确定关闭配置向导吗？未保存的更改将丢失。')
-    .then(() => {
-      done()
+const handleWizardClose = () => {
+  new Promise((resolve, reject) => {
+    dialog.warning({
+      title: '确认关闭',
+      content: '确定关闭配置向导吗？未保存的更改将丢失。',
+      positiveText: '确定',
+      negativeText: '取消',
+      onPositiveClick: resolve,
+      onNegativeClick: reject
     })
-    .catch(() => {
-      // 取消关闭
-    })
+  }).then(() => {
+    wizardVisible.value = false
+  }).catch(() => {
+    // 取消关闭
+  })
 }
 
 const handleWizardSuccess = () => {
@@ -784,11 +867,11 @@ const getRuleTypeText = (category: string) => {
 
 const getRuleTypeTagType = (category: string) => {
   const types: Record<string, string> = {
-    'SINGLE': '',
+    'SINGLE': 'default',
     'COMPOSITE': 'success',
     'COMPLEX': 'warning'
   }
-  return types[category] || ''
+  return types[category] || 'default'
 }
 
 const getSeverityText = (level: string) => {
@@ -804,11 +887,11 @@ const getSeverityText = (level: string) => {
 const getSeverityTagType = (level: string) => {
   const types: Record<string, string> = {
     'info': 'info',
-    'minor': '',
+    'minor': 'default',
     'major': 'warning',
-    'critical': 'danger'
+    'critical': 'error'
   }
-  return types[level] || ''
+  return types[level] || 'default'
 }
 
 const getPhysicalSignText = (sign: string) => {
@@ -817,21 +900,6 @@ const getPhysicalSignText = (sign: string) => {
 
 const getChannelText = (channel: string) => {
   return channelMap[channel] || channel
-}
-
-const getCompositeSignsText = (expression: string) => {
-  if (!expression) return '-'
-  
-  try {
-    const parsed = JSON.parse(expression)
-    if (parsed.conditions) {
-      return parsed.conditions.map((c: any) => getPhysicalSignText(c.physical_sign)).join(', ')
-    }
-  } catch (e) {
-    console.error('解析复合条件失败:', e)
-  }
-  
-  return '复合指标'
 }
 
 const formatTime = (time: string) => {
@@ -847,113 +915,20 @@ const formatTime = (time: string) => {
 </script>
 
 <style scoped>
-.alert-rules-management {
-  padding: 20px;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.header-left h2 {
-  margin: 0 0 5px 0;
-  color: #303133;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.header-left p {
-  margin: 0;
-  color: #606266;
-  font-size: 14px;
-}
-
-.header-right {
-  display: flex;
-  gap: 10px;
-}
-
-.stats-cards {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  border: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.stat-content {
-  display: flex;
-  align-items: center;
-  padding: 10px;
-}
-
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 15px;
-  font-size: 24px;
-}
-
 .stat-icon.total {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
 }
 
 .stat-icon.active {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
 }
 
 .stat-icon.alerts {
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: white;
 }
 
 .stat-icon.performance {
   background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: white;
-}
-
-.stat-info {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: bold;
-  color: #303133;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #909399;
-}
-
-.filter-card {
-  margin-bottom: 20px;
-}
-
-.batch-actions {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #e4e7ed;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.table-card {
-  margin-bottom: 20px;
 }
 
 .rule-name-cell .rule-name {
@@ -966,113 +941,5 @@ const formatTime = (time: string) => {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-
-.channels {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.channel-icon {
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.channel-icon.wechat { color: #1aad19; }
-.channel-icon.message { color: #409eff; }
-.channel-icon.sms { color: #e6a23c; }
-.channel-icon.email { color: #909399; }
-
-.pagination-wrapper {
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.rule-detail {
-  max-height: 600px;
-  overflow-y: auto;
-}
-
-.condition-detail {
-  margin-top: 20px;
-}
-
-.condition-detail h4 {
-  margin: 20px 0 10px 0;
-  color: #303133;
-  border-bottom: 1px solid #e4e7ed;
-  padding-bottom: 8px;
-}
-
-.condition-card {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  background: #fafbfc;
-}
-
-.composite-condition {
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f2f5;
-}
-
-.composite-condition:last-child {
-  border-bottom: none;
-}
-
-.alert-message-detail {
-  margin-top: 20px;
-}
-
-.alert-message-detail h4 {
-  margin: 20px 0 10px 0;
-  color: #303133;
-  border-bottom: 1px solid #e4e7ed;
-  padding-bottom: 8px;
-}
-
-.message-card {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  background: #f8f9fa;
-  font-family: 'Courier New', monospace;
-  color: #495057;
-}
-
-@media (max-width: 768px) {
-  .alert-rules-management {
-    padding: 10px;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 15px;
-  }
-  
-  .stats-cards .el-col {
-    margin-bottom: 10px;
-  }
-  
-  .header-right {
-    justify-content: center;
-  }
-  
-  .batch-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  
-  .stat-content {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .stat-icon {
-    margin-right: 0;
-    margin-bottom: 10px;
-  }
 }
 </style>

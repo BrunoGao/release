@@ -20,7 +20,7 @@ import {
   NTag,
   useMessage 
 } from 'naive-ui';
-import { formRules, getConfirmText } from '@/utils/form';
+import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 
 defineOptions({
   name: 'HealthPredictionOperateDrawer'
@@ -134,10 +134,13 @@ const formModel: FormModel = reactive({
   maxRetries: 3
 });
 
+const { createRequiredRule } = useFormRules();
+const { formRef, validate, restoreValidation } = useNaiveForm();
+
 const rules = {
-  name: formRules.required('请输入任务名称'),
-  modelId: formRules.required('请选择预测模型'),
-  predictionHorizon: formRules.required('请选择预测时长'),
+  name: createRequiredRule('请输入任务名称'),
+  modelId: createRequiredRule('请选择预测模型'),
+  predictionHorizon: createRequiredRule('请选择预测时长'),
   features: {
     type: 'array',
     required: true,

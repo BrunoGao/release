@@ -191,6 +191,9 @@ def inject_global_vars():
 # Configure logging
 from logging_config import api_logger,health_logger,device_logger,db_logger,log_api_request,log_data_processing,system_logger,alert_logger #添加system_logger和alert_logger导入
 
+# 初始化logger
+logger = api_logger  # 使用API专用记录器
+
 # 安全的Redis连接初始化 - 避免递归错误
 try:
     from .redis_helper import RedisHelper
@@ -256,7 +259,7 @@ def initialize_stream_system():
 with app.app_context():
     initialize_stream_system()
 
-logger = api_logger#使用API专用记录器
+# logger已在前面定义
 
 # =============================================================================
 # 系统状态和健康检查接口

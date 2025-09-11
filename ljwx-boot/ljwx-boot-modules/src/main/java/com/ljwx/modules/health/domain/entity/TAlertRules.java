@@ -95,5 +95,16 @@ public class TAlertRules extends BaseEntity {
     private String level;  // 映射到 severityLevel
     
     private Boolean isEnabled;  // 是否启用
+    
+    // 自动处理相关字段
+    private Boolean autoProcessEnabled;  // 是否启用自动处理
+    
+    private String autoProcessAction;  // 自动处理动作
+    
+    private Integer autoProcessDelaySeconds;  // 自动处理延迟时间(秒)
+    
+    private Integer suppressDurationMinutes;  // 抑制持续时间(分钟)
+    
+    private Integer autoResolveThresholdCount;  // 自动解决阈值计数
 
 }

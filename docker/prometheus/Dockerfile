@@ -22,12 +22,13 @@ RUN mkdir -p /etc/prometheus/rules /etc/prometheus/conf.d
 COPY docker/prometheus/prometheus.yml /etc/prometheus/prometheus.yml
 COPY docker/prometheus/rules/ /etc/prometheus/rules/
 
-# 设置权限
-RUN chown -R prometheus:prometheus /etc/prometheus \
+# 检查并设置权限
+RUN id && ls -la /etc && \
+    chown -R nobody:nobody /etc/prometheus \
     && chmod -R 755 /etc/prometheus
 
-# 切换回prometheus用户
-USER prometheus
+# 切换回nobody用户 (Prometheus镜像默认用户)
+USER nobody
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \

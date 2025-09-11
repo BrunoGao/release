@@ -3637,3 +3637,18 @@
 2025-09-04 22:25:58,309 [WARNING] system: 监控指标模块导入失败: No module named 'prometheus_client'
 2025-09-04 22:25:58,309 [INFO] system: 当前Python路径: ['/Users/bg/work/codes/93/93_release/ljwx-bigscreen/bigscreen', '', '/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python313.zip']
 2025-09-04 22:25:58,312 [INFO] system: 告警webhook模块初始化成功
+2025-09-11 12:14:41,753 [WARNING] system: ⚠️  健康系统API模块加载失败: No module named 'sklearn'
+2025-09-11 12:14:41,755 [WARNING] system: ⚠️  健康分析API V2.0模块加载失败: No module named 'sklearn'
+2025-09-11 12:14:41,755 [INFO] system: 实时统计API直接路由注册成功
+2025-09-11 12:14:41,755 [WARNING] system: 设备绑定模块导入失败，使用兼容版本: No module named 'qrcode'
+2025-09-11 12:14:41,757 [INFO] system: 设备绑定兼容模块注册成功
+2025-09-11 12:14:41,766 [INFO] system: 监控指标模块初始化成功
+2025-09-11 12:14:41,767 [INFO] system: 告警webhook模块初始化成功
+2025-09-11 12:14:41,782 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: health_data_stream:health_processors
+2025-09-11 12:14:41,783 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: device_info_stream:device_processors
+2025-09-11 12:14:41,783 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: common_event_stream:event_processors
+2025-09-11 12:14:41,783 [INFO] bigScreen.redis_stream_manager: 🚀 RedisStreamManager初始化完成
+2025-09-11 12:14:41,784 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: health_data_stream:health_consumer_1
+2025-09-11 12:14:41,784 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: device_info_stream:device_consumer_1
+2025-09-11 12:14:41,785 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: common_event_stream:event_consumer_1
+2025-09-11 12:14:41,785 [INFO] bigScreen.stream_consumers: 🚀 所有Stream消费者已启动

@@ -5,7 +5,7 @@ import {
   NTabs, NTabPane, NSpace, NIcon, NTime, NSpin, NEmpty, NAlert, NDrawer, NDrawerContent
 } from 'naive-ui';
 import { 
-  MessageOutline, StatsChartOutline, TimeOutline, CheckmarkCircleOutline, 
+  ChatbubbleOutline, StatsChartOutline, TimeOutline, CheckmarkCircleOutline, 
   CloseCircleOutline, HourglassOutline, SendOutline, NotificationsOutline
 } from '@vicons/ionicons5';
 import { useAppStore } from '@/store/modules/app';
@@ -480,7 +480,7 @@ onUnmounted(() => {
               :value-style="{ color: '#1890ff' }"
             >
               <template #prefix>
-                <NIcon :component="MessageOutline" />
+                <NIcon :component="ChatbubbleOutline" />
               </template>
             </NStatistic>
           </NGridItem>

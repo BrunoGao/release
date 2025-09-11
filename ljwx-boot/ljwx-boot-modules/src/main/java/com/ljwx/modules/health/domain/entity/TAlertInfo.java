@@ -84,5 +84,10 @@ public class TAlertInfo extends BaseEntity {
      * 租户ID，0表示全局告警，其他值表示特定租户告警
      */
     private Long customerId;
+    
+    /**
+     * 告警优先级
+     */
+    private Integer priority;
 
 }
