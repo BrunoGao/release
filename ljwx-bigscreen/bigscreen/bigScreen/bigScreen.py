@@ -113,102 +113,11 @@ app.register_blueprint(monitoring_bp)
 # 注册健康系统API蓝图
 # Temporarily disable health_api blueprint to use simplified route
 try:
-    # from .health_api import health_api
-    # app.register_blueprint(health_api)
-    # system_logger.info("✅ 健康系统API模块加载成功")
-    raise ImportError("健康系统API模块暂时禁用，使用简化版本")
+    from .health_api import health_api
+    app.register_blueprint(health_api)
+    system_logger.info("✅ 健康系统API模块加载成功")
 except ImportError as e:
     system_logger.warning(f"⚠️  健康系统API模块加载失败: {e}")
-    # 创建简化的健康评分API
-    @app.route('/api/health/score/comprehensive', methods=['GET'])
-    def simple_health_score():
-        """简化的健康评分API - 不依赖sklearn"""
-        try:
-            user_id = request.args.get('userId')
-            org_id = request.args.get('orgId')
-            customer_id = request.args.get('customerId')
-            days = int(request.args.get('days', 7))
-            
-            # 验证至少有一个查询条件
-            if not user_id and not org_id and not customer_id:
-                return jsonify({
-                    'success': False,
-                    'message': '需要提供 userId、orgId 或 customerId 参数中的至少一个'
-                }), 400
-            
-            # 根据参数粒度选择查询方式
-            if user_id:
-                query_type = 'user'
-                primary_id = user_id
-            elif org_id:
-                query_type = 'org'
-                primary_id = org_id
-            elif customer_id:
-                query_type = 'customer'
-                primary_id = customer_id
-            
-            # 使用健康分析编排器模式 - 简化版本返回模拟数据
-            # 在生产环境中，这里应该调用真实的编排器方法
-            
-            # 根据查询类型返回不同的模拟数据结构
-            if query_type == 'user':
-                mock_data = {
-                    'user_id': user_id,
-                    'org_id': org_id,
-                    'overall_score': 85.5,
-                    'health_level': '良好',
-                    'feature_scores': {
-                        'heart_rate': {'score': 88, 'weight': 0.20},
-                        'blood_oxygen': {'score': 92, 'weight': 0.18},
-                        'temperature': {'score': 78, 'weight': 0.15}
-                    },
-                    'analysis_type': 'user'
-                }
-            elif query_type == 'org':
-                mock_data = {
-                    'org_id': org_id,
-                    'total_users': 15,
-                    'avg_health_score': 82.3,
-                    'health_level': '良好',
-                    'risk_users_count': 3,
-                    'risk_ratio': 20.0,
-                    'analysis_type': 'organization'
-                }
-            elif query_type == 'customer':
-                mock_data = {
-                    'customer_id': customer_id,
-                    'total_orgs': 5,
-                    'total_users': 67,
-                    'avg_health_score': 79.8,
-                    'health_level': '一般',
-                    'total_risk_users': 18,
-                    'risk_ratio': 26.9,
-                    'analysis_type': 'customer'
-                }
-            
-            return jsonify({
-                'success': True,
-                'message': f'健康评分获取成功（简化版，{query_type}级别查询）',
-                'data': mock_data,
-                'query_info': {
-                    'query_type': query_type,
-                    'primary_id': primary_id,
-                    'userId': user_id,
-                    'orgId': org_id,
-                    'customerId': customer_id,
-                    'days': days
-                },
-                'source': 'simplified_fallback',
-                'timestamp': datetime.utcnow().isoformat()
-            })
-            
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'message': f'服务器错误: {str(e)}'
-            }), 500
-    
-    system_logger.info("✅ 简化健康评分API已注册")
 except Exception as e:
     system_logger.error(f"❌ 健康系统API模块加载异常: {e}")
 

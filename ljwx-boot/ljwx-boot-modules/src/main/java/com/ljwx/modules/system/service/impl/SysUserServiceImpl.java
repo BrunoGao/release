@@ -32,7 +32,6 @@ import com.ljwx.modules.system.domain.entity.SysRole;
 import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.system.domain.enums.UserType;
 import com.ljwx.modules.system.domain.enums.AdminLevel;
-import com.ljwx.modules.system.service.IUserTypeSyncService;
 import com.ljwx.modules.system.domain.entity.SysUserOrg;
 import com.ljwx.modules.system.domain.entity.SysUserRole;
 import com.ljwx.modules.system.domain.entity.SysPosition;
@@ -110,8 +109,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Autowired
     private ITDeviceInfoService deviceInfoService;
     
-    @Autowired
-    private IUserTypeSyncService userTypeSyncService;
 
     @Override
     public IPage<SysUser> listSysUserPage(PageQuery pageQuery, SysUserBO sysUserBO) {
@@ -556,15 +553,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         boolean position = sysUserPositionService.updateUserPosition(userId, responsibilitiesBO.getPositionIds());
         boolean userOrg = sysUserOrgService.updateUserOrg(userId, responsibilitiesBO.getOrgUnitsIds(), responsibilitiesBO.getOrgUnitsPrincipalIds());
         
-        // 同步更新用户类型信息
-        if (role || userOrg) {
-            try {
-                userTypeSyncService.syncUserTypeFromRoles(userId, responsibilitiesBO.getRoleIds());
-                log.info("✅ 用户职责更新后同步用户类型成功: userId={}", userId);
-            } catch (Exception e) {
-                log.error("❌ 用户职责更新后同步用户类型失败: userId={}, error={}", userId, e.getMessage(), e);
-            }
-        }
         
         return role && position && userOrg;
     }

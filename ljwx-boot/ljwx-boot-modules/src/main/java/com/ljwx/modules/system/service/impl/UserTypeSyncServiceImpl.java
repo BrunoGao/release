@@ -27,6 +27,8 @@ import com.ljwx.modules.system.domain.enums.UserType;
 import com.ljwx.modules.system.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,14 +49,23 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserTypeSyncServiceImpl implements IUserTypeSyncService {
 
-    private final ISysUserService sysUserService;
-    private final ISysRoleService sysRoleService;
-    private final ISysUserRoleService sysUserRoleService;
-    private final ISysUserOrgService sysUserOrgService;
-    private final ISysOrgUnitsService sysOrgUnitsService;
+    @Autowired
+    @Lazy
+    private ISysUserService sysUserService;
+    
+    @Autowired
+    private ISysRoleService sysRoleService;
+    
+    @Autowired
+    private ISysUserRoleService sysUserRoleService;
+    
+    @Autowired
+    private ISysUserOrgService sysUserOrgService;
+    
+    @Autowired
+    private ISysOrgUnitsService sysOrgUnitsService;
 
     @Override
     public UserType calculateUserTypeFromRoles(Long userId, List<Long> roleIds) {
