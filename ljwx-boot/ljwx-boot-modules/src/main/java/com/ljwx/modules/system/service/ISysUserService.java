@@ -14,6 +14,24 @@ import java.util.Map;
 
 /**
  * 用户管理 Service 服务接口层
+ * 
+ * <h3>重要性能优化说明</h3>
+ * <p>sys_user 表已包含 org_id 和 org_name 字段，支持高性能查询：</p>
+ * <ul>
+ *   <li><strong>避免 JOIN sys_org 表</strong>：直接从 sys_user 获取组织信息</li>
+ *   <li><strong>查询格式</strong>：SELECT u.*, u.org_id, u.org_name FROM sys_user u</li>
+ *   <li><strong>性能提升</strong>：减少表连接，提升查询速度，降低数据库负载</li>
+ *   <li><strong>数据一致性</strong>：通过 updateOrgNameByOrgId() 和 clearOrgInfoByOrgId() 保证同步</li>
+ * </ul>
+ * 
+ * <h3>推荐查询模式</h3>
+ * <pre>
+ * // ✅ 推荐：高性能查询
+ * SELECT u.*, u.org_id, u.org_name FROM sys_user u WHERE u.id = ?
+ * 
+ * // ❌ 避免：低效的 JOIN 查询
+ * SELECT u.*, o.org_name FROM sys_user u LEFT JOIN sys_org o ON u.org_id = o.id WHERE u.id = ?
+ * </pre>
  *
  * @Author bruno.gao <gaojunivas@gmail.com>
  * @ProjectName ljwx-boot
@@ -186,7 +204,9 @@ public interface ISysUserService extends IService<SysUser> {
     MessageResponseDetailVO.NonRespondedUserVO getByDeviceSn(String deviceSn);
 
     /**
-     * 判断用户是否为管理员
+     * 判断用户是否为管理员（优化版本）
+     * <p>使用user_type字段进行高性能查询，避免多表JOIN操作</p>
+     * 
      * @param userId 用户ID
      * @return true-是管理员，false-不是管理员
      * @author bruno.gao
@@ -195,7 +215,9 @@ public interface ISysUserService extends IService<SysUser> {
     boolean isAdminUser(Long userId);
 
     /**
-     * 判断用户是否为超级管理员(admin用户)
+     * 判断用户是否为超级管理员（优化版本）
+     * <p>使用user_type字段进行高性能查询</p>
+     * 
      * @param userId 用户ID
      * @return true-是超级管理员，false-不是超级管理员
      * @author bruno.gao
@@ -204,8 +226,11 @@ public interface ISysUserService extends IService<SysUser> {
     boolean isSuperAdmin(Long userId);
 
     /**
-     * 判断用户是否是顶级部门的管理员
-     * 条件：1. 是管理员角色 2. 所在部门是顶级部门
+     * 判断用户是否是顶级部门的管理员（优化版本）
+     * <p>使用admin_level字段进行高性能查询，条件：管理级别 >= 租户级</p>
+     * 
+     * @param userId 用户ID
+     * @return true-是顶级管理员，false-不是顶级管理员
      */
     boolean isTopLevelDeptAdmin(Long userId);
 
@@ -303,4 +328,156 @@ public interface ISysUserService extends IService<SysUser> {
      * @CreateTime 2025-01-26
      */
     boolean saveOrUpdateUser(SysUser user);
+
+    // ================================
+    // 高性能用户-组织查询工具方法
+    // ================================
+
+    /**
+     * 高性能获取用户基本信息和组织信息（避免 JOIN sys_org）
+     * 
+     * <p><strong>性能优势</strong>：直接从 sys_user 表获取 org_id 和 org_name，无需 JOIN 操作</p>
+     * <p><strong>使用场景</strong>：健康数据查询、用户列表显示等高频场景</p>
+     *
+     * @param userId 用户ID
+     * @return 包含用户信息和组织信息的 Map
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    Map<String, Object> getUserWithOrgInfo(Long userId);
+
+    /**
+     * 批量高性能获取用户基本信息和组织信息（避免 JOIN sys_org）
+     * 
+     * <p><strong>性能优势</strong>：批量查询，直接从 sys_user 表获取组织信息</p>
+     * <p><strong>使用场景</strong>：健康数据批量查询、报表生成等场景</p>
+     *
+     * @param userIds 用户ID列表
+     * @return 用户信息列表，每个用户包含组织信息
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    List<Map<String, Object>> getBatchUsersWithOrgInfo(List<Long> userIds);
+
+    /**
+     * 根据设备序列号高性能获取用户信息（避免 JOIN sys_org）
+     * 
+     * <p><strong>性能优势</strong>：设备用户查询优化，减少表连接</p>
+     * <p><strong>使用场景</strong>：设备消息处理、健康数据关联用户等场景</p>
+     *
+     * @param deviceSn 设备序列号
+     * @return 用户信息包含组织信息的 Map，如果未找到返回 null
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    Map<String, Object> getUserWithOrgInfoByDeviceSn(String deviceSn);
+
+    /**
+     * 根据组织ID高性能获取组织下所有用户（避免 JOIN sys_org）
+     * 
+     * <p><strong>性能优势</strong>：组织用户查询优化，利用 sys_user.org_id 索引</p>
+     * <p><strong>使用场景</strong>：组织健康统计、部门用户管理等场景</p>
+     *
+     * @param orgId 组织ID
+     * @return 用户信息列表，每个用户包含组织信息
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    List<Map<String, Object>> getUsersWithOrgInfoByOrgId(Long orgId);
+
+    /**
+     * 高性能用户搜索（支持姓名、用户名、组织名搜索，避免 JOIN sys_org）
+     * 
+     * <p><strong>性能优势</strong>：利用 sys_user 表的 org_name 字段进行组织名搜索</p>
+     * <p><strong>使用场景</strong>：用户搜索、健康数据用户筛选等场景</p>
+     *
+     * @param keyword 搜索关键词（匹配姓名、用户名、组织名）
+     * @param orgId 组织ID（部门过滤）
+     * @param limit 结果限制数量
+     * @return 匹配的用户信息列表
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    List<Map<String, Object>> searchUsersWithOrgInfo(String keyword, Long orgId, Integer limit);
+
+    // ==================== 优化的管理员查询方法 ====================
+
+    /**
+     * 批量获取用户类型（高性能版本）
+     * <p>使用单次查询获取多个用户的类型信息，避免N+1查询问题</p>
+     *
+     * @param userIds 用户ID列表
+     * @return 用户ID -> 用户类型的映射
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    Map<Long, Integer> batchGetUserTypes(List<Long> userIds);
+
+    /**
+     * 批量获取管理员级别（高性能版本）
+     * <p>使用单次查询获取多个用户的管理级别信息</p>
+     *
+     * @param userIds 用户ID列表
+     * @return 用户ID -> 管理级别的映射
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    Map<Long, Integer> batchGetAdminLevels(List<Long> userIds);
+
+    /**
+     * 批量判断用户是否为管理员（高性能版本）
+     * <p>一次查询判断多个用户的管理员状态</p>
+     *
+     * @param userIds 用户ID列表
+     * @return 用户ID -> 是否管理员的映射
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    Map<Long, Boolean> batchIsAdminUser(List<Long> userIds);
+
+    /**
+     * 高效查询组织管理员
+     * <p>直接查询指定组织的管理员用户，利用复合索引提升性能</p>
+     *
+     * @param orgId 组织ID
+     * @return 组织管理员列表
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    List<SysUser> getOrgAdmins(Long orgId);
+
+    /**
+     * 高效查询租户管理员
+     * <p>直接查询指定租户的管理员用户，利用复合索引提升性能</p>
+     *
+     * @param customerId 租户ID
+     * @return 租户管理员列表
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    List<SysUser> getTenantAdmins(Long customerId);
+
+    /**
+     * 过滤掉管理员用户（高性能版本）
+     * <p>从用户列表中过滤掉管理员，常用于统计场景</p>
+     *
+     * @param users 用户列表
+     * @return 过滤后的普通用户列表
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    List<SysUser> filterOutAdminUsers(List<SysUser> users);
+
+    /**
+     * 根据用户类型查询用户
+     * <p>高效查询指定类型的用户，利用索引优化性能</p>
+     *
+     * @param userType 用户类型
+     * @param orgId 组织ID（可选）
+     * @param customerId 租户ID（可选）
+     * @return 符合条件的用户列表
+     * @author bruno.gao
+     * @CreateTime 2025-09-12
+     */
+    List<SysUser> getUsersByType(Integer userType, Long orgId, Long customerId);
 }

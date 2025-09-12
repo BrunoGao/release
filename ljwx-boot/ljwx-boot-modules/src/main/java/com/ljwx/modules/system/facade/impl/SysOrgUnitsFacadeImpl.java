@@ -29,11 +29,16 @@ import com.ljwx.modules.system.domain.dto.org.units.SysOrgUnitsAddDTO;
 import com.ljwx.modules.system.domain.dto.org.units.SysOrgUnitsDeleteDTO;
 import com.ljwx.modules.system.domain.dto.org.units.SysOrgUnitsSearchDTO;
 import com.ljwx.modules.system.domain.dto.org.units.SysOrgUnitsUpdateDTO;
+import com.ljwx.modules.system.domain.dto.org.units.DepartmentDeletePreCheckDTO;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.system.domain.vo.SysOrgUnitsTreeVO;
 import com.ljwx.modules.system.domain.vo.SysOrgUnitsVO;
 import com.ljwx.modules.system.facade.ISysOrgUnitsFacade;
 import com.ljwx.modules.system.service.ISysOrgUnitsService;
+import com.ljwx.modules.system.service.ISysUserService;
+import com.ljwx.modules.system.domain.entity.SysUser;
+import com.ljwx.modules.health.service.ITDeviceInfoService;
+import com.ljwx.modules.health.domain.entity.TDeviceInfo;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -44,7 +49,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 组织/部门/子部门管理 门面接口实现层
@@ -55,12 +63,19 @@ import java.util.stream.Collectors;
  * @CreateTime 2024-07-16 - 16:35:30
  */
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SysOrgUnitsFacadeImpl implements ISysOrgUnitsFacade {
 
     @NonNull
     private ISysOrgUnitsService sysOrgUnitsService;
+    
+    @NonNull
+    private ISysUserService sysUserService;
+    
+    @NonNull
+    private ITDeviceInfoService deviceInfoService;
 
     /**
      * 初始化组织单位子单位
@@ -159,6 +174,203 @@ public class SysOrgUnitsFacadeImpl implements ISysOrgUnitsFacade {
         List<SysOrgUnitsTreeVO> result = initOrgUnitsChild(directParent, orgUnitsMap);  
         System.out.println("queryAllOrgUnitsListConvertToTree:result: " + result);
         return result;
+    }
+
+    @Override
+    public DepartmentDeletePreCheckDTO deletePreCheck(SysOrgUnitsDeleteDTO sysOrgUnitsDeleteDTO) {
+        log.info("🔍 开始检查部门删除影响，部门IDs: {}", sysOrgUnitsDeleteDTO.getIds());
+        
+        // 获取所有要删除的部门（包括子部门）
+        List<SysOrgUnits> allDepartmentsToDelete = getAllDepartmentsToDelete(sysOrgUnitsDeleteDTO.getIds());
+        List<Long> allOrgIds = allDepartmentsToDelete.stream().map(SysOrgUnits::getId).collect(Collectors.toList());
+        
+        // 获取受影响的用户
+        List<SysUser> affectedUsers = getUsersInDepartments(allOrgIds);
+        
+        // 获取需要释放的设备
+        List<TDeviceInfo> devicesToRelease = getDevicesInDepartments(affectedUsers);
+        
+        // 构建检查结果
+        return buildPreCheckResult(allDepartmentsToDelete, affectedUsers, devicesToRelease);
+    }
+
+    @Override
+    @Transactional
+    public boolean cascadeDelete(SysOrgUnitsDeleteDTO sysOrgUnitsDeleteDTO) {
+        log.info("🗑️ 开始级联删除部门，部门IDs: {}", sysOrgUnitsDeleteDTO.getIds());
+        
+        try {
+            // 获取所有要删除的部门（包括子部门）
+            List<SysOrgUnits> allDepartmentsToDelete = getAllDepartmentsToDelete(sysOrgUnitsDeleteDTO.getIds());
+            List<Long> allOrgIds = allDepartmentsToDelete.stream().map(SysOrgUnits::getId).collect(Collectors.toList());
+            
+            // 获取受影响的用户
+            List<SysUser> affectedUsers = getUsersInDepartments(allOrgIds);
+            List<Long> userIds = affectedUsers.stream().map(SysUser::getId).collect(Collectors.toList());
+            
+            log.info("📊 级联删除统计: 部门{}个, 用户{}个", allOrgIds.size(), userIds.size());
+            
+            // 1. 删除用户（会自动释放设备）
+            if (!userIds.isEmpty()) {
+                boolean userDeleted = sysUserService.forceRemoveBatchByIds(userIds, true);
+                if (!userDeleted) {
+                    throw new RuntimeException("删除用户失败");
+                }
+                log.info("✅ 已删除{}个用户并自动释放绑定设备", userIds.size());
+            }
+            
+            // 2. 删除部门
+            boolean departmentDeleted = sysOrgUnitsService.removeBatchByIds(allOrgIds, true);
+            if (!departmentDeleted) {
+                throw new RuntimeException("删除部门失败");
+            }
+            log.info("✅ 已删除{}个部门", allOrgIds.size());
+            
+            return true;
+            
+        } catch (Exception e) {
+            log.error("❌ 级联删除失败: {}", e.getMessage(), e);
+            throw new RuntimeException("级联删除失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取所有需要删除的部门（包括子部门）
+     */
+    private List<SysOrgUnits> getAllDepartmentsToDelete(List<Long> orgIds) {
+        List<SysOrgUnits> result = new ArrayList<>();
+        
+        for (Long orgId : orgIds) {
+            // 获取当前部门
+            SysOrgUnits org = sysOrgUnitsService.getById(orgId);
+            if (org != null) {
+                result.add(org);
+            }
+            
+            // 获取所有子部门
+            List<SysOrgUnits> descendants = sysOrgUnitsService.listAllDescendants(List.of(orgId));
+            result.addAll(descendants);
+        }
+        
+        return result;
+    }
+
+    /**
+     * 获取部门下的所有用户（直接利用sys_user.org_id字段）
+     */
+    private List<SysUser> getUsersInDepartments(List<Long> orgIds) {
+        if (orgIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // 直接使用sys_user.org_id IN查询，高效且简单
+        LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.in(SysUser::getOrgId, orgIds)
+                   .eq(SysUser::getStatus, "1"); // 只查询启用用户
+        
+        return sysUserService.list(queryWrapper);
+    }
+
+    /**
+     * 获取用户绑定的设备
+     */
+    private List<TDeviceInfo> getDevicesInDepartments(List<SysUser> users) {
+        List<TDeviceInfo> devices = new ArrayList<>();
+        
+        for (SysUser user : users) {
+            if (user.getDeviceSn() != null && !user.getDeviceSn().trim().isEmpty() 
+                && !"-".equals(user.getDeviceSn().trim())) {
+                TDeviceInfo device = deviceInfoService.getOne(new LambdaQueryWrapper<TDeviceInfo>()
+                    .eq(TDeviceInfo::getSerialNumber, user.getDeviceSn()));
+                if (device != null) {
+                    devices.add(device);
+                }
+            }
+        }
+        
+        return devices;
+    }
+
+    /**
+     * 构建预检查结果
+     */
+    private DepartmentDeletePreCheckDTO buildPreCheckResult(
+            List<SysOrgUnits> departments, 
+            List<SysUser> users, 
+            List<TDeviceInfo> devices) {
+        
+        // 构建部门信息
+        List<DepartmentDeletePreCheckDTO.DepartmentInfo> departmentInfos = departments.stream()
+            .map(dept -> DepartmentDeletePreCheckDTO.DepartmentInfo.builder()
+                .orgId(dept.getId())
+                .orgName(dept.getName())
+                .level(dept.getLevel())
+                .userCount(Math.toIntExact(users.stream()
+                    .filter(user -> dept.getId().equals(user.getOrgId()))
+                    .count()))
+                .deviceCount(Math.toIntExact(devices.stream()
+                    .filter(device -> users.stream()
+                        .anyMatch(user -> dept.getId().equals(user.getOrgId()) 
+                            && device.getSerialNumber().equals(user.getDeviceSn())))
+                    .count()))
+                .build())
+            .collect(Collectors.toList());
+        
+        // 构建用户信息
+        List<DepartmentDeletePreCheckDTO.UserInfo> userInfos = users.stream()
+            .map(user -> DepartmentDeletePreCheckDTO.UserInfo.builder()
+                .userId(user.getId())
+                .userName(user.getUserName())
+                .realName(user.getRealName())
+                .orgName(user.getOrgName())
+                .deviceSn(user.getDeviceSn())
+                .hasDevice(user.getDeviceSn() != null && !user.getDeviceSn().trim().isEmpty() 
+                    && !"-".equals(user.getDeviceSn().trim()))
+                .build())
+            .collect(Collectors.toList());
+        
+        // 构建设备信息
+        List<DepartmentDeletePreCheckDTO.DeviceInfo> deviceInfos = devices.stream()
+            .map(device -> {
+                SysUser boundUser = users.stream()
+                    .filter(user -> device.getSerialNumber().equals(user.getDeviceSn()))
+                    .findFirst()
+                    .orElse(null);
+                return DepartmentDeletePreCheckDTO.DeviceInfo.builder()
+                    .deviceSn(device.getSerialNumber())
+                    .deviceType(device.getModel()) // 使用model字段作为设备类型
+                    .boundUserId(boundUser != null ? boundUser.getId() : null)
+                    .boundUserName(boundUser != null ? boundUser.getRealName() : null)
+                    .orgName(boundUser != null ? boundUser.getOrgName() : null)
+                    .build();
+            })
+            .collect(Collectors.toList());
+        
+        // 构建汇总信息
+        int usersWithDevices = Math.toIntExact(userInfos.stream()
+            .filter(DepartmentDeletePreCheckDTO.UserInfo::getHasDevice)
+            .count());
+        
+        String warningMessage = String.format(
+            "此操作将删除 %d 个部门、%d 个用户，并释放 %d 个设备。其中 %d 个用户绑定了设备。",
+            departments.size(), users.size(), devices.size(), usersWithDevices
+        );
+        
+        DepartmentDeletePreCheckDTO.SummaryInfo summary = DepartmentDeletePreCheckDTO.SummaryInfo.builder()
+            .totalDepartments(departments.size())
+            .totalUsers(users.size())
+            .totalDevices(devices.size())
+            .usersWithDevices(usersWithDevices)
+            .warningMessage(warningMessage)
+            .build();
+        
+        return DepartmentDeletePreCheckDTO.builder()
+            .canSafeDelete(users.isEmpty() && devices.isEmpty())
+            .departmentsToDelete(departmentInfos)
+            .usersToDelete(userInfos)
+            .devicesToRelease(deviceInfos)
+            .summary(summary)
+            .build();
     }
 
 }

@@ -141,21 +141,29 @@
              boolean bindResult = this.save(deviceUser);
              
              if (bindResult) {
-                 // 2. 获取用户组织信息
+                 // 2. 获取用户信息和组织信息
+                 SysUser user = sysUserService.getById(Long.valueOf(userId));
                  Long orgId = getUserOrgId(Long.valueOf(userId));
                  
-                 // 3. 更新t_device_info表的org_id和user_id
+                 // 3. 更新t_device_info表的user_id、org_id和customer_id
                  TDeviceInfo deviceInfo = deviceInfoService.lambdaQuery()
                      .eq(TDeviceInfo::getSerialNumber, deviceSn)
                      .one();
                  
-                 if (deviceInfo != null) {
+                 if (deviceInfo != null && user != null) {
                      deviceInfo.setUserId(Long.valueOf(userId));
                      deviceInfo.setOrgId(orgId);
+                     deviceInfo.setCustomerId(user.getCustomerId());
                      deviceInfoService.updateById(deviceInfo);
-                     log.info("设备{}绑定成功，用户ID：{}，组织ID：{}", deviceSn, userId, orgId);
+                     log.info("设备{}绑定成功，用户ID：{}，组织ID：{}，租户ID：{}", 
+                             deviceSn, userId, orgId, user.getCustomerId());
                  } else {
-                     log.warn("设备{}在t_device_info表中不存在", deviceSn);
+                     if (deviceInfo == null) {
+                         log.warn("设备{}在t_device_info表中不存在", deviceSn);
+                     }
+                     if (user == null) {
+                         log.warn("用户{}不存在", userId);
+                     }
                  }
              }
              
@@ -189,8 +197,9 @@
                  if (deviceInfo != null) {
                      deviceInfo.setUserId(null);
                      deviceInfo.setOrgId(null);
+                     deviceInfo.setCustomerId(null);
                      deviceInfoService.updateById(deviceInfo);
-                     log.info("设备{}解绑成功，已清空org_id和user_id", deviceSn);
+                     log.info("设备{}解绑成功，已清空user_id、org_id和customer_id", deviceSn);
                  } else {
                      log.warn("设备{}在t_device_info表中不存在", deviceSn);
                  }

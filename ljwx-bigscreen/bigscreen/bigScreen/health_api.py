@@ -260,12 +260,58 @@ async def generate_position_risk_baseline(data):
 @validate_request_params(['user_id', 'customer_id'])
 @async_route
 async def calculate_comprehensive_health_score(data):
+    """计算综合健康评分 - POST方法"""
+    return await _calculate_comprehensive_health_score_impl(data)
+
+@health_api.route('/score/comprehensive', methods=['GET'])
+@async_route  
+async def get_comprehensive_health_score():
+    """获取综合健康评分 - GET方法"""
+    try:
+        # 从URL参数获取数据
+        customer_id = request.args.get('customerId')
+        user_id = request.args.get('userId')
+        days = request.args.get('days', 30)
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate') 
+        include_factors = request.args.get('includeFactors', 'false').lower() == 'true'
+        include_device_breakdown = request.args.get('includeDeviceBreakdown', 'false').lower() == 'true'
+        
+        if not customer_id:
+            return jsonify({
+                'success': False,
+                'message': '缺少必需参数：customerId',
+                'code': 400
+            }), 400
+        
+        # 构建数据对象
+        data = {
+            'customer_id': customer_id,
+            'user_id': user_id,
+            'date_range': int(days),
+            'start_date': start_date,
+            'end_date': end_date,
+            'include_factors': include_factors,
+            'include_device_breakdown': include_device_breakdown
+        }
+        
+        return await _calculate_comprehensive_health_score_impl(data)
+        
+    except Exception as e:
+        logger.error(f"GET健康评分失败: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'服务器错误: {str(e)}',
+            'code': 500
+        }), 500
+
+async def _calculate_comprehensive_health_score_impl(data):
     """计算综合健康评分"""
     try:
         init_engines()
         
-        user_id = int(data['user_id'])
         customer_id = int(data['customer_id'])
+        user_id = int(data['user_id']) if data.get('user_id') else None
         date_range = int(data.get('date_range', 30))
         
         # 检查缓存
@@ -280,7 +326,7 @@ async def calculate_comprehensive_health_score(data):
             })
         
         # 计算健康评分
-        score_result = await score_engine.calculate_comprehensive_health_score(user_id, customer_id, date_range)
+        score_result = score_engine.calculate_comprehensive_health_score(user_id, customer_id, date_range)
         
         if score_result['success']:
             # 缓存结果

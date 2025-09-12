@@ -32,7 +32,7 @@ public class OrgHealthScoreJob implements Job {
             long startTime = System.currentTimeMillis();
             
             // 调用HealthBaselineScoreTasks中的组织评分生成方法
-            healthBaselineScoreTasks.generateOrgHealthScore();
+            healthBaselineScoreTasks.executeImmediately("score", 7);
             
             long executionTime = System.currentTimeMillis() - startTime;
             log.info("✅ 组织健康评分生成作业完成: {}, 耗时: {}ms", jobName, executionTime);

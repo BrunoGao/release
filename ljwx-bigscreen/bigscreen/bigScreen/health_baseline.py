@@ -6,7 +6,7 @@ from sqlalchemy import func, and_, or_
 from .models import db, HealthBaseline, OrgHealthBaseline, UserHealthData, UserInfo, UserOrg, OrgInfo
 from flask import jsonify
 import logging
-import statistics
+import statistics as py_statistics
 from .health_cache_manager import health_cache, cache_result
 
 logger = logging.getLogger(__name__)

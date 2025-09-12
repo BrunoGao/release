@@ -22,6 +22,7 @@
         <result column="iframe_url" property="iframeUrl"/>
         <result column="query" property="query"/>
         <result column="status" property="status"/>
+        <result column="customer_id" property="customerId"/>
         <result column="id" property="id"/>
         <result column="create_user" property="createUser"/>
         <result column="create_user_id" property="createUserId"/>
@@ -59,7 +60,8 @@
                sm.fixed_index_in_tab,
                sm.iframe_url,
                sm.query,
-               sm.status
+               sm.status,
+               sm.customer_id
         FROM sys_menu sm
     </sql>
 

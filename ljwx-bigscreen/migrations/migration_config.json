@@ -1,0 +1,13 @@
+{
+  "database_url": "mysql://root:password@localhost:3306/ljwx",
+  "backup_enabled": true,
+  "backup_directory": "./backups",
+  "batch_size": 1000,
+  "timeout_seconds": 3600,
+  "dry_run": false,
+  "force_migration": false,
+  "skip_validation": false,
+  "performance_check": true,
+  "log_level": "INFO",
+  "log_file": "migration.log"
+}

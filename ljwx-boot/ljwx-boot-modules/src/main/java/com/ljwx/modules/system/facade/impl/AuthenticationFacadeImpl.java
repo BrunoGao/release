@@ -85,7 +85,7 @@ public class AuthenticationFacadeImpl implements IAuthenticationFacade {
                     .query(GsonUtil.fromJsonList(menu.getQuery()))
                     .permissions(menuPermissionMap.getOrDefault(menu.getId(), Lists.newArrayList()))
                     .build();
-            if (menu.getIconType().equals(StringPools.TWO)) {
+            if (menu.getIconType() != null && menu.getIconType().equals(StringPools.TWO)) {
                 routeMeta.setLocalIcon(menu.getIcon());
             } else {
                 routeMeta.setIcon(menu.getIcon());
@@ -157,24 +157,27 @@ public class AuthenticationFacadeImpl implements IAuthenticationFacade {
             System.out.println("currentUserRoleIds: " + currentUserRoleIds);
             List<SysMenuBO> sysMenuBOS = Lists.newArrayList();
             
-            // 打印每个菜单的详细信息
-            sysMenuBOS.forEach(menu -> {
-                log.info("Menu Details - ID: {}, Name: {}, Path: {}, Component: {}, Type: {}, Status: {}, ParentId: {}, Perms: {}", 
-                    menu.getId(),
-                    menu.getName(),
-                    menu.getComponent(),
-                    menu.getType(),
-                    menu.getStatus(),
-                    menu.getParentId()
-                );
-            });
-
-            // 打印总数
-            log.info("Total menus count: {}", sysMenuBOS.size());
-
+            // 先填充菜单列表
             currentUserRoleIds.stream()
                     .map(sysRoleMenuService::queryMenuListWithRoleId)
                     .forEach(sysMenuBOS::addAll);
+
+            // 打印总数
+            log.info("Total menus count: {}", sysMenuBOS.size());
+            
+            // 打印每个菜单的详细信息
+            sysMenuBOS.forEach(menu -> {
+                log.info("Menu Details - ID: {}, Name: {}, Path: {}, Component: {}, Type: {}, Status: {}, ParentId: {}, IconType: {}", 
+                    menu.getId(),
+                    menu.getName(),
+                    menu.getRoutePath(),
+                    menu.getComponent(),
+                    menu.getType(),
+                    menu.getStatus(),
+                    menu.getParentId(),
+                    menu.getIconType()
+                );
+            });
             List<SysPermissionBO> sysPermissionBOS = Lists.newArrayList();
             currentUserRoleIds.stream()
                     .map(sysRolePermissionService::queryPermissionListWithRoleId)

@@ -39,24 +39,24 @@ logger = logging.getLogger(__name__)
 # ==================== 枚举定义 ====================
 
 class MessageTypeEnum(PyEnum):
-    """消息类型枚举"""
-    JOB = "job"                    # 作业指引
+    """消息类型枚举 - 基于数据库真实枚举值"""
     TASK = "task"                  # 任务管理
+    JOB = "job"                    # 作业指引
     ANNOUNCEMENT = "announcement"   # 系统公告
     NOTIFICATION = "notification"   # 通知
-    SYSTEM_ALERT = "system_alert"  # 系统告警
-    WARNING = "warning"            # 告警
+    ALERT = "alert"               # 告警
+    EMERGENCY = "emergency"       # 紧急
 
     @classmethod
     def get_display_name(cls, code: str) -> str:
         """获取显示名称"""
         display_map = {
-            'job': '作业指引',
             'task': '任务管理', 
+            'job': '作业指引',
             'announcement': '系统公告',
             'notification': '通知',
-            'system_alert': '系统告警',
-            'warning': '告警'
+            'alert': '告警',
+            'emergency': '紧急'
         }
         return display_map.get(code, code)
 
@@ -64,8 +64,8 @@ class MessageTypeEnum(PyEnum):
     def get_priority_weight(cls, code: str) -> int:
         """获取优先级权重"""
         weight_map = {
-            'system_alert': 5,
-            'warning': 4,
+            'emergency': 5,
+            'alert': 4,
             'task': 3,
             'job': 3,
             'announcement': 2,
@@ -75,7 +75,7 @@ class MessageTypeEnum(PyEnum):
 
 
 class MessageStatusEnum(PyEnum):
-    """消息状态枚举"""
+    """消息状态枚举 - 基于数据库真实枚举值"""
     PENDING = "pending"            # 等待中
     DELIVERED = "delivered"        # 已送达
     ACKNOWLEDGED = "acknowledged"  # 已确认
@@ -84,106 +84,69 @@ class MessageStatusEnum(PyEnum):
 
 
 class SenderTypeEnum(PyEnum):
-    """发送者类型枚举"""
+    """发送者类型枚举 - 基于数据库真实枚举值"""
     SYSTEM = "system"             # 系统发送
-    ADMIN = "admin"               # 管理员发送
     USER = "user"                 # 普通用户发送
-    AUTO = "auto"                 # 自动发送
+    DEVICE = "device"             # 设备发送
+    ADMIN = "admin"               # 管理员发送
 
 
 class ReceiverTypeEnum(PyEnum):
-    """接收者类型枚举"""
-    DEVICE = "device"             # 设备接收
+    """接收者类型枚举 - 基于数据库真实枚举值"""
     USER = "user"                 # 用户接收
     DEPARTMENT = "department"     # 部门接收
-    ORGANIZATION = "organization" # 组织接收
-
-
-class DeliveryStatusEnum(PyEnum):
-    """分发状态枚举"""
-    PENDING = "pending"           # 等待分发
-    DELIVERED = "delivered"       # 已送达
-    ACKNOWLEDGED = "acknowledged" # 已确认
-    FAILED = "failed"            # 分发失败
-    EXPIRED = "expired"          # 已过期
-    CANCELLED = "cancelled"      # 已取消
-
-
-class ChannelEnum(PyEnum):
-    """分发渠道枚举"""
-    MESSAGE = "message"          # 应用内消息
-    PUSH = "push"               # 推送通知
-    WECHAT = "wechat"           # 微信消息
-    WATCH = "watch"             # 手表通知
-    SMS = "sms"                 # 短信通知
-    EMAIL = "email"             # 邮件通知
-
-
-class UrgencyEnum(PyEnum):
-    """紧急程度枚举"""
-    LOW = "low"                 # 低紧急度
-    MEDIUM = "medium"           # 中等紧急度
-    HIGH = "high"               # 高紧急度
-    CRITICAL = "critical"       # 紧急
+    BROADCAST = "broadcast"       # 广播接收
 
 
 # ==================== V2消息主表 ====================
 
 class TDeviceMessageV2(Base):
-    """设备消息V2主表 - 高性能优化版本"""
+    """设备消息V2主表 - 基于真实数据库表结构"""
     
     __tablename__ = 't_device_message_v2'
     
-    # 基本字段
+    # 基本字段 - 基于真实数据库结构
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment='主键ID')
-    device_sn = Column(String(255), nullable=False, comment='设备序列号')
-    title = Column(String(500), comment='消息标题')
+    customer_id = Column(BigInteger, nullable=False, comment='租户ID')
+    department_id = Column(BigInteger, nullable=False, comment='部门ID')
+    user_id = Column(BigInteger, nullable=False, comment='用户ID')
+    device_sn = Column(String(64), comment='设备序列号')
     message = Column(Text, nullable=False, comment='消息内容')
     
-    # 组织信息
-    org_id = Column(BigInteger, comment='组织ID')
-    user_id = Column(String(50), comment='用户ID')  
-    customer_id = Column(BigInteger, nullable=False, default=0, comment='租户ID')
+    # 消息分类 (使用数据库中的枚举值)
+    message_type = Column(Enum('task', 'job', 'announcement', 'notification', 'alert', 'emergency'), nullable=False, comment='消息类型')
+    sender_type = Column(Enum('system', 'user', 'device', 'admin'), nullable=False, comment='发送者类型')
+    receiver_type = Column(Enum('user', 'department', 'broadcast'), nullable=False, comment='接收者类型')
     
-    # 消息分类 (使用枚举)
-    message_type = Column(Enum(MessageTypeEnum), nullable=False, comment='消息类型')
-    sender_type = Column(Enum(SenderTypeEnum), nullable=False, comment='发送者类型')
-    receiver_type = Column(Enum(ReceiverTypeEnum), nullable=False, comment='接收者类型')
-    urgency = Column(Enum(UrgencyEnum), default=UrgencyEnum.MEDIUM, comment='紧急程度')
-    
-    # 消息状态
-    message_status = Column(Enum(MessageStatusEnum), default=MessageStatusEnum.PENDING, comment='消息状态')
-    responded_number = Column(Integer, default=0, comment='响应数量')
+    # 优先级和状态
+    priority_level = Column(TINYINT, nullable=False, default=3, comment='优先级 1-5')
+    message_status = Column(Enum('pending', 'delivered', 'acknowledged', 'failed', 'expired'), nullable=False, default='pending', comment='消息状态')
     
     # 时间字段
-    sent_time = Column(DateTime, default=datetime.utcnow, comment='发送时间')
-    received_time = Column(DateTime, comment='接收时间')
+    sent_time = Column(DateTime(3), comment='发送时间')
+    received_time = Column(DateTime(3), comment='接收时间')
+    acknowledged_time = Column(DateTime(3), comment='确认时间')
+    expired_time = Column(DateTime(3), comment='过期时间')
     
-    # 扩展字段
-    priority = Column(TINYINT, default=3, comment='优先级 1-5')
-    channels = Column(JSON, comment='分发渠道数组')
-    require_ack = Column(Boolean, default=False, comment='是否需要确认')
-    expiry_time = Column(DateTime, comment='过期时间')
-    metadata = Column(JSON, comment='元数据')
+    # 统计字段
+    target_user_count = Column(Integer, nullable=False, default=1, comment='目标用户数量')
+    acknowledged_count = Column(Integer, nullable=False, default=0, comment='确认数量')
     
-    # 标准字段
-    create_time = Column(DateTime, default=datetime.utcnow, comment='创建时间')
-    update_time = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
-    deleted = Column(TINYINT, default=0, comment='逻辑删除')
+    # 审计字段
+    create_user_id = Column(BigInteger, comment='创建用户ID')
+    create_time = Column(DateTime(3), nullable=False, default=datetime.utcnow, comment='创建时间')
+    update_time = Column(DateTime(3), onupdate=datetime.utcnow, comment='更新时间')
+    is_deleted = Column(TINYINT(1), nullable=False, default=0, comment='逻辑删除')
+    version = Column(Integer, nullable=False, default=1, comment='版本号')
     
-    # 关联关系
-    details = relationship("TDeviceMessageDetailV2", back_populates="message", lazy="dynamic")
-    lifecycle_events = relationship("TMessageLifecycleV2", back_populates="message", lazy="dynamic")
-    
-    # 复合索引定义
+    # 复合索引定义 - 基于真实数据库索引
     __table_args__ = (
-        Index('idx_customer_org_type_status', 'customer_id', 'org_id', 'message_type', 'message_status'),
-        Index('idx_device_time', 'device_sn', 'sent_time'),
-        Index('idx_user_status_time', 'user_id', 'message_status', 'sent_time'),
-        Index('idx_expiry_status', 'expiry_time', 'message_status'),
+        Index('idx_customer_department', 'customer_id', 'department_id'),
+        Index('idx_user_status', 'user_id', 'message_status'),
+        Index('idx_device_sn', 'device_sn'),
+        Index('idx_expired_time', 'expired_time'),
         Index('idx_create_time', 'create_time'),
-        Index('idx_priority_urgency', 'priority', 'urgency'),
-        {'comment': '设备消息V2表-优化版本'}
+        {'comment': '设备消息V2表-真实数据库结构'}
     )
     
     def __repr__(self):
@@ -193,62 +156,54 @@ class TDeviceMessageV2(Base):
         """转换为字典"""
         return {
             'id': self.id,
-            'device_sn': self.device_sn,
-            'title': self.title,
-            'message': self.message,
-            'org_id': self.org_id,
-            'user_id': self.user_id,
             'customer_id': self.customer_id,
-            'message_type': self.message_type.value if self.message_type else None,
-            'sender_type': self.sender_type.value if self.sender_type else None,
-            'receiver_type': self.receiver_type.value if self.receiver_type else None,
-            'urgency': self.urgency.value if self.urgency else None,
-            'message_status': self.message_status.value if self.message_status else None,
-            'responded_number': self.responded_number,
+            'department_id': self.department_id,
+            'user_id': self.user_id,
+            'device_sn': self.device_sn,
+            'message': self.message,
+            'message_type': self.message_type,
+            'sender_type': self.sender_type,
+            'receiver_type': self.receiver_type,
+            'priority_level': self.priority_level,
+            'message_status': self.message_status,
             'sent_time': self.sent_time.isoformat() if self.sent_time else None,
             'received_time': self.received_time.isoformat() if self.received_time else None,
-            'priority': self.priority,
-            'channels': self.channels,
-            'require_ack': self.require_ack,
-            'expiry_time': self.expiry_time.isoformat() if self.expiry_time else None,
-            'metadata': self.metadata,
+            'acknowledged_time': self.acknowledged_time.isoformat() if self.acknowledged_time else None,
+            'expired_time': self.expired_time.isoformat() if self.expired_time else None,
+            'target_user_count': self.target_user_count,
+            'acknowledged_count': self.acknowledged_count,
+            'create_user_id': self.create_user_id,
             'create_time': self.create_time.isoformat() if self.create_time else None,
-            'update_time': self.update_time.isoformat() if self.update_time else None
+            'update_time': self.update_time.isoformat() if self.update_time else None,
+            'is_deleted': self.is_deleted,
+            'version': self.version
         }
     
     def is_expired(self) -> bool:
         """检查消息是否已过期"""
-        return self.expiry_time and datetime.utcnow() > self.expiry_time
+        return self.expired_time and datetime.utcnow() > self.expired_time
     
     def is_high_priority(self) -> bool:
         """检查是否为高优先级消息"""
-        return self.priority and self.priority >= 4
+        return self.priority_level and self.priority_level >= 4
     
     def is_urgent(self) -> bool:
         """检查是否为紧急消息"""
-        return self.urgency in [UrgencyEnum.HIGH, UrgencyEnum.CRITICAL]
+        return self.message_type in ['alert', 'emergency']
     
-    def add_channel(self, channel: str):
-        """添加分发渠道"""
-        if not self.channels:
-            self.channels = []
-        if channel not in self.channels:
-            self.channels.append(channel)
+    def is_acknowledged(self) -> bool:
+        """检查是否已确认"""
+        return self.message_status == 'acknowledged'
     
-    def set_metadata(self, key: str, value: Any):
-        """设置元数据"""
-        if not self.metadata:
-            self.metadata = {}
-        self.metadata[key] = value
-    
-    def get_metadata(self, key: str, default=None):
-        """获取元数据"""
-        return self.metadata.get(key, default) if self.metadata else default
+    def get_acknowledgment_rate(self) -> float:
+        """获取确认率"""
+        if self.target_user_count == 0:
+            return 0.0
+        return (self.acknowledged_count / self.target_user_count) * 100
 
 
-# ==================== V2消息详情表 ====================
-
-class TDeviceMessageDetailV2(Base):
+# ==================== V2消息详情表 ==================== 
+# 注意：TDeviceMessageDetailV2表暂时不存在于数据库中，已移除模型定义
     """设备消息详情V2表 - 分发记录"""
     
     __tablename__ = 't_device_message_detail_v2'
@@ -294,7 +249,7 @@ class TDeviceMessageDetailV2(Base):
     # 标准字段
     create_time = Column(DateTime, default=datetime.utcnow, comment='创建时间')
     update_time = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
-    deleted = Column(TINYINT, default=0, comment='逻辑删除')
+    is_deleted = Column(TINYINT, default=0, comment='逻辑删除')
     
     # 关联关系
     message = relationship("TDeviceMessageV2", back_populates="details")

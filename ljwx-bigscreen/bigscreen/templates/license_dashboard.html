@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License 管理仪表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 2rem; 
+        }
+        .header { 
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: white; 
+            padding: 2rem; 
+            margin-bottom: 2rem;
+            border-radius: 15px;
+            text-align: center;
+        }
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
+            gap: 2rem; 
+            margin-bottom: 2rem;
+        }
+        .card { 
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px; 
+            padding: 2rem; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .card h3 { 
+            color: #2c3e50; 
+            margin-bottom: 1.5rem; 
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-indicator { 
+            display: inline-block; 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            margin-right: 8px; 
+        }
+        .status-valid { background: #27ae60; }
+        .status-warning { background: #f39c12; }
+        .status-error { background: #e74c3c; }
+        .metric-value { 
+            font-size: 2.5rem; 
+            font-weight: bold; 
+            margin-bottom: 0.5rem;
+        }
+        .metric-label { 
+            color: #7f8c8d; 
+            font-size: 1rem; 
+        }
+        .progress-bar { 
+            width: 100%; 
+            height: 20px; 
+            background: #ecf0f1; 
+            border-radius: 10px; 
+            overflow: hidden; 
+            margin: 1rem 0;
+        }
+        .progress-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #3498db, #2980b9); 
+            transition: width 0.5s ease; 
+        }
+        .device-list { 
+            max-height: 200px; 
+            overflow-y: auto; 
+            background: #f8f9fa; 
+            border-radius: 8px; 
+            padding: 1rem; 
+            margin-top: 1rem;
+        }
+        .device-item { 
+            padding: 0.5rem; 
+            margin: 0.25rem 0; 
+            background: white; 
+            border-radius: 5px; 
+            font-size: 0.9rem;
+        }
+        .alert { 
+            padding: 1rem; 
+            margin: 1rem 0; 
+            border-radius: 8px; 
+            border-left: 4px solid;
+        }
+        .alert-success { 
+            background: #d4edda; 
+            color: #155724; 
+            border-color: #27ae60; 
+        }
+        .alert-warning { 
+            background: #fff3cd; 
+            color: #856404; 
+            border-color: #f39c12; 
+        }
+        .alert-error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border-color: #e74c3c; 
+        }
+        .chart-container { 
+            height: 300px; 
+            margin-top: 1rem; 
+        }
+        .refresh-btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        .license-info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .license-info-table th,
+        .license-info-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .license-info-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 License 管理仪表板</h1>
+            <p>实时监控License状态、设备使用量和并发限制</p>
+            <button class="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
+        </div>
+
+        <div class="grid">
+            <!-- License状态卡片 -->
+            <div class="card">
+                <h3>📋 License 状态</h3>
+                <div id="license-status">
+                    <div class="alert alert-warning">
+                        <span class="status-indicator status-warning"></span>
+                        正在加载License状态...
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设备使用情况 -->
+            <div class="card">
+                <h3>📱 设备使用情况</h3>
+                <div id="device-usage">
+                    <div class="metric-value" id="device-count">--</div>
+                    <div class="metric-label">当前在线设备数</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="device-progress" style="width: 0%;"></div>
+                    </div>
+                    <div class="metric-label">
+                        <span id="device-used">0</span> / <span id="device-max">0</span> 
+                        (<span id="device-percentage">0%</span>)
+                    </div>
+                </div>
+                <div class="device-list" id="device-list">
+                    <div>暂无在线设备</div>
+                </div>
+            </div>
+
+            <!-- 并发使用情况 -->
+            <div class="card">
+                <h3>⚡ 并发使用情况</h3>
+                <div id="concurrent-usage">
+                    <div class="metric-value" id="concurrent-count">--</div>
+                    <div class="metric-label">当前并发请求数</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="concurrent-progress" style="width: 0%;"></div>
+                    </div>
+                    <div class="metric-label">
+                        <span id="concurrent-used">0</span> / <span id="concurrent-max">0</span> 
+                        (<span id="concurrent-percentage">0%</span>)
+                    </div>
+                </div>
+            </div>
+
+            <!-- License详细信息 -->
+            <div class="card">
+                <h3>ℹ️ License 详细信息</h3>
+                <table class="license-info-table" id="license-info-table">
+                    <tbody>
+                        <tr><td colspan="2">正在加载License信息...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 使用趋势图表 -->
+        <div class="card">
+            <h3>📊 使用趋势</h3>
+            <div class="chart-container">
+                <div id="usage-chart" style="height: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- 警告信息 -->
+        <div id="alerts-container">
+            <!-- 动态加载警告信息 -->
+        </div>
+    </div>
+
+    <script>
+        let usageChart = null;
+        let refreshInterval = null;
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initChart();
+            loadData();
+            startAutoRefresh();
+        });
+
+        // 初始化图表
+        function initChart() {
+            usageChart = echarts.init(document.getElementById('usage-chart'));
+            
+            // 响应式处理
+            window.addEventListener('resize', function() {
+                usageChart.resize();
+            });
+        }
+
+        // 加载数据
+        async function loadData() {
+            try {
+                console.log('开始加载License数据...');
+                const response = await fetch('/api/license/dashboard');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateUI(data.data);
+                } else {
+                    showAlert('加载数据失败: ' + data.error, 'error');
+                }
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showAlert('网络连接失败', 'error');
+            }
+        }
+
+        // 更新UI
+        function updateUI(data) {
+            console.log('更新UI数据:', data);
+            
+            // 更新License状态
+            updateLicenseStatus(data.license_status);
+            
+            // 更新设备使用情况
+            updateDeviceUsage(data.license_status.device_limits);
+            
+            // 更新并发使用情况
+            updateConcurrentUsage(data.license_status.concurrent_limits);
+            
+            // 更新License详细信息
+            updateLicenseInfo(data.license_status.license_info);
+            
+            // 更新使用率图表
+            updateUsageChart(data.usage_rates);
+            
+            // 更新健康状态和警告
+            updateHealthStatus(data.health_status);
+        }
+
+        // 更新License状态
+        function updateLicenseStatus(licenseStatus) {
+            const container = document.getElementById('license-status');
+            const isValid = licenseStatus.license_valid;
+            
+            let statusClass = isValid ? 'alert-success' : 'alert-error';
+            let statusIndicator = isValid ? 'status-valid' : 'status-error';
+            let statusText = isValid ? 'License有效' : 'License无效或已过期';
+            
+            container.innerHTML = `
+                <div class="alert ${statusClass}">
+                    <span class="status-indicator ${statusIndicator}"></span>
+                    ${statusText}
+                </div>
+            `;
+        }
+
+        // 更新设备使用情况
+        function updateDeviceUsage(deviceLimits) {
+            const maxDevices = deviceLimits.max_devices || 0;
+            const currentDevices = deviceLimits.current_devices || 0;
+            const percentage = maxDevices > 0 ? (currentDevices / maxDevices * 100) : 0;
+            
+            document.getElementById('device-count').textContent = currentDevices;
+            document.getElementById('device-used').textContent = currentDevices;
+            document.getElementById('device-max').textContent = maxDevices;
+            document.getElementById('device-percentage').textContent = percentage.toFixed(1) + '%';
+            document.getElementById('device-progress').style.width = percentage + '%';
+            
+            // 更新设备列表
+            const deviceList = document.getElementById('device-list');
+            const activeDevices = deviceLimits.active_devices || [];
+            
+            if (activeDevices.length > 0) {
+                deviceList.innerHTML = activeDevices.map(device => 
+                    `<div class="device-item">📱 ${device}</div>`
+                ).join('');
+            } else {
+                deviceList.innerHTML = '<div>暂无在线设备</div>';
+            }
+        }
+
+        // 更新并发使用情况
+        function updateConcurrentUsage(concurrentLimits) {
+            const maxConcurrent = concurrentLimits.max_concurrent || 0;
+            const currentConcurrent = concurrentLimits.current_concurrent || 0;
+            const percentage = maxConcurrent > 0 ? (currentConcurrent / maxConcurrent * 100) : 0;
+            
+            document.getElementById('concurrent-count').textContent = currentConcurrent;
+            document.getElementById('concurrent-used').textContent = currentConcurrent;
+            document.getElementById('concurrent-max').textContent = maxConcurrent;
+            document.getElementById('concurrent-percentage').textContent = percentage.toFixed(1) + '%';
+            document.getElementById('concurrent-progress').style.width = percentage + '%';
+        }
+
+        // 更新License详细信息
+        function updateLicenseInfo(licenseInfo) {
+            const table = document.getElementById('license-info-table');
+            
+            if (!licenseInfo) {
+                table.innerHTML = '<tbody><tr><td colspan="2">无License信息</td></tr></tbody>';
+                return;
+            }
+            
+            const rows = [
+                ['许可证ID', licenseInfo.licenseId || '--'],
+                ['客户名称', licenseInfo.customerName || '--'],
+                ['许可证类型', licenseInfo.licenseType || '--'],
+                ['最大设备数', licenseInfo.maxDevices || '--'],
+                ['最大用户数', licenseInfo.maxUsers || '--'],
+                ['生效日期', licenseInfo.startDate ? new Date(licenseInfo.startDate).toLocaleDateString() : '--'],
+                ['过期日期', licenseInfo.endDate ? new Date(licenseInfo.endDate).toLocaleDateString() : '--'],
+                ['剩余天数', licenseInfo.getRemainingDays ? licenseInfo.getRemainingDays() + '天' : '--'],
+                ['功能列表', licenseInfo.features ? licenseInfo.features.join(', ') : '--']
+            ];
+            
+            table.innerHTML = '<tbody>' + rows.map(([key, value]) => 
+                `<tr><th>${key}</th><td>${value}</td></tr>`
+            ).join('') + '</tbody>';
+        }
+
+        // 更新使用率图表
+        function updateUsageChart(usageRates) {
+            const option = {
+                title: {
+                    text: 'License使用率',
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c}%'
+                },
+                series: [{
+                    name: '使用率',
+                    type: 'pie',
+                    radius: '60%',
+                    data: [
+                        {
+                            value: usageRates.device_usage_rate || 0,
+                            name: '设备使用率',
+                            itemStyle: { color: '#3498db' }
+                        },
+                        {
+                            value: usageRates.concurrent_usage_rate || 0,
+                            name: '并发使用率',
+                            itemStyle: { color: '#2ecc71' }
+                        }
+                    ],
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            usageChart.setOption(option);
+        }
+
+        // 更新健康状态和警告
+        function updateHealthStatus(healthStatus) {
+            const alertsContainer = document.getElementById('alerts-container');
+            
+            if (healthStatus.alerts && healthStatus.alerts.length > 0) {
+                const alertsHtml = healthStatus.alerts.map(alert => {
+                    const alertClass = alert.level === 'error' ? 'alert-error' : 
+                                     alert.level === 'warning' ? 'alert-warning' : 'alert-success';
+                    return `<div class="alert ${alertClass}">${alert.message}</div>`;
+                }).join('');
+                
+                alertsContainer.innerHTML = alertsHtml;
+            } else {
+                alertsContainer.innerHTML = '';
+            }
+        }
+
+        // 显示提示信息
+        function showAlert(message, type = 'info') {
+            const alertClass = `alert-${type}`;
+            const alertHtml = `<div class="alert ${alertClass}">${message}</div>`;
+            
+            const container = document.getElementById('alerts-container');
+            container.insertAdjacentHTML('beforeend', alertHtml);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                const alerts = container.querySelectorAll('.alert');
+                if (alerts.length > 0) {
+                    alerts[alerts.length - 1].remove();
+                }
+            }, 3000);
+        }
+
+        // 刷新数据
+        function refreshData() {
+            console.log('手动刷新数据');
+            loadData();
+        }
+
+        // 启动自动刷新
+        function startAutoRefresh() {
+            // 每30秒自动刷新一次
+            refreshInterval = setInterval(loadData, 30000);
+            console.log('自动刷新已启动，间隔30秒');
+        }
+
+        // 停止自动刷新
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+                console.log('自动刷新已停止');
+            }
+        }
+
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+        });
+    </script>
+</body>
+</html>

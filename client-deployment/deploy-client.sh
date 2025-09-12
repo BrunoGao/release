@@ -365,7 +365,44 @@ if check_first_deployment && [ -f "client-data.sql" ] && [ -s "client-data.sql" 
     COMPOSE_FILE="docker-compose-temp.yml"
     echo "✅ 已启用数据初始化挂载"
 else
-    echo "🔄 升级部署: 跳过数据初始化"
+    echo "🔄 升级部署: 检查数据库升级需求"
+    
+    # 数据库升级检查和执行
+    if [ -f "database-upgrade-manager.sh" ]; then
+        echo "检查数据库版本..."
+        
+        # 等待MySQL容器启动（如果需要）
+        if ! docker ps --format "{{.Names}}" | grep -q "ljwx-mysql"; then
+            echo "MySQL容器未运行，将在服务启动后检查升级"
+            SKIP_DB_UPGRADE_CHECK=true
+        else
+            # 检查数据库版本
+            CURRENT_DB_VERSION=$(./database-upgrade-manager.sh status 2>/dev/null | grep "当前数据库版本" | cut -d: -f2 | xargs || echo "unknown")
+            TARGET_DB_VERSION="${DATABASE_TARGET_VERSION:-1.1.0}"  # 从配置或默认值
+            
+            if [ "$CURRENT_DB_VERSION" != "unknown" ] && [ "$CURRENT_DB_VERSION" != "$TARGET_DB_VERSION" ]; then
+                echo "📊 检测到数据库版本差异:"
+                echo "   当前版本: $CURRENT_DB_VERSION"
+                echo "   目标版本: $TARGET_DB_VERSION"
+                
+                if confirm "是否执行数据库升级？"; then
+                    echo "🚀 开始执行数据库升级..."
+                    if ./database-upgrade-manager.sh upgrade "$CURRENT_DB_VERSION" "$TARGET_DB_VERSION"; then
+                        echo "✅ 数据库升级成功"
+                    else
+                        echo "❌ 数据库升级失败，请检查日志"
+                        exit 1
+                    fi
+                else
+                    echo "⚠️  跳过数据库升级，可能影响新功能使用"
+                fi
+            else
+                echo "✅ 数据库版本检查: 无需升级"
+            fi
+        fi
+    else
+        echo "⚠️  未找到数据库升级管理器，跳过数据库升级检查"
+    fi
 fi
 
 echo "✅ 使用配置文件: $COMPOSE_FILE + 环境变量"

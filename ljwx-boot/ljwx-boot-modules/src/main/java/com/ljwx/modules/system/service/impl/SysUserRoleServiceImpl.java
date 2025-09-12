@@ -12,8 +12,10 @@ import com.ljwx.modules.system.domain.entity.SysUserRole;
 import com.ljwx.modules.system.repository.mapper.SysUserRoleMapper;
 import com.ljwx.modules.system.service.ISysRoleService;
 import com.ljwx.modules.system.service.ISysUserRoleService;
+import com.ljwx.modules.system.service.IUserTypeSyncService;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -29,12 +31,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @ClassName com.ljwx.modules.system.service.impl.SysUserRoleServiceImpl
  * @CreateTime 2023-07-24
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SysUserRoleServiceImpl extends ServiceImpl<SysUserRoleMapper, SysUserRole> implements ISysUserRoleService {
 
     @NonNull
     private ISysRoleService sysRoleService;
+    
+    @NonNull
+    private IUserTypeSyncService userTypeSyncService;
 
     @Override
     public IPage<SysUserRole> listSysUserRolePage(PageQuery pageQuery, SysUserRoleBO sysUserRoleBO) {
@@ -80,6 +86,17 @@ public class SysUserRoleServiceImpl extends ServiceImpl<SysUserRoleMapper, SysUs
                     }
                 }
         );
+        
+        // 同步更新用户类型信息（角色变更影响用户类型和管理级别）
+        if (saveResult.get()) {
+            try {
+                userTypeSyncService.syncUserTypeFromRoles(userId, roleIds);
+                log.info("✅ 角色更新后同步用户类型成功: userId={}, roleIds={}", userId, roleIds);
+            } catch (Exception e) {
+                log.error("❌ 角色更新后同步用户类型失败: userId={}, roleIds={}, error={}", userId, roleIds, e.getMessage(), e);
+            }
+        }
+        
         return saveResult.get();
     }
 }

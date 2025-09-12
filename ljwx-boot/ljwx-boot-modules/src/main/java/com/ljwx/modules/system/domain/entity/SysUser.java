@@ -122,4 +122,18 @@ public class SysUser extends BaseEntity {
      * 修改密码时间
      */
     private LocalDateTime updatePasswordTime;
+
+    /**
+     * 用户类型（冗余字段，优化管理员查询性能）
+     * 0=普通用户, 1=部门管理员, 2=租户管理员, 3=超级管理员
+     */
+    @TableField("user_type")
+    private Integer userType;
+
+    /**
+     * 管理级别（冗余字段，优化权限判断性能）
+     * 0=非管理员, 1=部门级, 2=租户级, 3=系统级
+     */
+    @TableField("admin_level")
+    private Integer adminLevel;
 }

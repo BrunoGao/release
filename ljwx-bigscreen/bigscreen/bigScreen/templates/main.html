@@ -3113,7 +3113,7 @@
         
         // 专用API方法
         health: {
-          getScore: (params = {}) => api.get('/api/health/scores/comprehensive', params),
+          getScore: (params = {}) => api.get('/api/health/score/comprehensive', params),
           getBaseline: (orgId, startDate, endDate) => api.get('/api/health/charts/baseline', {orgId, startDate, endDate}),
           getRecommendations: (analysisType = 'comprehensive') => api.get('/api/health/recommendations/list', {analysisType}),
           generateBaseline: (targetDate) => api.post('/api/health/baseline/generate', {target_date: targetDate})
@@ -8143,9 +8143,9 @@ div.innerHTML=`
     let healthScores = {};
     
     // 使用customerId获取所有用户的健康评分
-    if (currentCustomerId) {
+    if (GLOBAL_CUSTOMER_ID) {
         try {
-            const scoreResponse = await apiCall(`/api/health/score/comprehensive?customerId=${currentCustomerId}&includeDeviceBreakdown=true`);
+            const scoreResponse = await apiCall(`/api/health/score/comprehensive?customerId=${GLOBAL_CUSTOMER_ID}&includeDeviceBreakdown=true`);
             
             if (scoreResponse.ok) {
                 const scoreData = await scoreResponse.json();
@@ -9861,7 +9861,7 @@ function initOverviewChart() {
       if (loadingEl) loadingEl.style.display = 'flex';
       if (itemsEl) itemsEl.style.display = 'none';
       
-      apiCall(`/api/health/score/comprehensive?customerId=${currentCustomerId}&days=7`)
+      apiCall(`/api/health/score/comprehensive?customerId=${GLOBAL_CUSTOMER_ID}&days=7`)
       .then(response => response.json())
       .then(result => {
         if (result.success && result.data && result.data.predictions) {
@@ -9912,7 +9912,7 @@ function initOverviewChart() {
       const scoreEl = document.getElementById('compactHealthScore');
       const statusEl = document.getElementById('compactHealthStatus');
       
-      apiCall(`/api/health/score/comprehensive?customerId=${currentCustomerId}&startDate=${formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000))}&endDate=${formatDate(new Date())}`)
+      apiCall(`/api/health/score/comprehensive?customerId=${GLOBAL_CUSTOMER_ID}&startDate=${formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000))}&endDate=${formatDate(new Date())}`)
       .then(response => response.json())
       .then(result => {
         if (result.success && result.data && result.data.summary) {

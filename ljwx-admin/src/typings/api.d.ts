@@ -380,4 +380,333 @@ declare namespace Api {
       };
     };
   }
+
+  /**
+   * namespace System
+   *
+   * backend api module: "system"
+   */
+  namespace System {
+    /** 动态菜单扫描配置 */
+    interface DynamicMenuScanDTO {
+      /** 前端项目路径 */
+      frontendPath: string;
+      /** 扫描模式：auto(自动), manual(手动), incremental(增量) */
+      scanMode?: string;
+      /** 包含的路径模式列表 */
+      includePatterns?: string[];
+      /** 排除的路径模式列表 */
+      excludePatterns?: string[];
+      /** 是否扫描子目录 */
+      recursive?: boolean;
+      /** 是否自动创建菜单 */
+      autoCreate?: boolean;
+      /** 是否覆盖已存在的菜单 */
+      overwriteExisting?: boolean;
+      /** 默认父菜单ID */
+      defaultParentId?: number;
+      /** 租户ID */
+      customerId?: number;
+      /** 菜单名称生成规则：filename(文件名), path(路径), comment(注释) */
+      nameGenerationRule?: string;
+      /** 图标生成规则：auto(自动), default(默认), none(无) */
+      iconGenerationRule?: string;
+      /** 排序起始值 */
+      sortStartValue?: number;
+      /** 排序增量 */
+      sortIncrement?: number;
+      /** 最大扫描文件数 */
+      maxFiles?: number;
+      /** 是否启用缓存 */
+      enableCache?: boolean;
+      /** 扫描标签（用于标记本次扫描） */
+      scanTag?: string;
+    }
+
+    /** 动态菜单配置DTO */
+    interface DynamicMenuConfigDTO {
+      /** 菜单ID（新增时为空） */
+      id?: number;
+      /** 父菜单ID */
+      parentId?: number;
+      /** 菜单类型：1-目录，2-菜单，3-按钮 */
+      type: string;
+      /** 菜单名称 */
+      name: string;
+      /** 菜单显示名称 */
+      title?: string;
+      /** 国际化键值 */
+      i18nKey?: string;
+      /** 路由名称 */
+      routeName?: string;
+      /** 路由路径 */
+      routePath?: string;
+      /** 组件路径 */
+      component?: string;
+      /** 菜单图标 */
+      icon?: string;
+      /** 图标类型：1-Iconify图标，2-本地图标 */
+      iconType?: string;
+      /** 菜单状态：1-启用，0-禁用 */
+      status?: string;
+      /** 是否隐藏菜单：Y-隐藏，N-显示 */
+      hide?: string;
+      /** 外链地址 */
+      href?: string;
+      /** iframe地址 */
+      iframeUrl?: string;
+      /** 排序值 */
+      sort?: number;
+      /** 菜单层级 */
+      level?: number;
+      /** 权限标识 */
+      permission?: string;
+      /** 租户ID */
+      customerId?: number;
+      /** 是否为系统菜单 */
+      isSystem?: boolean;
+      /** 是否可删除 */
+      deletable?: boolean;
+      /** 是否可编辑 */
+      editable?: boolean;
+      /** 菜单描述 */
+      description?: string;
+      /** 菜单标签 */
+      tags?: string[];
+      /** 扩展属性 */
+      extra?: Record<string, any>;
+      /** 子菜单 */
+      children?: DynamicMenuConfigDTO[];
+      /** 路由meta配置 */
+      meta?: Record<string, any>;
+      /** 是否需要认证 */
+      requireAuth?: boolean;
+      /** 是否缓存 */
+      keepAlive?: boolean;
+      /** 菜单布局 */
+      layout?: string;
+      /** 菜单主题 */
+      theme?: string;
+      /** 是否全屏显示 */
+      fullscreen?: boolean;
+      /** 页面加载动画 */
+      transition?: string;
+      /** 面包屑配置 */
+      breadcrumb?: Record<string, any>;
+      /** 是否固定在标签栏 */
+      affix?: boolean;
+      /** 标签页标题 */
+      tabTitle?: string;
+      /** 菜单激活规则 */
+      activeMenu?: string;
+      /** 创建来源：manual-手动，scan-扫描，import-导入 */
+      source?: string;
+      /** 源文件路径（扫描创建时记录） */
+      sourceFile?: string;
+      /** 最后扫描时间 */
+      lastScanTime?: string;
+      /** 菜单版本（用于同步） */
+      version?: string;
+    }
+
+    /** 菜单批量更新DTO */
+    interface MenuBatchUpdateDTO {
+      /** 要更新的菜单ID列表 */
+      menuIds: number[];
+      /** 更新操作类型：update-更新属性，enable-启用，disable-禁用，delete-删除，move-移动 */
+      operation?: string;
+      /** 更新的属性字段 */
+      updateFields?: Record<string, any>;
+      /** 目标父菜单ID（移动操作时使用） */
+      targetParentId?: number;
+      /** 插入位置：before-之前，after-之后，first-最前，last-最后 */
+      position?: string;
+      /** 参考菜单ID（插入位置为before/after时使用） */
+      referenceMenuId?: number;
+      /** 是否递归操作子菜单 */
+      recursive?: boolean;
+      /** 操作原因/备注 */
+      reason?: string;
+      /** 租户ID */
+      customerId?: number;
+      /** 是否强制执行（忽略警告） */
+      force?: boolean;
+      /** 预览模式（不实际执行） */
+      preview?: boolean;
+      /** 操作标签（用于审计） */
+      operationTag?: string;
+    }
+
+    /** 动态菜单VO */
+    interface DynamicMenuVO {
+      /** 菜单ID */
+      id: number;
+      /** 父菜单ID */
+      parentId?: number;
+      /** 菜单类型：1-目录，2-菜单，3-按钮 */
+      type: string;
+      /** 菜单名称 */
+      name: string;
+      /** 菜单显示名称 */
+      title?: string;
+      /** 国际化键值 */
+      i18nKey?: string;
+      /** 路由名称 */
+      routeName?: string;
+      /** 路由路径 */
+      routePath?: string;
+      /** 组件路径 */
+      component?: string;
+      /** 菜单图标 */
+      icon?: string;
+      /** 图标类型：1-Iconify图标，2-本地图标 */
+      iconType?: string;
+      /** 菜单状态：1-启用，0-禁用 */
+      status: string;
+      /** 是否隐藏菜单：Y-隐藏，N-显示 */
+      hide?: string;
+      /** 外链地址 */
+      href?: string;
+      /** iframe地址 */
+      iframeUrl?: string;
+      /** 排序值 */
+      sort: number;
+      /** 菜单层级 */
+      level: number;
+      /** 权限标识 */
+      permission?: string;
+      /** 租户ID */
+      customerId?: number;
+      /** 是否为系统菜单 */
+      isSystem: boolean;
+      /** 是否可删除 */
+      deletable: boolean;
+      /** 是否可编辑 */
+      editable: boolean;
+      /** 菜单描述 */
+      description?: string;
+      /** 菜单标签 */
+      tags?: string[];
+      /** 扩展属性 */
+      extra?: Record<string, any>;
+      /** 子菜单 */
+      children?: DynamicMenuVO[];
+      /** 路由meta配置 */
+      meta?: Record<string, any>;
+      /** 是否需要认证 */
+      requireAuth?: boolean;
+      /** 是否缓存 */
+      keepAlive?: boolean;
+      /** 菜单布局 */
+      layout?: string;
+      /** 菜单主题 */
+      theme?: string;
+      /** 是否全屏显示 */
+      fullscreen?: boolean;
+      /** 页面加载动画 */
+      transition?: string;
+      /** 面包屑配置 */
+      breadcrumb?: Record<string, any>;
+      /** 是否固定在标签栏 */
+      affix?: boolean;
+      /** 标签页标题 */
+      tabTitle?: string;
+      /** 菜单激活规则 */
+      activeMenu?: string;
+      /** 创建来源：manual-手动，scan-扫描，import-导入 */
+      source?: string;
+      /** 源文件路径（扫描创建时记录） */
+      sourceFile?: string;
+      /** 最后扫描时间 */
+      lastScanTime?: string;
+      /** 菜单版本（用于同步） */
+      version?: string;
+      /** 创建时间 */
+      createTime?: string;
+      /** 更新时间 */
+      updateTime?: string;
+      /** 使用统计 */
+      usageStats?: Record<string, any>;
+    }
+
+    /** 菜单扫描结果VO */
+    interface MenuScanResultVO {
+      /** 扫描时间 */
+      scanTime: string;
+      /** 发现的文件列表 */
+      foundFiles: string[];
+      /** 变更的文件列表 */
+      changedFiles: string[];
+      /** 新发现的路由 */
+      newRoutes: RouteInfo[];
+      /** 扫描统计 */
+      scanStats?: ScanStats;
+      /** 扫描标签 */
+      scanTag?: string;
+      /** 扫描消息 */
+      messages?: string[];
+      /** 扫描警告 */
+      warnings?: string[];
+      /** 扫描错误 */
+      errors?: string[];
+    }
+
+    /** 路由信息 */
+    interface RouteInfo {
+      /** 路由路径 */
+      path: string;
+      /** 路由名称 */
+      name?: string;
+      /** 页面标题 */
+      title?: string;
+      /** 组件路径 */
+      component?: string;
+      /** 文件路径 */
+      filePath: string;
+      /** 文件修改时间 */
+      lastModified?: string;
+      /** 文件大小 */
+      fileSize?: number;
+      /** 路由类型：page-页面，component-组件 */
+      routeType?: string;
+      /** 是否为新路由 */
+      isNew?: boolean;
+      /** 菜单层级 */
+      level?: number;
+      /** 建议的父菜单 */
+      suggestedParent?: string;
+      /** 建议的图标 */
+      suggestedIcon?: string;
+      /** 建议的排序值 */
+      suggestedSort?: number;
+      /** 解析的元数据 */
+      metadata?: any;
+    }
+
+    /** 扫描统计信息 */
+    interface ScanStats {
+      /** 总文件数 */
+      totalFiles: number;
+      /** Vue文件数 */
+      vueFiles?: number;
+      /** TypeScript文件数 */
+      tsFiles?: number;
+      /** JavaScript文件数 */
+      jsFiles?: number;
+      /** 变更文件数 */
+      changedFiles: number;
+      /** 新路由数 */
+      newRoutes: number;
+      /** 已存在路由数 */
+      existingRoutes?: number;
+      /** 扫描耗时（毫秒） */
+      scanDuration?: number;
+      /** 处理的目录数 */
+      processedDirectories?: number;
+      /** 跳过的文件数 */
+      skippedFiles?: number;
+      /** 错误文件数 */
+      errorFiles?: number;
+    }
+  }
 }

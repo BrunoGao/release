@@ -821,6 +821,35 @@ export const generatedRoutes: GeneratedRoute[] = [
     ]
   },
   {
+    name: 'system',
+    path: '/system',
+    component: 'layout.base',
+    meta: {
+      title: 'system',
+      i18nKey: 'route.system'
+    },
+    children: [
+      {
+        name: 'system_dynamic-menu',
+        path: '/system/dynamic-menu',
+        component: 'view.system_dynamic-menu',
+        meta: {
+          title: 'system_dynamic-menu',
+          i18nKey: 'route.system_dynamic-menu'
+        }
+      },
+      {
+        name: 'system_license',
+        path: '/system/license',
+        component: 'view.system_license',
+        meta: {
+          title: 'system_license',
+          i18nKey: 'route.system_license'
+        }
+      }
+    ]
+  },
+  {
     name: 'task',
     path: '/task',
     component: 'layout.base$view.task',
@@ -828,6 +857,26 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'task',
       i18nKey: 'route.task'
     }
+  },
+  {
+    name: 'tenant',
+    path: '/tenant',
+    component: 'layout.base',
+    meta: {
+      title: 'tenant',
+      i18nKey: 'route.tenant'
+    },
+    children: [
+      {
+        name: 'tenant_license',
+        path: '/tenant/license',
+        component: 'view.tenant_license',
+        meta: {
+          title: 'tenant_license',
+          i18nKey: 'route.tenant_license'
+        }
+      }
+    ]
   },
   {
     name: 'tools',

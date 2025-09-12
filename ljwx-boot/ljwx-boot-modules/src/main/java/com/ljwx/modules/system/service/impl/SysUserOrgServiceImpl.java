@@ -31,11 +31,17 @@
  import com.ljwx.infrastructure.page.PageQuery;
  import com.ljwx.modules.system.domain.bo.SysUserOrgBO;
  import com.ljwx.modules.system.domain.entity.SysUserOrg;
+ import com.ljwx.modules.system.domain.entity.SysUser;
+ import com.ljwx.modules.system.domain.entity.SysOrgUnits;
  import com.ljwx.modules.system.repository.mapper.SysUserOrgMapper;
  import com.ljwx.modules.system.service.ISysUserOrgService;
+ import com.ljwx.modules.system.service.ISysOrgUnitsService;
+import com.ljwx.modules.system.service.IUserTypeSyncService;
  import lombok.extern.slf4j.Slf4j;
+ import org.springframework.beans.factory.annotation.Autowired;
  import org.springframework.stereotype.Service;
  import org.springframework.util.CollectionUtils;
+ import org.springframework.jdbc.core.JdbcTemplate;
  
  import java.util.List;
  import java.util.Set;
@@ -54,6 +60,15 @@
  @Slf4j
  @Service
  public class SysUserOrgServiceImpl extends ServiceImpl<SysUserOrgMapper, SysUserOrg> implements ISysUserOrgService {
+
+     @Autowired
+     private ISysOrgUnitsService sysOrgUnitsService;
+     
+     @Autowired
+     private JdbcTemplate jdbcTemplate;
+     
+     @Autowired
+     private IUserTypeSyncService userTypeSyncService;
  
      @Override
      public IPage<SysUserOrg> listSysUserOrgPage(PageQuery pageQuery, SysUserOrgBO sysUserOrgBO) {
@@ -121,7 +136,40 @@
          // 更新主管标记：先清除再设置
          baseMapper.clearPrincipal(userId);//清除所有主管标记
          if(!principalSet.isEmpty())baseMapper.setPrincipal(userId,principalSet);//设置新主管标记
-         return saveResult.get();
+         
+         // 同步更新 sys_user 表的 org_id、org_name 和 customer_id 字段（性能优化）
+         if (!orgIds.isEmpty()) {
+             try {
+                 Long primaryOrgId = orgIds.get(0); // 取第一个作为主要组织
+                 SysOrgUnits primaryOrg = sysOrgUnitsService.getById(primaryOrgId);
+                 if (primaryOrg != null) {
+                     String updateSql = "UPDATE sys_user SET org_id = ?, org_name = ?, customer_id = ?, update_time = NOW() WHERE id = ?";
+                     int updatedRows = jdbcTemplate.update(updateSql, primaryOrgId, primaryOrg.getName(), primaryOrg.getCustomerId(), userId);
+                     
+                     if (updatedRows > 0) {
+                         log.info("✅ 已同步更新用户组织信息: userId={}, orgId={}, orgName={}, customerId={}", 
+                                 userId, primaryOrgId, primaryOrg.getName(), primaryOrg.getCustomerId());
+                     } else {
+                         log.warn("⚠️ 同步更新用户组织信息失败: userId={}, orgId={}", userId, primaryOrgId);
+                     }
+                 }
+             } catch (Exception e) {
+                 log.error("❌ 同步更新用户组织信息异常: userId={}, error={}", userId, e.getMessage(), e);
+             }
+         }
+         
+         
+        // 同步更新用户类型信息（组织关系变更可能影响管理级别）
+        if (saveResult.get()) {
+            try {
+                userTypeSyncService.recalculateUserAdminLevel(userId);
+                log.info("✅ 组织关系更新后重新计算用户管理级别成功: userId={}", userId);
+            } catch (Exception e) {
+                log.error("❌ 组织关系更新后重新计算用户管理级别失败: userId={}, error={}", userId, e.getMessage(), e);
+            }
+        }
+        
+        return saveResult.get();
      }
  
  }

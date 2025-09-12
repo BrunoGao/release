@@ -25,6 +25,7 @@ import com.ljwx.modules.system.domain.dto.org.units.SysOrgUnitsAddDTO;
 import com.ljwx.modules.system.domain.dto.org.units.SysOrgUnitsDeleteDTO;
 import com.ljwx.modules.system.domain.dto.org.units.SysOrgUnitsSearchDTO;
 import com.ljwx.modules.system.domain.dto.org.units.SysOrgUnitsUpdateDTO;
+import com.ljwx.modules.system.domain.dto.org.units.DepartmentDeletePreCheckDTO;
 import com.ljwx.modules.system.domain.vo.SysOrgUnitsTreeVO;
 import com.ljwx.modules.system.domain.vo.SysOrgUnitsVO;
 
@@ -100,5 +101,25 @@ public interface ISysOrgUnitsFacade {
      * @CreateTime 2024-07-11 - 10:31:23
      */
     List<SysOrgUnitsTreeVO> queryAllOrgUnitsListConvertToTree(Long id);
+
+    /**
+     * 删除部门前置检查 - 分析影响的用户和设备
+     *
+     * @param sysOrgUnitsDeleteDTO 删除 DTO 对象
+     * @return {@link DepartmentDeletePreCheckDTO} 前置检查结果
+     * @author bruno.gao
+     * @CreateTime 2025-09-12 - 16:35:30
+     */
+    DepartmentDeletePreCheckDTO deletePreCheck(SysOrgUnitsDeleteDTO sysOrgUnitsDeleteDTO);
+
+    /**
+     * 级联删除部门 - 包含用户和设备释放
+     *
+     * @param sysOrgUnitsDeleteDTO 删除 DTO 对象
+     * @return {@link Boolean} 结果
+     * @author bruno.gao
+     * @CreateTime 2025-09-12 - 16:35:30
+     */
+    boolean cascadeDelete(SysOrgUnitsDeleteDTO sysOrgUnitsDeleteDTO);
 
 }

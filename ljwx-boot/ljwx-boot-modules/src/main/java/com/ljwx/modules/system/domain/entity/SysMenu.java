@@ -117,4 +117,9 @@ public class SysMenu extends BaseEntity {
      * 是否启用(0:禁用,1:启用)
      */
     private String status;
+
+    /**
+     * 租户ID(0:全局菜单)
+     */
+    private Long customerId;
 }

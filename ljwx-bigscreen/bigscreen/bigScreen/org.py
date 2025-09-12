@@ -4,7 +4,7 @@ from werkzeug.exceptions import NotFound
 from .models import db, OrgInfo, UserOrg, UserInfo, Position, UserPosition, DeviceInfo
 # tenant_context removed - customerId now passed as parameter
 from collections import defaultdict
-from sqlalchemy import text
+from sqlalchemy import text, and_, or_
 
 # 导入组织架构优化查询服务
 from .org_optimized import get_org_service
@@ -157,7 +157,6 @@ def fetch_departments_by_orgId(org_id, customer_id=None):
 def fetch_users_by_orgId(org_id, customer_id=None):
     """获取组织及其所有子部门下的用户信息，支持多租户隔离 - 增强回退版本"""
     try:
-        from .admin_helper import admin_helper  # 导入admin判断工具
         
         # 🔧 修复：增加多重查询策略
         # 方法1：使用统一服务查询部门
@@ -192,7 +191,6 @@ def fetch_users_by_orgId(org_id, customer_id=None):
 def _fetch_users_from_departments(org_response, org_id, customer_id):
     """基于部门树结果查询用户"""
     try:
-        from .admin_helper import admin_helper
         
         # 获取组织及其所有子部门
         #logger.info(f"fetch_users_by_orgId:org_response: {org_response}")
@@ -213,7 +211,7 @@ def _fetch_users_from_departments(org_response, org_id, customer_id):
 
         #print(f"Found departments: {department_ids}")
 
-        # 查询所有部门下的用户
+        # 查询所有部门下的用户，直接在SQL中过滤掉管理员
         users = db.session.query(
             UserInfo, UserOrg, OrgInfo
         ).join(
@@ -223,7 +221,8 @@ def _fetch_users_from_departments(org_response, org_id, customer_id):
         ).filter(
             UserOrg.org_id.in_(department_ids),
             UserInfo.is_deleted.is_(False),
-            UserInfo.status == '1'
+            UserInfo.status == '1',
+            db.or_(UserInfo.user_type.is_(None), UserInfo.user_type == 0)  # 只查询非管理员用户
         ).all()
 
         # 使用字典来存储唯一的用户信息，以用户ID为键
@@ -260,24 +259,20 @@ def _fetch_users_from_departments(org_response, org_id, customer_id):
 
         # 将字典转换为列表
         user_list = list(user_dict.values())
-        print(f"Found {len(user_list)} unique users in total for org {org_id} and its subdepartments")
+        print(f"Found {len(user_list)} employee users (admin users already filtered in SQL) for org {org_id} and its subdepartments")
         
-        # 过滤掉管理员用户，只返回员工
-        filtered_user_list = admin_helper.filter_non_admin_users(user_list, 'id')
-        print(f"After filtering admin users: {len(filtered_user_list)} employee users remaining")
-        
-        return filtered_user_list
+        return user_list
         
     except Exception as e:
         logger.error(f"Error in _fetch_users_from_departments: {str(e)}")
         return []
 
+
 def fetch_users_by_orgId_direct(org_id, customer_id=None):
     """直接数据库查询用户（绕过服务层）"""
     try:
-        from .admin_helper import admin_helper
         
-        # 直接查询，不依赖组织服务
+        # 直接查询，不依赖组织服务，在SQL中直接过滤掉管理员
         users = db.session.query(
             UserInfo, UserOrg, OrgInfo
         ).join(
@@ -287,7 +282,8 @@ def fetch_users_by_orgId_direct(org_id, customer_id=None):
         ).filter(
             UserOrg.org_id == org_id,
             UserInfo.is_deleted.is_(False),
-            UserInfo.status == '1'
+            UserInfo.status == '1',
+            db.or_(UserInfo.user_type.is_(None), UserInfo.user_type == 0)  # 只查询非管理员用户
         )
         
         if customer_id is not None:
@@ -325,11 +321,9 @@ def fetch_users_by_orgId_direct(org_id, customer_id=None):
                 'position': position_name
             })
         
-        # 过滤掉管理员用户，只返回员工
-        filtered_user_list = admin_helper.filter_non_admin_users(user_list, 'id')
-        logger.info(f"直接数据库查询: 组织{org_id}找到{len(filtered_user_list)}个员工用户")
+        logger.info(f"直接数据库查询: 组织{org_id}找到{len(user_list)}个员工用户（管理员已在SQL中过滤）")
         
-        return filtered_user_list
+        return user_list
         
     except Exception as e:
         logger.error(f"直接数据库查询用户失败: {str(e)}")
@@ -338,7 +332,6 @@ def fetch_users_by_orgId_direct(org_id, customer_id=None):
 def fetch_users_with_descendants(org_id, customer_id=None):
     """查询组织及其所有子组织的用户（扩展查询）"""
     try:
-        from .admin_helper import admin_helper
         
         # 查询所有可能的子组织
         descendant_orgs = db.session.query(OrgInfo.id).filter(
@@ -366,7 +359,8 @@ def fetch_users_with_descendants(org_id, customer_id=None):
         ).filter(
             UserOrg.org_id.in_(org_ids),
             UserInfo.is_deleted.is_(False),
-            UserInfo.status == '1'
+            UserInfo.status == '1',
+            db.or_(UserInfo.user_type.is_(None), UserInfo.user_type == 0)  # 只查询非管理员用户
         )
         
         if customer_id is not None:
@@ -409,11 +403,9 @@ def fetch_users_with_descendants(org_id, customer_id=None):
         # 将字典转换为列表
         user_list = list(user_dict.values())
         
-        # 过滤掉管理员用户，只返回员工
-        filtered_user_list = admin_helper.filter_non_admin_users(user_list, 'id')
-        logger.info(f"扩展查询: 组织{org_id}及子组织找到{len(filtered_user_list)}个员工用户")
+        logger.info(f"扩展查询: 组织{org_id}及子组织找到{len(user_list)}个员工用户（管理员已在SQL中过滤）")
         
-        return filtered_user_list
+        return user_list
         
     except Exception as e:
         logger.error(f"扩展查询用户失败: {str(e)}")
@@ -665,6 +657,227 @@ def get_top_level_org_id(org_id):
     """根据org_id获取顶级组织(租户)ID - 通过ancestors字段解析"""
     # 不需要获取租户ID，直接返回org_id
     return org_id
+
+
+# ==================== 健康分析系统所需的组织架构函数 ====================
+
+def findTopLevelOrganizations():
+    """
+    获取所有顶级组织（租户）列表
+    利用 sys_org_closure 表来查找没有上级的组织
+    """
+    try:
+        logger.info("开始查询顶级组织（租户）")
+        
+        # 方法1: 直接查找 parent_id 为 0 或 None 的组织
+        top_level_orgs = db.session.query(OrgInfo).filter(
+            and_(
+                or_(OrgInfo.parent_id == 0, OrgInfo.parent_id.is_(None)),
+                OrgInfo.is_deleted == 0
+            )
+        ).all()
+        
+        # 如果没有找到，尝试查找 sys_org_closure 表
+        if not top_level_orgs:
+            # 使用原生SQL查询 sys_org_closure 表
+            sql = text("""
+                SELECT DISTINCT o.id, o.name, o.code, o.customer_id, o.create_time
+                FROM sys_org_units o
+                WHERE o.id NOT IN (
+                    SELECT DISTINCT descendant_id 
+                    FROM sys_org_closure 
+                    WHERE ancestor_id != descendant_id
+                )
+                AND o.is_deleted = 0
+                ORDER BY o.id
+            """)
+            
+            result = db.session.execute(sql)
+            top_level_orgs = []
+            for row in result:
+                top_level_orgs.append({
+                    'id': row.id,
+                    'name': row.name,
+                    'code': row.code,
+                    'customer_id': row.customer_id,
+                    'create_time': row.create_time.strftime('%Y-%m-%d %H:%M:%S') if row.create_time else None
+                })
+        else:
+            # 转换为字典格式
+            top_level_orgs = [
+                {
+                    'id': org.id,
+                    'name': org.name,
+                    'code': org.code,
+                    'customer_id': getattr(org, 'customer_id', org.id),
+                    'create_time': org.create_time.strftime('%Y-%m-%d %H:%M:%S') if org.create_time else None
+                }
+                for org in top_level_orgs
+            ]
+        
+        logger.info(f"找到 {len(top_level_orgs)} 个顶级组织")
+        return top_level_orgs
+        
+    except Exception as e:
+        logger.error(f"查询顶级组织失败: {str(e)}")
+        # 回退方案：直接查询所有 parent_id 为 0 的组织
+        try:
+            fallback_orgs = db.session.query(OrgInfo).filter(
+                OrgInfo.parent_id == 0,
+                OrgInfo.is_deleted == 0
+            ).all()
+            
+            return [
+                {
+                    'id': org.id,
+                    'name': org.name,
+                    'code': org.code,
+                    'customer_id': getattr(org, 'customer_id', org.id),
+                    'create_time': org.create_time.strftime('%Y-%m-%d %H:%M:%S') if org.create_time else None
+                }
+                for org in fallback_orgs
+            ]
+        except Exception as fallback_e:
+            logger.error(f"回退查询也失败: {str(fallback_e)}")
+            return []
+
+
+def findAllDescendants(customer_id):
+    """
+    获取客户下的所有部门 org_id 列表
+    利用 sys_org_closure 表来查找所有子孙组织
+    
+    Args:
+        customer_id: 客户（顶级组织）的ID
+    
+    Returns:
+        list: 包含所有部门 org_id 的列表
+    """
+    try:
+        logger.info(f"开始查询客户 {customer_id} 下的所有部门")
+        
+        # 方法1: 使用 sys_org_closure 表查询
+        try:
+            sql = text("""
+                SELECT DISTINCT descendant_id as org_id
+                FROM sys_org_closure 
+                WHERE ancestor_id = :customer_id
+                AND ancestor_id != descendant_id
+                UNION
+                SELECT :customer_id as org_id
+                ORDER BY org_id
+            """)
+            
+            result = db.session.execute(sql, {'customer_id': customer_id})
+            org_ids = [row.org_id for row in result]
+            
+            if org_ids:
+                logger.info(f"通过 sys_org_closure 表找到 {len(org_ids)} 个部门")
+                return org_ids
+                
+        except Exception as closure_e:
+            logger.warning(f"sys_org_closure 表查询失败: {str(closure_e)}")
+        
+        # 方法2: 回退到递归查询 sys_org_units 表
+        def get_descendants_recursive(parent_id, visited=None):
+            if visited is None:
+                visited = set()
+            
+            if parent_id in visited:
+                return []
+            
+            visited.add(parent_id)
+            descendants = [parent_id]
+            
+            # 查找直接子组织
+            children = db.session.query(OrgInfo.id).filter(
+                OrgInfo.parent_id == parent_id,
+                OrgInfo.is_deleted == 0
+            ).all()
+            
+            for child in children:
+                child_id = child.id
+                descendants.extend(get_descendants_recursive(child_id, visited))
+            
+            return descendants
+        
+        org_ids = get_descendants_recursive(customer_id)
+        logger.info(f"通过递归查询找到 {len(org_ids)} 个部门")
+        return org_ids
+        
+    except Exception as e:
+        logger.error(f"查询客户 {customer_id} 的部门失败: {str(e)}")
+        # 最小回退：至少返回客户自己的ID
+        return [customer_id]
+
+
+def getUserIdsByOrgId(org_id):
+    """
+    根据 org_id 从 sys_user 表查询该组织下的所有 user_id
+    
+    Args:
+        org_id: 组织ID
+    
+    Returns:
+        list: 用户ID列表
+    """
+    try:
+        logger.info(f"开始查询组织 {org_id} 下的用户")
+        
+        # 查询该组织下的所有用户
+        users = db.session.query(UserInfo.id).join(
+            UserOrg, UserInfo.id == UserOrg.user_id
+        ).filter(
+            UserOrg.org_id == org_id,
+            UserInfo.is_deleted == 0,
+            UserInfo.status == '1'  # 只查询激活状态的用户
+        ).all()
+        
+        user_ids = [user.id for user in users]
+        logger.info(f"组织 {org_id} 下找到 {len(user_ids)} 个用户")
+        
+        return user_ids
+        
+    except Exception as e:
+        logger.error(f"查询组织 {org_id} 的用户失败: {str(e)}")
+        return []
+
+
+def getAllUserIdsByCustomer(customer_id):
+    """
+    获取客户下所有部门的所有用户ID
+    
+    Args:
+        customer_id: 客户ID
+    
+    Returns:
+        dict: {org_id: [user_ids]} 的映射字典
+    """
+    try:
+        logger.info(f"开始获取客户 {customer_id} 下所有用户")
+        
+        # 1. 获取客户下所有部门
+        org_ids = findAllDescendants(customer_id)
+        
+        # 2. 获取每个部门下的用户
+        customer_users = {}
+        total_users = 0
+        
+        for org_id in org_ids:
+            user_ids = getUserIdsByOrgId(org_id)
+            if user_ids:
+                customer_users[org_id] = user_ids
+                total_users += len(user_ids)
+        
+        logger.info(f"客户 {customer_id} 下共有 {len(org_ids)} 个部门，{total_users} 个用户")
+        
+        return customer_users
+        
+    except Exception as e:
+        logger.error(f"获取客户 {customer_id} 用户失败: {str(e)}")
+        return {}
+
+
 
 
 

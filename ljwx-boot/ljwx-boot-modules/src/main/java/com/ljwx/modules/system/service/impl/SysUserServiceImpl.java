@@ -30,6 +30,9 @@ import com.ljwx.modules.system.domain.bo.SysUserResponsibilitiesBO;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.system.domain.entity.SysRole;
 import com.ljwx.modules.system.domain.entity.SysUser;
+import com.ljwx.modules.system.domain.enums.UserType;
+import com.ljwx.modules.system.domain.enums.AdminLevel;
+import com.ljwx.modules.system.service.IUserTypeSyncService;
 import com.ljwx.modules.system.domain.entity.SysUserOrg;
 import com.ljwx.modules.system.domain.entity.SysUserRole;
 import com.ljwx.modules.system.domain.entity.SysPosition;
@@ -106,6 +109,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     
     @Autowired
     private ITDeviceInfoService deviceInfoService;
+    
+    @Autowired
+    private IUserTypeSyncService userTypeSyncService;
 
     @Override
     public IPage<SysUser> listSysUserPage(PageQuery pageQuery, SysUserBO sysUserBO) {
@@ -267,6 +273,24 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 boolean orgsSaved = sysUserOrgService.saveBatch(userOrgs);
                 if (!orgsSaved) {
                     throw new RuntimeException("保存新部门关系失败");
+                }
+                
+                // 同步更新 sys_user 表的 org_id、org_name 和 customer_id 字段（性能优化）
+                Long primaryOrgId = sysUserBO.getOrgIds().get(0); // 取第一个作为主要组织
+                SysOrgUnits primaryOrg = sysOrgUnitsService.getById(primaryOrgId);
+                if (primaryOrg != null) {
+                    SysUser userToUpdate = new SysUser();
+                    userToUpdate.setId(sysUserBO.getId());
+                    userToUpdate.setOrgId(primaryOrgId);
+                    userToUpdate.setOrgName(primaryOrg.getName());
+                    userToUpdate.setCustomerId(primaryOrg.getCustomerId()); // 同时更新租户ID
+                    boolean orgInfoUpdated = super.updateById(userToUpdate);
+                    if (!orgInfoUpdated) {
+                        log.warn("⚠️ 同步更新用户组织信息失败: userId={}, orgId={}", sysUserBO.getId(), primaryOrgId);
+                    } else {
+                        log.info("✅ 已同步更新用户组织信息: userId={}, orgId={}, orgName={}, customerId={}", 
+                                sysUserBO.getId(), primaryOrgId, primaryOrg.getName(), primaryOrg.getCustomerId());
+                    }
                 }
             }
 
@@ -531,6 +555,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         boolean role = sysUserRoleService.updateUserRole(userId, responsibilitiesBO.getRoleIds());
         boolean position = sysUserPositionService.updateUserPosition(userId, responsibilitiesBO.getPositionIds());
         boolean userOrg = sysUserOrgService.updateUserOrg(userId, responsibilitiesBO.getOrgUnitsIds(), responsibilitiesBO.getOrgUnitsPrincipalIds());
+        
+        // 同步更新用户类型信息
+        if (role || userOrg) {
+            try {
+                userTypeSyncService.syncUserTypeFromRoles(userId, responsibilitiesBO.getRoleIds());
+                log.info("✅ 用户职责更新后同步用户类型成功: userId={}", userId);
+            } catch (Exception e) {
+                log.error("❌ 用户职责更新后同步用户类型失败: userId={}, error={}", userId, e.getMessage(), e);
+            }
+        }
+        
         return role && position && userOrg;
     }
 
@@ -590,67 +625,90 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         return baseMapper.getUserInfoByDeviceSn(deviceSn);
     }
 
-    @Override
-    public boolean isAdminUser(Long userId) {
-        // 查询用户的所有角色，如果有任何一个角色是管理员角色，则该用户是管理员
-        return sysUserRoleService.list(new LambdaQueryWrapper<SysUserRole>()
-            .eq(SysUserRole::getUserId, userId)
-            .eq(SysUserRole::getDeleted, false))
-            .stream()
-            .anyMatch(userRole -> {
-                SysRole role = sysRoleService.getById(userRole.getRoleId());
-                return role != null && role.getIsAdmin() != null && role.getIsAdmin() == 1;
-            });
-    }
+    // ==================== 优化的管理员判断方法 ====================
 
     @Override
-    public boolean isSuperAdmin(Long userId) {
-        // 查询用户信息，检查用户名是否为admin
-        SysUser user = baseMapper.selectById(userId);
+    public boolean isAdminUser(Long userId) {
+        log.debug("🔍 查询用户是否为管理员（优化版本）: userId={}", userId);
+        
+        if (userId == null) {
+            return false;
+        }
+        
+        SysUser user = this.getById(userId);
         if (user == null) {
             return false;
         }
         
-        // 检查用户名是否为admin（大小写不敏感）
-        return StringPools.ADMIN.equalsIgnoreCase(user.getUserName());
+        // 直接使用user_type字段判断，避免多表查询
+        Integer userType = user.getUserType();
+        boolean isAdmin = userType != null && userType > UserType.NORMAL.getCode();
+        
+        log.debug("✅ 用户管理员判断结果: userId={}, userType={}, isAdmin={}", userId, userType, isAdmin);
+        return isAdmin;
+    }
+
+    @Override
+    public boolean isSuperAdmin(Long userId) {
+        log.debug("🔍 查询用户是否为超级管理员（优化版本）: userId={}", userId);
+        
+        if (userId == null) {
+            return false;
+        }
+        
+        SysUser user = this.getById(userId);
+        if (user == null) {
+            return false;
+        }
+        
+        // 直接使用user_type字段判断
+        Integer userType = user.getUserType();
+        boolean isSuperAdmin = userType != null && userType.equals(UserType.SUPER_ADMIN.getCode());
+        
+        log.debug("✅ 超级管理员判断结果: userId={}, userType={}, isSuperAdmin={}", userId, userType, isSuperAdmin);
+        return isSuperAdmin;
     }
 
     @Override
     public boolean isTopLevelDeptAdmin(Long userId) {
-        // 首先必须是管理员
-        if (!isAdminUser(userId)) {
+        log.debug("🔍 查询用户是否为顶级管理员（优化版本）: userId={}", userId);
+        
+        if (userId == null) {
             return false;
         }
         
-        // 获取用户所在的部门
-        List<SysUserOrg> userOrgs = sysUserOrgService.list(new LambdaQueryWrapper<SysUserOrg>()
-            .eq(SysUserOrg::getUserId, userId)
-            .eq(SysUserOrg::getDeleted, false));
+        SysUser user = this.getById(userId);
+        if (user == null) {
+            return false;
+        }
         
-        // 检查是否在顶级部门
-        return userOrgs.stream().anyMatch(userOrg -> {
-            SysOrgUnits org = sysOrgUnitsService.getById(userOrg.getOrgId());
-            return org != null && isTopLevelOrg(org.getParentId());
-        });
+        // 直接使用admin_level字段判断，租户级及以上为顶级管理员
+        Integer adminLevel = user.getAdminLevel();
+        boolean isTopLevel = adminLevel != null && adminLevel >= AdminLevel.TENANT_LEVEL.getCode();
+        
+        log.debug("✅ 顶级管理员判断结果: userId={}, adminLevel={}, isTopLevel={}", userId, adminLevel, isTopLevel);
+        return isTopLevel;
     }
 
     @Override
     public boolean isSubDeptAdmin(Long userId) {
-        // 首先必须是管理员
-        if (!isAdminUser(userId)) {
+        log.debug("🔍 查询用户是否为下级部门管理员（优化版本）: userId={}", userId);
+        
+        if (userId == null) {
             return false;
         }
         
-        // 获取用户所在的部门
-        List<SysUserOrg> userOrgs = sysUserOrgService.list(new LambdaQueryWrapper<SysUserOrg>()
-            .eq(SysUserOrg::getUserId, userId)
-            .eq(SysUserOrg::getDeleted, false));
+        SysUser user = this.getById(userId);
+        if (user == null) {
+            return false;
+        }
         
-        // 检查是否在下级部门
-        return userOrgs.stream().anyMatch(userOrg -> {
-            SysOrgUnits org = sysOrgUnitsService.getById(userOrg.getOrgId());
-            return org != null && !isTopLevelOrg(org.getParentId());
-        });
+        // 直接使用admin_level字段判断，仅部门级为下级部门管理员
+        Integer adminLevel = user.getAdminLevel();
+        boolean isSubDept = adminLevel != null && adminLevel.equals(AdminLevel.DEPT_LEVEL.getCode());
+        
+        log.debug("✅ 下级部门管理员判断结果: userId={}, adminLevel={}, isSubDept={}", userId, adminLevel, isSubDept);
+        return isSubDept;
     }
 
     @Override
@@ -1214,12 +1272,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 user.getId(), user.getOrgId());
         
         try {
-            // 如果设置了组织ID，自动填充组织名称
+            // 如果设置了组织ID，自动填充组织名称和租户ID
             if (user.getOrgId() != null) {
                 SysOrgUnits org = sysOrgUnitsService.getById(user.getOrgId());
                 if (org != null) {
                     user.setOrgName(org.getName());
-                    log.debug("📋 自动设置组织名称: orgId={}, orgName={}", user.getOrgId(), org.getName());
+                    user.setCustomerId(org.getCustomerId()); // 同时设置租户ID
+                    log.debug("📋 自动设置组织信息: orgId={}, orgName={}, customerId={}", 
+                            user.getOrgId(), org.getName(), org.getCustomerId());
                 } else {
                     log.warn("⚠️ 未找到组织信息: orgId={}", user.getOrgId());
                 }
@@ -1236,8 +1296,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             boolean result = saveOrUpdate(user);
             
             if (result) {
-                log.info("✅ 用户保存/更新成功: userId={}, orgId={}, orgName={}", 
-                        user.getId(), user.getOrgId(), user.getOrgName());
+                log.info("✅ 用户保存/更新成功: userId={}, orgId={}, orgName={}, customerId={}", 
+                        user.getId(), user.getOrgId(), user.getOrgName(), user.getCustomerId());
             } else {
                 log.error("❌ 用户保存/更新失败: userId={}", user.getId());
             }
@@ -1247,5 +1307,253 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             log.error("❌ 保存/更新用户失败: userId={}, error={}", user.getId(), e.getMessage(), e);
             throw new BizException("保存/更新用户失败: " + e.getMessage());
         }
+    }
+
+    @Override
+    public List<Map<String, Object>> searchUsersWithOrgInfo(String keyword, Long orgId, Integer limit) {
+        log.info("🔍 搜索用户，关键词: {}, 组织ID: {}, 限制: {}", keyword, orgId, limit);
+        
+        LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<>();
+        
+        // 添加组织过滤（直接使用sys_user.org_id）
+        if (orgId != null) {
+            queryWrapper.eq(SysUser::getOrgId, orgId);
+        }
+        
+        // 添加搜索条件（充分利用sys_user的字段）
+        if (StringUtils.hasText(keyword)) {
+            queryWrapper.and(wrapper -> wrapper
+                .like(SysUser::getUserName, keyword)
+                .or()
+                .like(SysUser::getRealName, keyword)
+                .or()
+                .like(SysUser::getPhone, keyword)
+                .or()
+                .like(SysUser::getOrgName, keyword) // 直接搜索org_name字段
+            );
+        }
+        
+        // 只查询启用的用户
+        queryWrapper.eq(SysUser::getStatus, "1");
+        
+        // 设置查询限制
+        if (limit != null && limit > 0) {
+            queryWrapper.last("LIMIT " + limit);
+        }
+        
+        List<SysUser> users = this.list(queryWrapper);
+        
+        return convertUsersToMapWithOrgInfo(users);
+    }
+
+    @Override
+    public List<Map<String, Object>> getUsersWithOrgInfoByOrgId(Long orgId) {
+        log.info("🔍 根据组织ID查询用户信息，orgId: {}", orgId);
+        
+        if (orgId == null) {
+            return new ArrayList<>();
+        }
+        
+        // 直接使用sys_user.org_id查询，充分利用索引
+        LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(SysUser::getOrgId, orgId)
+                   .eq(SysUser::getStatus, "1"); // 只查询启用的用户
+        
+        List<SysUser> users = this.list(queryWrapper);
+        return convertUsersToMapWithOrgInfo(users);
+    }
+
+    @Override
+    public Map<String, Object> getUserWithOrgInfoByDeviceSn(String deviceSn) {
+        log.info("🔍 根据设备序列号查询用户信息，deviceSn: {}", deviceSn);
+        
+        if (!StringUtils.hasText(deviceSn)) {
+            return null;
+        }
+        
+        // 直接使用sys_user.device_sn查询，已包含org_id, org_name
+        LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(SysUser::getDeviceSn, deviceSn)
+                   .eq(SysUser::getStatus, "1");
+        
+        SysUser user = this.getOne(queryWrapper);
+        if (user == null) {
+            return null;
+        }
+        
+        return convertUserToMapWithOrgInfo(user);
+    }
+    
+    /**
+     * 统一的用户转Map方法，充分利用sys_user的org_id, org_name字段
+     */
+    private List<Map<String, Object>> convertUsersToMapWithOrgInfo(List<SysUser> users) {
+        return users.stream()
+            .map(this::convertUserToMapWithOrgInfo)
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * 单个用户转Map方法
+     */
+    private Map<String, Object> convertUserToMapWithOrgInfo(SysUser user) {
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("id", user.getId());
+        userInfo.put("userName", user.getUserName());
+        userInfo.put("realName", user.getRealName());
+        userInfo.put("phone", user.getPhone());
+        userInfo.put("orgId", user.getOrgId()); // 直接使用sys_user.org_id
+        userInfo.put("orgName", user.getOrgName()); // 直接使用sys_user.org_name
+        userInfo.put("customerId", user.getCustomerId());
+        userInfo.put("deviceSn", user.getDeviceSn());
+        userInfo.put("status", user.getStatus());
+        userInfo.put("hasDevice", user.getDeviceSn() != null && !user.getDeviceSn().trim().isEmpty() 
+            && !"-".equals(user.getDeviceSn().trim()));
+        return userInfo;
+    }
+
+    @Override
+    public List<Map<String, Object>> getBatchUsersWithOrgInfo(List<Long> userIds) {
+        log.info("🔍 批量查询用户信息，用户IDs: {}", userIds);
+        
+        if (userIds == null || userIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // 直接使用sys_user.id IN查询，已包含org_id, org_name
+        List<SysUser> users = this.listByIds(userIds);
+        return convertUsersToMapWithOrgInfo(users);
+    }
+
+    @Override
+    public Map<String, Object> getUserWithOrgInfo(Long userId) {
+        log.info("🔍 查询用户信息，用户ID: {}", userId);
+        
+        if (userId == null) {
+            return null;
+        }
+        
+        // 直接使用sys_user.id查询，已包含org_id, org_name
+        SysUser user = this.getById(userId);
+        if (user == null) {
+            return null;
+        }
+        
+        return convertUserToMapWithOrgInfo(user);
+    }
+
+    // ==================== 新增的批量查询优化方法 ====================
+
+    @Override
+    public Map<Long, Integer> batchGetUserTypes(List<Long> userIds) {
+        log.info("🔍 批量查询用户类型，用户数量: {}", userIds != null ? userIds.size() : 0);
+        
+        if (userIds == null || userIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        
+        // 单次查询获取所有用户的类型信息
+        return this.listByIds(userIds).stream()
+            .filter(user -> user.getUserType() != null)
+            .collect(Collectors.toMap(SysUser::getId, SysUser::getUserType));
+    }
+
+    @Override
+    public Map<Long, Integer> batchGetAdminLevels(List<Long> userIds) {
+        log.info("🔍 批量查询管理员级别，用户数量: {}", userIds != null ? userIds.size() : 0);
+        
+        if (userIds == null || userIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        
+        // 单次查询获取所有用户的管理级别信息
+        return this.listByIds(userIds).stream()
+            .filter(user -> user.getAdminLevel() != null)
+            .collect(Collectors.toMap(SysUser::getId, SysUser::getAdminLevel));
+    }
+
+    @Override
+    public Map<Long, Boolean> batchIsAdminUser(List<Long> userIds) {
+        log.info("🔍 批量判断用户是否为管理员，用户数量: {}", userIds != null ? userIds.size() : 0);
+        
+        if (userIds == null || userIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        
+        // 单次查询判断多个用户的管理员状态
+        return this.listByIds(userIds).stream()
+            .collect(Collectors.toMap(
+                SysUser::getId, 
+                user -> user.getUserType() != null && user.getUserType() > UserType.NORMAL.getCode()
+            ));
+    }
+
+    @Override
+    public List<SysUser> getOrgAdmins(Long orgId) {
+        log.info("🔍 查询组织管理员，orgId: {}", orgId);
+        
+        if (orgId == null) {
+            return new ArrayList<>();
+        }
+        
+        // 利用复合索引 idx_org_admin (org_id, admin_level) 提升性能
+        return this.list(new LambdaQueryWrapper<SysUser>()
+            .eq(SysUser::getOrgId, orgId)
+            .gt(SysUser::getAdminLevel, AdminLevel.NONE.getCode())
+            .eq(SysUser::getStatus, "1")); // 只查询启用的管理员
+    }
+
+    @Override
+    public List<SysUser> getTenantAdmins(Long customerId) {
+        log.info("🔍 查询租户管理员，customerId: {}", customerId);
+        
+        if (customerId == null) {
+            return new ArrayList<>();
+        }
+        
+        // 利用复合索引 idx_customer_admin (customer_id, admin_level) 提升性能
+        return this.list(new LambdaQueryWrapper<SysUser>()
+            .eq(SysUser::getCustomerId, customerId)
+            .ge(SysUser::getAdminLevel, AdminLevel.TENANT_LEVEL.getCode())
+            .eq(SysUser::getStatus, "1")); // 只查询启用的租户级及以上管理员
+    }
+
+    @Override
+    public List<SysUser> filterOutAdminUsers(List<SysUser> users) {
+        log.debug("🔍 过滤管理员用户，原始用户数量: {}", users != null ? users.size() : 0);
+        
+        if (users == null || users.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // 使用流式处理过滤掉管理员，保留普通用户
+        List<SysUser> filteredUsers = users.stream()
+            .filter(user -> user.getUserType() == null || user.getUserType().equals(UserType.NORMAL.getCode()))
+            .collect(Collectors.toList());
+        
+        log.debug("✅ 过滤后普通用户数量: {}", filteredUsers.size());
+        return filteredUsers;
+    }
+
+    @Override
+    public List<SysUser> getUsersByType(Integer userType, Long orgId, Long customerId) {
+        log.info("🔍 根据类型查询用户，userType: {}, orgId: {}, customerId: {}", userType, orgId, customerId);
+        
+        LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(SysUser::getStatus, "1"); // 只查询启用的用户
+        
+        if (userType != null) {
+            queryWrapper.eq(SysUser::getUserType, userType);
+        }
+        
+        if (orgId != null) {
+            queryWrapper.eq(SysUser::getOrgId, orgId);
+        }
+        
+        if (customerId != null) {
+            queryWrapper.eq(SysUser::getCustomerId, customerId);
+        }
+        
+        return this.list(queryWrapper);
     }
 }
