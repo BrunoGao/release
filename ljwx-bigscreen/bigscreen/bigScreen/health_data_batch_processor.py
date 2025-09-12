@@ -66,18 +66,22 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
                 threading.Thread(target=self._batch_processor,daemon=True).start()
                 self._schedule_cleanup()#启动定时清理
                 self.processor_started=True
+                print(f"✅ 批处理器和定时清理已启动，队列状态: empty={self.batch_queue.empty()}, size={self.batch_queue.qsize()}")
                 logger.info('批处理器和定时清理已启动')
-            except RuntimeError:
+            except RuntimeError as e:
+                print(f"❌ 应用上下文不可用，延迟启动批处理器: {e}")
                 logger.warning('应用上下文不可用，延迟启动批处理器')
         
     def _batch_processor(self):#批处理器
         batch_data=[]
         last_flush=time.time()
+        print(f"🔄 批处理器线程启动，running={self.running}")
         
         while self.running:
             try:
                 timeout=max(0.1,self.batch_timeout-(time.time()-last_flush))
                 item=self.batch_queue.get(timeout=timeout)
+                print(f"📦 批处理器收到数据项: device_sn={item.get('device_sn')}")
                 
                 # 移除批处理器中的重复检测，因为在add_data中已经通过数据库查询进行了准确的重复检测
                 # key=f"{item['device_sn']}:{item['main_data']['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}"
@@ -158,10 +162,10 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
                         try:
                             insert_sql = """
                                 INSERT INTO t_user_health_data 
-                                (device_sn, user_id, org_id, heart_rate, blood_oxygen, temperature, 
+                                (device_sn, user_id, org_id, customer_id, heart_rate, blood_oxygen, temperature, 
                                  pressure_high, pressure_low, stress, step, distance, calorie, 
                                  latitude, longitude, altitude, sleep, timestamp, upload_method, create_time)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                             """
                             
                             for record in main_records:
@@ -169,6 +173,7 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
                                     record.get('device_sn'),
                                     record.get('user_id'),
                                     record.get('org_id'),
+                                    record.get('customer_id'),
                                     record.get('heart_rate'),
                                     record.get('blood_oxygen'),
                                     record.get('temperature'),
@@ -189,8 +194,56 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
                             conn.commit()
                             db_logger.info('主表批量插入成功',extra={'data_count':len(main_records)})
                         except Exception as e:
-                            db_logger.error('主表插入失败',extra={'error':str(e),'data_count':len(main_records)})
+                            print(f"❌ 主表批量插入失败详细错误: {str(e)}")
+                            print(f"❌ 错误类型: {type(e).__name__}")
+                            import traceback
+                            print(f"❌ 错误堆栈: {traceback.format_exc()}")
+                            db_logger.error('主表批量插入失败，尝试单条插入处理重复',extra={'error':str(e),'data_count':len(main_records)})
                             conn.rollback()
+                            # 批量插入失败时，使用单条插入处理重复记录
+                            try:
+                                for record in main_records:
+                                    cursor.execute("""
+                                        SELECT id FROM t_user_health_data 
+                                        WHERE device_sn = %s AND timestamp = %s
+                                    """, (record.get('device_sn'), record.get('timestamp')))
+                                    
+                                    existing = cursor.fetchone()
+                                    if not existing:
+                                        cursor.execute(insert_sql, (
+                                            record.get('device_sn'),
+                                            record.get('user_id'),
+                                            record.get('org_id'),
+                                            record.get('customer_id'),
+                                            record.get('heart_rate'),
+                                            record.get('blood_oxygen'),
+                                            record.get('temperature'),
+                                            record.get('pressure_high'),
+                                            record.get('pressure_low'),
+                                            record.get('stress'),
+                                            record.get('step'),
+                                            record.get('distance'),
+                                            record.get('calorie'),
+                                            record.get('latitude'),
+                                            record.get('longitude'),
+                                            record.get('altitude'),
+                                            record.get('sleep'),
+                                            record.get('timestamp'),
+                                            record.get('upload_method')
+                                        ))
+                                    else:
+                                        self.stats['duplicates'] += 1
+                                        db_logger.debug('跳过重复记录',extra={'device_sn':record.get('device_sn'),'timestamp':record.get('timestamp')})
+                                
+                                conn.commit()
+                                db_logger.info('主表单条插入完成',extra={'data_count':len(main_records)})
+                            except Exception as fallback_error:
+                                print(f"❌ 主表单条插入失败详细错误: {str(fallback_error)}")
+                                print(f"❌ 单条插入错误类型: {type(fallback_error).__name__}")
+                                import traceback
+                                print(f"❌ 单条插入错误堆栈: {traceback.format_exc()}")
+                                db_logger.error('主表单条插入也失败',extra={'error':str(fallback_error),'data_count':len(main_records)})
+                                conn.rollback()
                     
                     #批量处理每日表
                     if daily_records:
@@ -220,12 +273,13 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
                                 else:
                                     cursor.execute("""
                                         INSERT INTO t_user_health_data_daily 
-                                        (device_sn, user_id, org_id, date, sleep_data, exercise_daily_data, workout_data, create_time, update_time)
-                                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                                        (device_sn, user_id, org_id, customer_id, date, sleep_data, exercise_daily_data, workout_data, create_time, update_time)
+                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                                     """, (
                                         record['device_sn'],
                                         record['user_id'],
                                         record['org_id'],
+                                        record.get('customer_id'),
                                         record['date'],
                                         record.get('sleep_data'),
                                         record.get('exercise_daily_data'),
@@ -264,12 +318,13 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
                                 else:
                                     cursor.execute("""
                                         INSERT INTO t_user_health_data_weekly 
-                                        (device_sn, user_id, org_id, week_start, exercise_week_data, create_time, update_time)
-                                        VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                                        (device_sn, user_id, org_id, customer_id, week_start, exercise_week_data, create_time, update_time)
+                                        VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
                                     """, (
                                         record['device_sn'],
                                         record['user_id'],
                                         record['org_id'],
+                                        record.get('customer_id'),
                                         record['week_start'],
                                         record.get('exercise_week_data')
                                     ))
@@ -554,7 +609,11 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
             print(f"🔍 字段分离: fast_fields={fast_fields}")
             
             #构建主表数据(只包含配置支持的快更新字段)
-            main_data={'device_sn':device_sn,'user_id':user_id,'org_id':org_id,'customer_id':customer_id,'timestamp':timestamp,'upload_method':raw_data.get("upload_method","wifi")}
+            # 处理upload_method字段，将4g映射为esim
+            upload_method = raw_data.get("upload_method", "wifi")
+            if upload_method == "4g":
+                upload_method = "esim"
+            main_data={'device_sn':device_sn,'user_id':user_id,'org_id':org_id,'customer_id':customer_id,'timestamp':timestamp,'upload_method':upload_method}
             print(f"🔍 初始主表数据: {main_data}")
             
             for field in fast_fields:
