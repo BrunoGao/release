@@ -218,4 +218,20 @@ public interface ISysOrgClosureService extends IService<SysOrgClosure> {
      * @return 可接收告警的组织ID列表
      */
     List<Long> getUserAlertScope(Long userId, Long customerId);
+
+    /**
+     * 根据组织ID查询顶级部门的customerId
+     * 
+     * @param orgId 组织ID
+     * @return 顶级部门的customerId
+     */
+    Long getTopLevelCustomerIdByOrgId(Long orgId);
+    
+    /**
+     * 根据组织ID查询顶级部门的customerId (String版本，用于处理类型转换)
+     * 
+     * @param orgIdStr 组织ID字符串
+     * @return 顶级部门的customerId
+     */
+    Long getTopLevelCustomerIdByOrgId(String orgIdStr);
 }

@@ -639,4 +639,77 @@ public class SysOrgClosureServiceImpl extends ServiceImpl<SysOrgClosureMapper, S
             throw e;
         }
     }
+
+    @Override
+    public Long getTopLevelCustomerIdByOrgId(String orgIdStr) {
+        if (orgIdStr == null || orgIdStr.trim().isEmpty()) {
+            log.debug("getTopLevelCustomerIdByOrgId(String): orgIdStr为空，返回null");
+            return null;
+        }
+        
+        try {
+            Long orgId = Long.valueOf(orgIdStr.trim());
+            log.debug("getTopLevelCustomerIdByOrgId(String): 转换String {} 为 Long {}", orgIdStr, orgId);
+            return getTopLevelCustomerIdByOrgId(orgId);
+        } catch (NumberFormatException e) {
+            log.error("getTopLevelCustomerIdByOrgId(String): 无法转换orgIdStr为Long: {}", orgIdStr, e);
+            return null;
+        }
+    }
+
+    @Override
+    public Long getTopLevelCustomerIdByOrgId(Long orgId) {
+        if (orgId == null) {
+            log.debug("getTopLevelCustomerIdByOrgId: orgId为null，返回null");
+            return null;
+        }
+        
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        
+        try {
+            log.debug("getTopLevelCustomerIdByOrgId: 开始查询orgId={}", orgId);
+            
+            // 直接使用闭包表查询：查找最大深度的祖先（即顶级部门）
+            // 在闭包表中，depth最大的记录对应的ancestor_id就是顶级组织
+            LambdaQueryWrapper<SysOrgClosure> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(SysOrgClosure::getDescendantId, orgId)
+                   .orderByDesc(SysOrgClosure::getDepth)
+                   .last("LIMIT 1");
+            
+            SysOrgClosure topClosure = this.getOne(wrapper);
+            
+            if (topClosure == null) {
+                log.warn("在闭包表中未找到组织: orgId={}", orgId);
+                return null;
+            }
+            
+            // 获取顶级组织的customerId
+            Long topOrgId = topClosure.getAncestorId();
+            SysOrgUnits topOrg = sysOrgUnitsMapper.selectById(topOrgId);
+            
+            if (topOrg == null) {
+                log.warn("顶级组织不存在: topOrgId={}", topOrgId);
+                return null;
+            }
+            
+            Long customerId = topOrg.getCustomerId();
+            
+            stopWatch.stop();
+            logPerformance("getTopLevelCustomerIdByOrgId", orgId, customerId, 
+                stopWatch.getTotalTimeMillis(), 1, true, null);
+            
+            log.debug("组织{}的顶级组织ID={}，customerId={}，深度={}", 
+                orgId, topOrgId, customerId, topClosure.getDepth());
+            
+            return customerId;
+            
+        } catch (Exception e) {
+            stopWatch.stop();
+            logPerformance("getTopLevelCustomerIdByOrgId", orgId, null, 
+                stopWatch.getTotalTimeMillis(), 0, false, e.getMessage());
+            log.error("根据组织ID查询顶级部门customerId失败: orgId={}", orgId, e);
+            return null;
+        }
+    }
 }
