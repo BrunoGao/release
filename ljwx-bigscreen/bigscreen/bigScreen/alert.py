@@ -2570,6 +2570,145 @@ def get_event_processor_stats():
             "message": f"获取统计失败: {str(e)}"
         }), 500
 
+def send_simple_notifications(generated_alerts):
+    """
+    简单的通知发送函数 - 基于现有的微信通知功能
+    发送通知后更新告警状态为'responded'并记录操作日志
+    
+    Args:
+        generated_alerts: 生成的告警列表，包含alert_info、rule和device_info
+    """
+    try:
+        notifications_sent = 0
+        alerts_processed = 0
+        
+        for alert_data in generated_alerts:
+            alert_info = alert_data['alert_info']
+            rule = alert_data['rule'] 
+            device_info = alert_data['device_info']
+            
+            # 构建通知消息
+            user_name = device_info.get('user_name', 'Unknown') if device_info else 'Unknown'
+            org_name = device_info.get('org_name', 'Unknown') if device_info else 'Unknown'
+            alert_type = rule.get('rule_type', '未知告警')
+            alert_desc = rule.get('alert_message', '健康异常')
+            severity_level = rule.get('severity_level', 'medium')
+            user_id = device_info.get('user_id') if device_info else None
+            
+            notification_success = False
+            notification_type = 'system'  # 默认系统通知
+            
+            # 发送通知
+            try:
+                # 检查是否有微信openid信息
+                openid = device_info.get('openid') if device_info else None
+                
+                if openid and hasattr(sys.modules[__name__], 'send_wechat_alert'):
+                    # 调用现有的微信通知函数
+                    wechat_result = send_wechat_alert(
+                        alert_type=alert_type,
+                        user_openid=openid,
+                        user_name=user_name,
+                        severity_level=severity_level
+                    )
+                    notification_success = True
+                    notification_type = 'wechat'
+                    print(f"📱 微信通知已发送: {user_name} - {alert_type}")
+                    notifications_sent += 1
+                else:
+                    # 如果没有微信信息，记录系统通知
+                    print(f"🔔 系统通知 [{severity_level.upper()}]: {user_name}({org_name}) - {alert_type}: {alert_desc}")
+                    notification_success = True
+                    notifications_sent += 1
+                    
+            except Exception as e:
+                print(f"⚠️ 通知发送失败: {user_name} - {alert_type}, 错误: {e}")
+                notification_success = False
+            
+            # 🚀 发送成功后更新告警状态并记录日志
+            if notification_success:
+                try:
+                    # 更新告警状态为已响应
+                    alert_info.alert_status = 'responded'
+                    alert_info.responded_time = get_now()
+                    
+                    # 创建告警处理日志
+                    _create_alert_notification_log(
+                        alert_id=alert_info.id,
+                        user_name=user_name,
+                        user_id=user_id,
+                        notification_type=notification_type,
+                        success=True
+                    )
+                    
+                    alerts_processed += 1
+                    print(f"✅ 告警状态已更新: ID={alert_info.id}, 状态=responded")
+                    
+                except Exception as e:
+                    print(f"⚠️ 告警状态更新失败: ID={getattr(alert_info, 'id', 'Unknown')}, 错误: {e}")
+            else:
+                # 通知失败时记录失败日志
+                try:
+                    _create_alert_notification_log(
+                        alert_id=alert_info.id,
+                        user_name=user_name,
+                        user_id=user_id,
+                        notification_type=notification_type,
+                        success=False
+                    )
+                except Exception as e:
+                    print(f"⚠️ 失败日志记录异常: {e}")
+        
+        # 返回处理结果 (不在此处commit，由调用方统一处理)
+        print(f"📬 通知处理完成: 发送 {notifications_sent}/{len(generated_alerts)} 条通知, 更新状态 {alerts_processed} 个告警")
+        
+        return {
+            'sent': notifications_sent,
+            'processed': alerts_processed,
+            'total': len(generated_alerts)
+        }
+        
+    except Exception as e:
+        print(f"❌ 通知处理整体异常: {e}")
+        return {'sent': 0, 'processed': 0, 'total': len(generated_alerts) if generated_alerts else 0}
+
+def _create_alert_notification_log(alert_id, user_name, user_id, notification_type, success):
+    """
+    创建告警通知处理日志 - 简化版
+    
+    Args:
+        alert_id: 告警ID
+        user_name: 用户名
+        user_id: 用户ID  
+        notification_type: 通知类型 (wechat/system)
+        success: 是否成功
+    """
+    try:
+        from .models import AlertLog
+        
+        # 构建处理结果描述
+        status = 'success' if success else 'failed'
+        handled_via = notification_type
+        result = f"Auto notification via {notification_type}: {status}"
+        
+        # 创建告警日志记录
+        alert_log = AlertLog(
+            alert_id=alert_id,
+            user_name=user_name,
+            user_id=user_id,
+            handled_time=get_now(),
+            handled_via=handled_via,
+            result=result,
+            action='auto_notification',
+            status=status
+        )
+        
+        db.session.add(alert_log)
+        print(f"📝 告警日志已创建: alert_id={alert_id}, type={notification_type}, status={status}")
+        
+    except Exception as e:
+        print(f"❌ 创建告警日志失败: alert_id={alert_id}, 错误: {e}")
+
 def generate_alerts(data, health_data_id):
     start_time = time.time()  # 开始计时
     try:
@@ -2639,8 +2778,57 @@ def generate_alerts(data, health_data_id):
                 
         print(f"📋 获取到告警规则 {len(alert_rules_dict)} 条 (Redis缓存: {'✅' if cache_hit else '❌'})")
 
-        # 初始化异常计数器
+        # 🚀 优化1: 规则按数据类型过滤
+        current_physical_signs = set()
+        sign_mapping = {
+            'heartRate': 'heart_rate', 'bloodOxygen': 'blood_oxygen',
+            'pressureHigh': 'bloodPressure', 'pressureLow': 'bloodPressure',
+            'step': 'steps', 'calorie': 'calories', 'distance': 'distance',
+            'temperature': 'temperature', 'stress': 'stress', 'sleep': 'sleep'
+        }
+        
+        for key in data.keys():
+            if key in sign_mapping:
+                current_physical_signs.add(sign_mapping[key])
+        
+        # 过滤规则: 只处理当前数据相关的规则
+        filtered_rules = {}
+        for rule_id, rule in alert_rules_dict.items():
+            physical_sign = rule.get('physical_sign')
+            if physical_sign in current_physical_signs:
+                filtered_rules[rule_id] = rule
+        
+        print(f"🎯 规则过滤优化: {len(alert_rules_dict)} -> {len(filtered_rules)} 条 (数据类型: {current_physical_signs})")
+        
+        # 使用过滤后的规则替代原规则集
+        alert_rules_dict = filtered_rules
+
+        # 🚀 优化2: 设备信息优先使用上传数据，fallback到查询
+        device_sn = data.get('deviceSn', 'Unknown')
+        device_info_cache = {
+            'customer_id': data.get('customer_id') or data.get('customerId'),
+            'org_id': data.get('org_id') or data.get('orgId'), 
+            'user_id': data.get('user_id') or data.get('userId'),
+            'device_sn': device_sn
+        }
+        
+        # 如果上传数据缺少必要信息，fallback到数据库查询
+        if not all([device_info_cache['customer_id'], device_info_cache['org_id'], device_info_cache['user_id']]):
+            print(f"📊 上传数据不完整，fallback到数据库查询: {device_info_cache}")
+            try:
+                if device_sn and device_sn != 'Unknown':
+                    fallback_info = get_device_user_org_info(device_sn)
+                    if fallback_info:
+                        device_info_cache.update(fallback_info)
+                        print(f"📱 Fallback查询成功: {device_sn}")
+            except Exception as e:
+                print(f"⚠️ Fallback查询失败: {device_sn}, 错误: {e}")
+        else:
+            print(f"✅ 直接使用上传数据: customer_id={device_info_cache['customer_id']}, org_id={device_info_cache['org_id']}, user_id={device_info_cache['user_id']}")
+
+        # 初始化异常计数器和告警记录
         abnormal_counts = {}
+        generated_alerts = []  # 记录生成的告警信息，用于通知处理
 
         # 遍历每个告警规则
         for rule_id, rule in alert_rules_dict.items():
@@ -2739,8 +2927,8 @@ def generate_alerts(data, health_data_id):
             if abnormal_counts.get(physical_sign, 0) >= trend_duration:
                 print("generate_alerts:abnormal_counts:", abnormal_counts)
                 
-                # 获取设备的用户和组织信息
-                device_user_org = get_device_user_org_info(data.get('deviceSn', 'Unknown'))
+                # 🚀 使用缓存的设备信息，避免重复查询
+                device_user_org = device_info_cache
                 
                 # Create an alert
                 alert_info_instance = AlertInfo(
@@ -2752,26 +2940,49 @@ def generate_alerts(data, health_data_id):
                     severity_level=rule['severity_level'],
                     alert_status='pending',
                     health_id=health_data_id,
+                    customer_id=device_user_org.get('customer_id') if device_user_org.get('success') else None,
                     org_id=device_user_org.get('org_id') if device_user_org.get('success') else None,
                     user_id=device_user_org.get('user_id') if device_user_org.get('success') else None
                 )
                 print("generate_alerts:alert_info_instance:", alert_info_instance)
                 db.session.add(alert_info_instance)
+                
+                # 记录生成的告警信息，用于后续通知处理
+                generated_alerts.append({
+                    'alert_info': alert_info_instance,
+                    'rule': rule,
+                    'device_info': device_user_org
+                })
 
+        # 🚀 优化3: 简单通知处理 (在主数据库提交前处理)
+        notifications_result = {'sent': 0, 'processed': 0}
+        if generated_alerts:
+            try:
+                notifications_result = send_simple_notifications(generated_alerts)
+            except Exception as notify_error:
+                print(f"⚠️ 通知处理异常: {notify_error}")
+        
+        # 统一提交所有数据库更改 (告警创建 + 状态更新 + 日志记录)
         db.session.commit()
         
         # 记录性能统计
         processing_time = time.time() - start_time if 'start_time' in locals() else 0
         print(f"✅ generate_alerts completed successfully")
-        print(f"📊 性能统计: 处理时间={processing_time:.3f}s, 规则数量={len(alert_rules_dict)}, Redis缓存={'命中' if cache_hit else '未命中'}")
+        notifications_sent = notifications_result.get('sent', 0)
+        alerts_processed = notifications_result.get('processed', 0)
+        print(f"📊 性能统计: 处理时间={processing_time:.3f}s, 规则数量={len(alert_rules_dict)}, 生成告警={len(generated_alerts)}条, 发送通知={notifications_sent}条, 状态更新={alerts_processed}个, Redis缓存={'命中' if cache_hit else '未命中'}")
         
         return jsonify({
             'success': True,
             'stats': {
                 'processing_time': round(processing_time, 3),
                 'rules_count': len(alert_rules_dict),
+                'alerts_generated': len(generated_alerts),
+                'notifications_sent': notifications_sent,
+                'alerts_processed': alerts_processed,
                 'cache_hit': cache_hit,
-                'customer_id': customer_id
+                'customer_id': customer_id,
+                'current_physical_signs': list(current_physical_signs) if 'current_physical_signs' in locals() else []
             }
         })
 

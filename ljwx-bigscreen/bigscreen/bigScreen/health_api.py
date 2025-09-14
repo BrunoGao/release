@@ -266,36 +266,72 @@ async def calculate_comprehensive_health_score(data):
 @health_api.route('/score/comprehensive', methods=['GET'])
 @async_route  
 async def get_comprehensive_health_score():
-    """获取综合健康评分 - GET方法"""
+    """获取综合健康评分 - GET方法 - 支持统一三级查询"""
     try:
         # 从URL参数获取数据
-        customer_id = request.args.get('customerId')
         user_id = request.args.get('userId')
+        org_id = request.args.get('orgId')
+        customer_id = request.args.get('customerId')
+        device_sn = request.args.get('deviceSn')
         days = request.args.get('days', 30)
         start_date = request.args.get('startDate')
         end_date = request.args.get('endDate') 
         include_factors = request.args.get('includeFactors', 'false').lower() == 'true'
         include_device_breakdown = request.args.get('includeDeviceBreakdown', 'false').lower() == 'true'
         
-        if not customer_id:
+        logger.info(f"🔍 健康评分API请求: userId={user_id}, orgId={org_id}, customerId={customer_id}, deviceSn={device_sn}")
+        
+        # 如果提供了deviceSn，转换为userId
+        if device_sn and not user_id:
+            from .user import get_user_id_by_deviceSn
+            user_id = get_user_id_by_deviceSn(device_sn)
+            if not user_id:
+                return jsonify({
+                    'success': False,
+                    'message': f'设备{device_sn}未找到对应用户',
+                    'code': 404
+                }), 404
+        
+        # 参数验证 - 至少需要一个标识符
+        if not any([user_id, org_id, customer_id]):
             return jsonify({
                 'success': False,
-                'message': '缺少必需参数：customerId',
+                'message': '缺少必需参数：userId、orgId、customerId 至少需要提供一个',
                 'code': 400
             }), 400
         
-        # 构建数据对象
-        data = {
-            'customer_id': customer_id,
-            'user_id': user_id,
-            'date_range': int(days),
-            'start_date': start_date,
-            'end_date': end_date,
-            'include_factors': include_factors,
-            'include_device_breakdown': include_device_breakdown
-        }
+        # 使用统一的健康评分引擎
+        from .health_score_engine import get_health_score_unified
         
-        return await _calculate_comprehensive_health_score_impl(data)
+        # 构建查询参数
+        query_kwargs = {}
+        if user_id:
+            query_kwargs['user_id'] = user_id
+        if org_id:
+            query_kwargs['org_id'] = org_id
+        if customer_id:
+            query_kwargs['customer_id'] = customer_id
+        if start_date:
+            query_kwargs['startDate'] = start_date
+        if end_date:
+            query_kwargs['endDate'] = end_date
+        
+        # 调用统一的健康评分方法
+        score_result = get_health_score_unified(**query_kwargs)
+        
+        if score_result.get('success'):
+            return jsonify({
+                'success': True,
+                'data': score_result.get('data'),
+                'timestamp': datetime.now().isoformat(),
+                'query_params': query_kwargs
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': score_result.get('error', '健康评分计算失败'),
+                'code': 500
+            }), 500
         
     except Exception as e:
         logger.error(f"GET健康评分失败: {e}")

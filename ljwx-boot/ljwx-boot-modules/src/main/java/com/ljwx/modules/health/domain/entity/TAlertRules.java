@@ -27,6 +27,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 
 /**
 *  Entity 实体类
@@ -81,9 +82,9 @@ public class TAlertRules extends BaseEntity {
     
     private Object ruleTags;  // JSON类型
     
-    private java.sql.Time effectiveTimeStart;
+    private String effectiveTimeStart;
     
-    private java.sql.Time effectiveTimeEnd;
+    private String effectiveTimeEnd;
     
     private String effectiveDays;
     

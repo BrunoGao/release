@@ -28,11 +28,20 @@ cd bigscreen && ./start_all.sh
 
 ### Database Operations
 ```bash
+# Database Connection Info
+# Host: 127.0.0.1
+# Database: test  
+# Username: root
+# Password: 123456
+
 # Apply migrations
-mysql -u root -p < database_migration.sql
+mysql -h 127.0.0.1 -u root -p123456 -D test < database_migration.sql
 
 # Optimize database indexes
-mysql -u root -p < optimize_database_indexes.sql
+mysql -h 127.0.0.1 -u root -p123456 -D test < optimize_database_indexes.sql
+
+# Query health data
+mysql -h 127.0.0.1 -u root -p123456 -D test -e "SELECT * FROM t_user_health_data LIMIT 5;"
 ```
 
 ### Testing

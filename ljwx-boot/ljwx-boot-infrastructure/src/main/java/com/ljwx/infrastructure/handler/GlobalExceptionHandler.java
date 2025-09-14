@@ -130,7 +130,8 @@ public class GlobalExceptionHandler {
     @ResponseBody
     @ExceptionHandler(NotLoginException.class)
     public Result<Object> handleNotLoginException(@NonNull NotLoginException notLoginException) {
-        log.error("[未登录异常]{}", notLoginException.getMessage(), notLoginException);
+        // 简化日志输出，避免长堆栈信息
+        log.warn("[未登录访问] 错误码: {}, 错误信息: {}", notLoginException.getCode(), notLoginException.getMessage());
         return Result.failure(NOT_LOGIN_RESULT_CODE_MAP.get(notLoginException.getCode()));
     }
 

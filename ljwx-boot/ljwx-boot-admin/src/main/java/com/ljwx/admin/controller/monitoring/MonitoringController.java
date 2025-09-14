@@ -1,10 +1,12 @@
 package com.ljwx.admin.controller.monitoring;
 
+import com.ljwx.modules.monitor.service.IMonSchedulerService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,6 +32,7 @@ import java.util.Map;
 public class MonitoringController {
 
     private final MeterRegistry meterRegistry;
+    private final IMonSchedulerService monSchedulerService;
 
     @GetMapping("/health")
     @Operation(summary = "健康检查")
@@ -127,5 +130,25 @@ public class MonitoringController {
         info.put("java_version", System.getProperty("java.version"));
         info.put("spring_boot_version", "3.2.0");
         return info;
+    }
+    
+    @GetMapping("/scheduler/test/{id}")
+    @Operation(summary = "测试调度任务执行 - 无需认证")
+    public Map<String, Object> testScheduler(@PathVariable Long id) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            boolean success = monSchedulerService.immediateMonScheduler(id);
+            result.put("success", success);
+            result.put("message", "调度任务执行完成");
+            result.put("schedulerId", id);
+            result.put("timestamp", System.currentTimeMillis());
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "调度任务执行失败: " + e.getMessage());
+            result.put("error", e.getClass().getSimpleName());
+            result.put("schedulerId", id);
+            result.put("timestamp", System.currentTimeMillis());
+        }
+        return result;
     }
 }

@@ -6,7 +6,11 @@ import com.ljwx.modules.health.domain.entity.TDeviceInfo;
 import com.ljwx.modules.health.domain.entity.TDeviceMessage;
 import com.ljwx.modules.health.domain.entity.TUserHealthData;
 import com.ljwx.modules.health.domain.vo.OrgStatisticsVO;
-import com.ljwx.modules.health.service.*;
+import com.ljwx.modules.health.service.ITDeviceInfoService;
+import com.ljwx.modules.health.service.ITAlertInfoService;
+import com.ljwx.modules.health.service.ITDeviceMessageService;
+import com.ljwx.modules.health.service.ITUserHealthDataService;
+import com.ljwx.modules.health.service.IOrgStatisticsService;
 import com.ljwx.modules.system.domain.entity.SysOrgUnits;
 import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.system.domain.entity.SysUserOrg;
@@ -45,9 +49,6 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
     private ISysOrgUnitsService sysOrgUnitsService;
     
     @Autowired
-    private IDeviceUserMappingService deviceUserMappingService;
-    
-    @Autowired
     private ITAlertInfoService alertInfoService;
     
     @Autowired
@@ -57,39 +58,30 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
     public OrgStatisticsVO getOrgStatistics(String orgId) {
         OrgStatisticsVO statistics = new OrgStatisticsVO();
         
-        // 1. 获取部门下所有设备
-        List<String> deviceSnList = deviceUserMappingService.getDeviceSnListByDepartmentId(orgId);
+        Long orgIdLong = Long.parseLong(orgId);
         
-        // 2. 获取并设置告警信息
-        statistics.setAlertInfo(getTAlertInfo(deviceSnList));
+        // 1. 获取并设置用户信息 
+        statistics.setUserInfo(queryUserInfoWithOrgId(orgIdLong));
         
-        // 3. 获取并设置设备信息
-        statistics.setDeviceInfo(getDeviceInfo(deviceSnList));
+        // 2. 获取并设置告警信息 - 直接使用orgId查询
+        statistics.setAlertInfo(getTAlertInfo(orgIdLong));
         
-        // 4. 获取并设置健康数据
-        statistics.setHealthData(getHealthData(deviceSnList));
+        // 3. 获取并设置设备信息 - 直接使用orgId查询
+        statistics.setDeviceInfo(getDeviceInfo(orgIdLong));
         
-        // 5. 获取并设置消息信息
-        statistics.setMessageInfo(getMessageInfo(orgId));
+        // 4. 获取并设置健康数据 - 直接使用orgId查询
+        statistics.setHealthData(getHealthData(orgIdLong));
         
-        // 6. 获取并设置用户信息 - 直接设置 UserInfoVO
-        statistics.setUserInfo(queryUserInfoWithOrgId(Long.parseLong(orgId)));
+        // 5. 获取并设置消息信息 - 直接使用orgId查询
+        statistics.setMessageInfo(getMessageInfo(orgIdLong));
         
         return statistics;
     }
     
     @Override
-    public OrgStatisticsVO getOrgStatisticsByCustomerId(String customerId) {
-        log.info("🏢 根据customerId获取组织统计信息: {}", customerId);
-        
-        // 1. 将customerId转换为orgId
-        Long orgId = convertCustomerIdToOrgId(customerId);
-        if (orgId == null) {
-            log.warn("⚠️ 无法根据customerId找到对应的组织ID: {}", customerId);
-            return createEmptyStatistics();
-        }
-        
-        log.info("✅ customerId {} -> orgId {}", customerId, orgId);
+    public OrgStatisticsVO getOrgStatisticsByOrgId(String orgId) {
+        log.info("🏢 根据orgId获取组织统计信息: {}", orgId);
+    
         
         // 2. 使用转换后的orgId获取统计信息
         return getOrgStatistics(String.valueOf(orgId));
@@ -157,70 +149,76 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         return statistics;
     }
     
-    private OrgStatisticsVO.AlertInfoVO getTAlertInfo(List<String> deviceSnList ) {
+    private OrgStatisticsVO.AlertInfoVO getTAlertInfo(Long orgId) {
         OrgStatisticsVO.AlertInfoVO alertInfo = new OrgStatisticsVO.AlertInfoVO();
         
-        // 🔧 修复: 检查设备列表是否为空,避免SQL语法错误
-        if (deviceSnList == null || deviceSnList.isEmpty()) {
-            log.warn("告警查询设备序列号列表为空,返回默认告警信息");
+        log.info("⚠️ 告警查询 - 部门ID: {}", orgId);
+        
+        // 1. 直接根据orgId查询t_alert_info
+        List<TAlertInfo> alerts = alertInfoService.list(new LambdaQueryWrapper<TAlertInfo>()
+            .eq(TAlertInfo::getOrgId, orgId) // 直接按orgId查询
+            .orderByDesc(TAlertInfo::getCreateTime)); // 按时间倒序
+        
+        log.info("⚠️ 查询到告警数量: {}", alerts.size());
+        
+        if (alerts.isEmpty()) {
+            log.warn("⚠️ 部门{}下无告警，返回空告警列表", orgId);
             return createEmptyTAlertInfo();
         }
         
-        // 🔧 修复: 过滤无效的设备序列号
-        List<String> validDeviceSnList = deviceSnList.stream()
-            .filter(Objects::nonNull)
-            .filter(sn -> !sn.trim().isEmpty())
-            .distinct()
-            .collect(Collectors.toList());
-        
-        if (validDeviceSnList.isEmpty()) {
-            log.warn("告警查询过滤后设备序列号列表为空,返回默认告警信息");
-            return createEmptyTAlertInfo();
-        }
-        
-        // 3. 查询告警信息 - 使用过滤后的安全设备列表
-        LambdaQueryWrapper<TAlertInfo> queryWrapper = new LambdaQueryWrapper<TAlertInfo>()
-            .in(TAlertInfo::getDeviceSn, validDeviceSnList)
-            .orderByDesc(TAlertInfo::getCreateTime); // 按时间倒序
-            
-        List<TAlertInfo> alerts = alertInfoService.list(queryWrapper);
-        
-        // 4. 统计各类计数
-        Map<String, Integer> statusCounts = new HashMap<>();
-        Map<String, Integer> typeCounts = new HashMap<>();
-        Map<String, Integer> severityCounts = new HashMap<>();
-        
-        // 5. 获取设备用户信息映射
+        // 2. 获取设备序列号集合，以便查询用户信息
         Set<String> deviceSns = alerts.stream()
             .map(TAlertInfo::getDeviceSn)
+            .filter(Objects::nonNull)
             .collect(Collectors.toSet());
-        Map<String, IDeviceUserMappingService.UserInfo> deviceUserMap = 
-            deviceUserMappingService.getDeviceUserInfo(deviceSns);
         
-        // 6. 转换并统计告警信息
+        // 3. 查询用户信息（直接使用sysUserService）
+        final Map<String, String> deviceUserNameMap;
+        if (!deviceSns.isEmpty()) {
+            List<SysUser> users = sysUserService.list(new LambdaQueryWrapper<SysUser>()
+                .in(SysUser::getDeviceSn, deviceSns));
+            deviceUserNameMap = users.stream()
+                .filter(user -> user.getDeviceSn() != null)
+                .collect(Collectors.toMap(
+                    SysUser::getDeviceSn,
+                    SysUser::getUserName,
+                    (k1, k2) -> k1
+                ));
+        } else {
+            deviceUserNameMap = new HashMap<>();
+        }
+        
+        // 4. 统计各类计数 - 在lambda外部进行
+        Map<String, Integer> statusCounts = new HashMap<>();
+        Map<String, Integer> typeCounts = new HashMap<>(); 
+        Map<String, Integer> severityCounts = new HashMap<>();
+        
+        // 5. 转换告警信息
         List<OrgStatisticsVO.AlertDetailVO> alertVOs = alerts.stream()
             .map(alert -> {
                 OrgStatisticsVO.AlertDetailVO vo = new OrgStatisticsVO.AlertDetailVO();
                 BeanUtils.copyProperties(alert, vo);
                 
                 // 添加用户信息
-                IDeviceUserMappingService.UserInfo userInfo = deviceUserMap.get(alert.getDeviceSn());
-                if (userInfo != null) {
-                    vo.setUserName(userInfo.getUserName());
+                String userName = deviceUserNameMap.get(alert.getDeviceSn());
+                if (userName != null) {
+                    vo.setUserName(userName);
                 }
-                
-                // 统计 - 处理null值,避免JSON序列化错误
-                String alertStatus = alert.getAlertStatus() != null ? alert.getAlertStatus() : "UNKNOWN";
-                String alertType = alert.getAlertType() != null ? alert.getAlertType() : "UNKNOWN";  
-                String severityLevel = alert.getSeverityLevel() != null ? alert.getSeverityLevel() : "UNKNOWN";
-                
-                statusCounts.merge(alertStatus, 1, Integer::sum);
-                typeCounts.merge(alertType, 1, Integer::sum);
-                severityCounts.merge(severityLevel, 1, Integer::sum);
                 
                 return vo;
             })
             .collect(Collectors.toList());
+            
+        // 6. 统计处理 - 在lambda外部进行
+        for (TAlertInfo alert : alerts) {
+            String alertStatus = alert.getAlertStatus() != null ? alert.getAlertStatus() : "UNKNOWN";
+            String alertType = alert.getAlertType() != null ? alert.getAlertType() : "UNKNOWN";
+            String severityLevel = alert.getSeverityLevel() != null ? alert.getSeverityLevel() : "UNKNOWN";
+            
+            statusCounts.merge(alertStatus, 1, Integer::sum);
+            typeCounts.merge(alertType, 1, Integer::sum);
+            severityCounts.merge(severityLevel, 1, Integer::sum);
+        }
         
         // 7. 设置统计结果
         alertInfo.setAlerts(alertVOs);
@@ -244,32 +242,19 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         return emptyInfo;
     }
     
-    private OrgStatisticsVO.DeviceInfoVO getDeviceInfo(List<String> deviceSnList) {
+    private OrgStatisticsVO.DeviceInfoVO getDeviceInfo(Long orgId) {
         OrgStatisticsVO.DeviceInfoVO deviceInfo = new OrgStatisticsVO.DeviceInfoVO();
 
-        // 🔧 修复: 检查设备列表是否为空,避免SQL语法错误
-        if (deviceSnList == null || deviceSnList.isEmpty()) {
-            log.warn("设备序列号列表为空,返回默认设备信息");
-            return createEmptyDeviceInfo();
-        }
+        log.info("📱 设备查询 - 部门ID: {}", orgId);
         
-        // 🔧 修复: 过滤无效的设备序列号
-        List<String> validDeviceSnList = deviceSnList.stream()
-            .filter(Objects::nonNull)
-            .filter(sn -> !sn.trim().isEmpty())
-            .distinct()
-            .collect(Collectors.toList());
-        
-        if (validDeviceSnList.isEmpty()) {
-            log.warn("过滤后设备序列号列表为空,返回默认设备信息");
-            return createEmptyDeviceInfo();
-        }
-        
-        // 获取设备列表 - 现在安全了
+        // 1. 直接根据orgId查询t_device_info
         List<TDeviceInfo> devices = deviceInfoService.list(new LambdaQueryWrapper<TDeviceInfo>()
-            .in(TDeviceInfo::getSerialNumber, validDeviceSnList));
+            .eq(TDeviceInfo::getOrgId, orgId)); // 直接按orgId查询
+        
+        log.info("📱 查询到设备数量: {}", devices.size());
         
         if (devices.isEmpty()) {
+            log.warn("📱 部门{}下无设备，返回空设备列表", orgId);
             return createEmptyDeviceInfo();
         }
         
@@ -327,67 +312,63 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
         return emptyInfo;
     }
     
-    private Map<String, OrgStatisticsVO.HealthDataVO> getHealthData(List<String> deviceSnList) {
+    private Map<String, OrgStatisticsVO.HealthDataVO> getHealthData(Long orgId) {
         Map<String, OrgStatisticsVO.HealthDataVO> healthDataMap = new HashMap<>();
         
-        if (deviceSnList.isEmpty()) {
+        log.info("📊 健康数据查询 - 部门ID: {}", orgId);
+        
+        // 1. 直接根据orgId查询t_user_health_data
+        List<TUserHealthData> healthDataList = healthDataService.list(
+            new LambdaQueryWrapper<TUserHealthData>()
+                .eq(TUserHealthData::getOrgId, orgId) // 直接按orgId查询
+                .orderByDesc(TUserHealthData::getCreateTime)
+        );
+        
+        log.info("📊 查询到健康数据数量: {}", healthDataList.size());
+        
+        if (healthDataList.isEmpty()) {
+            log.warn("📊 部门{}下无健康数据，返回空列表", orgId);
             return healthDataMap;
         }
         
-        deviceSnList.forEach(deviceSn -> {
-            // 获取最新健康数据
-            TUserHealthData latestData = healthDataService.getOne(
-                new LambdaQueryWrapper<TUserHealthData>()
-                    .eq(TUserHealthData::getDeviceSn, deviceSn)
-                    .orderByDesc(TUserHealthData::getCreateTime)
-                    .last("LIMIT 1")
-            );
-            
+        // 2. 按userId分组，只保留最新的数据
+        Map<Long, TUserHealthData> latestDataByUser = healthDataList.stream()
+            .collect(Collectors.toMap(
+                TUserHealthData::getUserId,
+                data -> data,
+                (existing, replacement) -> existing.getCreateTime().isAfter(replacement.getCreateTime()) ? existing : replacement
+            ));
+        
+        // 3. 转换为 HealthDataVO
+        latestDataByUser.forEach((userId, latestData) -> {
             OrgStatisticsVO.HealthDataVO vo = new OrgStatisticsVO.HealthDataVO();
-            if (latestData != null) {
-                BeanUtils.copyProperties(latestData, vo);
-            }
-            healthDataMap.put(deviceSn, vo);
+            BeanUtils.copyProperties(latestData, vo);
+            healthDataMap.put(String.valueOf(userId), vo); // 使用userId作为key
         });
+        
+        log.info("📊 最终健康数据数量: {}", healthDataMap.size());
         
         return healthDataMap;
     }
     
-    private OrgStatisticsVO.MessageInfoVO getMessageInfo(String orgId) {
+    private OrgStatisticsVO.MessageInfoVO getMessageInfo(Long orgId) {
         OrgStatisticsVO.MessageInfoVO messageInfo = new OrgStatisticsVO.MessageInfoVO();
         
-        // 🔧 修复：使用设备序列号过滤，排除管理员消息 #管理员消息过滤
-        List<String> deviceSnList = deviceUserMappingService.getDeviceSnListByDepartmentId(orgId);
-        log.info("📨 消息查询 - 部门ID: {}, 获取到设备数量: {}", orgId, deviceSnList.size());
+        log.info("📨 消息查询 - 部门ID: {}", orgId);
         
-        if (deviceSnList.isEmpty()) {
-            log.warn("📨 部门{}下无设备，返回空消息列表", orgId);
-            return createEmptyMessageInfo();
-        }
-        
-        // 过滤无效设备序列号
-        List<String> validDeviceSnList = deviceSnList.stream()
-            .filter(Objects::nonNull)
-            .filter(sn -> !sn.trim().isEmpty())
-            .filter(sn -> !"-".equals(sn.trim())) // 过滤无效设备号
-            .distinct()
-            .collect(Collectors.toList());
-            
-        if (validDeviceSnList.isEmpty()) {
-            log.warn("📨 部门{}下无有效设备，返回空消息列表", orgId);
-            return createEmptyMessageInfo();
-        }
-        
-        log.info("📨 有效设备列表: {}", validDeviceSnList);
-        
-        // 🔥 关键修复：按设备序列号查询消息，自动排除管理员设备消息
+        // 1. 直接根据orgId查询t_device_message
         List<TDeviceMessage> messages = messageService.list(
             new LambdaQueryWrapper<TDeviceMessage>()
-                .in(TDeviceMessage::getDeviceSn, validDeviceSnList) // 改为按设备序列号查询
+                .eq(TDeviceMessage::getOrgId, orgId) // 直接按orgId查询
                 .orderByDesc(TDeviceMessage::getCreateTime)
         );
         
         log.info("📨 查询到消息数量: {}", messages.size());
+        
+        if (messages.isEmpty()) {
+            log.warn("📨 部门{}下无消息，返回空消息列表", orgId);
+            return createEmptyMessageInfo();
+        }
         
         // 统计各类计数
         Map<String, Integer> statusCounts = new HashMap<>();

@@ -1,6 +1,7 @@
 package com.ljwx.admin.controller.system;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.annotation.SaIgnore;
 import com.ljwx.common.api.Result;
 import com.ljwx.infrastructure.page.PageQuery;
 import com.ljwx.infrastructure.page.RPage;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
  * @CreateTime 2023/7/6 - 14:25
  */
 
+@Slf4j
 @RestController
 @Tag(name = "用户管理")
 @RequiredArgsConstructor
@@ -162,14 +165,22 @@ public class SysUserController {
         return Result.data(sysUserFacade.getBindDevice(customerId));
     }
 
-    @Operation(summary = "根据组织ID获取用户列表")
+    @Operation(summary = "根据组织ID获取用户列表(优化版本)")
     @GetMapping("/get_users_by_org_id")
-    public Result<SysUserMapVO> getUsersByOrgId(@Parameter(description = "组织ID") @RequestParam String orgId) {
+    public Result<SysUserMapVO> getUsersByOrgId(
+            @Parameter(description = "组织ID") @RequestParam String orgId,
+            @Parameter(description = "租户ID") @RequestParam Long customerId) {
         try {
             Long orgIdLong = Long.parseLong(orgId);
 
-            System.out.println("orgIdLong: " + orgIdLong);
-            List<SysUser> users = sysUserService.getUsersByOrgId(orgIdLong);
+            System.out.println("🔍 优化后的 getUsersByOrgId: orgIdLong=" + orgIdLong + ", customerId=" + customerId);
+            long startTime = System.currentTimeMillis();
+            
+            List<SysUser> users = sysUserService.getUsersByOrgId(orgIdLong, customerId);
+            
+            long endTime = System.currentTimeMillis();
+            System.out.println("✅ 服务层查询完成，耗时: " + (endTime - startTime) + "ms, 用户数量: " + users.size());
+            
             Map<String, String> userMap = users.stream()
                     .collect(Collectors.toMap(
                             user -> String.valueOf(user.getId()),
@@ -180,6 +191,12 @@ public class SysUserController {
             return Result.data(vo);
         } catch (NumberFormatException e) {
             return Result.failure("组织ID格式不正确");
+        } catch (cn.dev33.satoken.exception.NotLoginException e) {
+            log.warn("⚠️ 未登录访问用户查询API: {}", e.getMessage());
+            return Result.failure("未登录或登录已过期，请重新登录");
+        } catch (Exception e) {
+            log.error("❌ 查询组织用户失败", e);
+            return Result.failure("查询组织用户失败: " + e.getMessage());
         }
     }
 

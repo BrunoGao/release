@@ -832,6 +832,282 @@
             }
         });
         
+        // V2增强：实时消息状态更新监听
+        let eventSource = null;
+        let isRealTimeEnabled = true;
+        
+        function initializeRealTimeUpdates() {
+            if (!isRealTimeEnabled) return;
+            
+            try {
+                // WebSocket连接用于实时状态更新
+                if (window.WebSocket) {
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${wsProtocol}//${window.location.host}/ws/message_updates`;
+                    
+                    const ws = new WebSocket(wsUrl);
+                    
+                    ws.onopen = function() {
+                        console.log('✅ 实时消息更新连接已建立');
+                        updateConnectionStatus(true);
+                    };
+                    
+                    ws.onmessage = function(event) {
+                        try {
+                            const data = JSON.parse(event.data);
+                            handleRealTimeMessageUpdate(data);
+                        } catch (e) {
+                            console.warn('实时更新数据解析失败:', e);
+                        }
+                    };
+                    
+                    ws.onclose = function() {
+                        console.log('⚠️ 实时消息更新连接已断开');
+                        updateConnectionStatus(false);
+                        
+                        // 5秒后尝试重连
+                        if (isRealTimeEnabled) {
+                            setTimeout(initializeRealTimeUpdates, 5000);
+                        }
+                    };
+                    
+                    ws.onerror = function(error) {
+                        console.error('❌ 实时更新连接错误:', error);
+                        updateConnectionStatus(false);
+                    };
+                    
+                    window.messageWebSocket = ws;
+                }
+                
+                // 备用方案：SSE (Server-Sent Events)
+                if (!window.WebSocket && window.EventSource) {
+                    eventSource = new EventSource('/api/message_status_stream');
+                    
+                    eventSource.onopen = function() {
+                        console.log('✅ SSE消息更新连接已建立');
+                        updateConnectionStatus(true);
+                    };
+                    
+                    eventSource.onmessage = function(event) {
+                        try {
+                            const data = JSON.parse(event.data);
+                            handleRealTimeMessageUpdate(data);
+                        } catch (e) {
+                            console.warn('SSE数据解析失败:', e);
+                        }
+                    };
+                    
+                    eventSource.onerror = function() {
+                        console.log('⚠️ SSE连接错误');
+                        updateConnectionStatus(false);
+                    };
+                }
+                
+            } catch (e) {
+                console.error('初始化实时更新失败:', e);
+                updateConnectionStatus(false);
+            }
+        }
+        
+        function handleRealTimeMessageUpdate(data) {
+            console.log('📨 收到实时消息更新:', data);
+            
+            switch(data.type) {
+                case 'message_acknowledged':
+                    handleMessageAcknowledged(data);
+                    break;
+                case 'new_message':
+                    handleNewMessage(data);
+                    break;
+                case 'message_status_changed':
+                    handleMessageStatusChanged(data);
+                    break;
+                case 'batch_operation_complete':
+                    handleBatchOperationComplete(data);
+                    break;
+                default:
+                    console.log('未知的实时更新类型:', data.type);
+            }
+            
+            // 更新最后更新时间
+            updateLastUpdateTime();
+        }
+        
+        function handleMessageAcknowledged(data) {
+            console.log('🔄 消息确认更新:', data.message_id);
+            
+            // 更新表格中的状态显示
+            updateMessageStatusInTable(data.message_id, data.acknowledgment_type);
+            
+            // 显示实时通知
+            showRealTimeNotification(`消息 ${data.message_id} 已${data.acknowledgment_type === 'read' ? '标记已读' : '确认'}`, 'success');
+            
+            // 增量更新统计
+            updateStatisticsIncremental(data);
+        }
+        
+        function handleNewMessage(data) {
+            console.log('📨 新消息到达:', data.message_id);
+            
+            // 显示新消息通知
+            showRealTimeNotification(`新消息: ${data.message_type} - ${data.preview}`, 'info');
+            
+            // 触发数据刷新（延迟执行避免频繁刷新）
+            debounceDataRefresh();
+        }
+        
+        function handleMessageStatusChanged(data) {
+            console.log('🔄 消息状态变更:', data);
+            
+            updateMessageStatusInTable(data.message_id, data.new_status);
+            
+            // 更新计数器
+            updateMessageCounters();
+        }
+        
+        function handleBatchOperationComplete(data) {
+            console.log('✅ 批量操作完成:', data);
+            
+            showRealTimeNotification(`批量操作完成: ${data.success_count}/${data.total_count} 成功`, 'success');
+            
+            // 刷新整个视图
+            setTimeout(() => {
+                updateDashboard(true);
+            }, 1000);
+        }
+        
+        function updateMessageStatusInTable(messageId, status) {
+            // 在表格中查找并更新对应消息的状态
+            const tableBody = document.querySelector('#messageTable tbody');
+            if (tableBody) {
+                const rows = tableBody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const idCell = row.querySelector('td:first-child');
+                    if (idCell && idCell.textContent.trim() === messageId) {
+                        const statusCell = row.querySelector('td:last-child');
+                        if (statusCell) {
+                            const statusText = status === 'read' ? '已读' : (status === 'acknowledged' ? '已确认' : status);
+                            const statusClass = status === 'read' || status === 'acknowledged' || status === '2' ? 'status-read' : 'status-unread';
+                            statusCell.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
+                        }
+                    }
+                });
+            }
+        }
+        
+        function showRealTimeNotification(message, type = 'info') {
+            // 创建实时通知元素
+            const notification = document.createElement('div');
+            notification.className = `realtime-notification ${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <span class="notification-icon">${type === 'success' ? '✅' : type === 'info' ? '📨' : '⚠️'}</span>
+                    <span class="notification-text">${message}</span>
+                    <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+            `;
+            
+            // 添加样式
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? 'rgba(82, 196, 26, 0.9)' : type === 'info' ? 'rgba(24, 144, 255, 0.9)' : 'rgba(250, 140, 22, 0.9)'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                z-index: 10000;
+                max-width: 400px;
+                animation: slideInFromRight 0.3s ease;
+                font-size: 14px;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideOutToRight 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 3000);
+        }
+        
+        function updateConnectionStatus(isConnected) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('refreshStatus');
+            
+            if (statusDot && statusText) {
+                if (isConnected) {
+                    statusDot.classList.remove('paused');
+                    statusText.textContent = '实时监控中';
+                } else {
+                    statusDot.classList.add('paused');
+                    statusText.textContent = '连接中断';
+                }
+            }
+        }
+        
+        let dataRefreshTimeout = null;
+        function debounceDataRefresh() {
+            if (dataRefreshTimeout) {
+                clearTimeout(dataRefreshTimeout);
+            }
+            
+            dataRefreshTimeout = setTimeout(() => {
+                updateDashboard(true);
+            }, 2000); // 2秒防抖
+        }
+        
+        function updateMessageCounters() {
+            // 更新页面上的消息计数器
+            const totalMessages = document.querySelectorAll('#messageTable tbody tr').length;
+            const unreadMessages = document.querySelectorAll('.status-unread').length;
+            const readMessages = totalMessages - unreadMessages;
+            
+            // 更新过滤状态显示
+            const statusElement = document.getElementById('filterStatus');
+            if (statusElement) {
+                statusElement.textContent = `(共 ${totalMessages} 条消息，${unreadMessages} 条未读)`;
+            }
+        }
+        
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            
+            // 更新状态栏的最后更新时间
+            const statusText = document.getElementById('refreshStatus');
+            if (statusText && statusText.textContent.includes('实时监控中')) {
+                statusText.textContent = `实时监控中 (${timeStr})`;
+            }
+        }
+        
+        function updateStatisticsIncremental(data) {
+            // 增量更新统计数据，避免完全重新加载
+            if (data.acknowledgment_type === 'read' || data.acknowledgment_type === 'acknowledged') {
+                // 更新响应率等统计信息
+                updateMessageCounters();
+                
+                // 可以在这里触发图表的局部更新
+                // 为了简化，暂时跳过图表的增量更新
+            }
+        }
+        
+        // 页面卸载时清理连接
+        window.addEventListener('beforeunload', function() {
+            isRealTimeEnabled = false;
+            
+            if (window.messageWebSocket) {
+                window.messageWebSocket.close();
+            }
+            
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+        
         // 使用缓存数据更新仪表板
         function updateDashboardWithCachedData() {
             if (!cachedMessageInfo) return;
@@ -1704,6 +1980,12 @@
             loadDepartments();
             initDashboard();
             document.getElementById('sendMessageForm').addEventListener('submit', sendMessage);
+            
+            // V2增强：启动实时更新机制
+            setTimeout(() => {
+                initializeRealTimeUpdates();
+                console.log('🚀 实时消息更新系统已启动');
+            }, 2000); // 延迟2秒启动，确保页面加载完成
         });
 
         // 手动刷新功能

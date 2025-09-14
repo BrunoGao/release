@@ -26,7 +26,6 @@ import com.ljwx.infrastructure.page.PageQuery;
 import com.ljwx.modules.health.domain.bo.TDeviceInfoBO;
 import com.ljwx.modules.health.domain.entity.TDeviceInfo;
 import com.ljwx.modules.health.repository.mapper.TDeviceInfoMapper;
-import com.ljwx.modules.health.service.IDeviceUserMappingService;
 import com.ljwx.modules.health.service.ITDeviceInfoService;
 import com.ljwx.modules.system.service.ISysUserService;
 import org.apache.commons.lang3.ObjectUtils;
@@ -52,8 +51,6 @@ import java.util.stream.Collectors;
 @Service
 public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDeviceInfo> implements ITDeviceInfoService {
 
-    @Autowired
-    private IDeviceUserMappingService deviceUserMappingService;
 
     @Autowired
     private ISysUserService sysUserService;

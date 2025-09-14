@@ -52,17 +52,112 @@ public class HealthDataService {
     /**
      * 获取健康基线分页数据
      */
-    public RPage<Map<String, Object>> getHealthBaselinePage(PageQuery pageQuery, Long customerId) {
-        log.info("获取健康基线分页数据 - page: {}, size: {}, customerId: {}", 
-                pageQuery.getPage(), pageQuery.getPageSize(), customerId);
+    public RPage<Map<String, Object>> getHealthBaselinePage(PageQuery pageQuery, Long customerId, 
+                                                          Long orgId, Long userId, Long startDate, 
+                                                          Long endDate, String dataType) {
+        log.info("获取健康基线分页数据 - page: {}, size: {}, customerId: {}, orgId: {}, userId: {}, startDate: {}, endDate: {}, dataType: {}", 
+                pageQuery.getPage(), pageQuery.getPageSize(), customerId, orgId, userId, startDate, endDate, dataType);
         
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT b.*, u.real_name, u.user_name, u.org_id, u.org_name ");
+        sql.append("SELECT b.*, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name ");
         sql.append("FROM t_health_baseline b ");
         sql.append("LEFT JOIN sys_user u ON b.user_id = u.id ");
         sql.append("WHERE (b.is_deleted = 0 OR b.is_deleted IS NULL)");
         
-        return executeHealthQuery(sql, pageQuery, customerId, "b.customer_id", this::convertBaselineRecord);
+        // 添加各种条件过滤
+        List<Object> params = new ArrayList<>();
+        
+        if (customerId != null && customerId > 0) {
+            sql.append(" AND b.customer_id = ?");
+            params.add(customerId);
+        }
+        
+        if (orgId != null) {
+            sql.append(" AND b.org_id = ?");
+            params.add(orgId.toString());
+        }
+        
+        if (userId != null) {
+            sql.append(" AND b.user_id = ?");
+            params.add(userId);
+        }
+        
+        if (dataType != null && !dataType.trim().isEmpty()) {
+            // dataType对应feature_name字段，需要进行映射
+            String featureName = mapDataTypeToFeatureName(dataType);
+            sql.append(" AND b.feature_name = ?");
+            params.add(featureName);
+        }
+        
+        if (startDate != null && endDate != null) {
+            sql.append(" AND b.baseline_date >= FROM_UNIXTIME(? / 1000) AND b.baseline_date <= FROM_UNIXTIME(? / 1000)");
+            params.add(startDate);
+            params.add(endDate);
+        } else if (startDate != null) {
+            sql.append(" AND b.baseline_date >= FROM_UNIXTIME(? / 1000)");
+            params.add(startDate);
+        } else if (endDate != null) {
+            sql.append(" AND b.baseline_date <= FROM_UNIXTIME(? / 1000)");
+            params.add(endDate);
+        }
+        
+        sql.append(" ORDER BY b.baseline_date DESC, b.create_time DESC");
+        
+        return executeHealthQueryWithParams(sql, pageQuery, params, this::convertBaselineRecord);
+    }
+    
+    /**
+     * 保持向后兼容的方法
+     */
+    public RPage<Map<String, Object>> getHealthBaselinePage(PageQuery pageQuery, Long customerId) {
+        return getHealthBaselinePage(pageQuery, customerId, null, null, null, null, null);
+    }
+    
+    /**
+     * 数据类型映射到特征名称
+     */
+    private String mapDataTypeToFeatureName(String dataType) {
+        return switch (dataType.toLowerCase()) {
+            case "heart_rate" -> "heart_rate";
+            case "blood_oxygen" -> "blood_oxygen";
+            case "temperature" -> "temperature";
+            case "pressure_high", "systolic_pressure" -> "pressure_high";
+            case "pressure_low", "diastolic_pressure" -> "pressure_low";
+            case "stress" -> "stress";
+            case "step", "steps" -> "step";
+            case "calorie", "calories" -> "calorie";
+            case "distance" -> "distance";
+            case "sleep" -> "sleep";
+            default -> dataType; // 如果没有匹配，直接使用原值
+        };
+    }
+    
+    /**
+     * 执行带参数的健康数据查询
+     */
+    private RPage<Map<String, Object>> executeHealthQueryWithParams(StringBuilder sql, PageQuery pageQuery, 
+                                                                   List<Object> params,
+                                                                   Function<Map<String, Object>, Map<String, Object>> converter) {
+        // 计算总数
+        String countSql = "SELECT COUNT(*) FROM (" + sql.toString() + ") t";
+        Long total = jdbcTemplate.queryForObject(countSql, params.toArray(), Long.class);
+        
+        // 添加分页
+        long offset = (pageQuery.getPage() - 1) * pageQuery.getPageSize();
+        sql.append(" LIMIT ").append(pageQuery.getPageSize()).append(" OFFSET ").append(offset);
+        
+        // 执行查询
+        List<Map<String, Object>> records = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+        
+        // 转换记录
+        List<Map<String, Object>> convertedRecords = records.stream()
+                .map(converter)
+                .collect(Collectors.toList());
+        
+        // 计算总页数
+        long pages = (total + pageQuery.getPageSize() - 1) / pageQuery.getPageSize();
+        
+        return new RPage<>(pageQuery.getPage(), pageQuery.getPageSize(), convertedRecords, pages, total);
     }
     
     /**
@@ -71,7 +166,7 @@ public class HealthDataService {
     public Map<String, Object> getHealthBaselineById(Long id) {
         log.info("获取健康基线详情 - id: {}", id);
         
-        String sql = "SELECT b.*, u.real_name, u.user_name, u.org_id, u.org_name " +
+        String sql = "SELECT b.*, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name " +
                     "FROM t_health_baseline b " +
                     "LEFT JOIN sys_user u ON b.user_id = u.id " +
                     "WHERE b.id = ?";
@@ -92,7 +187,7 @@ public class HealthDataService {
                 pageQuery.getPage(), pageQuery.getPageSize(), customerId);
         
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT s.*, u.real_name, u.user_name, u.org_id, u.org_name ");
+        sql.append("SELECT s.*, u.real_name, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name ");
         sql.append("FROM t_health_score s ");
         sql.append("LEFT JOIN sys_user u ON s.user_id = u.id ");
         sql.append("WHERE (s.is_deleted = 0 OR s.is_deleted IS NULL)");
@@ -106,7 +201,7 @@ public class HealthDataService {
     public Map<String, Object> getHealthScoreById(Long id) {
         log.info("获取健康评分详情 - id: {}", id);
         
-        String sql = "SELECT s.*, u.real_name, u.user_name, u.org_id, u.org_name " +
+        String sql = "SELECT s.*, u.real_name, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name " +
                     "FROM t_health_score s " +
                     "LEFT JOIN sys_user u ON s.user_id = u.id " +
                     "WHERE s.id = ?";
@@ -127,7 +222,7 @@ public class HealthDataService {
                 pageQuery.getPage(), pageQuery.getPageSize(), customerId);
         
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT p.*, u.real_name, u.user_name, u.org_id, u.org_name ");
+        sql.append("SELECT p.*, u.real_name, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name ");
         sql.append("FROM t_health_prediction p ");
         sql.append("LEFT JOIN sys_user u ON p.user_id = u.id ");
         sql.append("WHERE (p.is_deleted = 0 OR p.is_deleted IS NULL)");
@@ -141,7 +236,7 @@ public class HealthDataService {
     public Map<String, Object> getHealthPredictionById(Long id) {
         log.info("获取健康预测详情 - id: {}", id);
         
-        String sql = "SELECT p.*, u.real_name, u.user_name, u.org_id, u.org_name " +
+        String sql = "SELECT p.*, u.real_name, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name " +
                     "FROM t_health_prediction p " +
                     "LEFT JOIN sys_user u ON p.user_id = u.id " +
                     "WHERE p.id = ?";
@@ -162,7 +257,7 @@ public class HealthDataService {
                 pageQuery.getPage(), pageQuery.getPageSize(), customerId);
         
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT r.*, u.real_name, u.user_name, u.org_id, u.org_name ");
+        sql.append("SELECT r.*, u.real_name, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name ");
         sql.append("FROM t_health_recommendation_track r ");
         sql.append("LEFT JOIN sys_user u ON r.user_id = u.id ");
         sql.append("WHERE (r.is_deleted = 0 OR r.is_deleted IS NULL)");
@@ -176,7 +271,7 @@ public class HealthDataService {
     public Map<String, Object> getHealthRecommendationById(Long id) {
         log.info("获取健康建议详情 - id: {}", id);
         
-        String sql = "SELECT r.*, u.real_name, u.user_name, u.org_id, u.org_name " +
+        String sql = "SELECT r.*, u.real_name, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name " +
                     "FROM t_health_recommendation_track r " +
                     "LEFT JOIN sys_user u ON r.user_id = u.id " +
                     "WHERE r.id = ?";
@@ -197,7 +292,7 @@ public class HealthDataService {
                 pageQuery.getPage(), pageQuery.getPageSize(), customerId);
         
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT p.*, u.real_name, u.user_name, u.org_id, u.org_name ");
+        sql.append("SELECT p.*, u.real_name, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name ");
         sql.append("FROM t_health_profile p ");
         sql.append("LEFT JOIN sys_user u ON p.user_id = u.id ");
         sql.append("WHERE (p.is_deleted = 0 OR p.is_deleted IS NULL)");
@@ -211,7 +306,7 @@ public class HealthDataService {
     public Map<String, Object> getHealthProfileById(Long id) {
         log.info("获取健康档案详情 - id: {}", id);
         
-        String sql = "SELECT p.*, u.real_name, u.user_name, u.org_id, u.org_name " +
+        String sql = "SELECT p.*, u.real_name, u.user_name, u.org_id AS user_org_id, u.org_name AS user_org_name " +
                     "FROM t_health_profile p " +
                     "LEFT JOIN sys_user u ON p.user_id = u.id " +
                     "WHERE p.id = ?";
@@ -367,11 +462,10 @@ public class HealthDataService {
      * 添加用户和组织信息到结果中
      */
     private void addUserOrgInfo(Map<String, Object> result, Map<String, Object> record) {
-        String realName = (String) record.get("real_name");
         String userName = (String) record.get("user_name");
-        result.put("userName", realName != null ? realName : (userName != null ? userName : "未知用户"));
-        result.put("orgName", record.get("org_name") != null ? record.get("org_name") : "未知部门");
-        result.put("orgId", record.get("org_id"));
+        result.put("userName", userName != null ? userName : "未知用户");
+        result.put("orgName", record.get("user_org_name") != null ? record.get("user_org_name") : "未知部门");
+        result.put("orgId", record.get("user_org_id"));
     }
     
     /**

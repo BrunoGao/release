@@ -21,15 +21,16 @@ package com.ljwx.modules.health.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ljwx.modules.customer.domain.entity.THealthDataConfig;
-import com.ljwx.modules.customer.service.ITHealthDataConfigService;
+import com.ljwx.modules.customer.repository.mapper.THealthDataConfigMapper;
+import com.ljwx.modules.system.service.ISysOrgClosureService;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -46,80 +47,124 @@ import java.util.stream.Collectors;
 public class HealthDataConfigQueryService {
 
     @Autowired
-    private ITHealthDataConfigService healthDataConfigService;
+    private THealthDataConfigMapper healthDataConfigMapper;
+
+    @Autowired
+    private ISysOrgClosureService sysOrgClosureService;
 
     // 本地缓存，避免频繁查询数据库
-    private final Map<Long, Set<String>> customerMetricsCache = new ConcurrentHashMap<>();
-    private final Map<Long, Map<String, THealthDataConfig>> customerConfigCache = new ConcurrentHashMap<>();
+    private final Map<Long, HealthMetricsResult> customerMetricsCache = new ConcurrentHashMap<>();
 
     /**
-     * 获取客户支持的健康指标列表
+     * 健康指标结果数据结构
      */
-    @Cacheable(value = "health_metrics", key = "#customerId")
-    public Set<String> getSupportedMetrics(Long customerId) {
+    @Data
+    public static class HealthMetricsResult {
+        private Set<String> fullEnabledMetrics;        // 所有启用的指标（给客户端表格用）
+        private Set<String> basicEnabledMetrics;       // 基础启用的指标（用于数据分析）
+        private List<String> actualDatabaseFields;     // 实际数据库字段
+        private Map<String, BigDecimal> metricWeights; // 指标权重
+        private Map<String, THealthDataConfig> configMap; // 配置映射
+    }
+
+    /**
+     * 基础健康指标定义 - 对应 t_user_health_data 快字段，用于数据分析
+     */
+    private static final Set<String> BASIC_METRICS = Set.of(
+        "heart_rate",         // 心率
+        "blood_oxygen",       // 血氧
+        "temperature",   // 体温
+        "step",              // 步数
+        "distance",          // 距离
+        "calorie",           // 卡路里
+        "stress",            // 压力
+        "pressure_high",     // 收缩压
+        "pressure_low",      // 舒张压
+        "sleepData"          // 睡眠数据
+    );
+
+    /**
+     * 默认权重，用于没有配置权重的指标
+     */
+    private static final BigDecimal DEFAULT_WEIGHT = new BigDecimal("0.05");
+
+    /**
+     * 获取客户健康指标完整信息（支持的指标、实际数据库字段、权重配置）
+     */
+    @Cacheable(value = "health_metrics_complete", key = "#customerId")
+    public HealthMetricsResult getHealthMetricsComplete(Long customerId) {
         try {
+            // 验证并获取真实的顶级customerId
+            Long actualCustomerId = validateAndGetTopLevelCustomerId(customerId);
+            if (actualCustomerId == null) {
+                log.warn("无法获取有效的顶级customerId: {}", customerId);
+                return getEmptyHealthMetricsResult();
+            }
+            
             // 先检查本地缓存
-            if (customerMetricsCache.containsKey(customerId)) {
-                return customerMetricsCache.get(customerId);
+            if (customerMetricsCache.containsKey(actualCustomerId)) {
+                return customerMetricsCache.get(actualCustomerId);
             }
 
+            // 直接查询数据库
             LambdaQueryWrapper<THealthDataConfig> query = new LambdaQueryWrapper<>();
-            query.eq(THealthDataConfig::getCustomerId, customerId)
-                 .eq(THealthDataConfig::getIsEnabled, true)
-                 .select(THealthDataConfig::getDataType);
+            query.eq(THealthDataConfig::getCustomerId, actualCustomerId)
+                 .eq(THealthDataConfig::getIsEnabled, 1)
+                 .eq(THealthDataConfig::getIsDeleted, 0);
 
-            List<THealthDataConfig> configs = healthDataConfigService.list(query);
+            List<THealthDataConfig> configs = healthDataConfigMapper.selectList(query);
             
-            Set<String> metrics = configs.stream()
-                    .map(THealthDataConfig::getDataType)
-                    .collect(Collectors.toSet());
-
+            // 构建结果
+            HealthMetricsResult result = buildHealthMetricsResult(configs, actualCustomerId);
+            
             // 缓存结果
-            customerMetricsCache.put(customerId, metrics);
+            customerMetricsCache.put(actualCustomerId, result);
             
-            log.debug("客户 {} 支持的健康指标: {}", customerId, metrics);
-            return metrics;
+            log.debug("客户 {} (实际customerId: {}) 健康指标完整信息: 全部启用{}个指标, 基础启用{}个指标, 实际字段{}个", 
+                customerId, actualCustomerId, result.getFullEnabledMetrics().size(), 
+                result.getBasicEnabledMetrics().size(), result.getActualDatabaseFields().size());
+            
+            return result;
             
         } catch (Exception e) {
-            log.error("获取客户 {} 支持的健康指标失败: {}", customerId, e.getMessage(), e);
-            return getDefaultMetrics();
+            log.error("获取客户 {} 健康指标完整信息失败: {}", customerId, e.getMessage(), e);
+            return getEmptyHealthMetricsResult();
         }
     }
 
     /**
-     * 获取客户健康指标配置详情
+     * 获取所有启用的健康指标列表（给客户端表格用）
      */
-    @Cacheable(value = "health_config", key = "#customerId")
+    public Set<String> getFullEnabledMetrics(Long customerId) {
+        return getHealthMetricsComplete(customerId).getFullEnabledMetrics();
+    }
+
+    /**
+     * 获取基础启用的健康指标列表（用于数据分析）
+     */
+    public Set<String> getBasicEnabledMetrics(Long customerId) {
+        return getHealthMetricsComplete(customerId).getBasicEnabledMetrics();
+    }
+
+    /**
+     * 获取客户支持的健康指标列表（向后兼容）
+     */
+    public Set<String> getSupportedMetrics(Long customerId) {
+        return getFullEnabledMetrics(customerId);
+    }
+
+    /**
+     * 获取客户健康指标配置详情（向后兼容）
+     */
     public Map<String, THealthDataConfig> getHealthDataConfigs(Long customerId) {
-        try {
-            // 先检查本地缓存
-            if (customerConfigCache.containsKey(customerId)) {
-                return customerConfigCache.get(customerId);
-            }
+        return getHealthMetricsComplete(customerId).getConfigMap();
+    }
 
-            LambdaQueryWrapper<THealthDataConfig> query = new LambdaQueryWrapper<>();
-            query.eq(THealthDataConfig::getCustomerId, customerId)
-                 .eq(THealthDataConfig::getIsEnabled, true);
-
-            List<THealthDataConfig> configs = healthDataConfigService.list(query);
-            
-            Map<String, THealthDataConfig> configMap = configs.stream()
-                    .collect(Collectors.toMap(
-                        THealthDataConfig::getDataType,
-                        config -> config,
-                        (existing, replacement) -> replacement
-                    ));
-
-            // 缓存结果
-            customerConfigCache.put(customerId, configMap);
-            
-            log.debug("客户 {} 健康指标配置数量: {}", customerId, configMap.size());
-            return configMap;
-            
-        } catch (Exception e) {
-            log.error("获取客户 {} 健康指标配置失败: {}", customerId, e.getMessage(), e);
-            return Map.of();
-        }
+    /**
+     * 获取指标权重信息
+     */
+    public Map<String, BigDecimal> getMetricWeights(Long customerId) {
+        return getHealthMetricsComplete(customerId).getMetricWeights();
     }
 
     /**
@@ -145,6 +190,38 @@ public class HealthDataConfigQueryService {
         return metrics.stream()
                 .filter(supported::contains)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取实际数据库字段映射（处理特殊字段映射规则）- 优化版本
+     */
+    public List<String> getActualDatabaseFields(Long customerId, List<String> requestedFields) {
+        HealthMetricsResult metricsResult = getHealthMetricsComplete(customerId);
+        return metricsResult.getActualDatabaseFields().stream()
+                .filter(field -> requestedFields.isEmpty() || 
+                        requestedFields.stream().anyMatch(requested -> isFieldRelated(requested, field)))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 检查字段是否相关
+     */
+    private boolean isFieldRelated(String requestedField, String actualField) {
+        // 直接匹配
+        if (requestedField.equals(actualField)) {
+            return true;
+        }
+        // heart_rate 包含 pressure_high 和 pressure_low
+        if ("heart_rate".equals(requestedField) && 
+            (actualField.equals("pressure_high") || actualField.equals("pressure_low"))) {
+            return true;
+        }
+        // location 包含 latitude, longitude, altitude
+        if ("location".equals(requestedField) && 
+            (actualField.equals("latitude") || actualField.equals("longitude") || actualField.equals("altitude"))) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -183,7 +260,6 @@ public class HealthDataConfigQueryService {
      */
     public void clearCustomerCache(Long customerId) {
         customerMetricsCache.remove(customerId);
-        customerConfigCache.remove(customerId);
         log.info("已清除客户 {} 的配置缓存", customerId);
     }
 
@@ -192,19 +268,114 @@ public class HealthDataConfigQueryService {
      */
     public void clearAllCache() {
         customerMetricsCache.clear();
-        customerConfigCache.clear();
         log.info("已清除所有配置缓存");
     }
 
     /**
-     * 获取默认支持的健康指标
+     * 构建健康指标结果对象 - 双列表系统
+     */
+    private HealthMetricsResult buildHealthMetricsResult(List<THealthDataConfig> configs, Long customerId) {
+        HealthMetricsResult result = new HealthMetricsResult();
+        
+        // 1. 获取所有启用的指标（Full Enabled Metrics）
+        Set<String> fullEnabledMetrics = new HashSet<>();
+        Map<String, BigDecimal> metricWeights = new HashMap<>();
+        Map<String, THealthDataConfig> configMap = new HashMap<>();
+        
+        // 处理客户配置的指标
+        for (THealthDataConfig config : configs) {
+            String dataType = config.getDataType();
+            fullEnabledMetrics.add(dataType);
+            configMap.put(dataType, config);
+            
+            // 使用配置的权重，如果没有配置权重则使用默认值
+            BigDecimal weight = (config.getWeight() != null && config.getWeight().compareTo(BigDecimal.ZERO) > 0) 
+                ? config.getWeight() 
+                : DEFAULT_WEIGHT;
+            metricWeights.put(dataType, weight);
+        }
+        
+        // 2. 计算基础启用的指标（Basic Enabled Metrics = Basic ∩ Full Enabled）
+        Set<String> basicEnabledMetrics = new HashSet<>(BASIC_METRICS);
+        basicEnabledMetrics.retainAll(fullEnabledMetrics); // 取交集
+        
+        // 如果没有任何配置，返回空结果
+        if (fullEnabledMetrics.isEmpty()) {
+            log.warn("客户 {} 没有配置任何健康指标", customerId);
+            return getEmptyHealthMetricsResult();
+        }
+        
+        // 3. 构建实际数据库字段（基于所有启用的指标）
+        List<String> actualDatabaseFields = buildActualDatabaseFields(fullEnabledMetrics);
+        
+        result.setFullEnabledMetrics(fullEnabledMetrics);
+        result.setBasicEnabledMetrics(basicEnabledMetrics);
+        result.setActualDatabaseFields(actualDatabaseFields);
+        result.setMetricWeights(metricWeights);
+        result.setConfigMap(configMap);
+        
+        log.debug("客户 {} 构建结果: 全部启用指标={}, 基础启用指标={}, 实际字段={}, 权重数={}", 
+            customerId, fullEnabledMetrics.size(), basicEnabledMetrics.size(), 
+            actualDatabaseFields.size(), metricWeights.size());
+        
+        return result;
+    }
+
+    /**
+     * 构建实际数据库字段列表（应用映射规则）
+     */
+    private List<String> buildActualDatabaseFields(Set<String> supportedMetrics) {
+        Set<String> actualFields = new HashSet<>();
+        
+        for (String metric : supportedMetrics) {
+            // 规则1: location不是真实字段，映射为latitude、longitude、altitude
+            if ("location".equals(metric)) {
+                actualFields.add("latitude");
+                actualFields.add("longitude");
+                actualFields.add("altitude");
+                continue;
+            }
+            
+            // 规则2: heart_rate同时包含pressure_low和pressure_high
+            if ("heart_rate".equals(metric)) {
+                actualFields.add("heart_rate");
+                actualFields.add("pressure_low");
+                actualFields.add("pressure_high");
+                continue;
+            }
+            
+            // 规则3: 忽略ecg和wear字段
+            if ("ecg".equals(metric) || "wear".equals(metric)) {
+                log.debug("忽略字段: {}", metric);
+                continue;
+            }
+            
+            // 其他字段直接添加
+            actualFields.add(metric);
+        }
+        
+        return new ArrayList<>(actualFields);
+    }
+
+    /**
+     * 获取空的健康指标结果（降级处理）
+     */
+    private HealthMetricsResult getEmptyHealthMetricsResult() {
+        HealthMetricsResult result = new HealthMetricsResult();
+        result.setFullEnabledMetrics(new HashSet<>());
+        result.setBasicEnabledMetrics(new HashSet<>());
+        result.setActualDatabaseFields(new ArrayList<>());
+        result.setMetricWeights(new HashMap<>());
+        result.setConfigMap(new HashMap<>());
+        return result;
+    }
+
+    /**
+     * 获取默认支持的健康指标（向后兼容）- 返回空集合，强制从数据库读取
      */
     private Set<String> getDefaultMetrics() {
-        return Set.of(
-            "heart_rate", "blood_oxygen", "temperature",
-            "pressure_high", "pressure_low", "stress",
-            "step", "calorie", "distance", "sleep"
-        );
+        log.warn("调用了getDefaultMetrics方法，应该从数据库配置中读取指标");
+        return new HashSet<>();
     }
     
     /**
@@ -276,5 +447,36 @@ public class HealthDataConfigQueryService {
     public boolean needsWeeklyTable(List<String> metrics) {
         Set<String> weeklyMetrics = getWeeklyTableMetrics();
         return metrics.stream().anyMatch(weeklyMetrics::contains);
+    }
+
+    /**
+     * 验证并获取真实的顶级customerId
+     * 如果传入的是orgId，会自动转换为对应的顶级customerId
+     */
+    private Long validateAndGetTopLevelCustomerId(Long inputId) {
+        if (inputId == null) {
+            return null;
+        }
+        
+        try {
+            // 尝试获取顶级customerId，如果传入的是orgId，会返回对应的顶级customerId
+            // 如果传入的本身就是顶级customerId，也会正确返回
+            Long topLevelCustomerId = sysOrgClosureService.getTopLevelCustomerIdByOrgId(inputId);
+            
+            if (topLevelCustomerId != null) {
+                if (!topLevelCustomerId.equals(inputId)) {
+                    log.debug("输入ID {} 转换为顶级customerId: {}", inputId, topLevelCustomerId);
+                }
+                return topLevelCustomerId;
+            } else {
+                // 如果闭包表中找不到，可能传入的就是顶级customerId，直接返回
+                log.debug("输入ID {} 在闭包表中未找到，假设为顶级customerId", inputId);
+                return inputId;
+            }
+            
+        } catch (Exception e) {
+            log.warn("验证customerId时出错，使用原始值: inputId={}, error={}", inputId, e.getMessage());
+            return inputId;
+        }
     }
 }

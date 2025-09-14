@@ -18,9 +18,8 @@ import com.ljwx.modules.system.domain.enums.UserType;
 import com.ljwx.modules.system.service.ISysRoleService;
 import com.ljwx.modules.system.service.ISysUserRoleService;
 import com.ljwx.modules.system.service.ISysUserService;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,13 +39,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SysUserRoleServiceImpl extends ServiceImpl<SysUserRoleMapper, SysUserRole> implements ISysUserRoleService {
 
-    @NonNull
+    @Autowired
     private ISysRoleService sysRoleService;
     
-    @NonNull
+    @Autowired
     @Lazy
     private ISysUserService sysUserService;
 

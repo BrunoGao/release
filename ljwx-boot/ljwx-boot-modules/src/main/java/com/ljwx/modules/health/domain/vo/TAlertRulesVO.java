@@ -68,6 +68,33 @@ public class TAlertRulesVO extends BaseVO {
     private String notificationType;
 
     private Long customerId;
+    
+    // 新增字段
+    private String ruleCategory;
+    
+    private Object conditionExpression;
+    
+    private Integer timeWindowSeconds;
+    
+    private Integer cooldownSeconds;
+    
+    private Integer priorityLevel;
+    
+    private Object ruleTags;
+    
+    private String effectiveTimeStart;
+    
+    private String effectiveTimeEnd;
+    
+    private String effectiveDays;
+    
+    private Long version;
+    
+    private Object enabledChannels;
+    
+    private String level;
+    
+    private Boolean isEnabled;
 
     private String createUser;
 

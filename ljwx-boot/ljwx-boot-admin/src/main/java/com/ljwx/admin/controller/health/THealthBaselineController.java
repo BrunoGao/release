@@ -58,10 +58,16 @@ public class THealthBaselineController {
     @SaCheckPermission("t:health:baseline:page")
     @Operation(operationId = "1", summary = "获取健康基线列表")
     public Result<RPage<Map<String, Object>>> page(@Parameter(description = "分页对象", required = true) @Valid PageQuery pageQuery,
-                                                   @RequestParam(value = "customerId", required = false) Long customerId) {
-        log.info("获取健康基线列表 - page: {}, size: {}, customerId: {}", pageQuery.getPage(), pageQuery.getPageSize(), customerId);
+                                                   @RequestParam(value = "customerId", required = false) Long customerId,
+                                                   @RequestParam(value = "orgId", required = false) Long orgId,
+                                                   @RequestParam(value = "userId", required = false) Long userId,
+                                                   @RequestParam(value = "startDate", required = false) Long startDate,
+                                                   @RequestParam(value = "endDate", required = false) Long endDate,
+                                                   @RequestParam(value = "dataType", required = false) String dataType) {
+        log.info("获取健康基线列表 - page: {}, size: {}, customerId: {}, orgId: {}, userId: {}, startDate: {}, endDate: {}, dataType: {}", 
+                pageQuery.getPage(), pageQuery.getPageSize(), customerId, orgId, userId, startDate, endDate, dataType);
         
-        RPage<Map<String, Object>> result = healthDataService.getHealthBaselinePage(pageQuery, customerId);
+        RPage<Map<String, Object>> result = healthDataService.getHealthBaselinePage(pageQuery, customerId, orgId, userId, startDate, endDate, dataType);
         return Result.data(result);
     }
 

@@ -262,12 +262,20 @@ public class UnifiedHealthProcessingService {
                                    Map<String, Object> userResult) {
         log.debug("📊 处理用户{}基线数据", userId);
         
+        // 获取设备序列号（从健康数据中取第一个非空的deviceSn）
+        String deviceSn = healthDataList.stream()
+            .map(UserHealthData::getDeviceSn)
+            .filter(sn -> sn != null && !sn.trim().isEmpty())
+            .findFirst()
+            .orElse("UNKNOWN"); // 如果没有找到，使用默认值
+        
         // 按指标分组计算基线
         Map<String, List<Double>> metricGroups = groupHealthMetrics(healthDataList);
         List<HealthBaseline> baselines = new ArrayList<>();
         
         SysUser user = sysUserService.getById(userId);
         UserProfile userProfile = buildUserProfile(user);
+        Long orgId = user != null ? user.getOrgId() : null; // 获取用户的组织ID
         
         for (Map.Entry<String, List<Double>> entry : metricGroups.entrySet()) {
             String metric = entry.getKey();
@@ -281,13 +289,24 @@ public class UnifiedHealthProcessingService {
             
             // 创建用户基线
             HealthBaseline baseline = buildUserBaseline(
-                customerId, userId, metric, stats, userProfile, values.size());
+                customerId, userId, metric, stats, userProfile, values.size(), deviceSn, orgId);
             
             // 更新之前的基线为非当前
             updatePreviousBaselines("user", userId, null, metric);
             
-            // 保存基线
-            healthBaselineMapper.insert(baseline);
+            // 检查是否已存在相同的基线记录（相同的device_sn, feature_name, baseline_date）
+            HealthBaseline existingBaseline = checkExistingBaseline(customerId, userId, metric, deviceSn, LocalDate.now());
+            
+            if (existingBaseline != null) {
+                // 如果存在，更新现有记录
+                baseline.setId(existingBaseline.getId());
+                healthBaselineMapper.updateById(baseline);
+                log.info("🔄 更新已存在的用户基线: metric={}, deviceSn={}, baselineDate={}", metric, deviceSn, LocalDate.now());
+            } else {
+                // 如果不存在，插入新记录
+                healthBaselineMapper.insert(baseline);
+                log.info("✨ 创建新的用户基线: metric={}, deviceSn={}, baselineDate={}", metric, deviceSn, LocalDate.now());
+            }
             baselines.add(baseline);
         }
         
@@ -311,9 +330,16 @@ public class UnifiedHealthProcessingService {
             return;
         }
         
+        // 获取设备序列号（从健康数据中取第一个非空的deviceSn）
+        String deviceSn = healthDataList.stream()
+            .map(UserHealthData::getDeviceSn)
+            .filter(sn -> sn != null && !sn.trim().isEmpty())
+            .findFirst()
+            .orElse("UNKNOWN"); // 如果没有找到，使用默认值
+        
         // 计算评分
         List<HealthScore> scores = calculateUserHealthScores(
-            customerId, userId, healthDataList, userBaselines);
+            customerId, userId, healthDataList, userBaselines, deviceSn);
         
         userResult.put("scores", scores);
         userResult.put("scoresProcessed", scores.size());
@@ -402,7 +428,17 @@ public class UnifiedHealthProcessingService {
                 case "score":
                     aggregateScoreToOrg(customerId, departmentResults);
                     break;
-                // 其他类型的汇总逻辑...
+                case "prediction":
+                    aggregatePredictionToOrg(customerId, departmentResults);
+                    break;
+                case "recommendation":
+                    aggregateRecommendationToOrg(customerId, departmentResults);
+                    break;
+                case "profile":
+                    aggregateProfileToOrg(customerId, departmentResults);
+                    break;
+                default:
+                    log.warn("⚠️ 不支持的汇总类型: {}", processType);
             }
             
         } catch (Exception e) {
@@ -427,7 +463,17 @@ public class UnifiedHealthProcessingService {
                 case "score":
                     aggregateScoreToCustomer(customerId, departmentResults);
                     break;
-                // 其他类型的汇总逻辑...
+                case "prediction":
+                    aggregatePredictionToCustomer(customerId, departmentResults);
+                    break;
+                case "recommendation":
+                    aggregateRecommendationToCustomer(customerId, departmentResults);
+                    break;
+                case "profile":
+                    aggregateProfileToCustomer(customerId, departmentResults);
+                    break;
+                default:
+                    log.warn("⚠️ 不支持的汇总类型: {}", processType);
             }
             
         } catch (Exception e) {
@@ -489,7 +535,7 @@ public class UnifiedHealthProcessingService {
     private List<Long> getUserIdsByDepartment(Long departmentId) {
         try {
             QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
-            wrapper.select("user_id");
+            wrapper.select("id");
             wrapper.eq("org_id", departmentId);
             wrapper.eq("status", "1"); // 只获取正常用户
             
@@ -517,18 +563,120 @@ public class UnifiedHealthProcessingService {
             query.setUserId(userId);
             query.setStartDate(startTime);
             query.setEndDate(endTime);
-            query.setPageSize(50000);
             query.setEnableSharding(true);
-            query.setOrderBy("timestamp");
-            query.setOrderDirection("asc");
             
             Map<String, Object> queryResult = unifiedQueryService.queryHealthData(query);
-            return (List<UserHealthData>) queryResult.getOrDefault("data", new ArrayList<>());
+            List<Map<String, Object>> rawData = (List<Map<String, Object>>) queryResult.getOrDefault("data", new ArrayList<>());
+            
+            // 转换Map数据为UserHealthData对象
+            return rawData.stream()
+                    .map(this::convertMapToUserHealthData)
+                    .collect(Collectors.toList());
             
         } catch (Exception e) {
             log.error("❌ 获取用户健康数据失败: userId={}, error={}", userId, e.getMessage());
             return new ArrayList<>();
         }
+    }
+
+    /**
+     * 将Map数据转换为UserHealthData对象
+     */
+    private UserHealthData convertMapToUserHealthData(Map<String, Object> map) {
+        UserHealthData data = new UserHealthData();
+        
+        // 处理Long类型字段
+        data.setId(convertToLong(map.get("id")));
+        data.setUserId(convertToLong(map.get("userId")));
+        data.setCustomerId(convertToLong(map.get("customerId")));
+        
+        // 处理String字段
+        data.setDeviceSn((String) map.get("deviceSn"));
+        
+        // 处理LocalDateTime字段
+        data.setTimestamp(convertToLocalDateTime(map.get("timestamp")));
+        data.setCreateTime(convertToLocalDateTime(map.get("createTime")));
+        data.setUpdateTime(convertToLocalDateTime(map.get("updateTime")));
+        
+        // 处理Integer类型健康指标
+        data.setHeartRate(convertToInteger(map.get("heartRate")));
+        data.setBloodOxygen(convertToInteger(map.get("bloodOxygen")));
+        data.setPressureHigh(convertToInteger(map.get("pressureHigh")));
+        data.setPressureLow(convertToInteger(map.get("pressureLow")));
+        data.setStress(convertToInteger(map.get("stress")));
+        data.setStep(convertToInteger(map.get("step")));
+        data.setSleep(convertToInteger(map.get("sleep")));
+        
+        // 处理BigDecimal类型健康指标
+        data.setTemperature(convertToBigDecimal(map.get("temperature")));
+        data.setDistance(convertToBigDecimal(map.get("distance")));
+        data.setCalorie(convertToBigDecimal(map.get("calorie")));
+        
+        // 处理删除标记
+        data.setIsDeleted(convertToInteger(map.get("isDeleted")));
+        
+        return data;
+    }
+
+    /**
+     * 类型转换辅助方法
+     */
+    private Long convertToLong(Object value) {
+        if (value == null) return null;
+        if (value instanceof Long) return (Long) value;
+        if (value instanceof Integer) return ((Integer) value).longValue();
+        if (value instanceof String) {
+            try {
+                return Long.valueOf((String) value);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+    
+    private Integer convertToInteger(Object value) {
+        if (value == null) return null;
+        if (value instanceof Integer) return (Integer) value;
+        if (value instanceof Long) return ((Long) value).intValue();
+        if (value instanceof String) {
+            try {
+                return Integer.valueOf((String) value);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+    
+    private BigDecimal convertToBigDecimal(Object value) {
+        if (value == null) return null;
+        if (value instanceof BigDecimal) return (BigDecimal) value;
+        if (value instanceof Double) return BigDecimal.valueOf((Double) value);
+        if (value instanceof Float) return BigDecimal.valueOf(((Float) value).doubleValue());
+        if (value instanceof Integer) return BigDecimal.valueOf((Integer) value);
+        if (value instanceof Long) return BigDecimal.valueOf((Long) value);
+        if (value instanceof String) {
+            try {
+                return new BigDecimal((String) value);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+    
+    private LocalDateTime convertToLocalDateTime(Object value) {
+        if (value == null) return null;
+        if (value instanceof LocalDateTime) return (LocalDateTime) value;
+        if (value instanceof String) {
+            try {
+                return LocalDateTime.parse((String) value);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     // 其他辅助方法...
@@ -594,10 +742,12 @@ public class UnifiedHealthProcessingService {
     }
 
     private HealthBaseline buildUserBaseline(Long customerId, Long userId, String metric, 
-                                           BaselineStatistics stats, UserProfile userProfile, int sampleCount) {
+                                           BaselineStatistics stats, UserProfile userProfile, int sampleCount, String deviceSn, Long orgId) {
         HealthBaseline baseline = new HealthBaseline();
         baseline.setUserId(userId);
         baseline.setCustomerId(customerId);
+        baseline.setOrgId(orgId != null ? orgId.toString() : null); // 设置组织ID
+        baseline.setDeviceSn(deviceSn); // 设置设备序列号
         baseline.setFeatureName(metric);
         baseline.setBaselineDate(LocalDate.now());
         baseline.setBaselineType("user");
@@ -649,9 +799,44 @@ public class UnifiedHealthProcessingService {
         return healthBaselineMapper.selectList(wrapper);
     }
 
+    /**
+     * 检查是否已存在相同的基线记录
+     */
+    private HealthBaseline checkExistingBaseline(Long customerId, Long userId, String metric, String deviceSn, LocalDate baselineDate) {
+        QueryWrapper<HealthBaseline> wrapper = new QueryWrapper<>();
+        wrapper.eq("customer_id", customerId)
+               .eq("user_id", userId)
+               .eq("device_sn", deviceSn)
+               .eq("feature_name", metric)
+               .eq("baseline_date", baselineDate)
+               .eq("baseline_type", "user")
+               .eq("is_deleted", 0)
+               .last("LIMIT 1");
+        
+        return healthBaselineMapper.selectOne(wrapper);
+    }
+
+    /**
+     * 检查是否已存在相同的组织基线记录
+     */
+    private HealthBaseline checkExistingOrgBaseline(Long customerId, String metric, LocalDate baselineDate, String orgId) {
+        QueryWrapper<HealthBaseline> wrapper = new QueryWrapper<>();
+        wrapper.eq("customer_id", customerId)
+               .eq("user_id", 0) // 组织级基线用户ID为0
+               .eq("org_id", orgId) // 组织ID
+               .eq("device_sn", "ORG") // 组织级基线使用固定的设备序列号
+               .eq("feature_name", metric)
+               .eq("baseline_date", baselineDate)
+               .eq("baseline_type", "org")
+               .eq("is_deleted", 0)
+               .last("LIMIT 1");
+        
+        return healthBaselineMapper.selectOne(wrapper);
+    }
+
     private List<HealthScore> calculateUserHealthScores(Long customerId, Long userId, 
                                                       List<UserHealthData> healthDataList,
-                                                      List<HealthBaseline> baselines) {
+                                                      List<HealthBaseline> baselines, String deviceSn) {
         List<HealthScore> scores = new ArrayList<>();
         
         // 基于基线计算健康评分的逻辑
@@ -679,6 +864,7 @@ public class UnifiedHealthProcessingService {
                 HealthScore score = new HealthScore();
                 score.setUserId(userId);
                 score.setCustomerId(customerId);
+                score.setDeviceSn(deviceSn); // 设置设备序列号
                 score.setFeatureName(metric);
                 score.setScoreDate(LocalDate.now());
                 score.setScoreValue(BigDecimal.valueOf(scoreValue).setScale(2, RoundingMode.HALF_UP));
@@ -728,10 +914,10 @@ public class UnifiedHealthProcessingService {
     private void aggregateBaselineToOrg(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
         log.info("📊 汇总基线到组织级别: customerId={}", customerId);
         
-        // 收集所有用户的基线数据
-        Map<String, List<HealthBaseline>> metricBaselines = new HashMap<>();
+        // 按组织ID分组收集用户基线数据
+        Map<Long, Map<String, List<HealthBaseline>>> orgMetricBaselines = new HashMap<>();
         
-        departmentResults.values().forEach(deptResult -> {
+        departmentResults.forEach((departmentId, deptResult) -> {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> userResults = (List<Map<String, Object>>) deptResult.get("userResults");
             
@@ -740,22 +926,28 @@ public class UnifiedHealthProcessingService {
                 List<HealthBaseline> baselines = (List<HealthBaseline>) userResult.get("baselines");
                 if (baselines != null) {
                     baselines.forEach(baseline -> {
-                        metricBaselines.computeIfAbsent(baseline.getFeatureName(), k -> new ArrayList<>())
-                                     .add(baseline);
+                        // 按组织ID和指标名称分组
+                        Long orgId = Long.parseLong(baseline.getOrgId());
+                        orgMetricBaselines
+                            .computeIfAbsent(orgId, k -> new HashMap<>())
+                            .computeIfAbsent(baseline.getFeatureName(), k -> new ArrayList<>())
+                            .add(baseline);
                     });
                 }
             });
         });
         
-        // 为每个指标生成组织级基线
-        metricBaselines.forEach((metric, baselines) -> {
-            if (baselines.size() >= 3) { // 需要足够的样本
-                createOrgBaseline(customerId, metric, baselines);
-            }
+        // 为每个组织的每个指标生成组织级基线
+        orgMetricBaselines.forEach((orgId, metricBaselines) -> {
+            metricBaselines.forEach((metric, baselines) -> {
+                if (baselines.size() >= 3) { // 需要足够的样本
+                    createOrgBaseline(customerId, orgId, metric, baselines);
+                }
+            });
         });
     }
 
-    private void createOrgBaseline(Long customerId, String metric, List<HealthBaseline> userBaselines) {
+    private void createOrgBaseline(Long customerId, Long orgId, String metric, List<HealthBaseline> userBaselines) {
         // 计算组织级统计数据
         List<Double> means = userBaselines.stream()
             .map(b -> b.getMeanValue().doubleValue())
@@ -767,6 +959,8 @@ public class UnifiedHealthProcessingService {
         HealthBaseline orgBaseline = new HealthBaseline();
         orgBaseline.setUserId(0L); // 组织级基线用户ID为0
         orgBaseline.setCustomerId(customerId);
+        orgBaseline.setOrgId(String.valueOf(orgId)); // 设置组织ID
+        orgBaseline.setDeviceSn("ORG"); // 组织级基线使用固定的设备序列号
         orgBaseline.setFeatureName(metric);
         orgBaseline.setBaselineDate(LocalDate.now());
         orgBaseline.setBaselineType("org");
@@ -785,26 +979,224 @@ public class UnifiedHealthProcessingService {
         // 更新之前的组织基线
         updatePreviousBaselines("org", 0L, customerId, metric);
         
-        healthBaselineMapper.insert(orgBaseline);
+        // 检查是否已存在相同的组织基线记录
+        HealthBaseline existingOrgBaseline = checkExistingOrgBaseline(customerId, metric, LocalDate.now(), String.valueOf(orgId));
         
-        log.debug("📊 创建组织基线: metric={}, mean={}, samples={}", 
-                metric, orgStats.getMean(), userBaselines.size());
+        if (existingOrgBaseline != null) {
+            // 如果存在，更新现有记录
+            orgBaseline.setId(existingOrgBaseline.getId());
+            healthBaselineMapper.updateById(orgBaseline);
+            log.info("🔄 更新已存在的组织基线: metric={}, orgId={}, mean={}, samples={}", 
+                    metric, orgId, orgStats.getMean(), userBaselines.size());
+        } else {
+            // 如果不存在，插入新记录
+            healthBaselineMapper.insert(orgBaseline);
+            log.info("✨ 创建新的组织基线: metric={}, orgId={}, mean={}, samples={}", 
+                    metric, orgId, orgStats.getMean(), userBaselines.size());
+        }
     }
 
-    // 评分汇总方法（类似实现）
+    // 评分汇总到组织级别
     private void aggregateScoreToOrg(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
         log.info("📈 汇总评分到组织级别: customerId={}", customerId);
-        // 类似的汇总逻辑...
+        
+        // 按组织ID分组收集用户评分数据
+        Map<Long, Map<String, List<HealthScore>>> orgMetricScores = new HashMap<>();
+        
+        departmentResults.forEach((departmentId, deptResult) -> {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> userResults = (List<Map<String, Object>>) deptResult.get("userResults");
+            
+            userResults.forEach(userResult -> {
+                @SuppressWarnings("unchecked")
+                List<HealthScore> scores = (List<HealthScore>) userResult.get("scores");
+                if (scores != null) {
+                    scores.forEach(score -> {
+                        // 从用户信息中获取组织ID
+                        Long orgId = departmentId; // 部门ID就是组织ID
+                        orgMetricScores
+                            .computeIfAbsent(orgId, k -> new HashMap<>())
+                            .computeIfAbsent(score.getFeatureName(), k -> new ArrayList<>())
+                            .add(score);
+                    });
+                }
+            });
+        });
+        
+        // 为每个组织的每个指标生成组织级评分
+        orgMetricScores.forEach((orgId, metricScores) -> {
+            metricScores.forEach((metric, scores) -> {
+                if (scores.size() >= 3) { // 需要足够的样本
+                    createOrgScore(customerId, orgId, metric, scores);
+                }
+            });
+        });
+    }
+
+    // 预测汇总到组织级别
+    private void aggregatePredictionToOrg(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
+        log.info("🔮 汇总预测到组织级别: customerId={}", customerId);
+        
+        // 按组织ID分组收集用户预测数据
+        Map<Long, List<Map<String, Object>>> orgPredictions = new HashMap<>();
+        
+        departmentResults.forEach((departmentId, deptResult) -> {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> userResults = (List<Map<String, Object>>) deptResult.get("userResults");
+            
+            userResults.forEach(userResult -> {
+                @SuppressWarnings("unchecked")
+                List<HealthPrediction> predictions = (List<HealthPrediction>) userResult.get("predictions");
+                if (predictions != null && !predictions.isEmpty()) {
+                    Long orgId = departmentId; // 部门ID就是组织ID
+                    orgPredictions.computeIfAbsent(orgId, k -> new ArrayList<>()).add(userResult);
+                }
+            });
+        });
+        
+        // 为每个组织生成组织级预测
+        orgPredictions.forEach((orgId, userResults) -> {
+            if (userResults.size() >= 3) { // 需要足够的样本
+                createOrgPrediction(customerId, orgId, userResults);
+            }
+        });
+    }
+
+    // 建议汇总到组织级别
+    private void aggregateRecommendationToOrg(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
+        log.info("💡 汇总建议到组织级别: customerId={}", customerId);
+        
+        // 按组织ID分组收集用户建议数据
+        Map<Long, List<Map<String, Object>>> orgRecommendations = new HashMap<>();
+        
+        departmentResults.forEach((departmentId, deptResult) -> {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> userResults = (List<Map<String, Object>>) deptResult.get("userResults");
+            
+            userResults.forEach(userResult -> {
+                Boolean recommendationsProcessed = (Boolean) userResult.get("recommendationsProcessed");
+                if (recommendationsProcessed != null && recommendationsProcessed) {
+                    Long orgId = departmentId; // 部门ID就是组织ID
+                    orgRecommendations.computeIfAbsent(orgId, k -> new ArrayList<>()).add(userResult);
+                }
+            });
+        });
+        
+        // 为每个组织生成组织级建议
+        orgRecommendations.forEach((orgId, userResults) -> {
+            createOrgRecommendation(customerId, orgId, userResults);
+        });
+    }
+
+    // 档案汇总到组织级别
+    private void aggregateProfileToOrg(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
+        log.info("📋 汇总档案到组织级别: customerId={}", customerId);
+        
+        // 按组织ID分组收集用户档案数据
+        Map<Long, List<Map<String, Object>>> orgProfiles = new HashMap<>();
+        
+        departmentResults.forEach((departmentId, deptResult) -> {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> userResults = (List<Map<String, Object>>) deptResult.get("userResults");
+            
+            userResults.forEach(userResult -> {
+                Boolean profileProcessed = (Boolean) userResult.get("profileProcessed");
+                if (profileProcessed != null && profileProcessed) {
+                    Long orgId = departmentId; // 部门ID就是组织ID
+                    orgProfiles.computeIfAbsent(orgId, k -> new ArrayList<>()).add(userResult);
+                }
+            });
+        });
+        
+        // 为每个组织生成组织级档案
+        orgProfiles.forEach((orgId, userResults) -> {
+            createOrgProfile(customerId, orgId, userResults);
+        });
     }
 
     private void aggregateBaselineToCustomer(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
         log.info("🏪 汇总基线到租户级别: customerId={}", customerId);
-        // 租户级别的汇总逻辑...
+        // TODO: 实现租户级别的基线汇总逻辑
+        log.debug("租户级基线汇总暂未实现");
     }
 
     private void aggregateScoreToCustomer(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
         log.info("🏪 汇总评分到租户级别: customerId={}", customerId);
-        // 租户级别的汇总逻辑...
+        // TODO: 实现租户级别的评分汇总逻辑
+        log.debug("租户级评分汇总暂未实现");
+    }
+
+    private void aggregatePredictionToCustomer(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
+        log.info("🏪 汇总预测到租户级别: customerId={}", customerId);
+        // TODO: 实现租户级别的预测汇总逻辑
+        log.debug("租户级预测汇总暂未实现");
+    }
+
+    private void aggregateRecommendationToCustomer(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
+        log.info("🏪 汇总建议到租户级别: customerId={}", customerId);
+        // TODO: 实现租户级别的建议汇总逻辑
+        log.debug("租户级建议汇总暂未实现");
+    }
+
+    private void aggregateProfileToCustomer(Long customerId, Map<Long, Map<String, Object>> departmentResults) {
+        log.info("🏪 汇总档案到租户级别: customerId={}", customerId);
+        // TODO: 实现租户级别的档案汇总逻辑
+        log.debug("租户级档案汇总暂未实现");
+    }
+
+    // ========== 组织级别创建方法 ==========
+
+    /**
+     * 创建组织级评分
+     */
+    private void createOrgScore(Long customerId, Long orgId, String metric, List<HealthScore> userScores) {
+        log.info("📈 创建组织级评分: customerId={}, orgId={}, metric={}, samples={}", 
+                customerId, orgId, metric, userScores.size());
+        
+        // 计算组织级评分统计数据
+        List<Double> scores = userScores.stream()
+            .map(s -> s.getScoreValue().doubleValue())
+            .collect(Collectors.toList());
+        
+        double avgScore = scores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        
+        // 创建组织评分（这里可以根据具体需求实现组织评分的存储逻辑）
+        // TODO: 实现组织级评分存储
+        log.info("✨ 组织级评分计算完成: metric={}, orgId={}, avgScore={:.2f}", 
+                metric, orgId, avgScore);
+    }
+
+    /**
+     * 创建组织级预测
+     */
+    private void createOrgPrediction(Long customerId, Long orgId, List<Map<String, Object>> userResults) {
+        log.info("🔮 创建组织级预测: customerId={}, orgId={}, userCount={}", 
+                customerId, orgId, userResults.size());
+        
+        // TODO: 实现组织级预测逻辑
+        log.debug("组织级预测创建暂未实现");
+    }
+
+    /**
+     * 创建组织级建议
+     */
+    private void createOrgRecommendation(Long customerId, Long orgId, List<Map<String, Object>> userResults) {
+        log.info("💡 创建组织级建议: customerId={}, orgId={}, userCount={}", 
+                customerId, orgId, userResults.size());
+        
+        // TODO: 实现组织级建议逻辑
+        log.debug("组织级建议创建暂未实现");
+    }
+
+    /**
+     * 创建组织级档案
+     */
+    private void createOrgProfile(Long customerId, Long orgId, List<Map<String, Object>> userResults) {
+        log.info("📋 创建组织级档案: customerId={}, orgId={}, userCount={}", 
+                customerId, orgId, userResults.size());
+        
+        // TODO: 实现组织级档案逻辑
+        log.debug("组织级档案创建暂未实现");
     }
 
     // 内部类定义

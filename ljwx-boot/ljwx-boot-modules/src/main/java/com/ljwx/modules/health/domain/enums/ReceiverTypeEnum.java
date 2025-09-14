@@ -37,24 +37,24 @@ import lombok.Getter;
 public enum ReceiverTypeEnum {
 
     /**
-     * 设备接收
-     */
-    DEVICE("device", "设备", "单个设备"),
-
-    /**
      * 用户接收
      */
-    USER("user", "用户", "单个用户"),
+    USER("USER", "用户", "单个用户"),
 
     /**
-     * 部门接收
+     * 设备接收
      */
-    DEPARTMENT("department", "部门", "部门群发"),
+    DEVICE("DEVICE", "设备", "单个设备"),
 
     /**
-     * 组织接收
+     * 群组接收
      */
-    ORGANIZATION("organization", "组织", "组织群发");
+    GROUP("GROUP", "群组", "群组群发"),
+
+    /**
+     * 广播接收
+     */
+    BROADCAST("BROADCAST", "广播", "全体广播");
 
     /**
      * 数据库存储值
@@ -92,7 +92,7 @@ public enum ReceiverTypeEnum {
      * 检查是否为群发类型
      */
     public boolean isGroupType() {
-        return this == DEPARTMENT || this == ORGANIZATION;
+        return this == GROUP || this == BROADCAST;
     }
 
     /**
@@ -107,9 +107,9 @@ public enum ReceiverTypeEnum {
      */
     public int getScopeLevel() {
         switch (this) {
-            case ORGANIZATION:
+            case BROADCAST:
                 return 4;
-            case DEPARTMENT:
+            case GROUP:
                 return 3;
             case USER:
                 return 2;

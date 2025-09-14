@@ -60,7 +60,7 @@ import requests  # 用于发送HTTP请求
 import json
 import threading
 import time
-from .models import db, DeviceMessage, UserHealthData, AlertInfo, DeviceInfo, UserInfo
+from .models import db, DeviceMessage, UserHealthData, AlertInfo, DeviceInfo, UserInfo, OrgInfo
 from flask_socketio import SocketIO, emit
 from decimal import Decimal
 from sqlalchemy import func, and_
@@ -92,12 +92,36 @@ api_logger = logging.getLogger('api')
 system_logger = logging.getLogger('system')
 query_logger = logging.getLogger('query')
 
+# 导入消息V2增强功能 - 在日志器初始化后
+try:
+    from .message import acknowledge_message, batch_acknowledge_messages, get_watch_message_summary, mark_message_as_read_on_watch
+    MESSAGE_V2_FEATURES_AVAILABLE = True
+    system_logger.info("✅ 消息V2增强功能导入成功")
+except ImportError as e:
+    MESSAGE_V2_FEATURES_AVAILABLE = False
+    system_logger.warning(f"⚠️  消息V2增强功能导入失败: {e}")
+    # 创建占位函数以避免运行时错误
+    def acknowledge_message(data):
+        return {'success': False, 'message': '功能不可用'}, 503
+    def batch_acknowledge_messages(data):
+        return {'success': False, 'message': '功能不可用'}, 503
+    def get_watch_message_summary(device_sn):
+        return {'success': False, 'message': '功能不可用'}
+    def mark_message_as_read_on_watch(message_id, device_sn):
+        return {'success': False, 'message': '功能不可用'}
+
 app = Flask(__name__, static_folder='../static')
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # =============================================================================
 # 系统初始化和配置
 # =============================================================================
+
+def normalize_param(param_value):
+    """将字符串'null'转换为None，其他值保持不变"""
+    if param_value == 'null' or param_value == 'undefined':
+        return None
+    return param_value
 
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -275,6 +299,9 @@ with app.app_context():
 stream_manager = None
 consumer_manager = None
 
+# 全局性能指标收集器 (在初始化函数中声明和赋值)
+# metrics_collector 将在 initialize_metrics_collector() 中初始化
+
 def initialize_stream_system():
     """初始化Stream系统"""
     global stream_manager, consumer_manager
@@ -344,6 +371,158 @@ def health_check():
 def api_health_check():
     """API健康检查端点"""
     return health_check()
+
+# 新增监控API端点
+@app.route('/api/monitoring/metrics', methods=['GET'])
+def api_monitoring_metrics():
+    """获取系统性能指标"""
+    try:
+        if not metrics_collector:
+            return jsonify({
+                'error': '指标收集器未初始化',
+                'message': 'MetricsCollector not initialized'
+            }), 503
+        
+        latest_metrics = metrics_collector.get_latest_metrics()
+        return jsonify({
+            'status': 'success',
+            'data': latest_metrics
+        }), 200
+        
+    except Exception as e:
+        system_logger.error(f"获取监控指标失败: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/monitoring/metrics/history', methods=['GET'])
+def api_monitoring_metrics_history():
+    """获取指标历史数据"""
+    try:
+        if not metrics_collector:
+            return jsonify({
+                'error': '指标收集器未初始化'
+            }), 503
+        
+        hours = request.args.get('hours', 1, type=int)
+        hours = min(max(hours, 1), 24)  # 限制在1-24小时之间
+        
+        history_metrics = metrics_collector.get_metrics_history(hours=hours)
+        return jsonify({
+            'status': 'success', 
+            'data': history_metrics
+        }), 200
+        
+    except Exception as e:
+        system_logger.error(f"获取指标历史失败: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/monitoring/health', methods=['GET'])  
+def api_monitoring_health():
+    """获取系统健康状态评估"""
+    try:
+        if not metrics_collector:
+            return jsonify({
+                'overall_health': 'unknown',
+                'status': 'metrics_collector_unavailable',
+                'message': '指标收集器未可用'
+            }), 503
+        
+        health_status = metrics_collector.get_health_status()
+        
+        # 根据健康状态设置HTTP状态码
+        http_code = 200
+        if health_status.get('overall_health') == 'poor':
+            http_code = 503
+        elif health_status.get('overall_health') == 'fair':
+            http_code = 200
+            
+        return jsonify(health_status), http_code
+        
+    except Exception as e:
+        system_logger.error(f"获取健康状态失败: {e}")
+        return jsonify({
+            'overall_health': 'error',
+            'status': 'evaluation_failed', 
+            'error': str(e)
+        }), 500
+
+@app.route('/api/monitoring/shards', methods=['GET'])
+def api_monitoring_shards():
+    """获取分片处理器状态"""
+    try:
+        from .health_data_batch_processor import health_data_optimizer
+        
+        if not health_data_optimizer or not hasattr(health_data_optimizer, 'sharded_processor'):
+            return jsonify({
+                'error': '分片处理器未初始化'
+            }), 503
+        
+        sharded_processor = health_data_optimizer.sharded_processor
+        overall_stats = sharded_processor.get_overall_stats()
+        
+        # 获取各分片详细信息
+        shard_details = []
+        for i, shard_metric in enumerate(sharded_processor.shard_metrics):
+            shard_info = {
+                'shard_id': shard_metric.shard_id,
+                'processed_count': shard_metric.processed_count,
+                'batch_count': shard_metric.batch_count,
+                'error_count': shard_metric.error_count,
+                'avg_processing_time_ms': shard_metric.avg_processing_time * 1000,
+                'is_active': shard_metric.is_active,
+                'queue_size': sharded_processor.shard_queues[i].qsize() if i < len(sharded_processor.shard_queues) else 0
+            }
+            shard_details.append(shard_info)
+        
+        return jsonify({
+            'status': 'success',
+            'overall_stats': overall_stats,
+            'shard_details': shard_details,
+            'total_shards': sharded_processor.shard_count
+        }), 200
+        
+    except Exception as e:
+        system_logger.error(f"获取分片状态失败: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/monitoring/export', methods=['GET'])
+def api_monitoring_export():
+    """导出监控指标数据"""
+    try:
+        if not metrics_collector:
+            return jsonify({
+                'error': '指标收集器未初始化'
+            }), 503
+        
+        format_type = request.args.get('format', 'json').lower()
+        
+        if format_type != 'json':
+            return jsonify({
+                'error': f'不支持的导出格式: {format_type}'
+            }), 400
+        
+        exported_data = metrics_collector.export_metrics(format=format_type)
+        
+        response = make_response(exported_data)
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Disposition'] = f'attachment; filename=metrics_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        
+        return response
+        
+    except Exception as e:
+        system_logger.error(f"导出监控数据失败: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 @app.route('/track_view')
 def track_view():
@@ -778,6 +957,105 @@ def received_messages(deviceSn=None):
     if deviceSn is None:
         deviceSn = request.args.get('deviceSn')
     return receive_device_messages_data(deviceSn)
+
+@app.route('/DeviceMessage/acknowledge', methods=['POST'])
+@log_api_request('/DeviceMessage/acknowledge','POST')
+def acknowledge_device_message():
+    """手机端消息确认API - 完善消息数据流"""
+    try:
+        if not MESSAGE_V2_FEATURES_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': '消息V2增强功能不可用'
+            }), 503
+        
+        data = request.get_json()
+        result, status_code = acknowledge_message(data)
+        return jsonify(result), status_code
+    except Exception as e:
+        api_logger.error(f'消息确认失败: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': f'消息确认失败: {str(e)}'
+        }), 500
+
+@app.route('/DeviceMessage/batch_acknowledge', methods=['POST'])
+@log_api_request('/DeviceMessage/batch_acknowledge','POST')
+def batch_acknowledge_device_messages():
+    """批量消息确认API"""
+    try:
+        if not MESSAGE_V2_FEATURES_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': '消息V2增强功能不可用'
+            }), 503
+        
+        data = request.get_json()
+        result, status_code = batch_acknowledge_messages(data)
+        return jsonify(result), status_code
+    except Exception as e:
+        api_logger.error(f'批量消息确认失败: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': f'批量消息确认失败: {str(e)}'
+        }), 500
+
+@app.route('/DeviceMessage/watch_summary', methods=['GET'])
+@log_api_request('/DeviceMessage/watch_summary','GET')
+def get_watch_message_summary_api():
+    """手表端消息摘要API"""
+    try:
+        if not MESSAGE_V2_FEATURES_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': '消息V2增强功能不可用'
+            }), 503
+        
+        device_sn = request.args.get('deviceSn')
+        if not device_sn:
+            return jsonify({
+                'success': False,
+                'message': '缺少设备序列号参数'
+            }), 400
+        
+        result = get_watch_message_summary(device_sn)
+        return jsonify(result)
+    except Exception as e:
+        api_logger.error(f'获取手表消息摘要失败: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': f'获取摘要失败: {str(e)}'
+        }), 500
+
+@app.route('/DeviceMessage/watch_read', methods=['POST'])
+@log_api_request('/DeviceMessage/watch_read','POST')
+def mark_message_read_on_watch_api():
+    """手表端标记消息已读API"""
+    try:
+        if not MESSAGE_V2_FEATURES_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': '消息V2增强功能不可用'
+            }), 503
+        
+        data = request.get_json()
+        message_id = data.get('message_id')
+        device_sn = data.get('device_sn')
+        
+        if not message_id or not device_sn:
+            return jsonify({
+                'success': False,
+                'message': '缺少必要参数'
+            }), 400
+        
+        result = mark_message_as_read_on_watch(message_id, device_sn)
+        return jsonify(result)
+    except Exception as e:
+        api_logger.error(f'手表端标记已读失败: {str(e)}')
+        return jsonify({
+            'success': False,
+            'message': f'标记已读失败: {str(e)}'
+        }), 500
 
 # Initialize the heart_rate_timestamps list
 
@@ -1846,7 +2124,7 @@ def get_devices_by_orgIdAndUserId(orgId=None, userId=None, customerId=None):
     if orgId is None:
         orgId = request.args.get('orgId')
     if userId is None:
-        userId = request.args.get('userId')
+        userId = normalize_param(request.args.get('userId'))
     if customerId is None:
         customerId = request.args.get('customerId')
     return fetch_devices_by_orgIdAndUserId(orgId, userId, customerId)
@@ -1858,15 +2136,152 @@ def get_alerts_by_orgIdAndUserId(orgId=None, userId=None, severityLevel=None, cu
             if orgId is None:
                 orgId = request.args.get('orgId')
             if userId is None:
-                userId = request.args.get('userId')
+                userId = normalize_param(request.args.get('userId'))
             if severityLevel is None:
-                severityLevel = request.args.get('severityLevel')
+                severityLevel = normalize_param(request.args.get('severityLevel'))
             if customerId is None:
                 customerId = request.args.get('customerId')
         return alert_fetch_alerts_by_orgIdAndUserId(orgId, userId, severityLevel, customerId)
     except RuntimeError as e:
         # If we're outside a request context, just use the provided parameters
         return alert_fetch_alerts_by_orgIdAndUserId(orgId, userId, severityLevel)
+
+@app.route('/api/alerts', methods=['GET'])
+@log_api_request('/api/alerts', 'GET')
+def api_get_alerts():
+    """获取告警数据API - 标准格式
+    
+    查询优先级:
+    1. user_id - 个人告警 (baseline, score, prediction, recommendation, profile)
+    2. org_id - 部门级别汇总 
+    3. customer_id - 租户级别汇总
+    """
+    try:
+        # 获取查询参数
+        user_id = request.args.get('userId') or request.args.get('user_id')
+        org_id = request.args.get('orgId') or request.args.get('org_id')
+        customer_id = request.args.get('customerId') or request.args.get('customer_id')
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        severity_level = request.args.get('severityLevel') or request.args.get('severity_level')
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('pageSize', 20)) if request.args.get('pageSize') else None
+        latest_only = request.args.get('latestOnly', '').lower() == 'true'
+        
+        # 查询优先级逻辑
+        if user_id:
+            # 个人级别告警查询
+            result = alert_fetch_alerts_by_orgIdAndUserId(None, user_id, severity_level, customer_id)
+            logger.info(f"基于userId查询告警数据: user_id={user_id}")
+        elif org_id:
+            # 部门级别告警查询
+            result = alert_fetch_alerts_by_orgIdAndUserId(org_id, None, severity_level, customer_id)  
+            logger.info(f"基于orgId查询告警数据: org_id={org_id}")
+        elif customer_id:
+            # 租户级别告警查询
+            result = alert_fetch_alerts_by_orgIdAndUserId(customer_id, None, severity_level, customer_id)
+            logger.info(f"基于customerId查询告警数据: customer_id={customer_id}")
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'user_id, org_id 或 customer_id 参数至少需要提供一个'
+            }), 400
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"获取告警数据失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'data': {'alerts': [], 'totalAlerts': 0}
+        }), 500
+
+@app.route('/api/devices', methods=['GET'])
+@log_api_request('/api/devices', 'GET')  
+def api_get_devices():
+    """获取设备数据API - 标准格式
+    
+    查询优先级:
+    1. user_id - 个人设备 (baseline, score, prediction, recommendation, profile)
+    2. org_id - 部门级别汇总
+    3. customer_id - 租户级别汇总
+    """
+    try:
+        # 获取查询参数
+        user_id = request.args.get('userId') or request.args.get('user_id')
+        org_id = request.args.get('orgId') or request.args.get('org_id')
+        customer_id = request.args.get('customerId') or request.args.get('customer_id')
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        device_type = request.args.get('deviceType')
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('pageSize', 20)) if request.args.get('pageSize') else None
+        latest_only = request.args.get('latestOnly', '').lower() == 'true'
+        
+        # 查询优先级逻辑
+        if user_id:
+            # 个人级别设备查询
+            result = fetch_devices_by_orgIdAndUserId(None, user_id, customer_id)
+            logger.info(f"基于userId查询设备数据: user_id={user_id}")
+        elif org_id:
+            # 部门级别设备查询
+            result = fetch_devices_by_orgIdAndUserId(org_id, None, customer_id)
+            logger.info(f"基于orgId查询设备数据: org_id={org_id}")
+        elif customer_id:
+            # 租户级别设备查询
+            result = fetch_devices_by_orgIdAndUserId(customer_id, None, customer_id)
+            logger.info(f"基于customerId查询设备数据: customer_id={customer_id}")
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'user_id, org_id 或 customer_id 参数至少需要提供一个'
+            }), 400
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"获取设备数据失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'data': {'devices': [], 'totalDevices': 0}
+        }), 500
+
+@app.route('/api/messages', methods=['GET'])
+@log_api_request('/api/messages', 'GET')
+def api_get_messages():
+    """获取消息数据API - 标准格式
+    
+    查询优先级:
+    1. user_id - 个人消息 (baseline, score, prediction, recommendation, profile)
+    2. org_id - 部门级别汇总
+    3. customer_id - 租户级别汇总
+    """
+    try:
+        # 获取查询参数
+        user_id = request.args.get('userId') or request.args.get('user_id')
+        org_id = request.args.get('orgId') or request.args.get('org_id')  
+        customer_id = request.args.get('customerId') or request.args.get('customer_id')
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        message_type = request.args.get('messageType')
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('pageSize', 20)) if request.args.get('pageSize') else None
+        latest_only = request.args.get('latestOnly', '').lower() == 'true'
+        
+        # 直接使用现有的消息查询函数
+        result = message_fetch_messages_by_orgIdAndUserId(org_id, user_id, message_type, customer_id)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"获取消息数据失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'data': {'messages': [], 'totalMessages': 0}
+        }), 500
 
 @app.route('/get_health_data_by_orgIdAndUserId', methods=['GET'])
 def get_health_data_by_orgIdAndUserId(orgId=None, userId=None, customerId=None):
@@ -2130,14 +2545,6 @@ def cache_status():
             'error': str(e),
             'message': '缓存状态检查失败'
         }), 500
-
-@app.route('/api/devices', methods=['GET'])  # 新增API路由兼容前端调用
-def api_get_devices():
-    """新的设备API路由，兼容device_view.html前端调用"""
-    orgId = request.args.get('orgId')
-    userId = request.args.get('userId')
-    timeRange = request.args.get('timeRange', '7')  # 默认7天
-    return fetch_devices_by_orgIdAndUserId(orgId, userId)  #修复函数名
 
 @app.route("/device_analysis")  # 新增设备分析页面路由
 def device_analysis():
@@ -3211,26 +3618,259 @@ def health_data_page():
         api_logger.error(f"健康数据分页接口错误: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/statistics/overview', methods=['GET'])  #统计概览接口
-def statistics_overview():
-    """统计概览接口 - 重构后使用模块化实现，支持参数映射"""
+def get_comprehensive_statistics_data(customer_id, user_id=None, target_date=None):
+    """获取综合统计数据"""
     try:
-        # 参数映射：将 orgId 映射为 customerId
-        org_id = request.args.get('orgId')
-        if org_id and not request.args.get('customerId'):
-            # 创建新的请求参数字典，将 orgId 映射为 customerId
-            new_args = request.args.to_dict()
-            new_args['customerId'] = org_id
-            
-            # 临时修改 request.args
-            from werkzeug.datastructures import ImmutableMultiDict
-            request.args = ImmutableMultiDict(new_args)
+        from datetime import date
+        if target_date is None:
+            target_date = date.today()
         
-        result, status_code = get_statistics_overview_data()
-        return jsonify(result), status_code
+        target_date_str = target_date.strftime('%Y-%m-%d')
+        
+        # 初始化统计数据
+        stats = {
+            'health_count': 0,
+            'alert_count': 0,
+            'message_count': 0,
+            'device_count': 0,
+            'user_count': 0,
+            'org_count': 0,
+            'active_devices': 0,
+            'pending_alerts': 0,
+            'unread_messages': 0,
+            'tenant_name': '未知租户'
+        }
+        
+        # 健康数据统计
+        try:
+            health_query = db.session.query(func.count(UserHealthData.id))
+            if user_id:
+                health_query = health_query.filter(UserHealthData.user_id == user_id)
+            else:
+                health_query = health_query.filter(UserHealthData.customer_id == customer_id)
+            health_query = health_query.filter(func.date(UserHealthData.timestamp) == target_date)
+            stats['health_count'] = health_query.scalar() or 0
+        except Exception as e:
+            logger.warning(f"健康数据统计失败: {e}")
+        
+        # 告警数据统计
+        try:
+            alert_query = db.session.query(func.count(AlertInfo.id))
+            if user_id:
+                alert_query = alert_query.filter(AlertInfo.user_id == user_id)
+            else:
+                alert_query = alert_query.filter(AlertInfo.customer_id == customer_id)
+            alert_query = alert_query.filter(func.date(AlertInfo.alert_timestamp) == target_date)
+            stats['alert_count'] = alert_query.scalar() or 0
+            
+            # 待处理告警统计
+            pending_alert_query = alert_query.filter(AlertInfo.alert_status == 'pending')
+            stats['pending_alerts'] = pending_alert_query.scalar() or 0
+        except Exception as e:
+            logger.warning(f"告警数据统计失败: {e}")
+        
+        # 消息数据统计
+        try:
+            from .models import DeviceMessage
+            message_query = db.session.query(func.count(DeviceMessage.id))
+            if user_id:
+                message_query = message_query.filter(DeviceMessage.user_id == user_id)
+            else:
+                message_query = message_query.filter(DeviceMessage.customer_id == customer_id)
+            message_query = message_query.filter(func.date(DeviceMessage.create_time) == target_date)
+            stats['message_count'] = message_query.scalar() or 0
+            
+            # 未读消息统计
+            unread_message_query = message_query.filter(DeviceMessage.message_status == 1)
+            stats['unread_messages'] = unread_message_query.scalar() or 0
+        except Exception as e:
+            logger.warning(f"消息数据统计失败: {e}")
+        
+        # 设备数据统计
+        try:
+            device_query = db.session.query(func.count(DeviceInfo.id))
+            if user_id:
+                device_query = device_query.filter(DeviceInfo.user_id == user_id)
+            else:
+                device_query = device_query.filter(DeviceInfo.customer_id == customer_id)
+            stats['device_count'] = device_query.scalar() or 0
+            
+            # 活跃设备统计（在线或最近24小时有数据的设备）
+            from datetime import datetime, timedelta
+            recent_time = datetime.now() - timedelta(hours=24)
+            active_device_query = device_query.filter(
+                db.or_(
+                    DeviceInfo.status == 'ACTIVE',
+                    DeviceInfo.update_time >= recent_time
+                )
+            )
+            stats['active_devices'] = active_device_query.scalar() or 0
+        except Exception as e:
+            logger.warning(f"设备数据统计失败: {e}")
+        
+        # 用户数据统计
+        try:
+            if user_id:
+                stats['user_count'] = 1
+            else:
+                user_query = db.session.query(func.count(UserInfo.id)).filter(UserInfo.customer_id == customer_id)
+                stats['user_count'] = user_query.scalar() or 0
+        except Exception as e:
+            logger.warning(f"用户数据统计失败: {e}")
+        
+        # 组织数据统计 - 使用 findAllDescendants 获取客户下所有组织数量
+        try:
+            if not user_id:
+                from .org import findAllDescendants
+                org_list = findAllDescendants(customer_id)
+                stats['org_count'] = len(org_list) if org_list else 0
+        except Exception as e:
+            logger.warning(f"组织数据统计失败: {e}")
+        
+        # 获取租户名称 - 根据 customer_id 查询对应的组织名称
+        try:
+            from .models import OrgInfo
+            logger.info(f"开始查询租户名称，customer_id={customer_id}")
+            tenant_query = db.session.query(OrgInfo.name).filter(
+                OrgInfo.id == customer_id
+            ).first()
+            if tenant_query:
+                stats['tenant_name'] = tenant_query.name
+                logger.info(f"成功获取租户名称: {tenant_query.name}")
+            else:
+                logger.warning(f"未找到customer_id={customer_id}对应的组织信息")
+                # 额外调试：查看是否有该ID的记录（不管删除状态）
+                debug_query = db.session.query(OrgInfo.name, OrgInfo.is_deleted).filter(
+                    OrgInfo.id == customer_id
+                ).first()
+                if debug_query:
+                    logger.info(f"调试：找到记录但可能被过滤，name={debug_query.name}, is_deleted={debug_query.is_deleted}")
+        except Exception as e:
+            logger.warning(f"租户名称获取失败: {e}")
+            import traceback
+            logger.warning(f"详细错误: {traceback.format_exc()}")
+        
+        return stats
+        
     except Exception as e:
-        api_logger.error(f"统计概览接口错误: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f"综合统计数据获取失败: {e}")
+        return stats
+
+@app.route('/api/statistics/overview', methods=['GET'])
+@log_api_request('/api/statistics/overview', 'GET')
+def statistics_overview():
+    """统计概览接口 - 提供前端所需的所有统计数据"""
+    try:
+        # 获取查询参数 - 支持多种参数格式
+        customer_id = request.args.get('customerId') or request.args.get('customer_id')
+        org_id = request.args.get('orgId') or request.args.get('org_id') 
+        user_id = request.args.get('userId') or request.args.get('user_id')
+        date_str = request.args.get('date')
+        
+        # 参数兼容处理：orgId 可作为 customerId 使用
+        if org_id and not customer_id:
+            customer_id = org_id
+            
+        if not customer_id:
+            return jsonify({
+                'success': False,
+                'error': 'customerId 参数是必需的'
+            }), 400
+        
+        # 解析日期参数
+        from datetime import datetime, date, timedelta
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                target_date = date.today()
+        else:
+            target_date = date.today()
+            
+        # 计算对比日期（前一天）
+        compare_date = target_date - timedelta(days=1)
+        
+        # 获取统计数据
+        current_stats = get_comprehensive_statistics_data(customer_id, user_id, target_date)
+        compare_stats = get_comprehensive_statistics_data(customer_id, user_id, compare_date)
+        
+        # 计算变化趋势
+        def calculate_change(current, previous):
+            if previous == 0:
+                return "+100%" if current > 0 else "0%"
+            change = ((current - previous) / previous) * 100
+            return f"{'+' if change >= 0 else ''}{change:.1f}%"
+        
+        # 构建返回数据
+        result = {
+            'success': True,
+            'data': {
+                # 当前统计数据
+                'current': {
+                    'date': target_date.strftime('%Y-%m-%d'),
+                    'health_count': current_stats['health_count'],
+                    'alert_count': current_stats['alert_count'],
+                    'message_count': current_stats['message_count'],
+                    'device_count': current_stats['device_count'],
+                    'user_count': current_stats['user_count'],
+                    'org_count': current_stats['org_count'],
+                    'active_devices': current_stats['active_devices'],
+                    'pending_alerts': current_stats['pending_alerts'],
+                    'unread_messages': current_stats['unread_messages']
+                },
+                
+                # 对比数据
+                'compare': {
+                    'date': compare_date.strftime('%Y-%m-%d'),
+                    'health_count': compare_stats['health_count'],
+                    'alert_count': compare_stats['alert_count'],
+                    'message_count': compare_stats['message_count'],
+                    'device_count': compare_stats['device_count']
+                },
+                
+                # 变化趋势
+                'changes': {
+                    'health_count': calculate_change(current_stats['health_count'], compare_stats['health_count']),
+                    'alert_count': calculate_change(current_stats['alert_count'], compare_stats['alert_count']),
+                    'message_count': calculate_change(current_stats['message_count'], compare_stats['message_count']),
+                    'device_count': calculate_change(current_stats['device_count'], compare_stats['device_count'])
+                },
+                
+                # 租户信息
+                'tenant_info': {
+                    'customer_id': customer_id,
+                    'tenant_name': current_stats.get('tenant_name', '智能科技有限公司'),
+                    'system_status': 'normal'
+                },
+                
+                # 实时状态
+                'realtime_status': {
+                    'last_update': datetime.now().isoformat(),
+                    'data_freshness': 'realtime',
+                    'api_response_time': f"{datetime.now().timestamp():.3f}s"
+                }
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"统计概览接口错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'data': {
+                'current': {
+                    'health_count': 0,
+                    'alert_count': 0,
+                    'message_count': 0,
+                    'device_count': 0,
+                    'user_count': 0,
+                    'org_count': 0
+                }
+            }
+        }), 500
 
 
 @app.route('/api/baseline/generate', methods=['POST'])  #baseline生成API接口
@@ -5196,6 +5836,21 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"⚠️健康配置监听器初始化失败:{e}")
         
+        # 初始化性能指标收集器
+        try:
+            from .metrics_collector import MetricsCollector
+            global metrics_collector
+            metrics_collector = MetricsCollector(retention_hours=24, collection_interval=30)
+            # 注册健康数据优化器作为数据源
+            from .health_data_batch_processor import health_data_optimizer
+            if health_data_optimizer:
+                metrics_collector.register_data_source('health_optimizer', health_data_optimizer.sharded_processor)
+            metrics_collector.start()
+            print("📊 性能指标收集器已初始化")
+        except Exception as e:
+            print(f"⚠️性能指标收集器初始化失败:{e}")
+            metrics_collector = None
+        
         # 初始化健康基线和评分定时任务调度器
         try:
             from .health_baseline_scheduler import init_health_baseline_scheduler
@@ -6732,136 +7387,48 @@ def api_get_comprehensive_health_score():
             org_id = user_info.get('org_id')
             customer_id = user_info.get('customer_id')
             
-        # 验证至少有一个查询条件
-        if not user_id and not org_id and not customer_id:
+        # 使用统一的健康评分引擎
+        from .health_score_engine import get_health_score_unified
+        
+        api_logger.info(f"🔍 综合健康评分请求: userId={user_id}, orgId={org_id}, customerId={customer_id}, deviceSn={device_sn}")
+        
+        # 构建查询参数
+        query_kwargs = {}
+        if user_id:
+            query_kwargs['user_id'] = user_id
+        if org_id:
+            query_kwargs['org_id'] = org_id
+        if customer_id:
+            query_kwargs['customer_id'] = customer_id
+        if start_date:
+            query_kwargs['startDate'] = start_date
+        if end_date:
+            query_kwargs['endDate'] = end_date
+            
+        # 参数验证 - 至少需要一个标识符
+        if not any([user_id, org_id, customer_id]):
             return jsonify({
                 'success': False,
-                'error': '需要提供 userId、orgId、customerId 或 deviceSn 参数中的至少一个'
+                'message': '缺少必需参数：userId、orgId、customerId 至少需要提供一个',
+                'code': 400
             }), 400
         
-        # 根据参数粒度选择查询方式
-        if user_id:
-            # 最细粒度：按用户查询
-            query_type = 'user'
-            primary_id = user_id
-        elif org_id:
-            # 中等粒度：按部门查询
-            query_type = 'org'
-            primary_id = org_id
-        elif customer_id:
-            # 最粗粒度：按租户查询
-            query_type = 'customer'
-            primary_id = customer_id
+        # 调用统一的健康评分方法
+        score_result = get_health_score_unified(**query_kwargs)
         
-        # 使用健康分析编排器的模式进行查询
-        from .health_analysis_orchestrator import get_health_analysis_orchestrator
-        
-        try:
-            orchestrator = get_health_analysis_orchestrator()
-            
-            if query_type == 'user':
-                # 用户级健康评分 - 直接调用用户分析方法
-                user_analysis = orchestrator._analyze_user(int(user_id), int(org_id) if org_id else None)
-                
-                if user_analysis.get('success'):
-                    score_result = user_analysis.get('results', {}).get('score', {})
-                    score_detail = {
-                        'success': True,
-                        'user_id': user_id,
-                        'org_id': org_id,
-                        'overall_score': score_result.get('overall_score', 0),
-                        'health_level': score_result.get('health_level', ''),
-                        'feature_scores': score_result.get('feature_scores', {}),
-                        'analysis_type': 'user'
-                    }
-                else:
-                    score_detail = {
-                        'success': False,
-                        'message': f'用户 {user_id} 健康评分计算失败',
-                        'error': user_analysis.get('error', '')
-                    }
-                
-            elif query_type == 'org':
-                # 部门级健康评分 - 分析部门下所有用户并汇总
-                from .org import getUserIdsByOrgId
-                
-                # 获取部门下所有用户
-                dept_users = getUserIdsByOrgId(int(org_id))
-                if not dept_users:
-                    score_detail = {
-                        'success': False,
-                        'message': f'部门 {org_id} 下暂无用户'
-                    }
-                else:
-                    org_analysis = orchestrator._analyze_organization(int(org_id), dept_users)
-                    
-                    if org_analysis.get('success'):
-                        org_summary = org_analysis.get('org_summary', {}).get('summary', {})
-                        score_detail = {
-                            'success': True,
-                            'org_id': org_id,
-                            'total_users': len(dept_users),
-                            'avg_health_score': org_summary.get('avg_health_score', 0),
-                            'health_level': org_summary.get('health_level', ''),
-                            'risk_users_count': org_summary.get('risk_users_count', 0),
-                            'risk_ratio': org_summary.get('risk_ratio', 0),
-                            'analysis_type': 'organization'
-                        }
-                    else:
-                        score_detail = {
-                            'success': False,
-                            'message': f'部门 {org_id} 健康评分计算失败',
-                            'error': org_analysis.get('error', '')
-                        }
-                
-            elif query_type == 'customer':
-                # 租户级健康评分 - 分析整个客户并汇总
-                customer_analysis = orchestrator._analyze_customer(int(customer_id))
-                
-                if customer_analysis.get('success'):
-                    customer_summary = customer_analysis.get('customer_summary', {}).get('summary', {})
-                    score_detail = {
-                        'success': True,
-                        'customer_id': customer_id,
-                        'total_orgs': customer_analysis.get('total_orgs', 0),
-                        'total_users': customer_analysis.get('total_users', 0),
-                        'avg_health_score': customer_summary.get('avg_health_score', 0),
-                        'health_level': customer_summary.get('health_level', ''),
-                        'total_risk_users': customer_summary.get('total_risk_users', 0),
-                        'risk_ratio': customer_summary.get('risk_ratio', 0),
-                        'analysis_type': 'customer'
-                    }
-                else:
-                    score_detail = {
-                        'success': False,
-                        'message': f'客户 {customer_id} 健康评分计算失败',
-                        'error': customer_analysis.get('error', '')
-                    }
-                    
-        except Exception as e:
-            logger.error(f"健康评分计算异常: {e}")
-            score_detail = {
+        if score_result.get('success'):
+            return jsonify({
+                'success': True,
+                'data': score_result.get('data'),
+                'timestamp': datetime.now().isoformat(),
+                'query_params': query_kwargs
+            })
+        else:
+            return jsonify({
                 'success': False,
-                'error': str(e),
-                'message': '健康评分服务异常'
-            }
-        
-        return jsonify({
-            'success': True,
-            'data': score_detail,
-            'query_info': {
-                'query_type': query_type,
-                'primary_id': primary_id,
-                'userId': user_id,
-                'orgId': org_id,
-                'customerId': customer_id,
-                'startDate': start_date,
-                'endDate': end_date,
-                'includeFactors': include_factors,
-                'days': days
-            },
-            'timestamp': datetime.now().isoformat()
-        })
+                'message': score_result.get('error', '健康评分计算失败'),
+                'code': 500
+            }), 500
         
     except Exception as e:
         logger.error(f"获取综合健康评分失败: {e}")

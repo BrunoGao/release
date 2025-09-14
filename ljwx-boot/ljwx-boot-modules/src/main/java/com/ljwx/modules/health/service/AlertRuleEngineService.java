@@ -245,15 +245,15 @@ public class AlertRuleEngineService {
         // 检查生效时间
         if (rule.getEffectiveTimeStart() != null && rule.getEffectiveTimeEnd() != null) {
             LocalTime now = LocalTime.now();
-            LocalTime start = rule.getEffectiveTimeStart().toLocalTime();
-            LocalTime end = rule.getEffectiveTimeEnd().toLocalTime();
+            LocalTime start = parseTimeString(rule.getEffectiveTimeStart());
+            LocalTime end = parseTimeString(rule.getEffectiveTimeEnd());
             
-            if (start.isAfter(end)) {
+            if (start != null && end != null && start.isAfter(end)) {
                 // 跨天情况，如 22:00 - 06:00
                 if (!(now.isAfter(start) || now.isBefore(end))) {
                     return false;
                 }
-            } else {
+            } else if (start != null && end != null) {
                 // 普通情况，如 09:00 - 17:00
                 if (!(now.isAfter(start) && now.isBefore(end))) {
                     return false;
@@ -708,6 +708,33 @@ public class AlertRuleEngineService {
         
         public boolean isExpired() {
             return System.currentTimeMillis() - timestamp > LOCAL_CACHE_TTL;
+        }
+    }
+    
+    /**
+     * 解析时间字符串为LocalTime
+     */
+    private LocalTime parseTimeString(String timeString) {
+        if (timeString == null || timeString.trim().isEmpty()) {
+            return LocalTime.now();
+        }
+        
+        try {
+            // 直接解析HH:mm:ss格式
+            if (timeString.matches("^\\d{2}:\\d{2}:\\d{2}$")) {
+                return LocalTime.parse(timeString);
+            }
+            
+            // 如果是HH:mm格式，补充秒
+            if (timeString.matches("^\\d{2}:\\d{2}$")) {
+                return LocalTime.parse(timeString + ":00");
+            }
+            
+            // 其他格式，返回当前时间
+            return LocalTime.now();
+        } catch (Exception e) {
+            log.warn("解析时间字符串失败: {}, 使用当前时间", timeString, e);
+            return LocalTime.now();
         }
     }
 }

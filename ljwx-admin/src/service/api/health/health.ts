@@ -9,6 +9,6 @@ export function fetchGatherTotalInfo(customerId: number) {
   return request<TotalInfo>({
     url: '/health/gather_total_info',
     method: 'GET',
-    params: { customer_id: customerId }
+    params: { org_id: customerId }
   });
 }

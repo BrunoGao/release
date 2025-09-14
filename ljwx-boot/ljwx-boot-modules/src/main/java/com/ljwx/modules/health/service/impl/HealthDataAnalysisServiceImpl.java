@@ -6,8 +6,13 @@ import com.ljwx.modules.health.domain.dto.user.health.data.ThresholdDTO;
 import com.ljwx.modules.health.domain.entity.TUserHealthData;
 import com.ljwx.modules.health.domain.vo.HealthDataAnalysisVO;
 import com.ljwx.modules.health.repository.mapper.TUserHealthDataMapper;
-import com.ljwx.modules.health.service.IDeviceUserMappingService;
 import com.ljwx.modules.health.service.IHealthDataAnalysisService;
+import com.ljwx.modules.system.service.ISysUserService;
+import com.ljwx.modules.system.service.ISysOrgUnitsService;
+import com.ljwx.modules.system.service.ISysUserOrgService;
+import com.ljwx.modules.system.domain.entity.SysUser;
+import com.ljwx.modules.system.domain.entity.SysOrgUnits;
+import com.ljwx.modules.system.domain.entity.SysUserOrg;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +28,32 @@ import java.util.stream.Collectors;
 public class HealthDataAnalysisServiceImpl implements IHealthDataAnalysisService {
 
     private final TUserHealthDataMapper userHealthDataMapper;
-    private final IDeviceUserMappingService deviceUserMappingService;
+    private final ISysUserService sysUserService;
+    private final ISysOrgUnitsService sysOrgUnitsService;
+    private final ISysUserOrgService sysUserOrgService;
+    
+    /**
+     * 用户信息内部类
+     */
+    private static class UserInfo {
+        private String userId;
+        private String userName;
+        private String departmentId;
+        private String departmentName;
+        
+        public UserInfo(String userId, String userName, String departmentId, String departmentName) {
+            this.userId = userId;
+            this.userName = userName;
+            this.departmentId = departmentId;
+            this.departmentName = departmentName;
+        }
+        
+        // Getters
+        public String getUserId() { return userId; }
+        public String getUserName() { return userName; }
+        public String getDepartmentId() { return departmentId; }
+        public String getDepartmentName() { return departmentName; }
+    }
 
     @Override
     public HealthDataAnalysisVO analyzeHealthData(HealthDataAnalysisDTO analysisDTO) {
@@ -41,22 +71,20 @@ public class HealthDataAnalysisServiceImpl implements IHealthDataAnalysisService
         LambdaQueryWrapper<TUserHealthData> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.between(TUserHealthData::getTimestamp, startTime, endTime);
 
-        // 3. 获取设备号列表
-        List<String> deviceSnList = new ArrayList<>();
+        // 3. 直接使用userId查询，不再通过设备号
+        List<Long> userIds = new ArrayList<>();
         if (analysisDTO.getUserIds() != null && !analysisDTO.getUserIds().isEmpty()) {
-            deviceSnList.addAll(deviceUserMappingService.getDeviceSnList(
-                String.join(",", analysisDTO.getUserIds()),
-                String.join(",", analysisDTO.getDepartmentIds())
-            ));
+            // 直接使用提供的用户ID
+            userIds.addAll(analysisDTO.getUserIds().stream()
+                .map(Long::valueOf)
+                .collect(Collectors.toList()));
         } else if (analysisDTO.getDepartmentIds() != null && !analysisDTO.getDepartmentIds().isEmpty()) {
-            deviceSnList.addAll(deviceUserMappingService.getDeviceSnList(
-                null,
-                String.join(",", analysisDTO.getDepartmentIds())
-            ));
+            // 根据部门ID获取用户ID列表
+            userIds.addAll(getUserIdsByDepartmentIds(analysisDTO.getDepartmentIds()));
         }
         
-        if (!deviceSnList.isEmpty()) {
-            queryWrapper.in(TUserHealthData::getDeviceSn, deviceSnList);
+        if (!userIds.isEmpty()) {
+            queryWrapper.in(TUserHealthData::getUserId, userIds);
         }
 
         // 4. 查询数据
@@ -64,6 +92,86 @@ public class HealthDataAnalysisServiceImpl implements IHealthDataAnalysisService
 
         // 5. 处理数据
         return processHealthData(healthDataList, analysisDTO);
+    }
+
+    /**
+     * 根据部门ID列表获取用户ID列表
+     */
+    private List<Long> getUserIdsByDepartmentIds(List<String> departmentIds) {
+        List<Long> deptIds = departmentIds.stream()
+            .map(Long::valueOf)
+            .collect(Collectors.toList());
+        
+        // 获取所有子部门ID（包括本身）
+        List<Long> allDeptIds = new ArrayList<>(deptIds);
+        for (Long deptId : deptIds) {
+            List<SysOrgUnits> descendants = sysOrgUnitsService.listAllDescendants(Collections.singletonList(deptId));
+            allDeptIds.addAll(descendants.stream().map(SysOrgUnits::getId).collect(Collectors.toList()));
+        }
+        
+        // 从 sys_user_org 获取所有用户ID
+        List<Long> userIds = sysUserOrgService.list(new LambdaQueryWrapper<SysUserOrg>()
+            .in(SysUserOrg::getOrgId, allDeptIds))
+            .stream()
+            .map(SysUserOrg::getUserId)
+            .distinct()
+            .collect(Collectors.toList());
+            
+        return userIds;
+    }
+    
+    /**
+     * 根据用户ID列表获取用户信息映射
+     */
+    private Map<Long, UserInfo> getUserInfoMap(List<Long> userIds) {
+        Map<Long, UserInfo> result = new HashMap<>();
+        if (userIds.isEmpty()) return result;
+        
+        // 1. 获取用户信息
+        List<SysUser> users = sysUserService.list(new LambdaQueryWrapper<SysUser>()
+            .in(SysUser::getId, userIds));
+        
+        // 2. 获取用户组织关系
+        Map<Long, List<SysUserOrg>> userOrgMap = sysUserOrgService.list(new LambdaQueryWrapper<SysUserOrg>()
+            .in(SysUserOrg::getUserId, userIds))
+            .stream()
+            .collect(Collectors.groupingBy(SysUserOrg::getUserId));
+        
+        // 3. 获取所有组织ID
+        Set<Long> orgIds = userOrgMap.values().stream()
+            .flatMap(List::stream)
+            .map(SysUserOrg::getOrgId)
+            .collect(Collectors.toSet());
+        
+        // 4. 获取组织信息映射
+        Map<Long, SysOrgUnits> orgMap = sysOrgUnitsService.listByIds(orgIds)
+            .stream()
+            .collect(Collectors.toMap(SysOrgUnits::getId, org -> org));
+        
+        // 5. 组装用户信息
+        for (SysUser user : users) {
+            List<SysUserOrg> userOrgs = userOrgMap.getOrDefault(user.getId(), Collections.emptyList());
+            String deptId = null;
+            String deptName = null;
+            
+            if (!userOrgs.isEmpty()) {
+                // 取第一个部门信息
+                SysUserOrg userOrg = userOrgs.get(0);
+                deptId = String.valueOf(userOrg.getOrgId());
+                SysOrgUnits org = orgMap.get(userOrg.getOrgId());
+                deptName = org != null ? org.getName() : null;
+            }
+            
+            UserInfo userInfo = new UserInfo(
+                String.valueOf(user.getId()),
+                user.getUserName(),
+                deptId,
+                deptName
+            );
+            result.put(user.getId(), userInfo);
+        }
+        
+        return result;
     }
 
     private HealthDataAnalysisVO processHealthData(List<TUserHealthData> healthDataList, HealthDataAnalysisDTO analysisDTO) {
@@ -78,16 +186,18 @@ public class HealthDataAnalysisServiceImpl implements IHealthDataAnalysisService
             .build();
 
         // 2. 获取用户和部门信息映射
-        Map<String, IDeviceUserMappingService.UserInfo> deviceUserMap = deviceUserMappingService.getUserInfoMap(
+        Map<Long, UserInfo> userInfoMap = getUserInfoMap(
             healthDataList.stream()
-                .map(TUserHealthData::getDeviceSn)
+                .map(TUserHealthData::getUserId)
                 .filter(Objects::nonNull)
+                .distinct()
                 .collect(Collectors.toList())
         );
 
         // 3. 处理每条数据
         for (TUserHealthData data : healthDataList) {
-            IDeviceUserMappingService.UserInfo userInfo = deviceUserMap.get(data.getDeviceSn());
+            if (data.getUserId() == null) continue;
+            UserInfo userInfo = userInfoMap.get(data.getUserId());
             if (userInfo == null) continue;
 
             // 3.1 处理时间序列数据
@@ -144,7 +254,7 @@ public class HealthDataAnalysisServiceImpl implements IHealthDataAnalysisService
     }
 
     private void processDepartmentStats(TUserHealthData data,
-                                      IDeviceUserMappingService.UserInfo userInfo,
+                                      UserInfo userInfo,
                                       Map<String, HealthDataAnalysisVO.DepartmentStats> departmentStats) {
         String deptId = userInfo.getDepartmentId();
         HealthDataAnalysisVO.DepartmentStats stats = departmentStats.computeIfAbsent(deptId,
@@ -166,7 +276,7 @@ public class HealthDataAnalysisServiceImpl implements IHealthDataAnalysisService
     }
 
     private void processUserStats(TUserHealthData data,
-                                IDeviceUserMappingService.UserInfo userInfo,
+                                UserInfo userInfo,
                                 Map<String, HealthDataAnalysisVO.UserStats> userStats) {
         String userId = userInfo.getUserId();
         HealthDataAnalysisVO.UserStats stats = userStats.computeIfAbsent(userId,
@@ -190,7 +300,7 @@ public class HealthDataAnalysisServiceImpl implements IHealthDataAnalysisService
     }
 
     private void processAbnormalData(TUserHealthData data,
-                                   IDeviceUserMappingService.UserInfo userInfo,
+                                   UserInfo userInfo,
                                    List<ThresholdDTO> thresholds,
                                    HealthDataAnalysisVO.AbnormalStats abnormalStats) {
         if (thresholds == null) return;

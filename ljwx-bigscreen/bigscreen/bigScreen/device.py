@@ -97,9 +97,8 @@ def get_all_device_data_optimized(orgId=None, userId=None, startDate=None, endDa
         # 格式化数据
         device_data_list = []
         for device in devices:
-            # 获取用户信息
+            # 获取用户信息（从sys_user表直接获取org_id和org_name，避免关联查询）
             user_info = UserInfo.query.filter_by(id=device.user_id).first() if device.user_id else None
-            org_info = OrgInfo.query.filter_by(id=device.org_id).first() if device.org_id else None
             
             device_dict = {
                 'id': device.id,
@@ -117,12 +116,11 @@ def get_all_device_data_optimized(orgId=None, userId=None, startDate=None, endDa
                 'bluetooth_address': device.bluetooth_address,
                 'ip_address': device.ip_address,
                 'network_access_mode': device.network_access_mode,
-                'user_id': device.user_id,
-                'org_id': device.org_id,
                 'customer_id': device.customer_id,
-                'user_name': user_info.user_name if user_info else None,
-                'dept_name': org_info.name if org_info else None,
-                'dept_id': org_info.id if org_info else None
+                'user_id': device.user_id,
+                'org_id': user_info.org_id if user_info else device.org_id,  # 优先从sys_user获取
+                'org_name': user_info.org_name if (user_info and hasattr(user_info, 'org_name')) else None,  # 从sys_user获取org_name
+                'user_name': user_info.user_name if user_info else None
             }
             
             # 如果需要包含告警信息

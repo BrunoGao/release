@@ -138,6 +138,11 @@ public class SchedulerServiceImpl implements ISchedulerService {
     @Override
     public void immediate(JobKey jobKey) {
         try {
+            // 检查Job是否已存在，如果不存在则跳过（让调用方处理）
+            if (!scheduler.checkExists(jobKey)) {
+                throw new SchedulerServiceException("Job '%s' in group '%s' does not exist. Please ensure the job is properly registered.".formatted(jobKey.getName(), jobKey.getGroup()), 
+                    new IllegalStateException("Job not registered"));
+            }
             scheduler.triggerJob(jobKey);
         } catch (SchedulerException e) {
             throw new SchedulerServiceException("Failed to immediate job '%s' in group '%s'".formatted(jobKey.getName(), jobKey.getGroup()), e);
@@ -284,6 +289,15 @@ public class SchedulerServiceImpl implements ISchedulerService {
         }
     }
 
+    @Override
+    public boolean checkExists(JobKey jobKey) {
+        try {
+            return scheduler.checkExists(jobKey);
+        } catch (SchedulerException e) {
+            throw new SchedulerServiceException("Failed to check job exists '%s' in group '%s'".formatted(jobKey.getName(), jobKey.getGroup()), e);
+        }
+    }
+
 
     /**
      * 构建作业详细信息
@@ -293,13 +307,19 @@ public class SchedulerServiceImpl implements ISchedulerService {
      * @author payne.zhuang <paynezhuang@gmail.com>
      * @CreateTime 2024-05-22 - 03:38:42
      */
+    @SuppressWarnings("unchecked")
     private JobDetail buildJobDetail(SchedulerSetup setup) {
         try {
-            // 加载并实例化指定的作业类
-            Class<?> className = Class.forName(setup.getJobClassName());
-            QuartzJobBean jobBean = (QuartzJobBean) className.getDeclaredConstructor().newInstance();
+            // 加载指定的作业类
+            Class<?> jobClass = Class.forName(setup.getJobClassName());
+            
+            // 确保类实现了Job接口
+            if (!org.quartz.Job.class.isAssignableFrom(jobClass)) {
+                throw new ClassCastException("Class " + setup.getJobClassName() + " does not implement org.quartz.Job interface");
+            }
+            
             // 创建作业详细信息
-            JobBuilder jobBuilder = JobBuilder.newJob(jobBean.getClass())
+            JobBuilder jobBuilder = JobBuilder.newJob((Class<? extends org.quartz.Job>) jobClass)
                     .withIdentity(setup.getJobName(), setup.getJobGroup())
                     .storeDurably()
                     .withDescription(setup.getDescription());
@@ -307,8 +327,7 @@ public class SchedulerServiceImpl implements ISchedulerService {
                 jobBuilder.setJobData(setup.getJobDataMap());
             }
             return jobBuilder.build();
-        } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException |
-                 InvocationTargetException e) {
+        } catch (ClassNotFoundException | ClassCastException e) {
             throw new SchedulerServiceException("Failed to build job detail for job '%s' in group '%s'".formatted(setup.getJobName(), setup.getJobGroup()), e);
         }
     }

@@ -179,6 +179,20 @@ public class TDeviceMessageV2 extends BaseEntity {
     @TableField(value = "metadata", typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> metadata;
 
+    // ==================== 字段覆盖 - 解决数据库字段不匹配问题 ====================
+    
+    /**
+     * 覆盖 BaseEntity 中的 createUserId 字段 - 数据库表中暂无此字段
+     */
+    @TableField(exist = false)
+    private Long createUserId;
+    
+    /**
+     * 覆盖 BaseEntity 中的 updateUserId 字段 - 数据库表中暂无此字段
+     */
+    @TableField(exist = false)
+    private Long updateUserId;
+
     // ==================== 辅助方法 ====================
 
     /**

@@ -34,8 +34,26 @@
         <result column="alert_message" property="alertMessage"/>
         <result column="severity_level" property="severityLevel"/>
         <result column="notification_type" property="notificationType"/>
+        <result column="customer_id" property="customerId"/>
+        
+        <!-- 新增字段映射 -->
+        <result column="rule_category" property="ruleCategory"/>
+        <result column="condition_expression" property="conditionExpression"/>
+        <result column="time_window_seconds" property="timeWindowSeconds"/>
+        <result column="cooldown_seconds" property="cooldownSeconds"/>
+        <result column="priority_level" property="priorityLevel"/>
+        <result column="rule_tags" property="ruleTags"/>
+        <result column="effective_time_start" property="effectiveTimeStart"/>
+        <result column="effective_time_end" property="effectiveTimeEnd"/>
+        <result column="effective_days" property="effectiveDays"/>
+        <result column="version" property="version"/>
+        <result column="enabled_channels" property="enabledChannels"/>
+        <result column="level" property="level"/>
+        <result column="is_enabled" property="isEnabled"/>
+        
+        <!-- BaseEntity字段映射 -->
         <result column="id" property="id"/>
-        <result column="is_deleted" property="isDeleted"/>
+        <result column="is_deleted" property="deleted"/>
         <result column="create_user" property="createUser"/>
         <result column="create_user_id" property="createUserId"/>
         <result column="create_time" property="createTime"/>
@@ -54,7 +72,31 @@
         update_user,
         update_user_id,
         update_time,
-        rule_type, physical_sign, threshold_min, threshold_max, deviation_percentage, trend_duration, parameters, trigger_condition, alert_message, severity_level, notification_type
+        rule_type, 
+        physical_sign, 
+        threshold_min, 
+        threshold_max, 
+        deviation_percentage, 
+        trend_duration, 
+        parameters, 
+        trigger_condition, 
+        alert_message, 
+        severity_level, 
+        notification_type,
+        customer_id,
+        rule_category,
+        condition_expression,
+        time_window_seconds,
+        cooldown_seconds,
+        priority_level,
+        rule_tags,
+        effective_time_start,
+        effective_time_end,
+        effective_days,
+        version,
+        enabled_channels,
+        level,
+        is_enabled
     </sql>
 
 </mapper>

@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { NButton, NTooltip } from 'naive-ui';
+import { NButton, NTooltip, NDropdown, NTabs, NTabPane } from 'naive-ui';
 import { type Ref, h, onMounted, ref, shallowRef, watch } from 'vue';
 import { utils, writeFile } from 'xlsx';
 
@@ -19,6 +19,7 @@ import { handleBindUsersByOrgId } from '@/utils/deviceUtils';
 
 import UserHealthDataSearch from './modules/user-health-data-search.vue';
 import UserHealthDataOperateDrawer from './modules/user-health-data-operate-drawer.vue';
+import SlowFieldsDetailModal from './modules/slow-fields-detail-modal-charts.vue';
 defineOptions({
   name: 'TUserHealthDataPage'
 });
@@ -31,6 +32,110 @@ const authStore = useAuthStore();
 const customerId = authStore.userInfo?.customerId;
 
 const editingData: Ref<Api.Health.UserHealthData | null> = ref(null);
+
+// 慢字段详情模态框
+const slowFieldsModalVisible = ref(false);
+const selectedRowSlowFields = ref<any>(null);
+
+// Tab 切换状态
+const activeTab = ref('table');
+const isSelectedSingleUser = ref(false);
+
+// 演示数据选项
+const demoOptions = [
+  {
+    label: '📅 每周运动数据样例',
+    key: 'weekly',
+    icon: () => h('span', { class: 'mr-2' }, '📅')
+  },
+  {
+    label: '💪 运动记录数据样例', 
+    key: 'workout',
+    icon: () => h('span', { class: 'mr-2' }, '💪')
+  }
+];
+
+// 样例数据 - 每周运动数据
+const sampleWeeklyData = {
+  "data": [
+    {
+      "timeStamps": 1679155199000,
+      "totalSteps": 4931,
+      "strengthTimes": 300,
+      "totalTime": 12
+    },
+    {
+      "timeStamps": 1679241599000,
+      "totalSteps": 3931,
+      "strengthTimes": 300,
+      "totalTime": 12
+    },
+    {
+      "timeStamps": 1679327999000,
+      "totalSteps": 3831,
+      "strengthTimes": 300,
+      "totalTime": 12
+    },
+    {
+      "timeStamps": 0,
+      "totalSteps": 0,
+      "strengthTimes": 0,
+      "totalTime": 0
+    },
+    {
+      "timeStamps": 0,
+      "totalSteps": 0,
+      "strengthTimes": 0,
+      "totalTime": 0
+    },
+    {
+      "timeStamps": 0,
+      "totalSteps": 0,
+      "strengthTimes": 0,
+      "totalTime": 0
+    },
+    {
+      "timeStamps": 0,
+      "totalSteps": 0,
+      "strengthTimes": 0,
+      "totalTime": 0
+    }
+  ],
+  "name": "daily",
+  "type": "history",
+  "code": 0
+};
+
+// 样例数据 - 运动记录数据
+const sampleWorkoutData = {
+  "code": 0,
+  "data": [
+    {
+      "calorie": 60,
+      "distance": 900,
+      "startTimeStamp": 1638793635000,
+      "endTimeStamp": 1638793645000,
+      "workoutType": 10
+    },
+    {
+      "calorie": 20,
+      "distance": 440,
+      "startTimeStamp": 1638793166000,
+      "endTimeStamp": 1638793186000,
+      "recordId": 1,
+      "workoutType": 11
+    },
+    {
+      "calorie": 44,
+      "distance": 650,
+      "startTimeStamp": 1638786425000,
+      "endTimeStamp": 1638786455000,
+      "workoutType": 2
+    }
+  ],
+  "name": "workout",
+  "type": "history"
+};
 
 const today = new Date();
 const startDate = new Date(today.setHours(0, 0, 0, 0)).getTime();
@@ -261,9 +366,29 @@ async function initColumns() {
             render: row => `(${row.latitude}, ${row.longitude}, ${row.altitude})`,
             show: enabledDataTypes.value.has('location')
           }
-        ].filter(col => col.show), // 只保留启用的列
+        ].filter(col => col.show !== false), // 只过滤掉明确标记为 show: false 的列
         // 其他固定列
-
+        
+        // 慢字段详情按钮列
+        {
+          key: 'slowFields',
+          title: '详细数据',
+          align: 'center',
+          width: 80,
+          render: row => {
+            // 简化检测逻辑 - 只要有慢字段数据就显示按钮
+            const hasSlowFields = row.sleepData || row.workoutData || row.exerciseDailyData || row.exerciseWeekData;
+            
+            if (!hasSlowFields) return '-';
+            
+            return h(NButton, {
+              size: 'small',
+              type: 'primary',
+              ghost: true,
+              onClick: () => openSlowFieldsDetail(row)
+            }, () => '查看');
+          }
+        },
         {
           key: 'timestamp',
           title: $t('page.health.data.info.timestamp'),
@@ -329,6 +454,50 @@ async function handleBatchDelete() {
   if (!error && result) {
     await onBatchDeleted();
   }
+}
+
+// 打开慢字段详情
+function openSlowFieldsDetail(row: any) {
+  selectedRowSlowFields.value = {
+    userId: row.userId,
+    userName: row.userName,
+    orgName: row.orgName,
+    timestamp: row.timestamp,
+    sleepData: row.sleepData,
+    workoutData: row.workoutData,
+    exerciseDailyData: row.exerciseDailyData,
+    exerciseWeekData: row.exerciseWeekData,
+    scientificSleepData: row.scientificSleepData
+  };
+  slowFieldsModalVisible.value = true;
+}
+
+// 处理演示数据选择
+function handleDemoSelect(key: string) {
+  if (key === 'weekly') {
+    selectedRowSlowFields.value = {
+      userId: "demo_user_001",
+      userName: "张三 (演示用户)",
+      orgName: "技术部",
+      timestamp: Date.now(),
+      exerciseWeekData: sampleWeeklyData,
+      sleepData: null,
+      workoutData: null,
+      exerciseDailyData: null
+    };
+  } else if (key === 'workout') {
+    selectedRowSlowFields.value = {
+      userId: "demo_user_002",
+      userName: "李四 (演示用户)",
+      orgName: "产品部", 
+      timestamp: Date.now(),
+      exerciseWeekData: null,
+      sleepData: null,
+      workoutData: sampleWorkoutData,
+      exerciseDailyData: null
+    };
+  }
+  slowFieldsModalVisible.value = true;
 }
 
 function exportExcel() {
@@ -554,6 +723,14 @@ watch(
           </template>
           导出excel
         </NButton>
+        <NDropdown :options="demoOptions" @select="handleDemoSelect">
+          <NButton size="small" type="info" ghost>
+            <template #icon>
+              <span class="text-base">📊</span>
+            </template>
+            演示样例数据
+          </NButton>
+        </NDropdown>
       </NSpace>
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
@@ -571,6 +748,7 @@ watch(
         :pagination="mobilePagination"
       />
       <UserHealthDataOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" @submitted="getDataByPage" />
+      <SlowFieldsDetailModal v-model:visible="slowFieldsModalVisible" :row-data="selectedRowSlowFields" />
     </NCard>
   </div>
 </template>

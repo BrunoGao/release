@@ -30,10 +30,17 @@ import java.util.Set;
 /**
  * Device User Mapping Service 服务接口层
  *
+ * @deprecated 此服务已废弃，请直接使用 ISysUserService 和相关服务
+ *             迁移指南:
+ *             - 使用 ISysUserService.getUsersByOrgId() 替代 getDeviceSnListByDepartmentId()
+ *             - 使用 ISysUserService + ISysOrgUnitsService 替代 getDeviceUserInfo()
+ *             - 直接使用 userId 查询，不再依赖 deviceSn 映射
+ *
  * @Author jjgao
  * @ProjectName ljwx-boot
  * @CreateTime 2024-03-20 - 10:00:00
  */
+@Deprecated
 public interface IDeviceUserMappingService {
 
     /**
@@ -41,23 +48,33 @@ public interface IDeviceUserMappingService {
      * @param userId 用户ID
      * @param departmentId 部门ID
      * @return 设备序列号列表
+     * @deprecated 请使用 ISysUserService.getUsersByOrgId() 替代
      */
+    @Deprecated
     List<String> getDeviceSnList(String userId, String departmentId);
 
     /**
      * 批量获取设备关联的用户和部门信息
      * @param deviceSns 设备序列号集合
      * @return 设备序列号到用户信息的映射
+     * @deprecated 请使用 ISysUserService + ISysOrgUnitsService 替代
      */
+    @Deprecated
     Map<String, UserInfo> getDeviceUserInfo(Set<String> deviceSns);
 
     /**
      * 根据部门ID获取所有关联的设备序列号
      * @param departmentId 部门ID
      * @return 设备序列号列表
+     * @deprecated 请使用 ISysUserService.getUsersByOrgId() 替代
      */
+    @Deprecated
     List<String> getDeviceSnListByDepartmentId(String departmentId);
 
+    /**
+     * @deprecated 请使用 ISysUserService + ISysOrgUnitsService 替代
+     */
+    @Deprecated
     Map<String, UserInfo> getUserInfoMap(List<String> deviceSnList);
 
     @Data

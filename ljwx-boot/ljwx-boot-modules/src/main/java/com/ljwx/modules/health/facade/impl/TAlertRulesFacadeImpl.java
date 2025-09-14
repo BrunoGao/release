@@ -41,6 +41,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  *  门面接口实现层
@@ -74,6 +77,14 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
     @Override
     @Transactional
     public boolean add(TAlertRulesAddDTO tAlertRulesAddDTO) {
+        // 预处理和验证
+        preprocessAlertRule(tAlertRulesAddDTO);
+        
+        // 检查重复规则
+        if (isDuplicateRule(tAlertRulesAddDTO)) {
+            throw new RuntimeException("告警规则配置冲突：相同客户下已存在相同规则类型、监控指标和严重级别的规则，请修改后重试");
+        }
+        
         TAlertRulesBO tAlertRulesBO = CglibUtil.convertObj(tAlertRulesAddDTO, TAlertRulesBO::new);
         boolean result = tAlertRulesService.save(tAlertRulesBO);
         if (result) {
@@ -143,6 +154,111 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
         } catch (Exception e) {
             System.err.println("更新告警规则缓存失败: customerId=" + customerId + ", error=" + e.getMessage());
             e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 预处理告警规则数据
+     */
+    private void preprocessAlertRule(TAlertRulesAddDTO dto) {
+        // 如果是复合规则，设置正确的ruleType
+        if ("COMPOSITE".equals(dto.getRuleCategory())) {
+            dto.setRuleType("composite");
+            // 对于复合规则，physicalSign应该为空或者为"composite"
+            if (dto.getPhysicalSign() == null || dto.getPhysicalSign().trim().isEmpty()) {
+                dto.setPhysicalSign("composite");
+            }
+        }
+        
+        // 处理严重级别字段的映射
+        if (dto.getLevel() != null && dto.getSeverityLevel() == null) {
+            // 将前端的level字段映射到severityLevel
+            switch (dto.getLevel().toUpperCase()) {
+                case "LOW": case "MINOR":
+                    dto.setSeverityLevel("minor");
+                    break;
+                case "MEDIUM": case "MODERATE":
+                    dto.setSeverityLevel("moderate");
+                    break;
+                case "HIGH": case "MAJOR":
+                    dto.setSeverityLevel("major");
+                    break;
+                case "CRITICAL": case "SEVERE":
+                    dto.setSeverityLevel("critical");
+                    break;
+                default:
+                    dto.setSeverityLevel("moderate");
+            }
+        }
+        
+        // 设置默认值
+        if (dto.getIsEnabled() == null) {
+            dto.setIsEnabled(true);
+        }
+        
+        // 为复合规则生成唯一的物理指标标识
+        if ("COMPOSITE".equals(dto.getRuleCategory()) && dto.getConditions() != null) {
+            // 基于条件内容生成唯一标识，避免重复
+            String conditionHash = String.valueOf(dto.getConditions().hashCode());
+            dto.setPhysicalSign("composite_" + Math.abs(conditionHash.hashCode() % 10000));
+        }
+        
+        // 处理时间字段转换 - 从ISO datetime字符串提取时间部分
+        if (dto.getEffectiveTimeStart() != null) {
+            dto.setEffectiveTimeStart(extractTimeFromDateTimeString(dto.getEffectiveTimeStart()));
+        }
+        if (dto.getEffectiveTimeEnd() != null) {
+            dto.setEffectiveTimeEnd(extractTimeFromDateTimeString(dto.getEffectiveTimeEnd()));
+        }
+    }
+    
+    /**
+     * 检查是否存在重复的告警规则
+     */
+    private boolean isDuplicateRule(TAlertRulesAddDTO dto) {
+        QueryWrapper<TAlertRules> wrapper = new QueryWrapper<>();
+        wrapper.eq("customer_id", dto.getCustomerId())
+               .eq("rule_type", dto.getRuleType() != null ? dto.getRuleType() : "metric")
+               .eq("physical_sign", dto.getPhysicalSign() != null ? dto.getPhysicalSign() : "")
+               .eq("severity_level", dto.getSeverityLevel() != null ? dto.getSeverityLevel() : "moderate");
+        
+        return tAlertRulesService.count(wrapper) > 0;
+    }
+    
+    /**
+     * 从datetime字符串中提取时间部分
+     * 支持格式: "2025-09-12T01:00:00.000Z" -> "01:00:00"
+     */
+    private String extractTimeFromDateTimeString(String dateTimeString) {
+        if (dateTimeString == null || dateTimeString.trim().isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // 如果已经是时间格式，直接返回
+            if (dateTimeString.matches("^\\d{2}:\\d{2}:\\d{2}$")) {
+                return dateTimeString;
+            }
+            
+            // 处理ISO 8601格式的datetime字符串
+            if (dateTimeString.contains("T")) {
+                ZonedDateTime zonedDateTime = ZonedDateTime.parse(dateTimeString);
+                LocalTime localTime = zonedDateTime.toLocalTime();
+                return localTime.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+            }
+            
+            // 如果包含空格，可能是 "yyyy-MM-dd HH:mm:ss" 格式
+            if (dateTimeString.contains(" ")) {
+                String[] parts = dateTimeString.split(" ");
+                if (parts.length >= 2) {
+                    return parts[1].substring(0, Math.min(parts[1].length(), 8)); // 截取时间部分
+                }
+            }
+            
+            return dateTimeString; // 其他情况直接返回原值
+        } catch (Exception e) {
+            System.err.println("解析时间字符串失败: " + dateTimeString + ", error: " + e.getMessage());
+            return null;
         }
     }
 

@@ -87,6 +87,58 @@ class DeviceMessage(db.Model):
     update_time = db.Column(db.DateTime, nullable=True)
     is_deleted = db.Column(db.Boolean, default=False)
 
+class DeviceMessageV2(db.Model):
+    __tablename__ = 't_device_message_v2'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    customer_id = db.Column(db.BigInteger, nullable=False)
+    department_id = db.Column(db.BigInteger, nullable=False)
+    user_id = db.Column(db.BigInteger, nullable=False)
+    device_sn = db.Column(db.String(64), nullable=True)
+    message = db.Column(db.Text, nullable=False)
+    message_type = db.Column(db.Enum('task', 'job', 'announcement', 'notification', 'alert', 'emergency'), nullable=False)
+    sender_type = db.Column(db.Enum('system', 'user', 'device', 'admin'), nullable=False)
+    receiver_type = db.Column(db.Enum('user', 'department', 'broadcast'), nullable=False)
+    priority_level = db.Column(db.SmallInteger, nullable=False, default=3)
+    message_status = db.Column(db.Enum('pending', 'delivered', 'acknowledged', 'failed', 'expired'), nullable=False, default='pending')
+    sent_time = db.Column(db.DateTime(3), nullable=True)
+    received_time = db.Column(db.DateTime(3), nullable=True)
+    acknowledged_time = db.Column(db.DateTime(3), nullable=True)
+    expired_time = db.Column(db.DateTime(3), nullable=True)
+    target_user_count = db.Column(db.Integer, nullable=False, default=1)
+    acknowledged_count = db.Column(db.Integer, nullable=False, default=0)
+    create_user_id = db.Column(db.BigInteger, nullable=True)
+    create_time = db.Column(db.DateTime(3), nullable=False, server_default=db.func.current_timestamp())
+    update_time = db.Column(db.DateTime(3), nullable=True, onupdate=db.func.current_timestamp())
+    is_deleted = db.Column(db.Boolean, nullable=False, default=False)
+    version = db.Column(db.Integer, nullable=False, default=1)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'customer_id': self.customer_id,
+            'department_id': self.department_id,
+            'user_id': self.user_id,
+            'device_sn': self.device_sn,
+            'message': self.message,
+            'message_type': self.message_type,
+            'sender_type': self.sender_type,
+            'receiver_type': self.receiver_type,
+            'priority_level': self.priority_level,
+            'message_status': self.message_status,
+            'sent_time': self.sent_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.sent_time else None,
+            'received_time': self.received_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.received_time else None,
+            'acknowledged_time': self.acknowledged_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.acknowledged_time else None,
+            'expired_time': self.expired_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.expired_time else None,
+            'target_user_count': self.target_user_count,
+            'acknowledged_count': self.acknowledged_count,
+            'create_user_id': self.create_user_id,
+            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.create_time else None,
+            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.update_time else None,
+            'is_deleted': self.is_deleted,
+            'version': self.version
+        }
+
 class DeviceMessageDetail(db.Model):
     __tablename__ = 't_device_message_detail'
 
@@ -107,6 +159,48 @@ class DeviceMessageDetail(db.Model):
     update_user_id = db.Column(db.BigInteger, nullable=True)
     update_time = db.Column(db.DateTime, nullable=True)
     is_deleted = db.Column(db.Boolean, default=False)
+
+class DeviceMessageDetailV2(db.Model):
+    __tablename__ = 't_device_message_detail_v2'
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    message_id = db.Column(db.BigInteger, nullable=False)
+    customer_id = db.Column(db.BigInteger, nullable=False)
+    user_id = db.Column(db.BigInteger, nullable=False)
+    device_sn = db.Column(db.String(64), nullable=True)
+    response_message = db.Column(db.Text, nullable=True)
+    response_type = db.Column(db.Enum('acknowledged', 'rejected', 'ignored', 'timeout'), nullable=False, default='acknowledged')
+    response_time = db.Column(db.DateTime(3), nullable=True)
+    delivery_status = db.Column(db.Enum('pending', 'delivered', 'failed', 'retry'), nullable=False, default='pending')
+    delivery_attempt_count = db.Column(db.SmallInteger, nullable=False, default=0)
+    last_delivery_time = db.Column(db.DateTime(3), nullable=True)
+    delivery_error = db.Column(db.String(500), nullable=True)
+    client_info = db.Column(db.JSON, nullable=True)
+    response_location = db.Column(db.JSON, nullable=True)
+    create_time = db.Column(db.DateTime(3), nullable=False, server_default=db.func.current_timestamp())
+    update_time = db.Column(db.DateTime(3), nullable=True, onupdate=db.func.current_timestamp())
+    is_deleted = db.Column(db.Boolean, nullable=False, default=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'message_id': self.message_id,
+            'customer_id': self.customer_id,
+            'user_id': self.user_id,
+            'device_sn': self.device_sn,
+            'response_message': self.response_message,
+            'response_type': self.response_type,
+            'response_time': self.response_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.response_time else None,
+            'delivery_status': self.delivery_status,
+            'delivery_attempt_count': self.delivery_attempt_count,
+            'last_delivery_time': self.last_delivery_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.last_delivery_time else None,
+            'delivery_error': self.delivery_error,
+            'client_info': self.client_info,
+            'response_location': self.response_location,
+            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.create_time else None,
+            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.update_time else None,
+            'is_deleted': self.is_deleted
+        }
     
 class HealthDataConfig(db.Model):
     __tablename__ = 't_health_data_config'
@@ -469,48 +563,51 @@ class AlertLog(db.Model):
 
 class HealthBaseline(db.Model):
     __tablename__ = 't_health_baseline'
-    baseline_id = Column(BigInteger, primary_key=True, autoincrement=True, comment='基线记录主键')
+    
+    # 主键使用实际数据库的字段名 'id'
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment='主键ID')
     device_sn = Column(String(50), nullable=False, comment='设备序列号')
-    user_id = Column(BigInteger, nullable=True, comment='用户ID')
+    user_id = Column(BigInteger, nullable=True, default=0, comment='用户ID')
+    org_id = Column(String(20), nullable=True, default='1', comment='组织ID')
     customer_id = Column(BigInteger, nullable=False, default=0, comment='租户ID，继承自用户所属租户')
-    feature_name = Column(String(50), nullable=False, comment='体征名称，如 heart_rate/blood_oxygen')
+    feature_name = Column(String(20), nullable=False, comment='特征名称')
     baseline_date = Column(db.Date, nullable=False, comment='基线日期')
-    mean_value = Column(Float, comment='该期平均值')
-    std_value = Column(Float, comment='该期标准差')
-    min_value = Column(Float, comment='该期最小值')
-    max_value = Column(Float, comment='该期最大值')
+    mean_value = Column(db.Numeric(10, 2), default=0.00, comment='平均值')
+    std_value = Column(db.Numeric(10, 2), default=0.00, comment='标准差')
+    min_value = Column(db.Numeric(10, 2), default=0.00, comment='最小值')
+    max_value = Column(db.Numeric(10, 2), default=0.00, comment='最大值')
     sample_count = Column(Integer, default=0, comment='样本数量')
-    is_current = Column(Boolean, nullable=False, comment='是否当前有效基线(1=是,0=否)')
+    is_current = Column(db.SmallInteger, default=1, comment='是否当前有效')
+    baseline_time = Column(db.Date, nullable=True, comment='基线生成时间')
     
     # 扩展字段 - 支持多层次基线
-    baseline_type = Column(String(20), default='personal', comment='基线类型：personal|population|position')
+    baseline_type = Column(String(20), default='personal', comment='基线类型：personal|org|position')
     age_group = Column(String(20), comment='年龄组')
     gender = Column(String(10), comment='性别')
     position_risk_level = Column(String(20), comment='职位风险等级')
     seasonal_factor = Column(db.Numeric(5, 4), default=1.0000, comment='季节调整因子')
     confidence_level = Column(db.Numeric(5, 4), default=0.9500, comment='置信水平')
+    is_deleted = Column(db.SmallInteger, default=0, comment='是否删除 0-正常 1-删除')
     
-    create_user = Column(String(255), comment='创建人')
-    create_user_id = Column(BigInteger, comment='创建人ID')
-    create_time = Column(DateTime, nullable=False, server_default=func.now(), comment='记录创建时间')
-    update_user = Column(String(255), comment='最后修改人')
-    update_user_id = Column(BigInteger, comment='最后修改人ID')
-    update_time = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now(), comment='记录更新时间')
-    baseline_time = Column(DateTime, nullable=False, comment='基线生成时戳')
+    create_time = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    update_time = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
     
     __table_args__ = (
-        db.Index('idx_baseline_device_date', 'device_sn', 'baseline_date'),
-        db.Index('idx_baseline_user_date', 'user_id', 'baseline_date'),
+        db.Index('uk_baseline_device_feature_date', 'device_sn', 'feature_name', 'baseline_date', unique=True),
+        db.Index('idx_baseline_org_feature_date', 'org_id', 'feature_name', 'baseline_date'),
+        db.Index('idx_baseline_date_feature', 'baseline_date', 'feature_name'),
         db.Index('idx_baseline_type_date', 'baseline_type', 'baseline_date', 'is_current'),
         db.Index('idx_baseline_user_feature', 'user_id', 'feature_name', 'baseline_date'),
+        db.Index('idx_health_baseline_deleted', 'is_deleted'),
     )
 
     
     def to_dict(self):
         return {
-            'baseline_id': self.baseline_id,
+            'id': self.id,
             'device_sn': self.device_sn,
             'user_id': self.user_id,
+            'org_id': self.org_id,
             'customer_id': self.customer_id,
             'feature_name': self.feature_name,
             'baseline_date': self.baseline_date.strftime('%Y-%m-%d') if self.baseline_date else None,
@@ -526,13 +623,10 @@ class HealthBaseline(db.Model):
             'position_risk_level': self.position_risk_level,
             'seasonal_factor': float(self.seasonal_factor) if self.seasonal_factor else 1.0,
             'confidence_level': float(self.confidence_level) if self.confidence_level else 0.95,
-            'create_user': self.create_user,
-            'create_user_id': self.create_user_id,
+            'is_deleted': self.is_deleted,
             'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
-            'update_user': self.update_user,
-            'update_user_id': self.update_user_id,
             'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None,
-            'baseline_time': self.baseline_time.strftime('%Y-%m-%d %H:%M:%S') if self.baseline_time else None
+            'baseline_time': self.baseline_time.strftime('%Y-%m-%d') if self.baseline_time else None
         }
 
 class OrgHealthBaseline(db.Model):
@@ -997,23 +1091,30 @@ class HealthScore(db.Model):
     """健康评分表"""
     __tablename__ = 't_health_score'
     
-    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True, comment='主键ID')
     device_sn = db.Column(db.String(50), nullable=False, comment='设备序列号')
-    user_id = db.Column(db.BigInteger, nullable=True, default=0, comment='用户ID')
-    org_id = db.Column(db.String(20), nullable=True, default='1', comment='组织ID')
-    feature_name = db.Column(db.String(20), nullable=False, comment='体征名称')
-    avg_value = db.Column(db.Numeric(10, 2), nullable=True, default=0.00, comment='平均值')
-    z_score = db.Column(db.Numeric(10, 4), nullable=True, default=0.0000, comment='Z-score')
-    score_value = db.Column(db.Numeric(5, 2), nullable=True, default=0.00, comment='评分值')
-    penalty_value = db.Column(db.Numeric(5, 2), nullable=True, default=0.00, comment='惩罚值')
+    user_id = db.Column(db.BigInteger, default=0, comment='用户ID')
+    org_id = db.Column(db.String(20), default='1', comment='组织ID')
+    feature_name = db.Column(db.String(20), nullable=False, comment='特征名称')
+    avg_value = db.Column(db.Numeric(10, 2), default=0.00, comment='当日平均值')
+    z_score = db.Column(db.Numeric(10, 4), default=0.0000, comment='Z分数')
+    score_value = db.Column(db.Numeric(5, 2), default=0.00, comment='评分值(0-100)')
+    penalty_value = db.Column(db.Numeric(5, 2), default=0.00, comment='惩罚分值')
     baseline_time = db.Column(db.Date, nullable=True, comment='基线时间')
     score_date = db.Column(db.Date, nullable=False, comment='评分日期')
-    create_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=True)
-    update_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
+    create_time = db.Column(db.DateTime, default=datetime.utcnow, comment='创建时间')
+    update_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，继承自用户所属租户')
+    is_deleted = db.Column(db.SmallInteger, default=0, comment='是否删除 0-正常 1-删除')
+    score_level = db.Column(db.String(20), default='fair', comment='评分等级 excellent/good/fair/poor')
+    raw_value = db.Column(db.Numeric(10, 2), default=0.00, comment='原始值')
+    baseline_value = db.Column(db.Numeric(10, 2), default=0.00, comment='基线值')
     
     __table_args__ = (
-        db.Index('idx_device_sn_score_date', 'device_sn', 'score_date'),
-        db.Index('idx_user_id_score_date', 'user_id', 'score_date'),
+        db.Index('uk_score_device_feature_date', 'device_sn', 'feature_name', 'score_date', unique=True),
+        db.Index('idx_score_org_feature_date', 'org_id', 'feature_name', 'score_date'),
+        db.Index('idx_score_date_feature', 'score_date', 'feature_name'),
+        db.Index('idx_health_score_deleted', 'is_deleted'),
         {'comment': '健康评分表'}
     )
     
@@ -1030,6 +1131,11 @@ class HealthScore(db.Model):
             'penalty_value': float(self.penalty_value) if self.penalty_value else 0.0,
             'baseline_time': self.baseline_time.isoformat() if self.baseline_time else None,
             'score_date': self.score_date.isoformat() if self.score_date else None,
+            'customer_id': self.customer_id,
+            'is_deleted': self.is_deleted,
+            'score_level': self.score_level,
+            'raw_value': float(self.raw_value) if self.raw_value else 0.0,
+            'baseline_value': float(self.baseline_value) if self.baseline_value else 0.0,
             'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
             'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None
         }

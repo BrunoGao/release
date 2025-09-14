@@ -1,6 +1,6 @@
 import json
 from flask import request, jsonify
-from .models import DeviceMessage, DeviceMessageDetail, db, DeviceInfo, UserInfo, UserOrg, OrgInfo
+from .models import DeviceMessage, DeviceMessageDetail, DeviceMessageV2, DeviceMessageDetailV2, db, DeviceInfo, UserInfo, UserOrg, OrgInfo
 from .redis_helper import RedisHelper
 from datetime import datetime, timedelta
 from .org import fetch_departments_by_orgId
@@ -40,6 +40,184 @@ except ImportError as e:
 
 # 线程池用于并发操作
 executor = ThreadPoolExecutor(max_workers=10)
+
+# 表版本检测和切换
+def check_table_version():
+    """检查数据库中存在哪个版本的消息表"""
+    try:
+        # 检查 V2 表是否存在
+        db.session.execute(db.text("SELECT 1 FROM t_device_message_v2 LIMIT 1"))
+        return 'v2'
+    except Exception as e:
+        logger.debug(f"V2表不存在，使用V1表: {e}")
+        return 'v1'
+
+def get_message_model():
+    """获取当前应使用的消息模型"""
+    version = check_table_version()
+    if version == 'v2':
+        return DeviceMessageV2, DeviceMessageDetailV2
+    return DeviceMessage, DeviceMessageDetail
+
+def get_unified_message_query(orgId=None, userId=None, startDate=None, endDate=None, message_type=None):
+    """
+    创建统一的消息查询，自动适配V1和V2表结构
+    
+    Args:
+        orgId: 组织ID
+        userId: 用户ID  
+        startDate: 开始日期
+        endDate: 结束日期
+        message_type: 消息类型
+    
+    Returns:
+        sqlalchemy query object
+    """
+    MessageModel, MessageDetailModel = get_message_model()
+    table_version = check_table_version()
+    
+    if table_version == 'v2':
+        # V2表查询逻辑
+        base_query = db.session.query(
+            MessageModel.id,
+            MessageModel.message,
+            MessageModel.message_type,
+            MessageModel.sender_type,
+            MessageModel.receiver_type,
+            MessageModel.message_status,
+            MessageModel.sent_time,
+            MessageModel.received_time,
+            MessageModel.acknowledged_time,
+            MessageModel.user_id,
+            MessageModel.department_id.label('org_id'),  # V2表使用department_id
+            MessageModel.acknowledged_count.label('responded_number'),
+            MessageModel.target_user_count.label('total_number'),
+            UserInfo.user_name,
+            OrgInfo.name.label('org_name')
+        ).outerjoin(
+            UserInfo, MessageModel.user_id == UserInfo.id
+        ).outerjoin(
+            OrgInfo, MessageModel.department_id == OrgInfo.id
+        ).filter(
+            MessageModel.is_deleted == False
+        )
+        
+        # V2表的时间字段映射
+        time_field = MessageModel.sent_time
+        
+        if userId:
+            # V2表的用户查询
+            user_info = UserInfo.query.filter_by(id=userId).first()
+            if user_info and user_info.org_id:
+                org_id = user_info.org_id
+                base_query = base_query.filter(
+                    db.or_(
+                        MessageModel.user_id == userId,  # 个人消息
+                        db.and_(MessageModel.department_id == org_id, MessageModel.receiver_type == 'department')  # 部门消息
+                    )
+                )
+            else:
+                base_query = base_query.filter(MessageModel.user_id == userId)
+                
+        elif orgId:
+            # V2表的组织查询
+            base_query = base_query.filter(
+                db.or_(
+                    MessageModel.department_id == orgId,  # 直接部门消息
+                    db.and_(MessageModel.receiver_type == 'broadcast')  # 广播消息
+                )
+            )
+    else:
+        # V1表查询逻辑（保持原有逻辑）
+        base_query = db.session.query(
+            MessageModel.id,
+            MessageModel.message,
+            MessageModel.message_type,
+            MessageModel.sender_type,
+            MessageModel.receiver_type,
+            MessageModel.message_status,
+            MessageModel.sent_time,
+            MessageModel.received_time,
+            MessageModel.user_id,
+            MessageModel.org_id,
+            MessageModel.responded_number,
+            db.literal(0).label('total_number'),  # V1表没有total_number字段
+            UserInfo.user_name,
+            OrgInfo.name.label('org_name')
+        ).outerjoin(
+            UserInfo, MessageModel.user_id == UserInfo.id
+        ).outerjoin(
+            OrgInfo, MessageModel.org_id == OrgInfo.id
+        ).filter(
+            MessageModel.is_deleted == False
+        )
+        
+        # V1表的时间字段映射
+        time_field = MessageModel.sent_time
+        
+        if userId:
+            # V1表的用户查询逻辑
+            user_info = UserInfo.query.filter_by(id=userId).first()
+            if user_info and user_info.org_id:
+                org_id = user_info.org_id
+                org_info = OrgInfo.query.filter_by(id=org_id).first()
+                if org_info and org_info.ancestors:
+                    ancestor_org_ids = [int(id) for id in org_info.ancestors.split(',') if id != '0']
+                    ancestor_org_ids.append(org_id)
+                else:
+                    ancestor_org_ids = [org_id] if org_id else []
+                
+                base_query = base_query.filter(
+                    db.or_(
+                        MessageModel.user_id == userId,  # 个人消息
+                        db.and_(MessageModel.org_id.in_(ancestor_org_ids), MessageModel.user_id.is_(None))  # 公告消息
+                    )
+                )
+            else:
+                base_query = base_query.filter(MessageModel.user_id == userId)
+                
+        elif orgId:
+            # V1表的组织查询逻辑
+            from .org import fetch_users_by_orgId, fetch_departments_by_orgId
+            
+            users = fetch_users_by_orgId(orgId)
+            user_ids = [int(user['id']) for user in users] if users else []
+            
+            departments_response = fetch_departments_by_orgId(orgId)
+            subordinate_org_ids = []
+            if departments_response['success'] and departments_response['data']:
+                def extract_department_ids(departments):
+                    dept_ids = []
+                    for dept in departments:
+                        dept_ids.append(int(dept['id']))
+                        if 'children' in dept and dept['children']:
+                            dept_ids.extend(extract_department_ids(dept['children']))
+                    return dept_ids
+                subordinate_org_ids = extract_department_ids(departments_response['data'])
+            
+            all_org_ids = list(set([orgId] + subordinate_org_ids))
+            
+            if user_ids:
+                base_query = base_query.filter(
+                    db.or_(
+                        MessageModel.user_id.in_(user_ids),  # 用户消息
+                        db.and_(MessageModel.org_id.in_(all_org_ids), MessageModel.user_id.is_(None))  # 群发消息
+                    )
+                )
+            else:
+                base_query = base_query.filter(
+                    db.and_(MessageModel.org_id.in_(all_org_ids), MessageModel.user_id.is_(None))
+                )
+    
+    # 通用过滤条件
+    if startDate:
+        base_query = base_query.filter(time_field >= startDate)
+    if endDate:
+        base_query = base_query.filter(time_field <= endDate)
+    if message_type:
+        base_query = base_query.filter(MessageModel.message_type == message_type)
+    
+    return base_query, table_version
 
 # 性能监控装饰器
 def monitor_performance(operation_name: str):
@@ -106,103 +284,24 @@ def get_all_message_data_optimized(orgId=None, userId=None, startDate=None, endD
             logger.debug(f"✅ 缓存命中: {cache_key}")
             return result
         
-        # 构建查询条件
-        query = db.session.query(
-            DeviceMessage.id,
-            DeviceMessage.message,
-            DeviceMessage.message_type,
-            DeviceMessage.sender_type,
-            DeviceMessage.receiver_type,
-            DeviceMessage.message_status,
-            DeviceMessage.send_time,
-            DeviceMessage.received_time,
-            DeviceMessage.user_id,
-            DeviceMessage.org_id,
-            DeviceMessage.responded_number,
-            DeviceMessage.total_number,
-            UserInfo.user_name,
-            OrgInfo.name.label('org_name')
-        ).outerjoin(
-            UserInfo, DeviceMessage.user_id == UserInfo.id
-        ).outerjoin(
-            OrgInfo, DeviceMessage.org_id == OrgInfo.id
-        ).filter(
-            DeviceMessage.is_deleted == False
+        # 使用统一查询逻辑
+        query, table_version = get_unified_message_query(
+            orgId=orgId if not userId else None, 
+            userId=userId,
+            startDate=startDate, 
+            endDate=endDate, 
+            message_type=message_type
         )
         
+        # 管理员用户检查
         if userId:
-            # 单用户查询 - 包括个人消息和发给组织的群发消息
             from .admin_helper import is_admin_user
             if is_admin_user(userId):
                 return {"success": True, "data": {"messageData": [], "totalRecords": 0, "pagination": {"currentPage": page, "pageSize": pageSize, "totalCount": 0, "totalPages": 0}}}
-            
-            # 🚀 优化：直接从用户表获取组织ID，无需关联表查询！
-            user_info = UserInfo.query.filter_by(id=userId).first()
-            if user_info and user_info.org_id:
-                org_id = user_info.org_id
-                # 获取组织及其所有上级组织的ID
-                org_info = OrgInfo.query.filter_by(id=org_id).first()
-                if org_info and org_info.ancestors:
-                    ancestor_org_ids = [int(id) for id in org_info.ancestors.split(',') if id != '0']
-                    ancestor_org_ids.append(org_id)
-                else:
-                    ancestor_org_ids = [org_id] if org_id else []
                 
-                # 查询用户个人消息和公告消息
-                query = query.filter(
-                    db.or_(
-                        DeviceMessage.user_id == userId,  # 个人消息
-                        db.and_(DeviceMessage.org_id.in_(ancestor_org_ids), DeviceMessage.user_id.is_(None))  # 公告消息
-                    )
-                )
-            else:
-                # 如果用户没有组织关联，只查个人消息
-                query = query.filter(DeviceMessage.user_id == userId)
-                
-        elif orgId:
-            # 组织查询 - 获取组织下所有用户的消息
-            from .org import fetch_users_by_orgId
-            users = fetch_users_by_orgId(orgId)
-            if not users:
-                return {"success": True, "data": {"messageData": [], "totalRecords": 0, "pagination": {"currentPage": page, "pageSize": pageSize, "totalCount": 0, "totalPages": 0}}}
-            
-            user_ids = [int(user['id']) for user in users]
-            
-            # 获取所有相关组织ID（包括子部门）
-            departments_response = fetch_departments_by_orgId(orgId)
-            subordinate_org_ids = []
-            if departments_response['success'] and departments_response['data']:
-                def extract_department_ids(departments):
-                    dept_ids = []
-                    for dept in departments:
-                        dept_ids.append(int(dept['id']))
-                        if 'children' in dept and dept['children']:
-                            dept_ids.extend(extract_department_ids(dept['children']))
-                    return dept_ids
-                subordinate_org_ids = extract_department_ids(departments_response['data'])
-            
-            all_org_ids = list(set([orgId] + subordinate_org_ids))
-            
-            # 查询用户消息和群发消息
-            query = query.filter(
-                db.or_(
-                    DeviceMessage.user_id.in_(user_ids),  # 用户消息
-                    db.and_(DeviceMessage.org_id.in_(all_org_ids), DeviceMessage.user_id.is_(None))  # 群发消息
-                )
-            )
-            
-        else:
+        # 检查是否有有效查询条件
+        if not userId and not orgId:
             return {"success": False, "message": "缺少orgId或userId参数", "data": {"messageData": [], "totalRecords": 0}}
-        
-        # 时间范围过滤
-        if startDate:
-            query = query.filter(DeviceMessage.send_time >= startDate)
-        if endDate:
-            query = query.filter(DeviceMessage.send_time <= endDate)
-        
-        # 消息类型过滤
-        if message_type:
-            query = query.filter(DeviceMessage.message_type == message_type)
         
         # 统计总数
         total_count = query.count()
@@ -221,9 +320,20 @@ def get_all_message_data_optimized(orgId=None, userId=None, startDate=None, endD
         # 执行查询
         messages = query.all()
         
-        # 格式化数据
+        # 格式化数据 - 兼容V1和V2表结构
         message_data_list = []
         for message in messages:
+            # 处理时间字段 - V2可能有毫秒精度
+            def format_time(time_obj):
+                if not time_obj:
+                    return None
+                if table_version == 'v2':
+                    # V2表支持毫秒精度
+                    return time_obj.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if hasattr(time_obj, 'microsecond') else time_obj.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    # V1表标准格式
+                    return time_obj.strftime('%Y-%m-%d %H:%M:%S')
+            
             message_dict = {
                 'id': message.id,
                 'message': message.message,
@@ -231,17 +341,24 @@ def get_all_message_data_optimized(orgId=None, userId=None, startDate=None, endD
                 'sender_type': message.sender_type,
                 'receiver_type': message.receiver_type,
                 'message_status': message.message_status,
-                'send_time': message.send_time.strftime('%Y-%m-%d %H:%M:%S') if message.send_time else None,
-                'received_time': message.received_time.strftime('%Y-%m-%d %H:%M:%S') if message.received_time else None,
+                'send_time': format_time(message.sent_time),
+                'received_time': format_time(message.received_time),
                 'user_id': message.user_id,
                 'org_id': message.org_id,
-                'responded_number': message.responded_number or 0,
-                'total_number': message.total_number or 0,
+                'responded_number': getattr(message, 'responded_number', 0) or 0,
+                'total_number': getattr(message, 'total_number', 0) or 0,
                 'user_name': message.user_name,
                 'org_name': message.org_name,
                 'dept_name': message.org_name,  # 兼容字段
                 'dept_id': message.org_id
             }
+            
+            # V2表特有字段
+            if table_version == 'v2':
+                if hasattr(message, 'acknowledged_time'):
+                    message_dict['acknowledged_time'] = format_time(message.acknowledged_time)
+                if hasattr(message, 'priority_level'):
+                    message_dict['priority_level'] = getattr(message, 'priority_level', 3)
             
             # 如果需要包含详细信息
             if include_details:
@@ -264,6 +381,12 @@ def get_all_message_data_optimized(orgId=None, userId=None, startDate=None, endD
                 'messageData': message_data_list,
                 'totalRecords': len(message_data_list),
                 'pagination': pagination
+            },
+            'metadata': {
+                'table_version': table_version,
+                'query_type': 'unified',
+                'supports_microseconds': table_version == 'v2',
+                'supports_priority': table_version == 'v2'
             },
             'performance': {
                 'cached': False,
@@ -900,36 +1023,67 @@ def send_message(data):
         # 设置处理锁（5分钟过期）
         redis.setex(cache_key, 300, "processing")
         
+        # 获取合适的模型
+        MessageModel, MessageDetailModel = get_message_model()
+        table_version = check_table_version()
+        
         if message_id:
-            message = DeviceMessage.query.get(message_id)
+            message = MessageModel.query.get(message_id)
             logger.debug(f"查询到消息: {message}")
             
             if message:
                 # V2增强：并发安全的消息处理
                 with db.session.begin():
-                    if message.user_id is None:
+                    # 检查是否为广播/群发消息 - V1和V2表结构不同
+                    is_broadcast = False
+                    if table_version == 'v2':
+                        is_broadcast = (message.receiver_type == 'broadcast' or message.receiver_type == 'department')
+                    else:
+                        is_broadcast = (message.user_id is None)
+                    
+                    if is_broadcast:
                         # 群发消息处理
                         logger.info("处理群发消息")
-                        existing_detail = DeviceMessageDetail.query.filter_by(
+                        existing_detail = MessageDetailModel.query.filter_by(
                             message_id=message_id,
                             device_sn=device_sn
                         ).first()
                         
                         if not existing_detail:
                             # V2增强：使用批量插入优化
-                            message_detail = DeviceMessageDetail(
-                                message_id=message_id,
-                                device_sn=device_sn,
-                                message=data['message'],
-                                message_type=data.get('message_type', 'notification'),
-                                sender_type=data.get('sender_type', 'device'),
-                                receiver_type=data.get('receiver_type', 'platform'),
-                                message_status=data.get('message_status', '2')
-                            )
+                            detail_data = {
+                                'message_id': message_id,
+                                'device_sn': device_sn
+                            }
+                            
+                            if table_version == 'v2':
+                                # V2表结构
+                                detail_data.update({
+                                    'customer_id': getattr(message, 'customer_id', 1),
+                                    'user_id': data.get('user_id', 0),
+                                    'response_message': data.get('message', ''),
+                                    'response_type': 'acknowledged',
+                                    'response_time': datetime.now(),
+                                    'delivery_status': 'delivered'
+                                })
+                            else:
+                                # V1表结构
+                                detail_data.update({
+                                    'message': data['message'],
+                                    'message_type': data.get('message_type', 'notification'),
+                                    'sender_type': data.get('sender_type', 'device'),
+                                    'receiver_type': data.get('receiver_type', 'platform'),
+                                    'message_status': data.get('message_status', '2')
+                                })
+                            
+                            message_detail = MessageDetailModel(**detail_data)
                             db.session.add(message_detail)
                             
                             # 原子性增加响应计数
-                            message.responded_number = (message.responded_number or 0) + 1
+                            if table_version == 'v2':
+                                message.acknowledged_count = (message.acknowledged_count or 0) + 1
+                            else:
+                                message.responded_number = (message.responded_number or 0) + 1
                             
                             # V2增强：记录消息生命周期
                             if V2_COMPONENTS_AVAILABLE:
@@ -952,24 +1106,45 @@ def send_message(data):
                         
                         if user and user.device_sn == device_sn:
                             # 更新消息状态
-                            message.message_status = '2'  # 已响应
+                            if table_version == 'v2':
+                                message.message_status = 'acknowledged'  # V2使用枚举值
+                                message.acknowledged_time = datetime.now()
+                            else:
+                                message.message_status = '2'  # V1使用字符串
                             
                             # 检查是否已存在响应记录
-                            existing_detail = DeviceMessageDetail.query.filter_by(
+                            existing_detail = MessageDetailModel.query.filter_by(
                                 message_id=message_id,
                                 device_sn=device_sn
                             ).first()
                             
                             if not existing_detail:
-                                message_detail = DeviceMessageDetail(
-                                    message_id=message_id,
-                                    device_sn=device_sn,
-                                    message=data['message'],
-                                    message_type=data.get('message_type', 'notification'),
-                                    sender_type=data.get('sender_type', 'device'),
-                                    receiver_type=data.get('receiver_type', 'platform'),
-                                    message_status='2'  # 已响应
-                                )
+                                detail_data = {
+                                    'message_id': message_id,
+                                    'device_sn': device_sn
+                                }
+                                
+                                if table_version == 'v2':
+                                    # V2表结构
+                                    detail_data.update({
+                                        'customer_id': getattr(message, 'customer_id', 1),
+                                        'user_id': message.user_id,
+                                        'response_message': data.get('message', ''),
+                                        'response_type': 'acknowledged',
+                                        'response_time': datetime.now(),
+                                        'delivery_status': 'delivered'
+                                    })
+                                else:
+                                    # V1表结构
+                                    detail_data.update({
+                                        'message': data['message'],
+                                        'message_type': data.get('message_type', 'notification'),
+                                        'sender_type': data.get('sender_type', 'device'),
+                                        'receiver_type': data.get('receiver_type', 'platform'),
+                                        'message_status': '2'
+                                    })
+                                
+                                message_detail = MessageDetailModel(**detail_data)
                                 db.session.add(message_detail)
                     
                     # 更新接收时间
@@ -1077,23 +1252,26 @@ def received_messages(device_sn):
         messages = raw_data.get("messageData", [])
         
         # 4. V2增强：高效过滤算法
-        # 一次性获取所有相关的DeviceMessageDetail
+        # 一次性获取所有相关的DeviceMessageDetail - 使用统一模型
+        MessageModel, MessageDetailModel = get_message_model()
+        table_version = check_table_version()
+        
         message_ids = [str(m.get("id", m.get("message_id", ""))) for m in messages if m.get("id") or m.get("message_id")]
         
         acknowledged_message_ids = set()
         if message_ids:
             try:
-                acknowledged_details = DeviceMessageDetail.query.filter(
-                    DeviceMessageDetail.message_id.in_(message_ids),
-                    DeviceMessageDetail.device_sn == device_sn
-                ).with_entities(DeviceMessageDetail.message_id).all()
+                acknowledged_details = MessageDetailModel.query.filter(
+                    MessageDetailModel.message_id.in_(message_ids),
+                    MessageDetailModel.device_sn == device_sn
+                ).with_entities(MessageDetailModel.message_id).all()
                 
                 acknowledged_message_ids = {str(detail.message_id) for detail in acknowledged_details}
                 logger.debug(f"已确认消息IDs: {acknowledged_message_ids}")
             except Exception as e:
                 logger.warning(f"查询已确认消息失败: {e}")
         
-        # 5. V2增强：智能过滤策略
+        # 5. V2增强：智能过滤策略 - 手表端专用优化
         filtered_messages = []
         for msg in messages:
             msg_id = str(msg.get("id", msg.get("message_id", "")))
@@ -1105,22 +1283,40 @@ def received_messages(device_sn):
             if (msg_status not in ("2", "responded", "acknowledged") and 
                 msg_id not in acknowledged_message_ids):
                 
-                # V2增强：数据清洗和格式化
+                # V2增强：数据清洗和格式化 - 手表端优化
+                message_content = msg.get('message', '')
+                
+                # 手表端消息内容优化 - 限制长度和格式化
+                if len(message_content) > 200:
+                    message_content = message_content[:197] + "..."
+                
+                # 计算消息优先级（手表端显示顺序）
+                priority = calculate_message_priority(msg.get('message_type'), msg.get('send_time'))
+                
                 cleaned_msg = {
                     'message_id': msg_id,
                     'department_id': msg.get('dept_id', msg.get('org_id', '')),
                     'department_name': msg.get('dept_name', msg.get('org_name', '')),
                     'user_id': msg.get('user_id'),
                     'user_name': msg.get('user_name'),
-                    'message': msg.get('message', ''),
+                    'message': message_content,
                     'message_type': msg.get('message_type', 'notification'),
                     'message_status': msg_status,
                     'send_time': msg.get('send_time'),
                     'sender_type': msg.get('sender_type', 'system'),
                     'receiver_type': msg.get('receiver_type', 'device'),
-                    'is_public': msg.get('is_public', False)
+                    'is_public': msg.get('is_public', False),
+                    'priority': priority,  # 手表端优先级
+                    'watch_display': {
+                        'title': get_message_title_for_watch(msg.get('message_type')),
+                        'icon': get_message_icon_for_watch(msg.get('message_type')),
+                        'vibration_pattern': get_vibration_pattern(msg.get('message_type'))
+                    }
                 }
                 filtered_messages.append(cleaned_msg)
+        
+        # 手表端消息排序 - 按优先级和时间排序
+        filtered_messages.sort(key=lambda x: (x['priority'], x['send_time']), reverse=True)
         
         # 6. V2增强：构建结果
         result = {
@@ -2186,6 +2382,269 @@ def get_message_performance_metrics():
             'timestamp': datetime.now().isoformat()
         }
 
+@monitor_performance("acknowledge_message_enhanced")
+def acknowledge_message(data):
+    """
+    手机端消息确认API - 完善消息数据流的关键接口
+    
+    Args:
+        data: 包含消息确认信息的字典
+        {
+            'message_id': 消息ID,
+            'device_sn': 设备序列号,
+            'user_id': 用户ID（可选），
+            'acknowledgment_type': 确认类型 ('read', 'acknowledged', 'completed'),
+            'acknowledgment_message': 确认回复内容（可选）,
+            'location': {'latitude': xxx, 'longitude': xxx} # 位置信息（可选）
+        }
+    
+    Returns:
+        确认结果
+    """
+    logger.info("手机端消息确认请求", extra={'data': data})
+    
+    # 数据验证
+    if not data:
+        return {'success': False, 'message': '缺少确认数据'}, 400
+        
+    required_fields = ['message_id', 'device_sn']
+    missing_fields = [field for field in required_fields if not data.get(field)]
+    if missing_fields:
+        return {
+            'success': False, 
+            'message': f'缺少必要字段: {missing_fields}'
+        }, 400
+    
+    message_id = data.get('message_id')
+    device_sn = data.get('device_sn')
+    user_id = data.get('user_id')
+    acknowledgment_type = data.get('acknowledgment_type', 'read')
+    acknowledgment_message = data.get('acknowledgment_message', '')
+    location = data.get('location', {})
+    
+    # 防重复确认的缓存键
+    cache_key = f"message_ack_lock:{message_id}:{device_sn}"
+    if redis.exists(cache_key):
+        logger.warning(f"重复确认请求被拒绝: {message_id}:{device_sn}")
+        return {'success': False, 'message': '消息已确认，请勿重复操作'}, 409
+    
+    try:
+        # 设置处理锁（5分钟过期）
+        redis.setex(cache_key, 300, "processing")
+        
+        # 查询原始消息
+        message = DeviceMessage.query.get(message_id)
+        if not message:
+            return {'success': False, 'message': '消息不存在'}, 404
+        
+        # 验证设备权限（如果提供了user_id）
+        if user_id:
+            user = UserInfo.query.filter_by(id=user_id, device_sn=device_sn).first()
+            if not user:
+                return {'success': False, 'message': '设备权限验证失败'}, 403
+        
+        with db.session.begin():
+            # 检查是否已存在确认记录
+            existing_detail = DeviceMessageDetail.query.filter_by(
+                message_id=message_id,
+                device_sn=device_sn
+            ).first()
+            
+            now = datetime.now()
+            
+            if existing_detail:
+                # 更新现有确认记录
+                existing_detail.message_status = '2' if acknowledgment_type == 'read' else 'acknowledged'
+                existing_detail.received_time = now
+                if acknowledgment_message:
+                    existing_detail.message += f"\n[用户回复]: {acknowledgment_message}"
+                logger.info(f"更新现有确认记录: {existing_detail.id}")
+            else:
+                # 创建新的确认记录
+                message_detail = DeviceMessageDetail(
+                    message_id=message_id,
+                    device_sn=device_sn,
+                    message=acknowledgment_message or f"[{acknowledgment_type}] 消息已确认",
+                    message_type=message.message_type,
+                    sender_type='device',
+                    receiver_type='platform',
+                    message_status='2' if acknowledgment_type == 'read' else 'acknowledged',
+                    received_time=now
+                )
+                db.session.add(message_detail)
+                logger.info(f"创建新确认记录: 消息ID={message_id}, 设备={device_sn}")
+            
+            # 更新原始消息状态
+            if message.user_id:
+                # 个人消息直接更新为已确认
+                message.message_status = '2'
+                message.received_time = now
+            else:
+                # 群发消息增加响应计数
+                message.responded_number = (message.responded_number or 0) + 1
+                message.received_time = now
+                
+                # 如果有总数设置，检查是否全部确认
+                if message.total_number and message.responded_number >= message.total_number:
+                    message.message_status = '2'  # 全部确认完成
+        
+        # 记录生命周期事件（V2增强功能）
+        if V2_COMPONENTS_AVAILABLE:
+            try:
+                lifecycle_event = {
+                    'message_id': message_id,
+                    'device_sn': device_sn,
+                    'user_id': user_id,
+                    'event_type': 'mobile_acknowledged',
+                    'acknowledgment_type': acknowledgment_type,
+                    'event_time': now.isoformat(),
+                    'location': json.dumps(location) if location else None,
+                    'response_content': acknowledgment_message
+                }
+                redis.xadd('message_lifecycle_stream', lifecycle_event)
+                logger.info(f"生命周期事件已记录: {lifecycle_event}")
+            except Exception as e:
+                logger.warning(f"生命周期记录失败: {e}")
+        
+        # 清理相关缓存
+        cache_patterns_to_clear = [
+            f"received_messages_v2:{device_sn}",
+            f"message_opt_v1:*:{user_id}:*" if user_id else None,
+            f"message_opt_v1:{message.org_id}:*:*" if message.org_id else None,
+            f"department_user_messages:{message.org_id}:*"
+        ]
+        
+        for pattern in cache_patterns_to_clear:
+            if pattern:
+                try:
+                    keys = redis.keys(pattern)
+                    if keys:
+                        redis.delete(*keys)
+                except Exception as e:
+                    logger.warning(f"缓存清理失败: {pattern}, 错误: {e}")
+        
+        # 实时通知更新（WebSocket推送）
+        try:
+            notification_data = {
+                'type': 'message_acknowledged',
+                'message_id': message_id,
+                'device_sn': device_sn,
+                'user_id': user_id,
+                'acknowledgment_type': acknowledgment_type,
+                'timestamp': now.isoformat(),
+                'org_id': message.org_id
+            }
+            
+            # 推送给管理端
+            redis.publish('message_status_updates', json.dumps(notification_data))
+            
+            # 推送给组织频道
+            if message.org_id:
+                redis.publish(f'org_message_updates:{message.org_id}', json.dumps(notification_data))
+                
+        except Exception as e:
+            logger.warning(f"实时通知推送失败: {e}")
+        
+        result = {
+            'success': True,
+            'message': '消息确认成功',
+            'data': {
+                'message_id': message_id,
+                'acknowledgment_type': acknowledgment_type,
+                'timestamp': now.isoformat(),
+                'message_status': message.message_status,
+                'responded_number': message.responded_number,
+                'total_number': message.total_number
+            }
+        }
+        
+        logger.info(f"手机端消息确认完成: {result}")
+        return result, 200
+        
+    except Exception as e:
+        logger.error(f"消息确认处理异常: {e}", exc_info=True)
+        
+        try:
+            db.session.rollback()
+        except:
+            pass
+            
+        return {
+            'success': False,
+            'message': f'确认失败: {str(e)}',
+            'error_type': type(e).__name__
+        }, 500
+    finally:
+        # 清理处理锁
+        try:
+            redis.delete(cache_key)
+        except Exception as e:
+            logger.warning(f"清理处理锁失败: {e}")
+
+@monitor_performance("batch_acknowledge_messages")
+def batch_acknowledge_messages(data):
+    """
+    批量消息确认API - 支持手机端批量操作
+    
+    Args:
+        data: {
+            'message_ids': [消息ID列表],
+            'device_sn': 设备序列号,
+            'user_id': 用户ID（可选）,
+            'acknowledgment_type': 确认类型,
+            'acknowledgment_message': 批量确认消息
+        }
+    """
+    logger.info("批量消息确认请求", extra={'data': data})
+    
+    if not data or not data.get('message_ids'):
+        return {'success': False, 'message': '缺少消息ID列表'}, 400
+    
+    message_ids = data.get('message_ids', [])
+    device_sn = data.get('device_sn')
+    
+    if not device_sn:
+        return {'success': False, 'message': '缺少设备序列号'}, 400
+    
+    results = []
+    success_count = 0
+    
+    for message_id in message_ids:
+        try:
+            single_data = data.copy()
+            single_data['message_id'] = message_id
+            
+            result, status_code = acknowledge_message(single_data)
+            
+            if status_code == 200:
+                success_count += 1
+                results.append({'message_id': message_id, 'status': 'success'})
+            else:
+                results.append({
+                    'message_id': message_id, 
+                    'status': 'failed', 
+                    'error': result.get('message', 'Unknown error')
+                })
+                
+        except Exception as e:
+            logger.error(f"批量确认单条消息失败: {message_id}, 错误: {e}")
+            results.append({
+                'message_id': message_id,
+                'status': 'failed',
+                'error': str(e)
+            })
+    
+    return {
+        'success': True,
+        'message': f'批量确认完成: 成功{success_count}/{len(message_ids)}条',
+        'data': {
+            'total_count': len(message_ids),
+            'success_count': success_count,
+            'failed_count': len(message_ids) - success_count,
+            'results': results
+        }
+    }, 200
+
 @monitor_performance("clear_message_cache")
 def clear_message_cache(cache_pattern: str = None):
     """
@@ -2314,6 +2773,179 @@ if __name__ != '__main__':
     except Exception as e:
         logger.warning(f"模块初始化警告: {e}")
 
+# =============================================================================
+# 手表端消息处理专用函数 (Watch-specific Message Processing Functions)
+# =============================================================================
+
+def calculate_message_priority(message_type: str, send_time: str = None) -> int:
+    """
+    计算消息优先级 - 手表端显示顺序
+    
+    Args:
+        message_type: 消息类型
+        send_time: 发送时间
+    
+    Returns:
+        优先级数值，数值越大优先级越高
+    """
+    # 基础优先级映射
+    priority_map = {
+        'warning': 100,      # 告警 - 最高优先级
+        'task': 80,          # 任务管理 - 高优先级
+        'announcement': 60,  # 公告 - 中等优先级
+        'job': 50,          # 作业指引 - 中等优先级  
+        'notification': 40   # 通知 - 一般优先级
+    }
+    
+    base_priority = priority_map.get(message_type, 30)
+    
+    # 时间加权 - 越新的消息优先级略微提升
+    time_bonus = 0
+    if send_time:
+        try:
+            from datetime import datetime
+            msg_time = datetime.strptime(send_time[:19], '%Y-%m-%d %H:%M:%S')
+            now = datetime.now()
+            hours_diff = (now - msg_time).total_seconds() / 3600
+            
+            # 24小时内的消息获得时间加权
+            if hours_diff <= 24:
+                time_bonus = max(0, 10 - int(hours_diff / 2))
+        except:
+            pass
+    
+    return base_priority + time_bonus
+
+def get_message_title_for_watch(message_type: str) -> str:
+    """获取手表端消息标题"""
+    title_map = {
+        'warning': '⚠️ 安全告警',
+        'task': '📋 任务提醒', 
+        'announcement': '📢 重要公告',
+        'job': '🔧 作业指引',
+        'notification': '💬 系统通知'
+    }
+    return title_map.get(message_type, '📨 消息')
+
+def get_message_icon_for_watch(message_type: str) -> str:
+    """获取手表端消息图标"""
+    icon_map = {
+        'warning': 'alert-triangle',
+        'task': 'clipboard', 
+        'announcement': 'megaphone',
+        'job': 'tool',
+        'notification': 'message-circle'
+    }
+    return icon_map.get(message_type, 'message')
+
+def get_vibration_pattern(message_type: str) -> str:
+    """获取手表端震动模式"""
+    vibration_map = {
+        'warning': 'urgent',      # 紧急震动 - 3次长震
+        'task': 'important',      # 重要震动 - 2次短震
+        'announcement': 'normal', # 普通震动 - 1次中震
+        'job': 'normal',         # 普通震动 - 1次中震
+        'notification': 'gentle'  # 轻柔震动 - 1次短震
+    }
+    return vibration_map.get(message_type, 'normal')
+
+@monitor_performance("get_watch_message_summary")
+def get_watch_message_summary(device_sn: str) -> Dict:
+    """
+    获取手表端消息摘要 - 用于手表主界面显示
+    
+    Args:
+        device_sn: 设备序列号
+        
+    Returns:
+        消息摘要信息
+    """
+    try:
+        # 获取消息数据
+        messages_result = received_messages(device_sn)
+        
+        if not messages_result.get("success"):
+            return {"success": False, "error": "获取消息失败"}
+        
+        messages = messages_result.get("data", {}).get("messages", [])
+        
+        # 按类型统计
+        type_count = {}
+        urgent_count = 0
+        latest_message = None
+        
+        for msg in messages:
+            msg_type = msg.get('message_type', 'unknown')
+            type_count[msg_type] = type_count.get(msg_type, 0) + 1
+            
+            # 统计紧急消息
+            if msg.get('priority', 0) >= 80:
+                urgent_count += 1
+            
+            # 记录最新消息
+            if not latest_message or (msg.get('send_time', '') > latest_message.get('send_time', '')):
+                latest_message = msg
+        
+        return {
+            "success": True,
+            "data": {
+                "total_count": len(messages),
+                "urgent_count": urgent_count,
+                "type_summary": type_count,
+                "latest_message": {
+                    "title": latest_message.get("watch_display", {}).get("title", "无消息") if latest_message else "无消息",
+                    "preview": latest_message.get("message", "")[:50] + "..." if latest_message and len(latest_message.get("message", "")) > 50 else latest_message.get("message", "") if latest_message else "",
+                    "time": latest_message.get("send_time", "") if latest_message else "",
+                    "priority": latest_message.get("priority", 0) if latest_message else 0
+                },
+                "device_sn": device_sn,
+                "summary_time": datetime.now().isoformat()
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取手表消息摘要失败: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "data": {
+                "total_count": 0,
+                "urgent_count": 0,
+                "latest_message": {"title": "获取失败", "preview": "", "time": "", "priority": 0}
+            }
+        }
+
+@monitor_performance("mark_message_as_read_on_watch")
+def mark_message_as_read_on_watch(message_id: str, device_sn: str) -> Dict:
+    """
+    手表端标记消息为已读（无需完整确认）
+    
+    Args:
+        message_id: 消息ID
+        device_sn: 设备序列号
+    
+    Returns:
+        操作结果
+    """
+    try:
+        # 调用确认API，确认类型为"read"
+        acknowledge_data = {
+            'message_id': message_id,
+            'device_sn': device_sn,
+            'acknowledgment_type': 'read',
+            'acknowledgment_message': '[手表端已读]'
+        }
+        
+        result, status_code = acknowledge_message(acknowledge_data)
+        return result
+        
+    except Exception as e:
+        logger.error(f"手表端标记已读失败: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 # 模块结束标记
-logger.info("✨ ljwx-bigscreen 消息系统 V2 增强版加载完成")
+logger.info("✨ ljwx-bigscreen 消息系统 V2 增强版（含手表端优化）加载完成")
 

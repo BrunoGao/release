@@ -305,4 +305,14 @@ public interface ISchedulerService {
      * @CreateTime 2024-05-21 - 12:28:35
      */
     boolean checkStateGroup(String triggerGroup, Trigger.TriggerState state);
+    
+    /**
+     * 检查Job是否存在
+     *
+     * @param jobKey 任务Key
+     * @return boolean 是否存在
+     * @author bruno.gao <gaojunivas@gmail.com>
+     * @CreateTime 2025-09-13
+     */
+    boolean checkExists(JobKey jobKey);
 }

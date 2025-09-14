@@ -25,6 +25,8 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalTime;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 /**
 *  新增 DTO 对象
@@ -66,5 +68,54 @@ public class TAlertRulesAddDTO implements Serializable {
 
     @Schema(description = "客户ID")
     private Long customerId;
+
+    // 新增字段 - 根据前端数据和数据库结构
+    @Schema(description = "规则类别")
+    private String ruleCategory;  // SINGLE, COMPOSITE, COMPLEX
+    
+    @Schema(description = "条件表达式")
+    private Object conditionExpression;  // JSON类型
+    
+    @Schema(description = "时间窗口(秒)")
+    private Integer timeWindowSeconds;
+    
+    @Schema(description = "冷却时间(秒)")
+    private Integer cooldownSeconds;
+    
+    @Schema(description = "优先级")
+    private Integer priorityLevel;
+    
+    @Schema(description = "规则标签")
+    private Object ruleTags;  // JSON类型
+    
+    @Schema(description = "生效开始时间")
+    private String effectiveTimeStart;
+    
+    @Schema(description = "生效结束时间")
+    private String effectiveTimeEnd;
+    
+    @Schema(description = "生效日期")
+    private String effectiveDays;
+    
+    @Schema(description = "版本号")
+    private Long version;
+    
+    @Schema(description = "启用的通知渠道")
+    private Object enabledChannels;  // JSON类型
+    
+    @Schema(description = "严重级别(兼容字段)")
+    private String level;  // 映射到 severityLevel
+    
+    @Schema(description = "是否启用")
+    private Boolean isEnabled;
+    
+    @Schema(description = "逻辑操作符")
+    private String logicalOperator;
+    
+    @Schema(description = "条件列表")
+    private Object conditions;
+    
+    @Schema(description = "阈值类型")
+    private String thresholdType;
 
 }

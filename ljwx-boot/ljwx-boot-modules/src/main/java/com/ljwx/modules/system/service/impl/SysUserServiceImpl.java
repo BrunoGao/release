@@ -103,6 +103,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @NonNull
     private ISysOrgUnitsService sysOrgUnitsService;
 
+    @NonNull
+    private ISysOrgClosureService sysOrgClosureService;
+
     @Autowired
     private ITDeviceUserService deviceUserService;
     
@@ -568,44 +571,194 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
-    public List<SysUser> getUsersByOrgId(Long orgId) {
-        log.info("getUsersByOrgId 被调用，orgId: {}", orgId);
-        System.out.println("=== getUsersByOrgId Debug ===");
-        System.out.println("orgId: " + orgId);
+    public List<SysUser> getUsersByOrgId(Long orgId, Long customerId) {
+        log.info("🔍 getUsersByOrgId 被调用，orgId: {}, customerId: {}", orgId, customerId);
+        System.out.println("=== getUsersByOrgId Debug (优化版本) ===");
+        System.out.println("📊 orgId: " + orgId + ", customerId: " + customerId);
         
-        // 获取所有子组织ID
-        List<SysOrgUnits> descendants = sysOrgUnitsService.listAllDescendants(Collections.singletonList(orgId));
-        List<Long> orgIds = new ArrayList<>();
-        orgIds.add(orgId);
-        orgIds.addAll(descendants.stream().map(SysOrgUnits::getId).toList());
-
-        log.info("查询的组织ID列表: {}", orgIds);
-        System.out.println("查询的组织ID列表: " + orgIds);
-
-        // 如果没有找到任何组织，直接返回空列表
-        if (orgIds.isEmpty()) {
-            return Collections.emptyList();
-        }
+        long startTime = System.currentTimeMillis();
         
-        // 查询这些组织下的所有已绑定设备的用户
-        List<SysUser> allUsers = baseMapper.getUsersByOrgIds(orgIds);
-        log.info("从数据库查询到的用户数量: {}", allUsers.size());
-        System.out.println("从数据库查询到的用户数量: " + allUsers.size());
-        
-        // 过滤掉管理员用户
-        List<SysUser> filteredUsers = allUsers.stream()
-            .filter(user -> {
-                boolean isAdmin = isAdminUser(user.getId());
-                log.info("用户 {} (ID: {}) 是否管理员: {}", user.getUserName(), user.getId(), isAdmin);
-                System.out.println("用户 " + user.getUserName() + " (ID: " + user.getId() + ") 是否管理员: " + isAdmin);
-                return !isAdmin;
-            })
-            .collect(Collectors.toList());
+        try {
+            // 修复: 当customerId=0(超级管理员)时，从orgId获取真实的customerId
+            Long actualCustomerId = customerId;
+            if (customerId == null || customerId == 0) {
+                actualCustomerId = sysOrgClosureService.getTopLevelCustomerIdByOrgId(orgId);
+                System.out.println("🔧 超级管理员访问，从orgId获取真实customerId: " + actualCustomerId);
+                if (actualCustomerId == null) {
+                    log.warn("❌ 无法从orgId={}获取customerId", orgId);
+                    return Collections.emptyList();
+                }
+            }
             
-        log.info("过滤后的用户数量: {}", filteredUsers.size());
-        System.out.println("过滤后的用户数量: " + filteredUsers.size());
-        System.out.println("=== getUsersByOrgId Debug End ===");
-        return filteredUsers;
+            // 1. 使用闭包表获取所有下属部门ID
+            List<SysOrgUnits> descendants = sysOrgClosureService.findAllDescendants(orgId, actualCustomerId);
+            List<Long> orgIds = new ArrayList<>();
+            orgIds.add(orgId); // 包含当前组织
+            for (SysOrgUnits descendant : descendants) {
+                orgIds.add(descendant.getId());
+            }
+            
+            log.info("📋 查询的组织ID列表: {}, 总数: {}", orgIds, orgIds.size());
+            System.out.println("📋 查询的组织ID列表: " + orgIds + ", 总数: " + orgIds.size());
+            
+            if (orgIds.isEmpty()) {
+                return Collections.emptyList();
+            }
+            
+            // 2. 优化：使用 IN 查询和 user_type 字段直接过滤，一次SQL完成
+            LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<SysUser>()
+                .in(SysUser::getOrgId, orgIds)  // IN 查询所有相关组织
+                .eq(SysUser::getCustomerId, actualCustomerId)  // 使用真实的租户ID
+                .and(wrapper -> wrapper
+                    .isNull(SysUser::getUserType)  // user_type 为 null
+                    .or()
+                    .eq(SysUser::getUserType, 0)   // 或者 user_type = 0 (普通用户)
+                );
+            
+            List<SysUser> users = this.list(queryWrapper);
+            
+            long endTime = System.currentTimeMillis();
+            log.info("✅ 从数据库查询到的普通用户数量: {}, 耗时: {}ms", users.size(), endTime - startTime);
+            System.out.println("✅ 从数据库查询到的普通用户数量: " + users.size() + ", 耗时: " + (endTime - startTime) + "ms");
+            
+            for (SysUser user : users) {
+                System.out.println("  - 👤 用户: " + user.getUserName() + " (ID: " + user.getId() + ", userType: " + user.getUserType() + ", orgId: " + user.getOrgId() + ")");
+            }
+            
+            System.out.println("=== getUsersByOrgId Debug End ===");
+            return users;
+            
+        } catch (Exception e) {
+            long endTime = System.currentTimeMillis();
+            log.error("❌ getUsersByOrgId 执行失败，耗时: {}ms", endTime - startTime, e);
+            throw new BizException("查询组织用户失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<SysUser> getAllUsersByOrgId(Long orgId, Long customerId) {
+        log.info("🔍 getAllUsersByOrgId 被调用，orgId: {}, customerId: {}", orgId, customerId);
+        System.out.println("=== getAllUsersByOrgId Debug (优化版本) ===");
+        System.out.println("📊 orgId: " + orgId + ", customerId: " + customerId);
+        
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            // 修复: 当customerId=0(超级管理员)时，从orgId获取真实的customerId
+            Long actualCustomerId = customerId;
+            if (customerId == null || customerId == 0) {
+                actualCustomerId = sysOrgClosureService.getTopLevelCustomerIdByOrgId(orgId);
+                System.out.println("🔧 超级管理员访问，从orgId获取真实customerId: " + actualCustomerId);
+                if (actualCustomerId == null) {
+                    log.warn("❌ 无法从orgId={}获取customerId", orgId);
+                    return Collections.emptyList();
+                }
+            }
+            
+            // 1. 使用闭包表获取所有下属部门ID
+            List<SysOrgUnits> descendants = sysOrgClosureService.findAllDescendants(orgId, actualCustomerId);
+            List<Long> orgIds = new ArrayList<>();
+            orgIds.add(orgId); // 包含当前组织
+            for (SysOrgUnits descendant : descendants) {
+                orgIds.add(descendant.getId());
+            }
+            
+            log.info("📋 查询的组织ID列表: {}, 总数: {}", orgIds, orgIds.size());
+            System.out.println("📋 所有orgIds: " + orgIds + ", 总数: " + orgIds.size());
+            
+            if (orgIds.isEmpty()) {
+                return Collections.emptyList();
+            }
+            
+            // 2. 优化：使用 IN 查询所有用户（包含管理员）
+            LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<SysUser>()
+                .in(SysUser::getOrgId, orgIds)  // IN 查询所有相关组织
+                .eq(SysUser::getCustomerId, actualCustomerId);  // 使用真实的租户ID
+            
+            List<SysUser> allUsers = this.list(queryWrapper);
+            
+            long endTime = System.currentTimeMillis();
+            log.info("✅ 从数据库查询到的所有用户数量: {}, 耗时: {}ms", allUsers.size(), endTime - startTime);
+            System.out.println("✅ 从数据库查询到的所有用户数量: " + allUsers.size() + ", 耗时: " + (endTime - startTime) + "ms");
+            System.out.println("=== getAllUsersByOrgId Debug End ===");
+            return allUsers;
+            
+        } catch (Exception e) {
+            long endTime = System.currentTimeMillis();
+            log.error("❌ getAllUsersByOrgId 执行失败，耗时: {}ms", endTime - startTime, e);
+            throw new BizException("查询组织所有用户失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<SysUser> getUsersByOrgIdAndUserType(Long orgId, Long customerId, Integer userType) {
+        log.info("🔍 getUsersByOrgIdAndUserType 被调用，orgId: {}, customerId: {}, userType: {}", orgId, customerId, userType);
+        System.out.println("=== getUsersByOrgIdAndUserType Debug (优化版本) ===");
+        System.out.println("📊 orgId: " + orgId + ", customerId: " + customerId + ", userType: " + userType);
+        
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            // 修复: 当customerId=0(超级管理员)时，从orgId获取真实的customerId
+            Long actualCustomerId = customerId;
+            if (customerId == null || customerId == 0) {
+                actualCustomerId = sysOrgClosureService.getTopLevelCustomerIdByOrgId(orgId);
+                System.out.println("🔧 超级管理员访问，从orgId获取真实customerId: " + actualCustomerId);
+                if (actualCustomerId == null) {
+                    log.warn("❌ 无法从orgId={}获取customerId", orgId);
+                    return Collections.emptyList();
+                }
+            }
+            
+            // 1. 使用闭包表获取所有下属部门ID
+            List<SysOrgUnits> descendants = sysOrgClosureService.findAllDescendants(orgId, actualCustomerId);
+            List<Long> orgIds = new ArrayList<>();
+            orgIds.add(orgId); // 包含当前组织
+            for (SysOrgUnits descendant : descendants) {
+                orgIds.add(descendant.getId());
+            }
+            
+            log.info("📋 查询的组织ID列表: {}, 总数: {}", orgIds, orgIds.size());
+            System.out.println("📋 所有orgIds: " + orgIds + ", 总数: " + orgIds.size());
+            
+            if (orgIds.isEmpty()) {
+                return Collections.emptyList();
+            }
+            
+            // 2. 优化：直接在SQL中过滤用户类型，一次查询完成
+            LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<SysUser>()
+                .in(SysUser::getOrgId, orgIds)  // IN 查询所有相关组织
+                .eq(SysUser::getCustomerId, actualCustomerId);  // 使用真实的租户ID
+            
+            // 根据 userType 添加过滤条件
+            if (userType == null) {
+                // 查询普通用户
+                queryWrapper.and(wrapper -> wrapper
+                    .isNull(SysUser::getUserType)
+                    .or()
+                    .eq(SysUser::getUserType, 0));
+            } else {
+                queryWrapper.eq(SysUser::getUserType, userType);
+            }
+            
+            List<SysUser> users = this.list(queryWrapper);
+            
+            long endTime = System.currentTimeMillis();
+            log.info("✅ 从数据库查询到的指定类型用户数量: {}, 耗时: {}ms", users.size(), endTime - startTime);
+            System.out.println("✅ 从数据库查询到的指定类型用户数量: " + users.size() + ", 耗时: " + (endTime - startTime) + "ms");
+            
+            for (SysUser user : users) {
+                System.out.println("  - 👤 用户: " + user.getUserName() + " (ID: " + user.getId() + ", userType: " + user.getUserType() + ", orgId: " + user.getOrgId() + ")");
+            }
+            
+            System.out.println("=== getUsersByOrgIdAndUserType Debug End ===");
+            return users;
+            
+        } catch (Exception e) {
+            long endTime = System.currentTimeMillis();
+            log.error("❌ getUsersByOrgIdAndUserType 执行失败，耗时: {}ms", endTime - startTime, e);
+            throw new BizException("查询指定类型用户失败: " + e.getMessage());
+        }
     }
 
     @Override

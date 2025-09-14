@@ -3652,3 +3652,257 @@
 2025-09-11 12:14:41,784 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: device_info_stream:device_consumer_1
 2025-09-11 12:14:41,785 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: common_event_stream:event_consumer_1
 2025-09-11 12:14:41,785 [INFO] bigScreen.stream_consumers: 🚀 所有Stream消费者已启动
+2025-09-12 23:33:05,869 [WARNING] system: ⚠️  健康系统API模块加载失败: No module named 'sklearn'
+2025-09-12 23:33:05,870 [WARNING] system: ⚠️  健康分析API V2.0模块加载失败: No module named 'sklearn'
+2025-09-12 23:33:05,870 [INFO] bigScreen.message.v2.integration: 消息V2集成管理器创建完成
+2025-09-12 23:33:05,870 [INFO] bigScreen.message.v2.integration: 数据库连接初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.integration: Redis连接初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.cache: 消息V2缓存管理器初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.integration: 缓存管理器初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.performance: 消息V2性能优化管理器初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.integration: 性能管理器初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.service: MessageV2Service 初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.integration: 消息服务初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.publisher: UnifiedMessagePublisher V2 初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.integration: 消息发布器初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.compatibility: 消息V2兼容性管理器初始化完成，迁移模式: dual_write
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.integration: 兼容性管理器初始化完成
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.routes: 消息V2 API路由已直接注册到Flask应用
+2025-09-12 23:33:05,872 [INFO] bigScreen.message.v2.integration: V2 API端点注册完成
+2025-09-12 23:33:05,873 [INFO] bigScreen.message.v2.integration: 后台服务启动完成
+2025-09-12 23:33:05,873 [INFO] bigScreen.message.v2.integration: 消息V2系统初始化完成，耗时: 2.79ms
+2025-09-12 23:33:05,873 [INFO] bigScreen.message.v2.performance: 性能监控已启动
+2025-09-12 23:33:05,875 [INFO] bigScreen.message.v2.compatibility: 兼容性健康监控已启动
+2025-09-12 23:33:05,875 [INFO] bigScreen.message.v2.cache: 开始预热最近消息缓存
+2025-09-12 23:33:05,875 [INFO] bigScreen.message.v2.cache: 开始预热活跃用户缓存
+2025-09-12 23:33:05,875 [INFO] bigScreen.message.v2.cache: 开始预热热门查询缓存
+2025-09-12 23:33:05,875 [INFO] bigScreen.message.v2.integration: 消息V2系统启动成功
+2025-09-12 23:33:05,875 [INFO] system: ✅ 消息V2系统初始化成功
+2025-09-12 23:33:05,877 [INFO] bigScreen.message.v1.routes: V1消息系统路由注册完成
+2025-09-12 23:33:05,877 [INFO] system: ✅ V1消息系统路由注册完成
+2025-09-12 23:33:05,877 [INFO] system: ✅ 使用V1消息系统，V2系统未启用
+2025-09-12 23:33:05,877 [INFO] system: 实时统计API直接路由注册成功
+2025-09-12 23:33:05,878 [WARNING] system: 设备绑定模块导入失败，使用兼容版本: No module named 'qrcode'
+2025-09-12 23:33:05,880 [INFO] system: 设备绑定兼容模块注册成功
+2025-09-12 23:33:05,885 [ERROR] bigScreen.message.v2.service: 查询消息失败: error=(pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-12 23:33:05,885 [ERROR] bigScreen.message.v2.compatibility: V2服务健康检查失败: (pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-12 23:33:05,894 [INFO] system: 监控指标模块初始化成功
+2025-09-12 23:33:05,895 [INFO] system: 告警webhook模块初始化成功
+2025-09-12 23:33:05,910 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: health_data_stream:health_processors
+2025-09-12 23:33:05,910 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: device_info_stream:device_processors
+2025-09-12 23:33:05,910 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: common_event_stream:event_processors
+2025-09-12 23:33:05,910 [INFO] bigScreen.redis_stream_manager: 🚀 RedisStreamManager初始化完成
+2025-09-12 23:33:05,913 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: health_data_stream:health_consumer_1
+2025-09-12 23:33:05,913 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: device_info_stream:device_consumer_1
+2025-09-12 23:33:05,914 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: common_event_stream:event_consumer_1
+2025-09-12 23:33:05,914 [INFO] bigScreen.stream_consumers: 🚀 所有Stream消费者已启动
+2025-09-12 23:33:35,894 [ERROR] bigScreen.message.v2.service: 查询消息失败: error=(pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-12 23:33:35,894 [ERROR] bigScreen.message.v2.compatibility: V2服务健康检查失败: (pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-12 23:34:05,902 [ERROR] bigScreen.message.v2.service: 查询消息失败: error=(pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-12 23:34:05,903 [ERROR] bigScreen.message.v2.compatibility: V2服务健康检查失败: (pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-12 23:34:35,907 [ERROR] bigScreen.message.v2.service: 查询消息失败: error=(pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-12 23:34:35,907 [ERROR] bigScreen.message.v2.compatibility: V2服务健康检查失败: (pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 07:56:41,376 [INFO] system: ✅ 消息V2增强功能导入成功
+2025-09-13 07:56:41,396 [WARNING] system: ⚠️  健康系统API模块加载失败: No module named 'sklearn'
+2025-09-13 07:56:41,396 [WARNING] system: ⚠️  健康分析API V2.0模块加载失败: No module named 'sklearn'
+2025-09-13 07:56:41,397 [INFO] bigScreen.message.v2.integration: 消息V2集成管理器创建完成
+2025-09-13 07:56:41,397 [INFO] bigScreen.message.v2.integration: 数据库连接初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.integration: Redis连接初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.cache: 消息V2缓存管理器初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.integration: 缓存管理器初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.performance: 消息V2性能优化管理器初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.integration: 性能管理器初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.service: MessageV2Service 初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.integration: 消息服务初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.publisher: UnifiedMessagePublisher V2 初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.integration: 消息发布器初始化完成
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.compatibility: 消息V2兼容性管理器初始化完成，迁移模式: dual_write
+2025-09-13 07:56:41,398 [INFO] bigScreen.message.v2.integration: 兼容性管理器初始化完成
+2025-09-13 07:56:41,399 [INFO] bigScreen.message.v2.routes: 消息V2 API路由已直接注册到Flask应用
+2025-09-13 07:56:41,399 [INFO] bigScreen.message.v2.integration: V2 API端点注册完成
+2025-09-13 07:56:41,399 [INFO] bigScreen.message.v2.integration: 后台服务启动完成
+2025-09-13 07:56:41,399 [INFO] bigScreen.message.v2.integration: 消息V2系统初始化完成，耗时: 2.71ms
+2025-09-13 07:56:41,399 [INFO] bigScreen.message.v2.performance: 性能监控已启动
+2025-09-13 07:56:41,402 [INFO] bigScreen.message.v2.compatibility: 兼容性健康监控已启动
+2025-09-13 07:56:41,402 [INFO] bigScreen.message.v2.cache: 开始预热最近消息缓存
+2025-09-13 07:56:41,402 [INFO] bigScreen.message.v2.cache: 开始预热活跃用户缓存
+2025-09-13 07:56:41,402 [INFO] bigScreen.message.v2.cache: 开始预热热门查询缓存
+2025-09-13 07:56:41,402 [INFO] bigScreen.message.v2.integration: 消息V2系统启动成功
+2025-09-13 07:56:41,402 [INFO] system: ✅ 消息V2系统初始化成功
+2025-09-13 07:56:41,403 [INFO] bigScreen.message.v1.routes: V1消息系统路由注册完成
+2025-09-13 07:56:41,403 [INFO] system: ✅ V1消息系统路由注册完成
+2025-09-13 07:56:41,403 [INFO] system: ✅ 使用V1消息系统，V2系统未启用
+2025-09-13 07:56:41,403 [INFO] system: 实时统计API直接路由注册成功
+2025-09-13 07:56:41,404 [WARNING] system: 设备绑定模块导入失败，使用兼容版本: No module named 'qrcode'
+2025-09-13 07:56:41,405 [INFO] system: 设备绑定兼容模块注册成功
+2025-09-13 07:56:41,411 [ERROR] bigScreen.message.v2.service: 查询消息失败: error=(pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 07:56:41,411 [ERROR] bigScreen.message.v2.compatibility: V2服务健康检查失败: (pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 07:56:41,418 [INFO] system: 监控指标模块初始化成功
+2025-09-13 07:56:41,419 [INFO] system: 告警webhook模块初始化成功
+2025-09-13 07:56:41,434 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: health_data_stream:health_processors
+2025-09-13 07:56:41,434 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: device_info_stream:device_processors
+2025-09-13 07:56:41,435 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: common_event_stream:event_processors
+2025-09-13 07:56:41,435 [INFO] bigScreen.redis_stream_manager: 🚀 RedisStreamManager初始化完成
+2025-09-13 07:56:41,439 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: health_data_stream:health_consumer_1
+2025-09-13 07:56:41,439 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: device_info_stream:device_consumer_1
+2025-09-13 07:56:41,439 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: common_event_stream:event_consumer_1
+2025-09-13 07:56:41,439 [INFO] bigScreen.stream_consumers: 🚀 所有Stream消费者已启动
+2025-09-13 12:38:09,869 [INFO] system: ✅ 消息V2增强功能导入成功
+2025-09-13 12:38:09,894 [WARNING] system: ⚠️  健康系统API模块加载失败: No module named 'sklearn'
+2025-09-13 12:38:09,895 [WARNING] system: ⚠️  健康分析API V2.0模块加载失败: No module named 'sklearn'
+2025-09-13 12:38:09,895 [INFO] bigScreen.message.v2.integration: 消息V2集成管理器创建完成
+2025-09-13 12:38:09,895 [INFO] bigScreen.message.v2.integration: 数据库连接初始化完成
+2025-09-13 12:38:09,896 [INFO] bigScreen.message.v2.integration: Redis连接初始化完成
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.cache: 消息V2缓存管理器初始化完成
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.integration: 缓存管理器初始化完成
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.performance: 消息V2性能优化管理器初始化完成
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.integration: 性能管理器初始化完成
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.service: MessageV2Service 初始化完成
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.integration: 消息服务初始化完成
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.publisher: UnifiedMessagePublisher V2 初始化完成
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.integration: 消息发布器初始化完成
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.compatibility: 消息V2兼容性管理器初始化完成，迁移模式: dual_write
+2025-09-13 12:38:09,897 [INFO] bigScreen.message.v2.integration: 兼容性管理器初始化完成
+2025-09-13 12:38:09,898 [INFO] bigScreen.message.v2.routes: 消息V2 API路由已直接注册到Flask应用
+2025-09-13 12:38:09,898 [INFO] bigScreen.message.v2.integration: V2 API端点注册完成
+2025-09-13 12:38:09,898 [INFO] bigScreen.message.v2.integration: 后台服务启动完成
+2025-09-13 12:38:09,898 [INFO] bigScreen.message.v2.integration: 消息V2系统初始化完成，耗时: 2.45ms
+2025-09-13 12:38:09,898 [INFO] bigScreen.message.v2.performance: 性能监控已启动
+2025-09-13 12:38:09,900 [INFO] bigScreen.message.v2.compatibility: 兼容性健康监控已启动
+2025-09-13 12:38:09,900 [INFO] bigScreen.message.v2.cache: 开始预热最近消息缓存
+2025-09-13 12:38:09,900 [INFO] bigScreen.message.v2.cache: 开始预热活跃用户缓存
+2025-09-13 12:38:09,900 [INFO] bigScreen.message.v2.cache: 开始预热热门查询缓存
+2025-09-13 12:38:09,900 [INFO] bigScreen.message.v2.integration: 消息V2系统启动成功
+2025-09-13 12:38:09,900 [INFO] system: ✅ 消息V2系统初始化成功
+2025-09-13 12:38:09,901 [INFO] bigScreen.message.v1.routes: V1消息系统路由注册完成
+2025-09-13 12:38:09,901 [INFO] system: ✅ V1消息系统路由注册完成
+2025-09-13 12:38:09,901 [INFO] system: ✅ 使用V1消息系统，V2系统未启用
+2025-09-13 12:38:09,901 [INFO] system: 实时统计API直接路由注册成功
+2025-09-13 12:38:09,902 [WARNING] system: 设备绑定模块导入失败，使用兼容版本: No module named 'qrcode'
+2025-09-13 12:38:09,904 [INFO] system: 设备绑定兼容模块注册成功
+2025-09-13 12:38:09,909 [ERROR] bigScreen.message.v2.service: 查询消息失败: error=(pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 12:38:09,909 [ERROR] bigScreen.message.v2.compatibility: V2服务健康检查失败: (pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 12:38:09,921 [INFO] system: 监控指标模块初始化成功
+2025-09-13 12:38:09,922 [INFO] system: 告警webhook模块初始化成功
+2025-09-13 12:38:09,937 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: health_data_stream:health_processors
+2025-09-13 12:38:09,937 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: device_info_stream:device_processors
+2025-09-13 12:38:09,938 [INFO] bigScreen.redis_stream_manager: 📝 消费者组已存在: common_event_stream:event_processors
+2025-09-13 12:38:09,938 [INFO] bigScreen.redis_stream_manager: 🚀 RedisStreamManager初始化完成
+2025-09-13 12:38:09,941 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: health_data_stream:health_consumer_1
+2025-09-13 12:38:09,941 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: device_info_stream:device_consumer_1
+2025-09-13 12:38:09,942 [INFO] bigScreen.stream_consumers: 🚀 Stream消费者启动: common_event_stream:event_consumer_1
+2025-09-13 12:38:09,942 [INFO] bigScreen.stream_consumers: 🚀 所有Stream消费者已启动
+2025-09-13 12:38:39,914 [ERROR] bigScreen.message.v2.service: 查询消息失败: error=(pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 12:38:39,914 [ERROR] bigScreen.message.v2.compatibility: V2服务健康检查失败: (pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 12:39:09,920 [ERROR] bigScreen.message.v2.service: 查询消息失败: error=(pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 12:39:09,920 [ERROR] bigScreen.message.v2.compatibility: V2服务健康检查失败: (pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 12:39:39,922 [ERROR] bigScreen.message.v2.service: 查询消息失败: error=(pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-09-13 12:39:39,922 [ERROR] bigScreen.message.v2.compatibility: V2服务健康检查失败: (pymysql.err.OperationalError) (1054, "Unknown column 't_device_message_v2.message_metadata' in 'field list'")
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT t_device_message_v2.id AS t_device_message_v2_id, t_device_message_v2.message_id AS t_device_message_v2_message_id, t_device_message_v2.device_sn AS t_device_message_v2_device_sn, t_device_message_v2.user_id AS t_device_message_v2_user_id, t_device_message_v2.org_id AS t_device_message_v2_org_id, t_device_message_v2.customer_id AS t_device_message_v2_customer_id, t_device_message_v2.message_type AS t_device_message_v2_message_type, t_device_message_v2.sender_type AS t_device_message_v2_sender_type, t_device_message_v2.receiver_type AS t_device_message_v2_receiver_type, t_device_message_v2.title AS t_device_message_v2_title, t_device_message_v2.message AS t_device_message_v2_message, t_device_message_v2.message_metadata AS t_device_message_v2_message_metadata, t_device_message_v2.channel AS t_device_message_v2_channel, t_device_message_v2.urgency AS t_device_message_v2_urgency, t_device_message_v2.status AS t_device_message_v2_status, t_device_message_v2.delivery_status AS t_device_message_v2_delivery_status, t_device_message_v2.create_time AS t_device_message_v2_create_time, t_device_message_v2.update_time AS t_device_message_v2_update_time, t_device_message_v2.sent_time AS t_device_message_v2_sent_time, t_device_message_v2.delivered_time AS t_device_message_v2_delivered_time, t_device_message_v2.read_time AS t_device_message_v2_read_time, t_device_message_v2.retry_count AS t_device_message_v2_retry_count, t_device_message_v2.max_retries AS t_device_message_v2_max_retries, t_device_message_v2.is_deleted AS t_device_message_v2_is_deleted 
+FROM t_device_message_v2 
+WHERE t_device_message_v2.is_deleted = %(is_deleted_1)s ORDER BY t_device_message_v2.create_time DESC) AS anon_1]
+[parameters: {'is_deleted_1': 0}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)

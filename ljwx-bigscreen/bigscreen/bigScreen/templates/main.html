@@ -2633,8 +2633,8 @@
               <!-- 快速统计卡片 -->
               <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; height: 45px;">
                   <div style="background: rgba(0,228,255,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #00e4ff; cursor: pointer; transition: all 0.3s ease;" onclick="filterByDepartment()" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,228,255,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                      <div style="color: #00e4ff; font-size: 14px; font-weight: bold;" id="activeDeptCount">0</div>
-                      <div style="color: #fff; font-size: 9px;">活跃部门</div>
+                      <div style="color: #00e4ff; font-size: 14px; font-weight: bold;" id="activeOrgCount">0</div>
+                      <div style="color: #fff; font-size: 9px;">活跃组织</div>
                   </div>
                   <div style="background: rgba(0,255,157,0.1); border-radius: 4px; padding: 4px; text-align: center; border-left: 3px solid #00ff9d; cursor: pointer; transition: all 0.3s ease;" onclick="filterByOnlineStatus()" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,255,157,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
                       <div style="color: #00ff9d; font-size: 14px; font-weight: bold;" id="onlineUsers">0</div>
@@ -2692,8 +2692,8 @@
                     </div>
                     <div class="tenant-stats-compact">
                         <div class="compact-stat">
-                            <span class="compact-stat-label">部门</span>
-                            <span class="compact-stat-value" id="tenantDeptCount">-</span>
+                            <span class="compact-stat-label">组织</span>
+                            <span class="compact-stat-value" id="tenantOrgCount">-</span>
                         </div>
                         <div class="compact-stat">
                             <span class="compact-stat-label">用户</span>
@@ -2830,12 +2830,7 @@
             <div id="messageItems" style="display: none;">
               <!-- 消息列表将动态加载 -->
             </div>
-            <!-- 默认消息示例 -->
-            <div class="message-item-compact">
-              <div class="message-type-icon announcement">📢</div>
-              <div class="message-item-text">系统维护通知：今日晚上22:00-24:00进行系统维护</div>
-              <div class="message-item-time">10:30</div>
-            </div>
+
           </div>
         </div>
         </div>
@@ -2923,7 +2918,7 @@
       const API_MAPPINGS = {
         // 系统统计类API - 移除错误映射
         // '/get_total_info': '/api/statistics/overview', // 错误映射，已移除
-        '/api/realtime_stats': '/api/statistics/realtime',
+        //'/api/realtime_stats': '/api/statistics/realtime',
         
         // 健康数据类API
         '/fetchHealthDataById': '/api/health/data/detail',
@@ -2939,6 +2934,11 @@
         // 告警处理类API
         '/dealAlert': '/api/alerts/handle',
         '/acknowledge_alert': '/api/alerts/acknowledge',
+        
+        // 数据管理类API - 统一标准格式
+        '/get_messages_by_orgIdAndUserId': '/api/messages',
+        '/get_alerts_by_orgIdAndUserId': '/api/alerts', 
+        '/get_devices_by_orgIdAndUserId': '/api/devices',
         
         // 基线数据类API
         '/api/baseline/generate': '/api/health/baseline/generate',
@@ -3121,7 +3121,7 @@
         
         statistics: {
           getOverview: (orgId, date) => api.get('/api/statistics/overview', {orgId, date}),
-          getRealtime: (date) => api.get('/api/statistics/realtime', {date})
+          //getRealtime: (date) => api.get('/api/statistics/realtime', {date})
         },
         
         alerts: {
@@ -3135,13 +3135,91 @@
           getByOrgAndUser: (orgId, userId) => api.get('/get_users_by_orgIdAndUserId', {orgId, userId})
         },
         
-        // 数据管理API
+        // 查询参数标准化函数 - 统一优先级处理
+        standardizeQueryParams: (params) => {
+          const {user_id, userId, org_id, orgId, customer_id, customerId, ...rest} = params;
+          
+          // 统一参数命名和优先级逻辑
+          const standardized = {
+            // 优先级1: user_id (个人级别)
+            userId: user_id || userId,
+            user_id: user_id || userId,
+            
+            // 优先级2: org_id (部门级别) 
+            orgId: org_id || orgId,
+            org_id: org_id || orgId,
+            
+            // 优先级3: customer_id (租户级别)
+            customerId: customer_id || customerId, 
+            customer_id: customer_id || customerId,
+            
+            ...rest
+          };
+          
+          // 移除空值参数
+          Object.keys(standardized).forEach(key => {
+            if (standardized[key] === undefined || standardized[key] === null || standardized[key] === '') {
+              delete standardized[key];
+            }
+          });
+          
+          return standardized;
+        },
+
+        // 数据管理API - 统一查询逻辑
         data: {
+          // 通用数据获取函数，遵循查询优先级: user_id > org_id > customer_id
           getTotal: (customerId) => api.get('/get_total_info', {customerId}),
-          getAlerts: (orgId, userId, severityLevel, customerId) => api.get('/get_alerts_by_orgIdAndUserId', {orgId, userId, severityLevel, customerId}),
-          getMessages: (orgId, userId, messageType, customerId) => api.get('/get_messages_by_orgIdAndUserId', {orgId, userId, messageType, customerId}),
-          getDevices: (orgId, userId, customerId) => api.get('/get_devices_by_orgIdAndUserId', {orgId, userId, customerId}),
-          getHealthData: (orgId, userId, customerId) => api.get('/get_health_data_by_orgIdAndUserId', {orgId, userId, customerId})
+          
+          // 标准化API调用 - 支持统一查询参数
+          getAlerts: function(params = {}) {
+            // 支持新旧两种调用方式
+            if (typeof arguments[0] === 'string') {
+              // 旧方式: getAlerts(orgId, userId, severityLevel, customerId)
+              const [orgId, userId, severityLevel, customerId] = arguments;
+              const standardParams = api.standardizeQueryParams({orgId, userId, severityLevel, customerId});
+              return api.get('/api/alerts', standardParams);
+            }
+            // 新方式: getAlerts({user_id, org_id, customer_id, ...})
+            const standardParams = api.standardizeQueryParams(params);
+            return api.get('/api/alerts', standardParams);
+          },
+          
+          getMessages: function(params = {}) {
+            if (typeof arguments[0] === 'string') {
+              // 旧方式: getMessages(orgId, userId, messageType, customerId)
+              const [orgId, userId, messageType, customerId] = arguments;
+              const standardParams = api.standardizeQueryParams({orgId, userId, messageType, customerId});
+              return api.get('/api/messages', standardParams);
+            }
+            // 新方式: getMessages({user_id, org_id, customer_id, ...})
+            const standardParams = api.standardizeQueryParams(params);
+            return api.get('/api/messages', standardParams);
+          },
+          
+          getDevices: function(params = {}) {
+            if (typeof arguments[0] === 'string') {
+              // 旧方式: getDevices(orgId, userId, customerId)  
+              const [orgId, userId, customerId] = arguments;
+              const standardParams = api.standardizeQueryParams({orgId, userId, customerId});
+              return api.get('/api/devices', standardParams);
+            }
+            // 新方式: getDevices({user_id, org_id, customer_id, ...})
+            const standardParams = api.standardizeQueryParams(params);
+            return api.get('/api/devices', standardParams);
+          },
+          
+          getHealthData: function(params = {}) {
+            if (typeof arguments[0] === 'string') {
+              // 旧方式: getHealthData(orgId, userId, customerId)
+              const [orgId, userId, customerId] = arguments;
+              const standardParams = api.standardizeQueryParams({orgId, userId, customerId});
+              return api.get('/get_health_data_by_orgIdAndUserId', standardParams);
+            }
+            // 新方式: getHealthData({user_id, org_id, customer_id, ...})
+            const standardParams = api.standardizeQueryParams(params);
+            return api.get('/get_health_data_by_orgIdAndUserId', standardParams);
+          }
         },
         
         // 批处理和并发请求
@@ -3279,7 +3357,7 @@
                 
                 // 调用接口获取健康评分数据 - 使用标准化API
                 api.health.getScore({
-                    orgId: GLOBAL_CUSTOMER_ID,
+                    customerId: GLOBAL_CUSTOMER_ID,
                     startDate: startDate,
                     endDate: endDate,
                     includeFactors: true
@@ -4684,7 +4762,7 @@ function initDepartmentDistribution(data) {
     const totalUsers = userInfo.totalUsers || 0;
     const totalDevices = userInfo.totalDevices || 0;
     const departmentCount = userInfo.departmentCount || {};
-    const activeDeptCount = Object.keys(departmentCount).length;
+    const activeOrgCount = Object.keys(departmentCount).length;
     
     // 模拟在线用户数据（实际应从后端获取）
     const onlineUsers = Math.floor(totalUsers * 0.75); // 假设75%在线
@@ -4695,7 +4773,7 @@ function initDepartmentDistribution(data) {
     document.getElementById('totalUsers').textContent = totalUsers;
     document.getElementById('totalBindDevices').textContent = totalDevices;
     document.getElementById('onlineRate').textContent = onlineRate + '%';
-    document.getElementById('activeDeptCount').textContent = activeDeptCount;
+    document.getElementById('activeOrgCount').textContent = activeOrgCount;
     document.getElementById('onlineUsers').textContent = onlineUsers;
     document.getElementById('boundDevices').textContent = totalDevices;
     document.getElementById('alertUsers').textContent = alertUsers;
@@ -8988,7 +9066,7 @@ function loadStatisticsData() {
   }
   
     // 获取统计概览数据
-    apiCall(`/api/statistics/overview?orgId=${GLOBAL_CUSTOMER_ID}&date=${today}`)
+    apiCall(`/api/statistics/overview?customerId=${GLOBAL_CUSTOMER_ID}&date=${today}`)
     .then(response => response.json())
     .then(result => {
       if (result.success) {
@@ -9129,7 +9207,7 @@ function updateStatsDate() {
   }
 }
 
-// 更新实时统计数据的新函数
+// 更新实时统计数据的新函数 - 使用统一的统计概览API
 function updateRealtimeStats(customerId) {
   console.log('🔄 正在更新实时统计数据...');
   
@@ -9146,69 +9224,143 @@ function updateRealtimeStats(customerId) {
     }
   }
   
-  // 构建API URL - 始终带上日期参数
-  let apiUrl = `/api/realtime_stats?customerId=${customerId}&date=${selectedDate}`;
+  // 构建统一的统计概览API URL
+  let apiUrl = `/api/statistics/overview?customer_id=${customerId}&date=${selectedDate}`;
   
-  console.log('📡 调用实时统计API:', apiUrl);
+  console.log('📡 调用统计概览API:', apiUrl);
   
   fetch(apiUrl)
     .then(response => response.json())
     .then(result => {
       if (result.success) {
         const data = result.data;
-        console.log('📊 实时统计API返回数据:', data);
+        console.log('📊 统计概览API返回数据:', data);
+        
+        // 从API返回的实际数据结构中获取数据
+        const currentData = data.current || {};
+        const changesData = data.changes || {};
         
         // 更新健康数据
-        document.getElementById('healthDataCount').textContent = data.health_data.count;
-        document.getElementById('healthTrend').textContent = data.health_data.growth;
-        updateTrendClass('healthTrend', data.health_data.growth);
+        document.getElementById('healthDataCount').textContent = currentData.health_count || 0;
+        document.getElementById('healthTrend').textContent = changesData.health_count || '0%';
+        updateTrendClass('healthTrend', changesData.health_count || '0%');
         
         // 更新告警数据
-        document.getElementById('pendingAlerts').textContent = data.pending_alerts.count;
-        document.getElementById('alertTrend').textContent = data.pending_alerts.growth;
-        updateTrendClass('alertTrend', data.pending_alerts.growth);
+        document.getElementById('pendingAlerts').textContent = currentData.pending_alerts || currentData.alert_count || 0;
+        document.getElementById('alertTrend').textContent = changesData.alert_count || '0%';
+        updateTrendClass('alertTrend', changesData.alert_count || '0%');
         
         // 更新设备数据
-        document.getElementById('activeDevices').textContent = data.active_devices.count;
-        document.getElementById('deviceTrend').textContent = data.active_devices.growth;
-        updateTrendClass('deviceTrend', data.active_devices.growth);
+        document.getElementById('activeDevices').textContent = currentData.active_devices || currentData.device_count || 0;
+        document.getElementById('deviceTrend').textContent = changesData.device_count || '0%';
+        updateTrendClass('deviceTrend', changesData.device_count || '0%');
         
         // 更新消息数据
-        document.getElementById('unreadMessages').textContent = data.unread_messages.count;
-        document.getElementById('messageTrend').textContent = data.unread_messages.growth;
-        updateTrendClass('messageTrend', data.unread_messages.growth);
+        document.getElementById('unreadMessages').textContent = currentData.unread_messages || currentData.message_count || 0;
+        document.getElementById('messageTrend').textContent = changesData.message_count || '0%';
+        updateTrendClass('messageTrend', changesData.message_count || '0%');
         
         // 更新对比信息
-        document.getElementById('compareInfo').textContent = data.compare_info;
+        const compareDate = data.compare ? data.compare.date : selectedDate;
+        document.getElementById('compareInfo').textContent = `与前日对比 (${compareDate})`;
         
         // 更新系统状态
-        const systemAlerts = data.system_alerts || 0;
-        const systemStatus = systemAlerts > 20 ? 'critical' : (systemAlerts > 10 ? 'warning' : 'normal');
-        const healthScore = Math.max(100 - Math.floor(systemAlerts * 1.5), 60);
+        const tenantInfo = data.tenant_info || {};
+        const systemStatus = tenantInfo.system_status || 'normal';
+        const healthScore = Math.max(85 - (currentData.alert_count || 0) * 2, 60); // 根据告警数计算健康分数
         
-        console.log(`✅ 统计数据更新: 健康${data.health_data.count}, 告警${data.pending_alerts.count}, 设备${data.active_devices.count}, 消息${data.unread_messages.count}`);
-        console.log(`📅 对比信息: ${data.compare_info}, 目标日期: ${data.target_date}`);
+        console.log(`✅ 统计数据更新: 健康${currentData.health_count || 0}, 告警${currentData.alert_count || 0}, 设备${currentData.device_count || 0}, 消息${currentData.message_count || 0}`);
+        console.log(`📅 对比信息: 与前日对比 (${compareDate}), 目标日期: ${selectedDate}`);
         
         updateSystemStatus({
           systemStatus: systemStatus,
           healthScore: healthScore
         });
         
+        // 更新租户信息头部数据
+        updateTenantInfoFromStats(data);
+        
         console.log('✅ 实时统计数据更新完成');
         
       } else {
-        console.error('❌ 实时统计数据获取失败:', result.error);
-        // 显示错误状态，不再降级
-        console.log('🚫 实时统计API失败，显示错误状态');
+        console.error('❌ 统计概览数据获取失败:', result.error);
+        console.log('🚫 统计概览API失败，显示错误状态');
         showStatsErrorState();
       }
     })
     .catch(error => {
-      console.error('❌ 实时统计API请求失败:', error);
-      // 显示错误状态，不再降级
-      console.log('🚫 实时统计API请求失败，显示错误状态');  
+      console.error('❌ 统计概览API请求失败:', error);
+      console.log('🚫 统计概览API请求失败，显示错误状态');  
       showStatsErrorState();
     });
+}
+
+// 从统计数据更新租户信息头部
+function updateTenantInfoFromStats(statsData) {
+  try {
+    console.log('🏢 更新租户信息头部数据');
+    
+    // 从API实际返回的数据结构中获取数据
+    const currentData = statsData.current || {};
+    const tenantInfo = statsData.tenant_info || {};
+    
+    // 更新租户信息数据
+    if (tenantInfo) {
+      // 更新租户名称
+      const tenantNameElement = document.getElementById('tenantName');
+      if (tenantNameElement && tenantInfo.tenant_name) {
+        tenantNameElement.textContent = tenantInfo.tenant_name;
+      }
+      
+      // 更新租户ID  
+      const tenantIdElement = document.getElementById('tenantId');
+      if (tenantIdElement && tenantInfo.customer_id) {
+        tenantIdElement.textContent = tenantInfo.customer_id;
+      }
+    }
+    
+    // 更新用户统计
+    const tenantUserCountElement = document.getElementById('tenantUserCount');
+    if (tenantUserCountElement) {
+      tenantUserCountElement.textContent = currentData.user_count || 0;
+    }
+    
+    // 更新设备统计
+    const tenantDeviceCountElement = document.getElementById('tenantDeviceCount');
+    if (tenantDeviceCountElement) {
+      tenantDeviceCountElement.textContent = currentData.device_count || 0;
+    }
+    
+    // 更新告警统计
+    const tenantAlertCountElement = document.getElementById('tenantAlertCount');
+    if (tenantAlertCountElement) {
+      tenantAlertCountElement.textContent = currentData.alert_count || 0;
+    }
+    
+    // 更新消息统计
+    const tenantMessageCountElement = document.getElementById('tenantMessageCount');
+    if (tenantMessageCountElement) {
+      tenantMessageCountElement.textContent = currentData.message_count || 0;
+    }
+    
+    // 更新健康数据统计
+    const tenantHealthDataCountElement = document.getElementById('tenantHealthDataCount');
+    if (tenantHealthDataCountElement) {
+      tenantHealthDataCountElement.textContent = currentData.health_count || 0;
+    }
+    
+    // 更新组织统计（如果有的话）
+    const tenantOrgCountElement = document.getElementById('tenantOrgCount');
+    if (tenantOrgCountElement) {
+      tenantOrgCountElement.textContent = currentData.org_count || 0;
+    }
+    
+    console.log('✅ 租户信息头部数据更新完成');
+    console.log(`📊 租户统计: 用户${currentData.user_count || 0}, 设备${currentData.device_count || 0}, 告警${currentData.alert_count || 0}, 消息${currentData.message_count || 0}, 健康数据${currentData.health_count || 0}`);
+    
+  } catch (error) {
+    console.error('❌ 租户信息头部数据更新失败:', error);
+  }
 }
 
 // 显示实时统计错误状态
@@ -9237,56 +9389,6 @@ function showStatsErrorState() {
   });
 }
 
-// 已弃用：降级版本函数（不再使用）
-function updateRealtimeStatsLegacy(customerId) {
-  apiCall(`/get_total_info`)
-    .then(response => response.json())
-    .then(result => {
-      if (result.success) {
-        const data = result.data;
-        
-        // 从现有API数据中提取统计信息
-        const healthCount = data.health_stats?.total_records || 0;
-        const alertCount = data.alert_info?.totalAlerts || 0;
-        const deviceCount = data.device_info?.totalDevices || 0;
-        const messageCount = data.message_info?.totalMessages || 0;
-        
-        // 更新健康数据 - 不设置硬编码增长率，让实时统计API处理
-        document.getElementById('healthDataCount').textContent = formatNumber(healthCount);
-        
-        // 更新告警数据（只统计待处理的）- 不设置硬编码增长率
-        const pendingAlerts = data.alert_info?.alertStatusCounts?.pending || alertCount;
-        document.getElementById('pendingAlerts').textContent = formatNumber(pendingAlerts);
-        
-        // 更新设备数据（活跃设备）- 不设置硬编码增长率
-        const activeDevices = data.device_info?.deviceStatusCount?.ACTIVE || deviceCount;
-        document.getElementById('activeDevices').textContent = activeDevices;
-        
-        // 更新消息数据（未读消息）- 不设置硬编码增长率
-        const unreadMessages = data.message_info?.unreadCount || Math.floor(messageCount * 0.3);
-        document.getElementById('unreadMessages').textContent = formatNumber(unreadMessages);
-        updateTrendClass('messageTrend', '+8%');
-        
-        // 更新系统状态
-        const systemAlerts = pendingAlerts > 50 ? 60 : pendingAlerts;
-        const systemStatus = systemAlerts > 20 ? 'critical' : (systemAlerts > 10 ? 'warning' : 'normal');
-        const healthScore = Math.max(100 - Math.floor(systemAlerts * 1.5), 60);
-        
-        updateSystemStatus({
-          systemStatus: systemStatus,
-          healthScore: healthScore
-        });
-        
-        console.log('✅ 降级版本统计数据更新完成');
-      } else {
-        showErrorState();
-      }
-    })
-    .catch(error => {
-      console.error('❌ 降级API也失败:', error);
-      showErrorState();
-    });
-}
 
 // 更新趋势样式类
 function updateTrendClass(elementId, trendValue) {
@@ -9759,12 +9861,12 @@ function initOverviewChart() {
         }
         
         // 更新统计数据
-        const tenantDeptCountElement = document.getElementById('tenantDeptCount');
+        const tenantOrgCountElement = document.getElementById('tenantOrgCount');
         const tenantUserCountElement = document.getElementById('tenantUserCount');
         const tenantDeviceCountElement = document.getElementById('tenantDeviceCount');
         
-        if (tenantDeptCountElement && data.departments) {
-          tenantDeptCountElement.textContent = Array.isArray(data.departments) ? data.departments.length : 0;
+        if (tenantOrgCountElement && data.departments) {
+          tenantOrgCountElement.textContent = Array.isArray(data.departments) ? data.departments.length : 0;
         }
         
         if (tenantUserCountElement && data.user_info) {
@@ -9847,8 +9949,8 @@ function initOverviewChart() {
       // 加载健康建议
       loadHealthRecommendations();
       
-      // 加载消息卡片 - 暂时注释掉，消息功能已在其他地方处理
-      // loadMessageCard();
+      // 加载消息卡片
+      loadMessageCard();
     }
     
     // 健康预测加载函数
@@ -10012,6 +10114,109 @@ function initOverviewChart() {
         { icon: '😴', text: '保证7-8小时优质睡眠时间', priority: '日常' }
       ];
       updateHealthRecommendations(recommendations);
+    }
+    
+    // 消息卡片加载函数
+    function loadMessageCard() {
+      console.log('📬 加载消息卡片...');
+      
+      const loadingEl = document.getElementById('messageLoading');
+      const itemsEl = document.getElementById('messageItems');
+      const countEl = document.getElementById('messageCount');
+      
+      if (loadingEl) loadingEl.style.display = 'flex';
+      if (itemsEl) itemsEl.style.display = 'none';
+      
+      // 使用已加载的消息数据或发起API调用
+      api.data.getMessages(GLOBAL_CUSTOMER_ID, null, null, GLOBAL_CUSTOMER_ID)
+      .then(response => response.json())
+      .then(result => {
+        if (result.success && result.data && result.data.messages) {
+          console.log('✅ 消息加载成功:', result.data.messages.length, '条消息');
+          updateMessageCard(result.data.messages);
+        } else {
+          console.warn('⚠️ 使用默认消息数据');
+          updateMessageCardFallback();
+        }
+      })
+      .catch(error => {
+        console.error('❌ 消息加载失败:', error);
+        updateMessageCardFallback();
+      });
+    }
+    
+    function updateMessageCard(messages) {
+      const loadingEl = document.getElementById('messageLoading');
+      const itemsEl = document.getElementById('messageItems');
+      const countEl = document.getElementById('messageCount');
+      
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (countEl) countEl.textContent = messages.length;
+      
+      if (itemsEl) {
+        itemsEl.style.display = 'block';
+        if (messages.length > 0) {
+          itemsEl.innerHTML = messages.slice(0, 3).map(msg => `
+            <div class="message-item-compact">
+              <div class="message-type-icon ${getMessageTypeClass(msg.message_type)}">${getMessageIcon(msg.message_type)}</div>
+              <div class="message-item-text">${msg.message || '消息内容'}</div>
+              <div class="message-item-time">${formatMessageTime(msg.send_time)}</div>
+            </div>
+          `).join('');
+        } else {
+          itemsEl.innerHTML = '<div class="message-item-compact"><div class="message-type-icon">📭</div><div class="message-item-text">暂无消息</div><div class="message-item-time">--</div></div>';
+        }
+      }
+    }
+    
+    function updateMessageCardFallback() {
+      const loadingEl = document.getElementById('messageLoading');
+      const itemsEl = document.getElementById('messageItems');
+      const countEl = document.getElementById('messageCount');
+      
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (countEl) countEl.textContent = '0';
+      if (itemsEl) {
+        itemsEl.style.display = 'block';
+        itemsEl.innerHTML = '<div class="message-item-compact"><div class="message-type-icon">📭</div><div class="message-item-text">暂无新消息</div><div class="message-item-time">--</div></div>';
+      }
+    }
+    
+    function getMessageTypeClass(messageType) {
+      const typeMap = {
+        'warning': 'warning',
+        'announcement': 'announcement', 
+        'task': 'task',
+        'notification': 'notification'
+      };
+      return typeMap[messageType] || 'notification';
+    }
+    
+    function getMessageIcon(messageType) {
+      const iconMap = {
+        'warning': '⚠️',
+        'announcement': '📢',
+        'task': '📋',
+        'notification': '📨'
+      };
+      return iconMap[messageType] || '📨';
+    }
+    
+    function formatMessageTime(timeStr) {
+      if (!timeStr) return '--';
+      try {
+        const time = new Date(timeStr);
+        const now = new Date();
+        const diff = now - time;
+        
+        if (diff < 60000) return '刚刚';
+        if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+        if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+        
+        return time.getMonth() + 1 + '/' + time.getDate();
+      } catch (e) {
+        return '--';
+      }
     }
     
     // 根据实时数据更新健康卡片

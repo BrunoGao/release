@@ -187,14 +187,39 @@ public interface ISysUserService extends IService<SysUser> {
     List<String> getBindDevice(Long customerId);
 
     /**
-     * 根据组织ID递归查询所有下属部门的员工
+     * 根据组织ID递归查询所有下属部门的员工(仅普通用户，不包含管理员)
+     * <p>优化版本：使用组织闭包表和user_type字段直接过滤，避免多次数据库查询</p>
      *
      * @param orgId 组织ID
-     * @return {@link List }<{@link SysUser }> 用户列表
+     * @param customerId 租户ID
+     * @return {@link List }<{@link SysUser }> 普通用户列表
      * @author payne.zhuang
      * @CreateTime 2024-03-21 - 10:00:00
      */
-    List<SysUser> getUsersByOrgId(Long orgId);
+    List<SysUser> getUsersByOrgId(Long orgId, Long customerId);
+
+    /**
+     * 根据组织ID获取所有用户列表(包含管理员)
+     *
+     * @param orgId 组织ID
+     * @param customerId 租户ID
+     * @return {@link List }<{@link SysUser }> 所有用户列表
+     * @author bruno.gao
+     * @CreateTime 2024-09-14
+     */
+    List<SysUser> getAllUsersByOrgId(Long orgId, Long customerId);
+
+    /**
+     * 根据组织ID和用户类型获取用户列表
+     *
+     * @param orgId 组织ID
+     * @param customerId 租户ID
+     * @param userType 用户类型 (0=普通用户, 1=部门管理员, 2=租户管理员, 3=超级管理员)
+     * @return {@link List }<{@link SysUser }> 用户列表
+     * @author bruno.gao
+     * @CreateTime 2024-09-14
+     */
+    List<SysUser> getUsersByOrgIdAndUserType(Long orgId, Long customerId, Integer userType);
 
     /**
      * Get user by device SN

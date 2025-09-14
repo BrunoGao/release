@@ -39,34 +39,39 @@ import lombok.Getter;
 public enum MessageTypeEnum {
 
     /**
-     * 作业指引
-     */
-    JOB("job", "作业指引", "蓝绿色", "work"),
-
-    /**
-     * 任务管理
-     */
-    TASK("task", "任务管理", "蓝色", "task"),
-
-    /**
-     * 系统公告
-     */
-    ANNOUNCEMENT("announcement", "系统公告", "紫色", "broadcast"),
-
-    /**
      * 通知消息
      */
-    NOTIFICATION("notification", "通知", "琥珀色", "notification"),
+    NOTIFICATION("NOTIFICATION", "通知", "琥珀色", "notification"),
 
     /**
-     * 系统告警
+     * 告警消息
      */
-    SYSTEM_ALERT("system_alert", "系统告警", "红色", "alert"),
+    ALERT("ALERT", "告警", "红色", "alert"),
 
     /**
      * 警告消息
      */
-    WARNING("warning", "告警", "橙色", "warning");
+    WARNING("WARNING", "警告", "橙色", "warning"),
+
+    /**
+     * 信息消息
+     */
+    INFO("INFO", "信息", "蓝色", "info"),
+
+    /**
+     * 紧急消息
+     */
+    EMERGENCY("EMERGENCY", "紧急", "深红色", "emergency"),
+
+    /**
+     * 作业指引
+     */
+    JOB("JOB", "作业指引", "蓝绿色", "work"),
+
+    /**
+     * 任务管理
+     */
+    TASK("TASK", "任务管理", "蓝色", "task");
 
     /**
      * 数据库存储值
@@ -111,7 +116,14 @@ public enum MessageTypeEnum {
      * 检查是否为告警类型
      */
     public boolean isAlert() {
-        return this == SYSTEM_ALERT || this == WARNING;
+        return this == ALERT || this == WARNING || this == EMERGENCY;
+    }
+
+    /**
+     * 检查是否为信息类型
+     */
+    public boolean isInfo() {
+        return this == INFO || this == NOTIFICATION;
     }
 
     /**
@@ -122,10 +134,10 @@ public enum MessageTypeEnum {
     }
 
     /**
-     * 检查是否为通知类型
+     * 检查是否为紧急类型
      */
-    public boolean isNotification() {
-        return this == NOTIFICATION || this == ANNOUNCEMENT;
+    public boolean isEmergency() {
+        return this == EMERGENCY;
     }
 
     /**
@@ -133,15 +145,17 @@ public enum MessageTypeEnum {
      */
     public int getPriorityWeight() {
         switch (this) {
-            case SYSTEM_ALERT:
+            case EMERGENCY:
                 return 5;
-            case WARNING:
+            case ALERT:
                 return 4;
+            case WARNING:
+                return 3;
             case TASK:
                 return 3;
             case JOB:
                 return 3;
-            case ANNOUNCEMENT:
+            case INFO:
                 return 2;
             case NOTIFICATION:
                 return 1;

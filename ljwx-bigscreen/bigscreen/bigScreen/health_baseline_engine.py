@@ -101,13 +101,14 @@ class RealTimeHealthBaselineEngine:
     def _query_database_baseline(self, user_id: int, target_date: str) -> Dict:
         """从数据库查询已生成的健康基线"""
         try:
-            # 查询当前有效的基线记录
+            # 查询当前有效的基线记录 - 使用新表结构
             baseline_records = db.session.query(HealthBaseline).filter(
                 and_(
                     HealthBaseline.user_id == user_id,
                     HealthBaseline.baseline_date == target_date,
-                    HealthBaseline.is_current == True,
-                    HealthBaseline.baseline_type == 'personal'
+                    HealthBaseline.is_current == 1,
+                    HealthBaseline.baseline_type == 'personal',
+                    HealthBaseline.is_deleted == 0
                 )
             ).all()
             
@@ -379,6 +380,330 @@ class RealTimeHealthBaselineEngine:
         
         return round(total_score / len(baselines), 3) if baselines else 0.0
 
+    def generate_org_baseline_realtime(self, org_id: int, target_date: str = None, days_back: int = 30) -> Dict:
+        """
+        生成组织级基线数据 - 直接从t_health_baseline表查询组织级基线
+        
+        Args:
+            org_id: 组织ID
+            target_date: 目标日期，默认为昨天
+            days_back: 回溯天数，默认30天
+            
+        Returns:
+            Dict: 组织基线数据
+        """
+        start_time = time.time()
+        
+        if target_date is None:
+            target_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        logger.info(f"🔄 开始生成组织 {org_id} 的健康基线，目标日期: {target_date}")
+        
+        try:
+            # 1. 首先尝试从t_health_baseline表中查询组织级基线数据
+            org_baseline_records = db.session.query(HealthBaseline).filter(
+                and_(
+                    HealthBaseline.org_id == str(org_id),
+                    HealthBaseline.baseline_date == target_date,
+                    HealthBaseline.baseline_type == 'org',
+                    HealthBaseline.is_current == 1,
+                    HealthBaseline.is_deleted == 0
+                )
+            ).all()
+            
+            if org_baseline_records:
+                # 转换为标准格式
+                org_baselines = {}
+                for record in org_baseline_records:
+                    feature_name = record.feature_name
+                    org_baselines[feature_name] = {
+                        'identifier': org_id,
+                        'feature_name': feature_name,
+                        'baseline_date': target_date,
+                        'mean_value': float(record.mean_value) if record.mean_value else 0.0,
+                        'std_value': float(record.std_value) if record.std_value else 0.1,
+                        'min_value': float(record.min_value) if record.min_value else 0.0,
+                        'max_value': float(record.max_value) if record.max_value else 0.0,
+                        'sample_count': record.sample_count or 0,
+                        'quality_score': round((record.confidence_level or 0.95), 3),
+                        'is_current': bool(record.is_current),
+                        'baseline_type': 'org',
+                        'generated_at': record.baseline_time.isoformat() if record.baseline_time else datetime.now().isoformat(),
+                        'source': 'database_org'
+                    }
+                
+                # 生成汇总信息
+                summary = {
+                    'org_id': org_id,
+                    'target_date': target_date,
+                    'data_source': 'database_org',
+                    'features_processed': len(org_baselines),
+                    'baseline_quality_score': self._calculate_baseline_quality(org_baselines),
+                    'generated_at': datetime.now().isoformat(),
+                    'execution_time': round(time.time() - start_time, 3)
+                }
+                
+                logger.info(f"✅ 从数据库获取组织 {org_id} 基线: {len(org_baselines)} 个特征")
+                
+                return {
+                    'success': True,
+                    'data': {
+                        'baselines': org_baselines,
+                        'summary': summary,
+                        'user_count': 0  # 组织级基线不直接统计用户数
+                    },
+                    'source': 'database_org'
+                }
+            
+            # 2. 如果没有找到组织级基线，尝试汇总用户基线
+            from .org import getUserIdsByOrgId
+            user_ids = getUserIdsByOrgId(org_id)
+            
+            if not user_ids:
+                return {
+                    'success': False,
+                    'error': f'组织 {org_id} 下没有找到用户',
+                    'org_id': org_id,
+                    'target_date': target_date
+                }
+            
+            # 3. 获取所有用户的基线数据进行汇总
+            user_baselines = {}
+            valid_users = 0
+            
+            for user_id in user_ids:
+                try:
+                    user_baseline_result = self.generate_user_baseline_realtime(user_id, target_date, days_back)
+                    if user_baseline_result.get('success') and user_baseline_result.get('data'):
+                        user_baselines[user_id] = user_baseline_result['data']['baselines']
+                        valid_users += 1
+                except Exception as e:
+                    logger.warning(f"⚠️ 用户 {user_id} 基线生成失败: {str(e)}")
+                    continue
+            
+            if not user_baselines:
+                return {
+                    'success': False,
+                    'error': f'组织 {org_id} 下没有用户生成有效的基线数据',
+                    'org_id': org_id,
+                    'target_date': target_date,
+                    'total_users': len(user_ids),
+                    'valid_users': 0
+                }
+            
+            # 4. 汇总组织级基线
+            org_baselines = self._aggregate_baselines(user_baselines, 'org')
+            
+            # 5. 计算质量评分
+            quality_score = self._calculate_baseline_quality(org_baselines)
+            
+            # 6. 生成汇总信息
+            summary = {
+                'org_id': org_id,
+                'target_date': target_date,
+                'days_back': days_back,
+                'data_source': 'realtime_aggregation',
+                'total_users': len(user_ids),
+                'valid_users': valid_users,
+                'aggregated_features': len(org_baselines),
+                'quality_score': quality_score,
+                'generated_at': datetime.now().isoformat(),
+                'execution_time': round(time.time() - start_time, 3)
+            }
+            
+            logger.info(f"✅ 组织 {org_id} 基线生成完成: {valid_users}/{len(user_ids)} 用户，{len(org_baselines)} 个特征")
+            
+            return {
+                'success': True,
+                'data': {
+                    'baselines': org_baselines,
+                    'summary': summary,
+                    'user_count': valid_users
+                },
+                'source': 'realtime_aggregation'
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ 组织 {org_id} 基线生成失败: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'org_id': org_id,
+                'target_date': target_date,
+                'execution_time': round(time.time() - start_time, 3)
+            }
+
+    def generate_customer_baseline_realtime(self, customer_id: int, target_date: str = None, days_back: int = 30) -> Dict:
+        """
+        生成租户级基线数据 - 汇总租户下所有组织的基线
+        
+        Args:
+            customer_id: 租户ID
+            target_date: 目标日期，默认为昨天
+            days_back: 回溯天数，默认30天
+            
+        Returns:
+            Dict: 租户基线数据
+        """
+        start_time = time.time()
+        
+        if target_date is None:
+            target_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        logger.info(f"🔄 开始生成租户 {customer_id} 的健康基线，目标日期: {target_date}")
+        
+        try:
+            # 1. 获取租户下的所有组织ID
+            from .org import findAllDescendants
+            org_ids = findAllDescendants(customer_id)
+            
+            if not org_ids:
+                return {
+                    'success': False,
+                    'error': f'租户 {customer_id} 下没有找到组织',
+                    'customer_id': customer_id,
+                    'target_date': target_date
+                }
+            
+            # 2. 获取所有组织的基线数据
+            org_baselines = {}
+            valid_orgs = 0
+            total_users = 0
+            
+            for org_id in org_ids:
+                try:
+                    org_baseline_result = self.generate_org_baseline_realtime(org_id, target_date, days_back)
+                    if org_baseline_result.get('success') and org_baseline_result.get('data'):
+                        org_baselines[org_id] = org_baseline_result['data']['baselines']
+                        valid_orgs += 1
+                        total_users += org_baseline_result['data'].get('user_count', 0)
+                except Exception as e:
+                    logger.warning(f"⚠️ 组织 {org_id} 基线生成失败: {str(e)}")
+                    continue
+            
+            if not org_baselines:
+                return {
+                    'success': False,
+                    'error': f'租户 {customer_id} 下没有组织生成有效的基线数据',
+                    'customer_id': customer_id,
+                    'target_date': target_date,
+                    'total_orgs': len(org_ids),
+                    'valid_orgs': 0
+                }
+            
+            # 3. 汇总租户级基线
+            customer_baselines = self._aggregate_baselines(org_baselines, 'customer')
+            
+            # 4. 计算质量评分
+            quality_score = self._calculate_baseline_quality(customer_baselines)
+            
+            # 5. 生成汇总信息
+            summary = {
+                'customer_id': customer_id,
+                'target_date': target_date,
+                'days_back': days_back,
+                'data_source': 'realtime_aggregation',
+                'total_orgs': len(org_ids),
+                'valid_orgs': valid_orgs,
+                'total_users': total_users,
+                'aggregated_features': len(customer_baselines),
+                'quality_score': quality_score,
+                'generated_at': datetime.now().isoformat(),
+                'execution_time': round(time.time() - start_time, 3)
+            }
+            
+            logger.info(f"✅ 租户 {customer_id} 基线生成完成: {valid_orgs}/{len(org_ids)} 组织，{total_users} 用户，{len(customer_baselines)} 个特征")
+            
+            return {
+                'success': True,
+                'data': {
+                    'baselines': customer_baselines,
+                    'summary': summary,
+                    'org_count': valid_orgs,
+                    'user_count': total_users
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ 租户 {customer_id} 基线生成失败: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'customer_id': customer_id,
+                'target_date': target_date,
+                'execution_time': round(time.time() - start_time, 3)
+            }
+
+    def _aggregate_baselines(self, baselines_dict: Dict, level: str) -> Dict:
+        """
+        汇总基线数据
+        
+        Args:
+            baselines_dict: {entity_id: {feature: baseline_data}} 格式的基线数据
+            level: 汇总级别 ('org' 或 'customer')
+            
+        Returns:
+            Dict: 汇总后的基线数据
+        """
+        if not baselines_dict:
+            return {}
+        
+        # 收集所有特征的数据
+        feature_data = {}
+        
+        for entity_id, entity_baselines in baselines_dict.items():
+            for feature, baseline_data in entity_baselines.items():
+                if feature not in feature_data:
+                    feature_data[feature] = {
+                        'mean_values': [],
+                        'std_values': [],
+                        'min_values': [],
+                        'max_values': [],
+                        'sample_counts': []
+                    }
+                
+                feature_data[feature]['mean_values'].append(baseline_data.get('mean_value', 0))
+                feature_data[feature]['std_values'].append(baseline_data.get('std_value', 0))
+                feature_data[feature]['min_values'].append(baseline_data.get('min_value', 0))
+                feature_data[feature]['max_values'].append(baseline_data.get('max_value', 0))
+                feature_data[feature]['sample_counts'].append(baseline_data.get('sample_count', 0))
+        
+        # 计算汇总基线
+        aggregated_baselines = {}
+        
+        for feature, data in feature_data.items():
+            try:
+                # 使用加权平均（基于样本数量）
+                total_samples = sum(data['sample_counts'])
+                if total_samples == 0:
+                    continue
+                
+                weights = [count / total_samples for count in data['sample_counts']]
+                
+                aggregated_mean = sum(mean * weight for mean, weight in zip(data['mean_values'], weights))
+                aggregated_std = np.sqrt(sum((std ** 2) * weight for std, weight in zip(data['std_values'], weights)))
+                aggregated_min = min(data['min_values'])
+                aggregated_max = max(data['max_values'])
+                
+                aggregated_baselines[feature] = {
+                    'feature_name': feature,
+                    'mean_value': round(float(aggregated_mean), 4),
+                    'std_value': max(round(float(aggregated_std), 4), self.MIN_STD_VALUES.get(feature, 0.1)),
+                    'min_value': round(float(aggregated_min), 4),
+                    'max_value': round(float(aggregated_max), 4),
+                    'sample_count': total_samples,
+                    'entity_count': len(data['sample_counts']),
+                    'aggregation_level': level,
+                    'baseline_date': (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
+                    'source': f'realtime_{level}_aggregation'
+                }
+                
+            except Exception as e:
+                logger.warning(f"⚠️ 特征 {feature} 汇总失败: {str(e)}")
+                continue
+        
+        return aggregated_baselines
+
 
 # 全局实例
 realtime_baseline_engine = RealTimeHealthBaselineEngine()
@@ -392,3 +717,14 @@ def get_user_baseline_realtime(user_id: int, target_date: str = None) -> Dict:
 def get_baseline_status(identifier: int, identifier_type: str = 'user', target_date: str = None) -> Dict:
     """获取基线状态 - 对外接口"""
     return realtime_baseline_engine.get_baseline_status(identifier, identifier_type, target_date)
+
+
+# 新增组织和租户级基线生成方法
+def get_org_baseline_realtime(org_id: int, target_date: str = None) -> Dict:
+    """获取组织实时基线 - 对外接口"""
+    return realtime_baseline_engine.generate_org_baseline_realtime(org_id, target_date)
+
+
+def get_customer_baseline_realtime(customer_id: int, target_date: str = None) -> Dict:
+    """获取租户实时基线 - 对外接口"""
+    return realtime_baseline_engine.generate_customer_baseline_realtime(customer_id, target_date)

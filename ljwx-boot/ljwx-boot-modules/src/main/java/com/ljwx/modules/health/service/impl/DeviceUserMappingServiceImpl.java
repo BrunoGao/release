@@ -38,10 +38,17 @@ import java.util.stream.Collectors;
 /**
  * Device User Mapping Service 服务接口实现层
  *
+ * @deprecated 此服务已废弃，请直接使用 ISysUserService 和相关服务
+ *             迁移指南:
+ *             - 使用 ISysUserService.getUsersByOrgId() 替代 getDeviceSnListByDepartmentId()
+ *             - 使用 ISysUserService + ISysOrgUnitsService 替代 getDeviceUserInfo()
+ *             - 直接使用 userId 查询，不再依赖 deviceSn 映射
+ *
  * @Author jjgao
  * @ProjectName ljwx-boot
  * @CreateTime 2024-03-20 - 10:00:00
  */
+@Deprecated
 @Service
 @Slf4j
 public class DeviceUserMappingServiceImpl implements IDeviceUserMappingService {
@@ -56,6 +63,7 @@ public class DeviceUserMappingServiceImpl implements IDeviceUserMappingService {
     private ISysUserOrgService sysUserOrgService;
 
     @Override
+    @Deprecated
     public List<String> getDeviceSnList(String userId, String departmentId) {
         log.info("🔍 过滤参数 - userId: {}, departmentId: {}", userId, departmentId);
         
@@ -86,6 +94,7 @@ public class DeviceUserMappingServiceImpl implements IDeviceUserMappingService {
      * @param departmentId 部门ID
      * @return 设备序列号列表
      */
+    @Deprecated
     public List<String> getDeviceSnListByDepartmentId(String departmentId) {
         if (departmentId == null || departmentId.isEmpty()) return Collections.emptyList();
         
@@ -99,7 +108,11 @@ public class DeviceUserMappingServiceImpl implements IDeviceUserMappingService {
         
         try {
             log.info("🔍 查询部门设备列表: deptId={}", deptId);
-            List<SysUser> users = sysUserService.getUsersByOrgId(deptId);
+            // 获取组织的customerId
+            SysOrgUnits org = sysOrgUnitsService.getById(deptId);
+            Long customerId = (org != null) ? org.getCustomerId() : null;
+            
+            List<SysUser> users = sysUserService.getUsersByOrgId(deptId, customerId);
             log.info("📊 找到用户数量: {}", users.size());
             
             if (users.isEmpty()) {
@@ -129,6 +142,7 @@ public class DeviceUserMappingServiceImpl implements IDeviceUserMappingService {
     }
 
     @Override
+    @Deprecated
     public Map<String, UserInfo> getDeviceUserInfo(Set<String> deviceSns) {
         Map<String, UserInfo> deviceUserMap = new HashMap<>();
         if (deviceSns == null || deviceSns.isEmpty()) {
@@ -192,6 +206,7 @@ public class DeviceUserMappingServiceImpl implements IDeviceUserMappingService {
     }
 
     @Override
+    @Deprecated
     public Map<String, UserInfo> getUserInfoMap(List<String> deviceSnList) {
         return getDeviceUserInfo(new HashSet<>(deviceSnList));
     }

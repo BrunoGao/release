@@ -22,14 +22,14 @@ public class OrgStatisticsController {
 
     @GetMapping("/gather_total_info")
     public Result<OrgStatisticsVO> getOrgStatistics(
-        @RequestParam("customer_id") String customerId,
+        @RequestParam("org_id") String orgId,
         @RequestParam(value = "customerId", required = false) String customerIdParam
     ) {
         // 支持两种参数名称，优先使用customerIdParam
-        String actualCustomerId = customerIdParam != null ? customerIdParam : customerId;
-        log.info("Getting organization statistics for customerId: {} (originalParam: {})", actualCustomerId, customerId);
+        String actualCustomerId = customerIdParam != null ? customerIdParam : orgId;
+        log.info("Getting organization statistics for customerId: {} (originalParam: {})", actualCustomerId, orgId);
         
-        OrgStatisticsVO statistics = orgStatisticsService.getOrgStatisticsByCustomerId(actualCustomerId);
+        OrgStatisticsVO statistics = orgStatisticsService.getOrgStatisticsByOrgId(actualCustomerId);
         return Result.data(statistics);
     }
 }

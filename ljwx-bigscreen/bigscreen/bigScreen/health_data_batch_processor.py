@@ -20,33 +20,29 @@ from logging_config import health_logger,db_logger,redis_logger,log_health_data_
 redis=RedisHelper()
 logger=health_logger#使用健康数据专用记录器
 
-class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
+class HealthDataOptimizer:#健康数据性能优化器V5.0 - 多队列分片版本
     def __init__(self):
         # CPU自适应配置
         import psutil
         self.cpu_cores = psutil.cpu_count(logical=True)
         self.memory_gb = psutil.virtual_memory().total / (1024**3)
         
-        # 动态批次配置：CPU核心数 × 25
-        self.batch_size = max(50, min(500, self.cpu_cores * 25))  # 限制在50-500之间
-        self.batch_timeout=2#批处理超时秒数
+        # 初始化分片批处理器
+        from .sharded_batch_processor import ShardedBatchProcessor
+        self.sharded_processor = ShardedBatchProcessor()
+        # 设置批处理回调，让分片处理器使用现有的数据库处理逻辑
+        self.sharded_processor.set_batch_callback(self._flush_batch)
         
-        # 动态线程池配置：CPU核心数 × 2.5 (I/O密集型)
-        max_workers = max(4, min(32, int(self.cpu_cores * 2.5)))
-        
-        self.batch_queue=queue.Queue(maxsize=5000)#批处理队列
-        self.executor=ThreadPoolExecutor(max_workers=max_workers)#线程池
-        self.running=True#运行状态
-        self.stats={'processed':0,'batches':0,'errors':0,'duplicates':0,'auto_adjustments':0}#统计信息
-        self.processed_keys=set()#已处理记录键值集合
+        # 保持兼容性的统计信息接口
+        self._legacy_stats = {'processed':0,'batches':0,'errors':0,'duplicates':0,'auto_adjustments':0}
         
         # 性能监控
         self.performance_window = []
         self.last_adjustment_time = time.time()
         
-        logger.info(f'🚀 HealthDataOptimizer V4.0 初始化:')
+        logger.info(f'🚀 HealthDataOptimizer V5.0 初始化 - 多队列分片版本:')
         logger.info(f'   CPU核心: {self.cpu_cores}, 内存: {self.memory_gb:.1f}GB')
-        logger.info(f'   批次大小: {self.batch_size}, 工作线程: {max_workers}')
+        logger.info(f'   分片数量: {self.sharded_processor.shard_count}, 批次大小: {self.sharded_processor.batch_size}')
         self.field_mapping={#数据库字段到API字段映射
             'heart_rate':'heart_rate','blood_oxygen':'blood_oxygen','temperature':'body_temperature',
             'pressure_high':'blood_pressure_systolic','pressure_low':'blood_pressure_diastolic','stress':'stress',
@@ -58,71 +54,45 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
         self.app=None#应用实例
         self.processor_started=False#批处理器启动状态
         
-    def _ensure_processor_started(self):#确保批处理器已启动
+        # 异步处理线程池
+        self.executor = ThreadPoolExecutor(max_workers=max(4, self.cpu_cores), thread_name_prefix='health-async')
+        self.running = True
+        
+        # 兼容性属性，用于现有统计和调优代码
+        self.batch_size = 200  # 默认批次大小
+        self.batch_queue = queue.Queue(maxsize=5000)  # 虚拟队列，用于兼容性
+        self.processed_keys = set()  # 兼容性属性，用于遗留清理代码
+    
+    @property
+    def stats(self):
+        """统计信息接口，兼容现有代码"""
+        if hasattr(self.sharded_processor, 'get_overall_stats'):
+            sharded_stats = self.sharded_processor.get_overall_stats()
+            return {
+                'processed': sharded_stats.get('total_processed', 0),
+                'batches': sharded_stats.get('total_batches', 0), 
+                'errors': sharded_stats.get('total_errors', 0),
+                'duplicates': self._legacy_stats['duplicates'],
+                'auto_adjustments': self._legacy_stats['auto_adjustments']
+            }
+        return self._legacy_stats
+        
+    def _ensure_processor_started(self):#确保分片批处理器已启动
         if not self.processor_started:
             try:
                 from flask import current_app
                 self.app=current_app._get_current_object()#获取应用实例
-                threading.Thread(target=self._batch_processor,daemon=True).start()
+                self.sharded_processor.start()  # 启动分片批处理器
                 self._schedule_cleanup()#启动定时清理
                 self.processor_started=True
-                print(f"✅ 批处理器和定时清理已启动，队列状态: empty={self.batch_queue.empty()}, size={self.batch_queue.qsize()}")
-                logger.info('批处理器和定时清理已启动')
+                print(f"✅ 分片批处理器和定时清理已启动，分片数: {self.sharded_processor.shard_count}")
+                logger.info('分片批处理器和定时清理已启动')
             except RuntimeError as e:
                 print(f"❌ 应用上下文不可用，延迟启动批处理器: {e}")
                 logger.warning('应用上下文不可用，延迟启动批处理器')
         
-    def _batch_processor(self):#批处理器
-        batch_data=[]
-        last_flush=time.time()
-        print(f"🔄 批处理器线程启动，running={self.running}")
+    # 批处理器功能已迁移到 ShardedBatchProcessor
         
-        while self.running:
-            try:
-                timeout=max(0.1,self.batch_timeout-(time.time()-last_flush))
-                item=self.batch_queue.get(timeout=timeout)
-                print(f"📦 批处理器收到数据项: device_sn={item.get('device_sn')}")
-                
-                # 移除批处理器中的重复检测，因为在add_data中已经通过数据库查询进行了准确的重复检测
-                # key=f"{item['device_sn']}:{item['main_data']['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}"
-                # if key in self.processed_keys:
-                #     self.stats['duplicates']+=1
-                #     logger.warning(f'跳过重复记录: {key}')
-                #     continue
-                    
-                batch_data.append(item)
-                # self.processed_keys.add(key)  # 不再维护内存中的重复检测集合
-                
-                # 性能监控：记录批次处理时间
-                if len(batch_data) == 1:
-                    batch_start_time = time.time()
-                
-                if len(batch_data)>=self.batch_size or (time.time()-last_flush)>=self.batch_timeout:
-                    if batch_data:
-                        processing_start = time.time()
-                        if self.app:
-                            with self.app.app_context():#确保在应用上下文中执行
-                                self._flush_batch(batch_data)
-                        else:
-                            self._flush_batch(batch_data)#直接执行
-                        
-                        # 记录性能数据并尝试自动调优
-                        processing_time = time.time() - processing_start
-                        self._record_performance(len(batch_data), processing_time)
-                        
-                        batch_data=[]
-                        last_flush=time.time()
-                        
-            except queue.Empty:
-                if batch_data and (time.time()-last_flush)>=self.batch_timeout:
-                    if self.app:
-                        with self.app.app_context():#确保在应用上下文中执行
-                            self._flush_batch(batch_data)
-                    else:
-                        self._flush_batch(batch_data)#直接执行
-                    batch_data=[]
-                    last_flush=time.time()
-                    
     def _flush_batch(self,batch_data):#刷新批次到数据库
         try:
             if not batch_data:return
@@ -426,6 +396,15 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
             fields=[config.data_type for config in configs]
             weights={config.data_type:float(config.weight) if config.weight else 1.0 for config in configs}
             
+            # 确保核心字段包含在配置中，即使数据库配置中没有
+            # heart_rate 是基础字段，pressure_high 和 pressure_low 根据 heart_rate 模拟生成
+            # latitude, longitude, altitude 是位置信息，也是基础字段
+            essential_fields = ['heart_rate', 'pressure_high', 'pressure_low', 'latitude', 'longitude', 'altitude']
+            for field in essential_fields:
+                if field not in fields:
+                    fields.append(field)
+                    weights[field] = 1.0
+            
             return {'fields':fields,'weights':weights,'config_source':'customer','customer_id':customer_id}
             
         except Exception as e:
@@ -628,6 +607,8 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
                         print(f"🔍 字段映射: {field} -> {self.field_mapping.get(field,field)} = {value}")
                     if value is not None:
                         main_data[field]=value
+                else:
+                    print(f"⚠️ 字段 {field} 不在配置字段中，跳过处理")
             print(f"✅ 完整主表数据: {main_data}")
             
             #构建每日数据(只包含配置支持的每日字段)
@@ -674,9 +655,13 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
             print(f"✅ Redis数据(含客户信息): {redis_data}")
                 
             item={'device_sn':device_sn,'main_data':main_data,'daily_data':daily_data,'weekly_data':weekly_data,'redis_data':redis_data,'enable_alerts':enable_alerts,'config_info':config_info}
-            print(f"🔧 准备加入队列的数据项: {json.dumps(item, ensure_ascii=False, default=str)}")
-            self.batch_queue.put(item,timeout=1)
-            print(f"✅ 数据已成功加入处理队列: {device_sn}")
+            print(f"🔧 准备加入分片队列的数据项: {json.dumps(item, ensure_ascii=False, default=str)}")
+            success = self.sharded_processor.add_data(item, device_sn)
+            if success:
+                print(f"✅ 数据已成功加入分片处理队列: {device_sn}")
+            else:
+                print(f"❌ 数据加入分片处理队列失败: {device_sn}")
+                return {'success': False, 'reason': 'queue_full', 'message': '分片处理队列已满'}
             # 不再维护内存中的processed_keys，因为重复检测已在数据库层面完成
             # self.processed_keys.add(duplicate_key)
             return {'success':True,'reason':'queued','message':'数据已加入处理队列'}
@@ -726,7 +711,7 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
         # 系统资源检查
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory_percent = psutil.virtual_memory().percent
-        queue_size = self.batch_queue.qsize()
+        queue_size = self.sharded_processor.get_queue_size()
         
         old_batch_size = self.batch_size
         
@@ -753,7 +738,7 @@ class HealthDataOptimizer:#健康数据性能优化器V4.0 - CPU自适应版本
         stats['cpu_cores'] = getattr(self, 'cpu_cores', 'N/A')
         stats['batch_size'] = self.batch_size
         stats['max_workers'] = self.executor._max_workers
-        stats['queue_size']=self.batch_queue.qsize()
+        stats['queue_size']=self.sharded_processor.get_queue_size()
         stats['performance_window_size'] = len(getattr(self, 'performance_window', []))
         # 不再统计processed_keys_count，因为已移除内存重复检测
         # stats['processed_keys_count']=len(self.processed_keys)

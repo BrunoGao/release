@@ -35,8 +35,8 @@ import com.ljwx.modules.health.domain.vo.HealthDataPageVO;
 import com.ljwx.modules.health.repository.mapper.TUserHealthDataMapper;
 import com.ljwx.modules.health.repository.mapper.TUserHealthDataDailyMapper;
 import com.ljwx.modules.health.repository.mapper.TUserHealthDataWeeklyMapper;
-import com.ljwx.modules.health.service.IDeviceUserMappingService;
 import com.ljwx.modules.health.service.ITUserHealthDataService;
+import com.ljwx.modules.health.service.UnifiedHealthDataQueryService;
 import com.ljwx.modules.system.service.ISysUserService;
 import com.ljwx.modules.system.service.ISysOrgUnitsService;
 import com.ljwx.modules.system.domain.entity.SysUser;
@@ -73,8 +73,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMapper, TUserHealthData> implements ITUserHealthDataService {
 
-    @Autowired
-    private IDeviceUserMappingService deviceUserMappingService;
 
     @Autowired
     private ITHealthDataConfigService healthDataConfigService;  // 从 customer 模块注入
@@ -96,448 +94,22 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
     
     @Autowired 
     private RedisRelationCacheService cacheService;
+    
+    @Autowired
+    private UnifiedHealthDataQueryService unifiedHealthDataQueryService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /**
-     * 获取过滤管理员后的设备列表 #管理员过滤功能
-     * @param userId 用户ID
-     * @param orgId 组织ID
-     * @return 过滤后的设备序列号列表
-     */
-    private List<String> getFilteredDeviceSnList(String userId, String orgId) {
-        long startTime = System.currentTimeMillis();
-        
-        try {
-            // 如果指定了具体用户ID且不是"all"、"0"或空，优先使用Redis缓存查询该用户设备
-            if (ObjectUtils.isNotEmpty(userId) && !"all".equals(userId) && !"0".equals(userId)) {
-                Long userIdLong = Long.valueOf(userId);
-                Set<String> devices = highPerformanceQueryService.getUserDevices(userIdLong);
-                log.debug("🚀 Redis缓存查询用户设备: userId={}, devices={}, time={}ms", 
-                    userId, devices.size(), System.currentTimeMillis() - startTime);
-                return new ArrayList<>(devices);
-            }
-            
-            // 查询部门设备时，优先使用Redis缓存
-            if (ObjectUtils.isNotEmpty(orgId)) {
-                try {
-                    Long orgIdLong = Long.valueOf(orgId);
-                    Set<String> orgDevices = highPerformanceQueryService.getOrgDevices(orgIdLong);
-                    
-                    if (!orgDevices.isEmpty()) {
-                        // 获取管理员设备列表进行过滤
-                        List<String> adminDeviceSnList = getAdminDeviceSnList();
-                        
-                        // 过滤掉管理员设备
-                        List<String> filteredList = orgDevices.stream()
-                            .filter(deviceSn -> !adminDeviceSnList.contains(deviceSn))
-                            .collect(Collectors.toList());
-                        
-                        log.debug("🚀 Redis缓存查询部门设备: orgId={}, total={}, filtered={}, time={}ms",
-                            orgId, orgDevices.size(), filteredList.size(), System.currentTimeMillis() - startTime);
-                        
-                        return filteredList;
-                    } else {
-                        log.debug("⚠️ Redis缓存中部门设备列表为空，回退到原有查询方式: orgId={}", orgId);
-                    }
-                } catch (NumberFormatException e) {
-                    log.warn("部门信息格式错误，回退到原有查询方式: orgId={}", orgId);
-                }
-                
-                // 如果Redis缓存未命中，回退到原有查询方式
-                List<String> allDeviceSnList = deviceUserMappingService.getDeviceSnList(null, orgId);
-                log.debug("📱 回退查询部门设备: orgId={}, devices={}", orgId, allDeviceSnList.size());
-                
-                if (allDeviceSnList.isEmpty()) {
-                    return Collections.emptyList();
-                }
-                
-                // 获取管理员设备列表并过滤
-                List<String> adminDeviceSnList = getAdminDeviceSnList();
-                List<String> filteredList = allDeviceSnList.stream()
-                    .filter(deviceSn -> !adminDeviceSnList.contains(deviceSn))
-                    .collect(Collectors.toList());
-                
-                log.debug("📊 回退查询结果: total={}, filtered={}, time={}ms",
-                    allDeviceSnList.size(), filteredList.size(), System.currentTimeMillis() - startTime);
-                
-                return filteredList;
-            }
-            
-            return Collections.emptyList();
-            
-        } catch (Exception e) {
-            log.error("获取设备列表失败，回退到原有查询方式: userId={}, orgId={}", userId, orgId, e);
-            // 回退到原有实现
-            return getFilteredDeviceSnListFallback(userId, orgId);
-        }
-    }
-    
-    /**
-     * 回退方法 - 原有的查询逻辑
-     */
-    private List<String> getFilteredDeviceSnListFallback(String userId, String orgId) {
-        if (ObjectUtils.isNotEmpty(userId) && !"all".equals(userId) && !"0".equals(userId)) {
-            return deviceUserMappingService.getDeviceSnList(userId, orgId);
-        }
-        
-        if (ObjectUtils.isNotEmpty(orgId)) {
-            List<String> allDeviceSnList = deviceUserMappingService.getDeviceSnList(null, orgId);
-            if (allDeviceSnList.isEmpty()) {
-                return Collections.emptyList();
-            }
-            
-            List<String> adminDeviceSnList = getAdminDeviceSnList();
-            return allDeviceSnList.stream()
-                .filter(deviceSn -> !adminDeviceSnList.contains(deviceSn))
-                .collect(Collectors.toList());
-        }
-        
-        return Collections.emptyList();
-    }
-
-    /**
-     * 获取管理员设备序列号列表 #管理员设备识别
-     * @return 管理员设备序列号列表
-     */
-    private List<String> getAdminDeviceSnList() {
-        try {
-            return sysUserService.list().stream()
-                .filter(user -> sysUserService.isAdminUser(user.getId()))
-                .map(SysUser::getDeviceSn)
-                .filter(Objects::nonNull)
-                .filter(deviceSn -> !deviceSn.trim().isEmpty())
-                .collect(Collectors.toList());
-        } catch (Exception e) {
-            System.err.println("❌ 获取管理员设备列表失败: " + e.getMessage());
-            return Collections.emptyList();
-        }
-    }
-
     @Override
     public HealthDataPageVO<Map<String,Object>> listTUserHealthDataPage(PageQuery pageQuery, TUserHealthDataSearchDTO tUserHealthDataBO) {
-        // 1. 时间边界
-    LocalDateTime startDate = LocalDateTime.ofEpochSecond(
-        tUserHealthDataBO.getStartDate() / 1000, 0, ZoneOffset.ofHours(8));
-    LocalDateTime endDate = LocalDateTime.ofEpochSecond(
-        (tUserHealthDataBO.getEndDate() + 86399000) / 1000, 0, ZoneOffset.ofHours(8));
-
-    // 2. 直接使用userId、orgId、customerId进行查询，不再通过deviceSn转换
-    System.out.println("🏥 健康数据查询 - userId: " + tUserHealthDataBO.getUserId() + ", orgId: " + tUserHealthDataBO.getOrgId() + ", customerId: " + tUserHealthDataBO.getCustomerId());
-    
-    // 3. 基础 Wrapper
-    LambdaQueryWrapper<TUserHealthData> query = new LambdaQueryWrapper<>();
-    
-    // 4. 添加租户过滤 - 直接使用传入的customerId
-    Long customerId = tUserHealthDataBO.getCustomerId();
-    
-    if (customerId != null && customerId != 0L) {
-        // 租户用户，查看全局数据(customer_id=0)和自己租户的数据
-        query.and(wrapper -> 
-            wrapper.eq(TUserHealthData::getCustomerId, 0L)
-                   .or()
-                   .eq(TUserHealthData::getCustomerId, customerId)
-        );
-    }
-    
-    // 5. 添加时间范围过滤
-    query.ge(TUserHealthData::getTimestamp, startDate)
-         .le(TUserHealthData::getTimestamp, endDate);
-    
-    // 6. 添加orgId过滤（如果指定）
-    if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getOrgId()) && 
-        !"0".equals(tUserHealthDataBO.getOrgId()) &&
-        !"all".equals(tUserHealthDataBO.getOrgId())) {
-        query.eq(TUserHealthData::getOrgId, Long.parseLong(tUserHealthDataBO.getOrgId()));
-    }
-    
-    // 7. 如果指定了具体用户，直接按userId查询
-    if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getUserId()) && 
-        !"0".equals(tUserHealthDataBO.getUserId()) && 
-        !"all".equals(tUserHealthDataBO.getUserId())) {
+        System.out.println("🏥 健康数据查询 - userId: " + tUserHealthDataBO.getUserId() + 
+            ", orgId: " + tUserHealthDataBO.getOrgId() + ", customerId: " + tUserHealthDataBO.getCustomerId());
         
-        System.out.println("🔍 查询指定用户时间范围内所有数据: userId=" + tUserHealthDataBO.getUserId());
-        
-        // 直接使用userId查询，不再转换为deviceSn
-        query.eq(TUserHealthData::getUserId, Long.parseLong(tUserHealthDataBO.getUserId()));
-             
-    } else {
-        // 如果没有指定具体用户（userId为空、"0"或"all"），按部门查询所有用户数据的最新记录
-        System.out.println("🔍 查询部门所有用户健康数据最新记录");
-        
-        if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getOrgId()) &&
-            !"0".equals(tUserHealthDataBO.getOrgId()) &&
-            !"all".equals(tUserHealthDataBO.getOrgId())) {
-            
-            // 先查询指定时间范围内部门的所有数据
-            LambdaQueryWrapper<TUserHealthData> tempQuery = new LambdaQueryWrapper<>();
-            tempQuery.eq(TUserHealthData::getOrgId, Long.parseLong(tUserHealthDataBO.getOrgId()))
-                     .ge(TUserHealthData::getTimestamp, startDate)
-                     .le(TUserHealthData::getTimestamp, endDate);
-            
-            // 添加租户过滤到临时查询
-            if (customerId != null && customerId != 0L) {
-                tempQuery.and(wrapper -> 
-                    wrapper.eq(TUserHealthData::getCustomerId, 0L)
-                           .or()
-                           .eq(TUserHealthData::getCustomerId, customerId)
-                );
-            }
-                     
-            List<TUserHealthData> allData = baseMapper.selectList(tempQuery);
-            System.out.println("📊 查询到原始数据条数: " + allData.size());
-            
-            if (allData.isEmpty()) {
-                return new HealthDataPageVO<>(
-                    Collections.emptyList(),
-                    0, pageQuery.getPageSize(), pageQuery.getPage(),
-                    Collections.emptyList()
-                );
-            }
-            
-            // 按用户分组，获取每个用户的最新数据
-            Map<Long, TUserHealthData> latestByUser = allData.stream()
-                .filter(data -> data.getUserId() != null)
-                .collect(Collectors.toMap(
-                    TUserHealthData::getUserId,
-                    data -> data,
-                    (existing, replacement) -> existing.getTimestamp().isAfter(replacement.getTimestamp()) ? existing : replacement
-                ));
-                
-            System.out.println("👥 用户数量: " + latestByUser.size());
-            
-            // 获取最新数据的ID列表，重新构建查询条件
-            List<Long> latestIds = latestByUser.values().stream()
-                .map(TUserHealthData::getId)
-                .collect(Collectors.toList());
-                
-            if (latestIds.isEmpty()) {
-                return new HealthDataPageVO<>(
-                    Collections.emptyList(),
-                    0, pageQuery.getPageSize(), pageQuery.getPage(),
-                    Collections.emptyList()
-                );
-            }
-                
-            query = new LambdaQueryWrapper<>();
-            query.in(TUserHealthData::getId, latestIds);
-        } else {
-            // 如果没有指定部门，返回空结果（出于性能考虑）
-            System.out.println("⚠️ 未指定部门ID，返回空结果");
-            return new HealthDataPageVO<>(
-                Collections.emptyList(),
-                0, pageQuery.getPageSize(), pageQuery.getPage(),
-                Collections.emptyList()
-            );
-        }
-    }
-    
-    query.orderByDesc(TUserHealthData::getTimestamp);
-
-        IPage<TUserHealthData> page = baseMapper.selectPage(pageQuery.buildPage(), query);
-        
-        // 调试信息：显示查询结果统计
-        System.out.println("📋 分页查询结果统计:");
-        System.out.println("  总记录数: " + page.getTotal());
-        System.out.println("  当前页记录数: " + page.getRecords().size());
-        System.out.println("  当前页码: " + page.getCurrent());
-        System.out.println("  每页大小: " + page.getSize());
-
-        // 获取所有不重复的userId和orgId，用于批量获取用户和部门信息
-        Set<Long> userIds = page.getRecords().stream()
-            .map(TUserHealthData::getUserId)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
-        
-        Set<Long> orgIds = page.getRecords().stream()
-            .map(TUserHealthData::getOrgId)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
-
-        // 批量获取用户信息
-        Map<Long, String> userIdToNameMap = new HashMap<>();
-        Map<Long, String> orgIdToNameMap = new HashMap<>();
-        
-        if (!userIds.isEmpty()) {
-            List<SysUser> users = sysUserService.listByIds(userIds);
-            userIdToNameMap = users.stream().collect(
-                Collectors.toMap(SysUser::getId, SysUser::getUserName, (a, b) -> a)
-            );
-        }
-        
-        // 批量获取部门信息
-        if (!orgIds.isEmpty()) {
-            List<SysOrgUnits> orgs = sysOrgUnitsService.listByIds(orgIds);
-            orgIdToNameMap = orgs.stream().collect(
-                Collectors.toMap(SysOrgUnits::getId, SysOrgUnits::getName, (a, b) -> a)
-            );
-        }
-
-        // 缓存用户和部门信息映射，避免重复查询
-        final Map<Long, String> finalUserIdToNameMap = userIdToNameMap;
-        final Map<Long, String> finalOrgIdToNameMap = orgIdToNameMap;
-
-        // 为每条记录添加用户和部门信息
-        page.getRecords().forEach(record -> {
-            if (record.getUserId() != null) {
-                String userName = finalUserIdToNameMap.get(record.getUserId());
-                if (userName != null) {
-                    record.setUserName(userName);
-                }
-            }
-            // 注意：这里不再设置departmentInfo字段，因为实体中只有orgId
-        });
-                       
-
-        // 根据orgId查询顶级部门ID，用于过滤health data config
-        Long topLevelDeptId = null;
-        if (ObjectUtils.isNotEmpty(tUserHealthDataBO.getOrgId())) {
-            try {
-                Long deptId = Long.parseLong(tUserHealthDataBO.getOrgId());
-                topLevelDeptId = sysOrgUnitsService.getTopLevelDeptIdByOrgId(deptId);
-                System.out.println("🏢 部门查询 - orgId: " + deptId + " -> 顶级部门ID: " + topLevelDeptId);
-            } catch (NumberFormatException e) {
-                System.err.println("❌ orgId格式错误: " + tUserHealthDataBO.getOrgId());
-                topLevelDeptId = null;
-            }
-        }
-        
-        // 使用新的服务方法获取启用的健康数据配置
-        Long orgIdForQuery = topLevelDeptId != null ? topLevelDeptId : Long.parseLong(tUserHealthDataBO.getOrgId());
-        List<THealthDataConfig> enabledColumns = healthDataConfigService.getEnabledConfigsByOrgId(orgIdForQuery);
-
-        // 批量获取分表数据（避免n+1问题）
-        // 根据查询类型决定是否需要批量获取分表数据
-        final Map<String, Map<String, Object>> batchDailyData;
-        final Map<String, Map<String, Object>> batchWeeklyData;
-        
-        // 只有在查询结果不为空时才批量获取分表数据
-        if (!page.getRecords().isEmpty()) {
-            batchDailyData = getBatchDailyData(page.getRecords());
-            batchWeeklyData = getBatchWeeklyData(page.getRecords());
-        } else {
-            batchDailyData = new HashMap<>();
-            batchWeeklyData = new HashMap<>();
-        }
-
-        List<Map<String, Object>> records = page.getRecords().stream()
-    .map(record -> {
-        Map<String, Object> filteredData = new HashMap<>();
-
-        // 基础字段
-        filteredData.put("id", record.getId());
-        filteredData.put("timestamp", record.getTimestamp());
-        filteredData.put("deviceSn", record.getDeviceSn());
-        filteredData.put("userId", record.getUserId());
-        filteredData.put("orgId", record.getOrgId());
-        filteredData.put("customerId", record.getCustomerId());
-
-        // 用户信息 - 直接从缓存的映射中获取
-        if (record.getUserId() != null) {
-            String userName = finalUserIdToNameMap.get(record.getUserId());
-            if (userName != null) {
-                filteredData.put("userName", userName);
-            }
-        }
-        
-        // 部门信息 - 直接从缓存的映射中获取
-        if (record.getOrgId() != null) {
-            String orgName = finalOrgIdToNameMap.get(record.getOrgId());
-            if (orgName != null) {
-                filteredData.put("orgName", orgName);
-            }
-        }
-
-        // 批量获取分表数据（避免n+1问题）
-        // 使用userId和timestamp构建缓存key
-        String cacheKey = record.getUserId() + "_" + record.getTimestamp().toLocalDate();
-        Map<String, Object> dailyData = batchDailyData.getOrDefault(cacheKey, Collections.emptyMap());
-        Map<String, Object> weeklyData = batchWeeklyData.getOrDefault(cacheKey, Collections.emptyMap());
-
-        // 启用字段动态处理
-        for (THealthDataConfig config : enabledColumns) {
-            String fieldName = config.getDataType();
-            Object value = getFieldValue(record, fieldName);
-            Object processed = null;
-            System.out.println("fieldName::" + fieldName + "=" + value);
-
-            switch (fieldName) {
-                case "sleep":
-                    processed = processSleepData((String) dailyData.get("sleepData"));
-                    filteredData.put("sleepData", processed);
-                    break;
-                case "work_out":
-                    processed = processWorkoutData((String) dailyData.get("workoutData"));
-                    filteredData.put("workoutData", processed);
-                    break;
-                case "exercise_daily":
-                    processed = processExerciseDailyData((String) dailyData.get("exerciseDailyData"));
-                    filteredData.put("exerciseDailyData", processed);
-                    break;
-                case "exercise_week":
-                    processed = processExerciseWeekData((String) weeklyData.get("exerciseWeekData"));
-                    filteredData.put("exerciseWeekData", processed);
-                    break;
-                case "blood_oxygen":
-                    filteredData.put("bloodOxygen", value);
-                    break;
-                case "heart_rate":
-                    if (value != null) {
-                        filteredData.put("heartRate", value);
-                        filteredData.put("pressureHigh", getFieldValue(record, "pressure_high"));
-                        filteredData.put("pressureLow", getFieldValue(record, "pressure_low"));
-                    }
-                    break;
-                case "location":
-                   
-                    filteredData.put("latitude",  getFieldValue(record, "latitude"));
-                    filteredData.put("longitude", getFieldValue(record, "longitude"));
-                    filteredData.put("altitude", getFieldValue(record, "altitude"));
-                    
-                    break;
-                default:
-                    // 普通字段原样放入
-                    if (value != null) {
-                        filteredData.put(fieldName, value);
-                    }
-                    break;
-            }
-
-            // 若以上 JSON 类型字段为空，也确保返回结构体格式
-            if ((processed == null || ((Map<?, ?>) processed).isEmpty()) &&
-                Set.of("sleep", "work_out", "exercise_daily", "exercise_week").contains(fieldName)) {
-                String mappedField = switch (fieldName) {
-                    case "sleep" -> "sleepData";
-                    case "work_out" -> "workoutData";
-                    case "exercise_daily" -> "exerciseDailyData";
-                    case "exercise_week" -> "exerciseWeekData";
-                    default -> fieldName;
-                };
-                filteredData.put(mappedField, Map.of("value", "-", "tooltip", "当前暂无数据"));
-            }
-        }
-
-                return filteredData;
-            })
-            .collect(Collectors.toList());
-
-        System.out.println("最终返回records: " + records);
-        
-
-        // 5. 构建返回结果
-        Map<String, Object> result = new HashMap<>();
-        result.put("columns", enabledColumns);  // 返回列配置信息
-        result.put("total", page.getTotal());
-        result.put("size", page.getSize());
-        result.put("current", page.getCurrent());
-        result.put("records", records);         // 返回过滤后的数据
-
-        // 创建包含列信息的分页对象
-        return new HealthDataPageVO<>(records, page.getTotal(), page.getSize(), page.getCurrent(), enabledColumns);
+        // 直接调用UnifiedHealthDataQueryService进行查询
+        return unifiedHealthDataQueryService.queryHealthDataPage(pageQuery, tUserHealthDataBO);
     }
 
     private Object getFieldValue(TUserHealthData record, String fieldName) {
-        System.out.println("getFieldValue::" + fieldName);
         return switch (fieldName) {
             case "blood_oxygen" -> record.getBloodOxygen();
             case "heart_rate" -> record.getHeartRate();
@@ -834,7 +406,6 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
 
     private Map<String, Object> processSleepData(String sleepDataJson) {
         try {
-            System.out.println("processSleepData::sleepDataJson=" + sleepDataJson);
             if (StringUtils.isBlank(sleepDataJson)) return Map.of("value", "", "tooltip", "无睡眠数据");
     
             // 处理转义的JSON字符串
@@ -842,7 +413,6 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             if (cleanedJson.startsWith("\"") && cleanedJson.endsWith("\"")) {
                 cleanedJson = objectMapper.readValue(cleanedJson, String.class); // 解码字符串
             }
-            System.out.println("processSleepData::cleanedJson=" + cleanedJson);
     
             JsonNode root = objectMapper.readTree(cleanedJson);
             
@@ -854,7 +424,6 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             }
     
             JsonNode dataArray = root.path("data");  // #直接获取data字段
-            System.out.println("processSleepData::dataArray=" + dataArray.toString());
     
             if (!dataArray.isArray() || dataArray.isEmpty()) return Map.of("value", "", "tooltip", "无睡眠数据");
     
@@ -871,7 +440,6 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
     
             double total = Math.round((lightSleep + deepSleep) * 10.0) / 10.0;
             String tooltip = String.format("浅度睡眠：%.1f小时；深度睡眠：%.1f小时", lightSleep, deepSleep);
-            System.out.println("processSleepData::tooltip=" + tooltip);
             
             // 构建返回结构
             Map<String, Object> result = new HashMap<>();

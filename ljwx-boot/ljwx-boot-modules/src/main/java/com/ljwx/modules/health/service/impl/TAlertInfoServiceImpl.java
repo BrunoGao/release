@@ -26,7 +26,6 @@ import com.ljwx.infrastructure.page.PageQuery;
 import com.ljwx.modules.health.domain.bo.TAlertInfoBO;
 import com.ljwx.modules.health.domain.entity.TAlertInfo;
 import com.ljwx.modules.health.repository.mapper.TAlertInfoMapper;
-import com.ljwx.modules.health.service.IDeviceUserMappingService;
 import com.ljwx.modules.health.service.ITAlertInfoService;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,8 +51,6 @@ import java.util.stream.Collectors;
 @Service
 public class TAlertInfoServiceImpl extends ServiceImpl<TAlertInfoMapper, TAlertInfo> implements ITAlertInfoService {
 
-    @Autowired
-    private IDeviceUserMappingService deviceUserMappingService;
 
 
     @Override

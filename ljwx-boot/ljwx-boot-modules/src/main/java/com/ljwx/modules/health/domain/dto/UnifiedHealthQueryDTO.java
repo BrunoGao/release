@@ -107,7 +107,8 @@ public class UnifiedHealthQueryDTO implements Serializable {
      */
     public Integer getValidPageSize() {
         if (pageSize == null || pageSize <= 0) return 20;
-        return Math.min(pageSize, 1000); // 最大1000条
+        // 移除1000条的硬性限制，允许更大的页面大小用于数据处理
+        return pageSize;
     }
 
     /**
