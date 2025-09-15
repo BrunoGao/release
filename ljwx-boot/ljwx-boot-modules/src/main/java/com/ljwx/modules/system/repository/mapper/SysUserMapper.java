@@ -3,6 +3,7 @@ package com.ljwx.modules.system.repository.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.ljwx.modules.health.domain.vo.MessageResponseDetailVO;
+import com.ljwx.modules.health.domain.vo.NonRespondedUserVO;
 import com.ljwx.modules.system.domain.bo.SysUserBO;
 import com.ljwx.modules.system.domain.entity.SysUser;
 import org.apache.ibatis.annotations.Mapper;
@@ -129,7 +130,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             "LEFT JOIN sys_org_units ou ON uo.org_id = ou.id " +
             "WHERE u.device_sn = #{deviceSn} " +
             "ORDER BY u.id DESC LIMIT 1")
-    MessageResponseDetailVO.NonRespondedUserVO getUserInfoByDeviceSn(@Param("deviceSn") String deviceSn);
+    NonRespondedUserVO getUserInfoByDeviceSn(@Param("deviceSn") String deviceSn);
 
     @Select("SELECT p.name as position FROM sys_user_position up " +
             "LEFT JOIN sys_position p ON up.position_id = p.id " +

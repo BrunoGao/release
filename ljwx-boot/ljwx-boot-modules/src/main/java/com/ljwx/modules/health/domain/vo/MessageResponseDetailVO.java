@@ -19,41 +19,36 @@
 
 package com.ljwx.modules.health.domain.vo;
 
-import com.ljwx.infrastructure.domain.BaseVO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
-*  VO 展示类
-*
-* @Author brunoGao
-* @ProjectName ljwx-boot
-* @ClassName com.ljwx.modules.health.domain.vo.TDeviceMessageVO
-* @CreateTime 2024-10-24 - 13:07:24
-*/
-
+ * 消息响应详情 VO 对象
+ *
+ * @Author brunoGao
+ * @ProjectName ljwx-boot
+ * @ClassName com.ljwx.modules.health.domain.vo.MessageResponseDetailVO
+ * @CreateTime 2025-09-15 - 21:00:00
+ */
 @Data
-@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(name = "MessageResponseDetailVO", description = "消息响应详情 VO 对象")
-public class MessageResponseDetailVO extends BaseVO {
+public class MessageResponseDetailVO implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
+    @Schema(description = "设备用户总数")
     private Long totalUsersWithDevices;
-    private Integer respondedCount;
-    private List<NonRespondedUserVO> nonRespondedUsers;
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class NonRespondedUserVO {
-        private String departmentName;
-        private String userName;
-        private String deviceSn;
-    }
+    @Schema(description = "已响应数量")
+    private Integer respondedCount;
+
+    @Schema(description = "未响应用户列表")
+    private List<NonRespondedUserVO> nonRespondedUsers;
 }

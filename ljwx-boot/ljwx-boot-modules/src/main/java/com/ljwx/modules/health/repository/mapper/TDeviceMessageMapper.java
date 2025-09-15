@@ -21,6 +21,10 @@ package com.ljwx.modules.health.repository.mapper;
 
 import com.ljwx.modules.health.domain.entity.TDeviceMessage;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
 
 /**
  *  Mapper 接口层
@@ -32,5 +36,30 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  */
 
 public interface TDeviceMessageMapper extends BaseMapper<TDeviceMessage> {
+
+    /**
+     * 检查用户是否已确认消息
+     * 基于真实数据库表结构：delivery_status = 'ACKNOWLEDGED'
+     */
+    @Select("SELECT COUNT(*) FROM t_device_message_detail " +
+            "WHERE message_id = #{messageId} AND target_id = #{userId} " +
+            "AND delivery_status = 'ACKNOWLEDGED' AND is_deleted = 0")
+    Long checkUserAcknowledgement(@Param("messageId") Long messageId, @Param("userId") String userId);
+
+    /**
+     * 查询已确认消息的用户ID列表
+     * delivery_status = 'ACKNOWLEDGED' 表示已确认
+     */
+    @Select("SELECT DISTINCT target_id FROM t_device_message_detail " +
+            "WHERE message_id = #{messageId} AND delivery_status = 'ACKNOWLEDGED' " +
+            "AND target_type = 'USER' AND is_deleted = 0")
+    List<String> getAcknowledgedUserIds(@Param("messageId") Long messageId);
+
+    /**
+     * 检查t_device_message_detail表是否存在
+     */
+    @Select("SELECT COUNT(*) FROM information_schema.tables " +
+            "WHERE table_schema = DATABASE() AND table_name = 't_device_message_detail'")
+    Long checkDetailTableExists();
 
 }

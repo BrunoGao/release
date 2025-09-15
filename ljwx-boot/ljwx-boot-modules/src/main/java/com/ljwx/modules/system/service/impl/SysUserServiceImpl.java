@@ -17,6 +17,7 @@ import com.ljwx.infrastructure.util.RedisUtil;
 import com.ljwx.infrastructure.util.ServletHolderUtil;
 import com.ljwx.modules.health.domain.entity.TDeviceInfo;
 import com.ljwx.modules.health.domain.vo.MessageResponseDetailVO;
+import com.ljwx.modules.health.domain.vo.NonRespondedUserVO;
 import com.ljwx.modules.health.service.ITDeviceInfoService;
 import com.ljwx.modules.health.service.ITDeviceUserService;
 
@@ -762,7 +763,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
-    public MessageResponseDetailVO.NonRespondedUserVO  getByDeviceSn(String deviceSn) {
+    public NonRespondedUserVO getByDeviceSn(String deviceSn) {
         return baseMapper.getUserInfoByDeviceSn(deviceSn);
     }
 

@@ -19,32 +19,245 @@
 
 package com.ljwx.modules.health.service;
 
-import com.ljwx.infrastructure.page.PageQuery;
-import com.ljwx.modules.health.domain.bo.TDeviceMessageBO;
-import com.ljwx.modules.health.domain.entity.TDeviceMessage;
-import com.baomidou.mybatisplus.extension.service.IService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.ljwx.infrastructure.page.PageQuery;
+import com.ljwx.modules.health.domain.entity.TDeviceMessage;
+import com.ljwx.modules.health.domain.dto.device.message.TDeviceMessageAddDTO;
+import com.ljwx.modules.health.domain.dto.device.message.TDeviceMessageSearchDTO;
+import com.ljwx.modules.health.domain.dto.device.message.TDeviceMessageUpdateDTO;
+import com.ljwx.modules.health.domain.vo.MessageStatisticsVO;
+import com.ljwx.modules.health.domain.vo.MessageSummaryVO;
 import com.ljwx.modules.health.domain.vo.TDeviceMessageVO;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
 /**
- *  Service 服务接口层
- *
+ * 设备消息服务接口
+ * 
+ * 主要特性：
+ * 1. 批量操作支持
+ * 2. 高性能查询
+ * 3. 统计分析功能
+ * 4. 缓存策略集成
+ * 
  * @Author brunoGao
  * @ProjectName ljwx-boot
  * @ClassName com.ljwx.modules.health.service.ITDeviceMessageService
- * @CreateTime 2024-10-24 - 13:07:24
+ * @CreateTime 2025-09-10 - 16:00:00
  */
-
 public interface ITDeviceMessageService extends IService<TDeviceMessage> {
 
+    // ==================== 基础CRUD操作 ====================
+
     /**
-     *  - 分页查询
-     *
-     * @param pageQuery 分页对象
-     * @param tDeviceMessageBO BO 查询对象
-     * @return {@link IPage} 分页结果
-     * @author payne.zhuang
-     * @CreateTime 2024-10-24 - 13:07:24
+     * 分页查询消息
      */
-    IPage<TDeviceMessageVO> listTDeviceMessagePage(PageQuery pageQuery, TDeviceMessageBO tDeviceMessageBO);
+    IPage<TDeviceMessageVO> pageMessages(PageQuery pageQuery, TDeviceMessageSearchDTO queryDTO);
+
+    /**
+     * 分页查询消息 - 兼容BO接口
+     */
+    IPage<TDeviceMessageVO> listTDeviceMessagePage(PageQuery pageQuery, com.ljwx.modules.health.domain.bo.TDeviceMessageBO queryBO);
+
+    /**
+     * 创建消息 - 支持批量分发
+     */
+    Long createMessage(TDeviceMessageAddDTO createDTO);
+
+    /**
+     * 批量创建消息
+     */
+    List<Long> batchCreateMessages(List<TDeviceMessageAddDTO> createDTOs);
+
+    /**
+     * 更新消息
+     */
+    boolean updateMessage(TDeviceMessageUpdateDTO updateDTO);
+
+    /**
+     * 根据ID获取消息详情
+     */
+    TDeviceMessageVO getMessageById(Long messageId);
+
+    /**
+     * 软删除消息
+     */
+    boolean deleteMessage(Long messageId);
+
+    /**
+     * 批量软删除消息
+     */
+    boolean batchDeleteMessages(List<Long> messageIds);
+
+    // ==================== 消息分发操作 ====================
+
+    /**
+     * 发送消息到指定设备
+     */
+    boolean sendToDevice(Long messageId, String deviceSn);
+
+    /**
+     * 发送消息到指定用户
+     */
+    boolean sendToUser(Long messageId, String userId);
+
+    /**
+     * 发送消息到部门 - 群发
+     */
+    boolean sendToDepartment(Long messageId, Long orgId);
+
+    /**
+     * 发送消息到组织 - 群发
+     */
+    boolean sendToOrganization(Long messageId, Long customerId);
+
+    /**
+     * 批量分发消息
+     */
+    Map<String, Object> batchDistributeMessage(Long messageId, List<String> targets, String targetType);
+
+    // ==================== 消息状态管理 ====================
+
+    /**
+     * 确认消息
+     */
+    boolean acknowledgeMessage(Long messageId, String targetId, String channel);
+
+    /**
+     * 批量确认消息
+     */
+    boolean batchAcknowledgeMessages(List<Long> messageIds, String targetId);
+
+    /**
+     * 标记消息为已送达
+     */
+    boolean markAsDelivered(Long messageId, String targetId, String channel);
+
+    /**
+     * 标记消息为失败
+     */
+    boolean markAsFailed(Long messageId, String targetId, String channel, String errorMessage);
+
+    /**
+     * 重发失败的消息
+     */
+    boolean retryFailedMessage(Long messageId, String targetId);
+
+    // ==================== 查询操作 ====================
+
+    /**
+     * 根据设备获取消息列表
+     */
+    List<TDeviceMessageVO> getMessagesByDevice(String deviceSn, Integer limit);
+
+    /**
+     * 根据用户获取消息列表
+     */
+    List<TDeviceMessageVO> getMessagesByUser(String userId, Integer limit);
+
+    /**
+     * 获取组织消息列表
+     */
+    IPage<TDeviceMessageVO> getOrganizationMessages(Long customerId, Long orgId, PageQuery pageQuery);
+
+    /**
+     * 获取未读消息数量
+     */
+    Long getUnreadCount(String targetId, String targetType);
+
+    /**
+     * 获取过期消息列表
+     */
+    List<TDeviceMessageVO> getExpiredMessages(LocalDateTime before);
+
+    /**
+     * 根据消息类型查询
+     */
+    IPage<TDeviceMessageVO> getMessagesByType(String messageType, PageQuery pageQuery);
+
+    // ==================== 统计分析 ====================
+
+    /**
+     * 获取消息统计信息
+     */
+    MessageStatisticsVO getMessageStatistics(Long customerId, Long orgId, LocalDateTime startTime, LocalDateTime endTime);
+
+    /**
+     * 获取消息汇总信息
+     */
+    MessageSummaryVO getMessageSummary(Long messageId);
+
+    /**
+     * 获取渠道分发统计
+     */
+    Map<String, Object> getChannelStatistics(Long customerId, LocalDateTime startTime, LocalDateTime endTime);
+
+    /**
+     * 获取响应时间统计
+     */
+    Map<String, Object> getResponseTimeStatistics(Long customerId, String messageType, LocalDateTime startTime, LocalDateTime endTime);
+
+    /**
+     * 获取消息类型分布
+     */
+    Map<String, Long> getMessageTypeDistribution(Long customerId, LocalDateTime startTime, LocalDateTime endTime);
+
+    // ==================== 生命周期管理 ====================
+
+    /**
+     * 清理过期消息
+     */
+    int cleanupExpiredMessages(LocalDateTime before);
+
+    /**
+     * 清理已完成消息 (保留指定天数)
+     */
+    int cleanupCompletedMessages(int retentionDays);
+
+    /**
+     * 归档历史消息
+     */
+    int archiveHistoryMessages(LocalDateTime before);
+
+    // ==================== 缓存操作 ====================
+
+    /**
+     * 预热消息缓存
+     */
+    void warmupMessageCache(Long customerId);
+
+    /**
+     * 清理消息缓存
+     */
+    void clearMessageCache(Long messageId);
+
+    /**
+     * 刷新统计缓存
+     */
+    void refreshStatisticsCache(Long customerId);
+
+    // ==================== 高级功能 ====================
+
+    /**
+     * 消息去重检查
+     */
+    boolean isDuplicateMessage(String deviceSn, String messageContent, LocalDateTime withinMinutes);
+
+    /**
+     * 获取消息传播路径
+     */
+    List<Map<String, Object>> getMessagePropagationPath(Long messageId);
+
+    /**
+     * 消息性能分析
+     */
+    Map<String, Object> analyzeMessagePerformance(Long messageId);
+
+    /**
+     * 批量导出消息
+     */
+    List<Map<String, Object>> exportMessages(TDeviceMessageSearchDTO queryDTO);
 }

@@ -20,8 +20,8 @@
 package com.ljwx.modules.health.service;
 
 import com.ljwx.modules.health.domain.model.AlertResult;
-import com.ljwx.modules.health.domain.entity.TDeviceMessageV2;
-import com.ljwx.modules.health.domain.entity.TDeviceMessageDetailV2;
+import com.ljwx.modules.health.domain.entity.TDeviceMessage;
+import com.ljwx.modules.health.domain.entity.TDeviceMessageDetail;
 import com.ljwx.modules.health.domain.entity.TAlertInfo;
 import com.ljwx.modules.health.domain.entity.TAlertRules;
 import com.ljwx.infrastructure.util.RedisUtil;
@@ -948,7 +948,7 @@ public class UnifiedMessagePublisher {
      * 发布 V2 消息创建事件到 Redis 消息总线
      */
     @Async
-    public CompletableFuture<Boolean> publishMessageCreated(TDeviceMessageV2 message) {
+    public CompletableFuture<Boolean> publishMessageCreated(TDeviceMessage message) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 V2MessageEvent event = V2MessageEvent.builder()
@@ -983,7 +983,7 @@ public class UnifiedMessagePublisher {
      * 发布 V2 消息分发事件到 Redis 消息总线
      */
     @Async
-    public CompletableFuture<Boolean> publishMessageDistributed(TDeviceMessageV2 message, List<String> targetDevices) {
+    public CompletableFuture<Boolean> publishMessageDistributed(TDeviceMessage message, List<String> targetDevices) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 V2MessageDistributionEvent event = V2MessageDistributionEvent.builder()
@@ -1019,13 +1019,13 @@ public class UnifiedMessagePublisher {
      * 发布 V2 批量消息分发事件到 Redis 消息总线
      */
     @Async
-    public CompletableFuture<Boolean> publishBatchMessageDistributed(List<TDeviceMessageV2> messages, 
+    public CompletableFuture<Boolean> publishBatchMessageDistributed(List<TDeviceMessage> messages, 
                                                                     Map<Long, List<String>> targetMap) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 V2BatchMessageEvent event = V2BatchMessageEvent.builder()
                     .eventType("BATCH_MESSAGE_DISTRIBUTED")
-                    .messageIds(messages.stream().map(TDeviceMessageV2::getId).collect(Collectors.toList()))
+                    .messageIds(messages.stream().map(TDeviceMessage::getId).collect(Collectors.toList()))
                     .batchSize(messages.size())
                     .totalTargets(targetMap.values().stream().mapToInt(List::size).sum())
                     .distributionTime(System.currentTimeMillis())
@@ -1097,7 +1097,7 @@ public class UnifiedMessagePublisher {
      * 将 V2 消息推送到设备队列
      */
     @Async
-    public CompletableFuture<Boolean> pushToDeviceQueue(String deviceSn, TDeviceMessageV2 message, Integer priority) {
+    public CompletableFuture<Boolean> pushToDeviceQueue(String deviceSn, TDeviceMessage message, Integer priority) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 String queueKey = REDIS_KEY_MESSAGE_QUEUE + deviceSn;
@@ -1516,7 +1516,7 @@ public class UnifiedMessagePublisher {
         private Long orgId;
         private String messageType;
         private Long timestamp;
-        private TDeviceMessageV2 payload;
+        private TDeviceMessage payload;
     }
     
     /**
@@ -1583,6 +1583,6 @@ public class UnifiedMessagePublisher {
         private Integer priority;
         private Long queueTime;
         private Long expireTime;
-        private TDeviceMessageV2 message;
+        private TDeviceMessage message;
     }
 }

@@ -58,4 +58,13 @@ public class TDeviceMessageSearchDTO implements Serializable {
 
     private Long customerId;
 
+    @Schema(description = "开始日期")
+    private String startDate;
+
+    @Schema(description = "结束日期")
+    private String endDate;
+
+    @Schema(description = "关键字搜索")
+    private String keyword;
+
 }

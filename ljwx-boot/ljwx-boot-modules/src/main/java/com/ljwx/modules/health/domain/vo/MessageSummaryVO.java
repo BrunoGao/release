@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.ljwx.modules.health.domain.vo.v2;
+package com.ljwx.modules.health.domain.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -32,7 +32,7 @@ import java.time.LocalDateTime;
  * 
  * @Author brunoGao
  * @ProjectName ljwx-boot
- * @ClassName com.ljwx.modules.health.domain.vo.v2.MessageSummaryV2VO
+ * @ClassName com.ljwx.modules.health.domain.vo.v2.MessageSummaryVO
  * @CreateTime 2025-09-10 - 16:10:00
  */
 @Data
@@ -40,7 +40,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(description = "V2消息摘要视图对象")
-public class MessageSummaryV2VO {
+public class MessageSummaryVO {
 
     @Schema(description = "今日消息总数")
     private Long todayTotal;

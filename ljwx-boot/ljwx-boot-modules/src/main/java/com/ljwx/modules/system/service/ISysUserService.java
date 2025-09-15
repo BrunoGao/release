@@ -8,6 +8,7 @@ import com.ljwx.modules.system.domain.bo.SysUserBO;
 import com.ljwx.modules.system.domain.bo.SysUserResponsibilitiesBO;
 import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.health.domain.vo.MessageResponseDetailVO;
+import com.ljwx.modules.health.domain.vo.NonRespondedUserVO;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
@@ -226,7 +227,7 @@ public interface ISysUserService extends IService<SysUser> {
      * @param deviceSn device serial number
      * @return SysUser
      */
-    MessageResponseDetailVO.NonRespondedUserVO getByDeviceSn(String deviceSn);
+    NonRespondedUserVO getByDeviceSn(String deviceSn);
 
     /**
      * 判断用户是否为管理员（优化版本）

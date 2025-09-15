@@ -47,6 +47,8 @@ public class TDeviceMessageAddDTO implements Serializable {
 
     private String userId;
 
+    private String title;
+
     private String message;
 
     private String messageType;

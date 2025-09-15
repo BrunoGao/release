@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.ljwx.modules.health.domain.vo.v2;
+package com.ljwx.modules.health.domain.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -28,19 +28,19 @@ import lombok.NoArgsConstructor;
 import java.util.Map;
 
 /**
- * V2消息统计视图对象
+ * 消息统计视图对象
  * 
  * @Author brunoGao
  * @ProjectName ljwx-boot
- * @ClassName com.ljwx.modules.health.domain.vo.v2.MessageStatisticsV2VO
+ * @ClassName com.ljwx.modules.health.domain.vo.MessageStatisticsVO
  * @CreateTime 2025-09-10 - 16:10:00
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "V2消息统计视图对象")
-public class MessageStatisticsV2VO {
+@Schema(description = "消息统计视图对象")
+public class MessageStatisticsVO {
 
     @Schema(description = "总消息数")
     private Long totalMessages;
@@ -105,7 +105,7 @@ public class MessageStatisticsV2VO {
     @Schema(description = "每小时统计")
     private Map<String, Long> hourlyStats;
 
-    // V1兼容性方法
+    // 兼容性方法
     public Long getDeliveredCount() {
         return this.receivedMessages;
     }

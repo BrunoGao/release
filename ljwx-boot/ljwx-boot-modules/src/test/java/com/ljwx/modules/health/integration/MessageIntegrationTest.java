@@ -19,9 +19,9 @@
 
 package com.ljwx.modules.health.integration;
 
-import com.ljwx.modules.health.domain.entity.TDeviceMessageV2;
-import com.ljwx.modules.health.domain.entity.TDeviceMessageDetailV2;
-import com.ljwx.modules.health.service.ITDeviceMessageV2Service;
+import com.ljwx.modules.health.domain.entity.TDeviceMessage;
+import com.ljwx.modules.health.domain.entity.TDeviceMessageDetail;
+import com.ljwx.modules.health.service.ITDeviceMessageService;
 import com.ljwx.modules.health.service.UnifiedMessagePublisher;
 import com.ljwx.common.util.RedisUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -54,10 +54,10 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 @Transactional
 @Slf4j
-public class MessageV2IntegrationTest {
+public class MessageIntegrationTest {
     
     @Autowired
-    private ITDeviceMessageV2Service messageV2Service;
+    private ITDeviceMessageService messageService;
     
     @Autowired
     private UnifiedMessagePublisher messagePublisher;
@@ -68,8 +68,8 @@ public class MessageV2IntegrationTest {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     
-    private TDeviceMessageV2 testMessage;
-    private TDeviceMessageDetailV2 testDetail;
+    private TDeviceMessage testMessage;
+    private TDeviceMessageDetail testDetail;
     
     @BeforeEach
     void setUp() {
@@ -91,7 +91,7 @@ public class MessageV2IntegrationTest {
         log.info("开始完整V2消息处理流程测试");
         
         // 1. 保存V2消息到数据库
-        TDeviceMessageV2 savedMessage = messageV2Service.save(testMessage);
+        TDeviceMessage savedMessage = messageService.save(testMessage);
         assertNotNull(savedMessage.getId());
         log.info("V2消息已保存到数据库: id={}", savedMessage.getId());
         
@@ -172,19 +172,19 @@ public class MessageV2IntegrationTest {
         log.info("开始V2批量消息处理测试");
         
         // 1. 创建批量测试消息
-        List<TDeviceMessageV2> batchMessages = new ArrayList<>();
+        List<TDeviceMessage> batchMessages = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
-            TDeviceMessageV2 message = createTestMessage();
+            TDeviceMessage message = createTestMessage();
             message.setDeviceSn("BATCH_DEVICE_" + String.format("%03d", i));
             message.setMessageContent("批量测试消息 " + i);
-            TDeviceMessageV2 saved = messageV2Service.save(message);
+            TDeviceMessage saved = messageService.save(message);
             batchMessages.add(saved);
         }
         log.info("批量测试消息创建完成: count={}", batchMessages.size());
         
         // 2. 准备目标设备映射
         Map<Long, List<String>> targetMap = new HashMap<>();
-        for (TDeviceMessageV2 message : batchMessages) {
+        for (TDeviceMessage message : batchMessages) {
             List<String> targets = Arrays.asList("TARGET_" + message.getDeviceSn() + "_1", "TARGET_" + message.getDeviceSn() + "_2");
             targetMap.put(message.getId(), targets);
         }
@@ -197,7 +197,7 @@ public class MessageV2IntegrationTest {
         
         // 4. 验证各消息状态
         Thread.sleep(200); // 等待异步操作完成
-        for (TDeviceMessageV2 message : batchMessages) {
+        for (TDeviceMessage message : batchMessages) {
             String statusKey = "ljwx:message:status:" + message.getId();
             Object batchStatus = redisUtil.hGet(statusKey, "status");
             assertEquals("BATCH_DISTRIBUTED", batchStatus);
@@ -219,11 +219,11 @@ public class MessageV2IntegrationTest {
         List<CompletableFuture<Boolean>> publishFutures = new ArrayList<>();
         
         for (int i = 1; i <= testMessageCount; i++) {
-            TDeviceMessageV2 message = createTestMessage();
+            TDeviceMessage message = createTestMessage();
             message.setDeviceSn("PERF_DEVICE_" + String.format("%03d", i));
             message.setMessageContent("性能测试消息 " + i);
             
-            TDeviceMessageV2 saved = messageV2Service.save(message);
+            TDeviceMessage saved = messageService.save(message);
             CompletableFuture<Boolean> future = messagePublisher.publishMessageCreated(saved);
             publishFutures.add(future);
         }
@@ -259,9 +259,9 @@ public class MessageV2IntegrationTest {
         
         // 1. 模拟Redis连接异常场景
         try {
-            TDeviceMessageV2 message = createTestMessage();
+            TDeviceMessage message = createTestMessage();
             message.setDeviceSn("ERROR_TEST_DEVICE");
-            TDeviceMessageV2 saved = messageV2Service.save(message);
+            TDeviceMessage saved = messageService.save(message);
             
             // 模拟错误设备名称
             CompletableFuture<Boolean> result = messagePublisher.pushToDeviceQueue("", saved, 5);
@@ -280,9 +280,9 @@ public class MessageV2IntegrationTest {
         log.info("错误处理后系统统计: {}", stats);
         
         // 3. 正常消息处理验证（系统恢复能力）
-        TDeviceMessageV2 normalMessage = createTestMessage();
+        TDeviceMessage normalMessage = createTestMessage();
         normalMessage.setDeviceSn("RECOVERY_TEST_DEVICE");
-        TDeviceMessageV2 savedNormal = messageV2Service.save(normalMessage);
+        TDeviceMessage savedNormal = messageService.save(normalMessage);
         
         CompletableFuture<Boolean> normalResult = messagePublisher.publishMessageCreated(savedNormal);
         Boolean isNormalPublished = normalResult.get(5, TimeUnit.SECONDS);
@@ -291,8 +291,8 @@ public class MessageV2IntegrationTest {
         log.info("V2消息错误处理和恢复测试成功完成！");
     }
     
-    private TDeviceMessageV2 createTestMessage() {
-        TDeviceMessageV2 message = new TDeviceMessageV2();
+    private TDeviceMessage createTestMessage() {
+        TDeviceMessage message = new TDeviceMessage();
         message.setDeviceSn("TEST_DEVICE_" + System.currentTimeMillis());
         message.setUserId(1001L);
         message.setOrgId(2001L);
@@ -319,8 +319,8 @@ public class MessageV2IntegrationTest {
         return message;
     }
     
-    private TDeviceMessageDetailV2 createTestMessageDetail(Long messageId) {
-        TDeviceMessageDetailV2 detail = new TDeviceMessageDetailV2();
+    private TDeviceMessageDetail createTestMessageDetail(Long messageId) {
+        TDeviceMessageDetail detail = new TDeviceMessageDetail();
         detail.setMessageId(messageId);
         detail.setDeviceSn("TEST_DEVICE_" + System.currentTimeMillis());
         detail.setDataType("HEART_RATE");

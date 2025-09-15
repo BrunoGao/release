@@ -70,6 +70,7 @@ public class TUserHealthDataController {
 
     @NonNull
     private ITUserHealthDataService tUserHealthDataService;
+    
 
     
 
@@ -122,6 +123,7 @@ public class TUserHealthDataController {
         data.put("columns", vo.getColumns());
         return Result.data(data);
     }
+    
 
     @GetMapping("/{id}")
     //@SaCheckPermission("t:user:health:data:get")

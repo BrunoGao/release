@@ -17,36 +17,47 @@
 * limitations under the License.
 */
 
-package com.ljwx.modules.health.domain.dto.device.message;
+package com.ljwx.modules.health.domain.entity;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Getter;
-import lombok.Setter;
-import java.io.Serializable;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.ljwx.infrastructure.domain.BaseEntity;
+
 import java.time.LocalDateTime;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+
 /**
-*  编辑更新 DTO 对象
+*  Entity 实体类
 *
-* @Author brunoGao
+* @Author jjgao
 * @ProjectName ljwx-boot
-* @ClassName com.ljwx.modules.health.domain.dto.device.message.TDeviceMessageUpdateDTO
-* @CreateTime 2024-10-24 - 13:07:24
+* @ClassName com.ljwx.modules.health.domain.entity.TDeviceMessageDetail
+* @CreateTime 2025-03-05 - 19:57:37
 */
 
-@Getter
-@Setter
-@Schema(name = "TDeviceMessageUpdateDTO", description = " 编辑更新 DTO 对象")
-public class TDeviceMessageUpdateDTO implements Serializable {
-    private Long id;
+@Data
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@TableName("t_device_message_detail")
+public class TDeviceMessageDetail extends BaseEntity {
 
+    private String messageId;
+
+    /**
+     * 租户ID，继承自消息所属租户
+     */
+    private Long customerId;
+
+    /**
+     * 组织ID
+     */
     private Long orgId;
 
-    private String userName;
-
     private String deviceSn;
-
-    private String userId;
 
     private String message;
 
@@ -61,23 +72,5 @@ public class TDeviceMessageUpdateDTO implements Serializable {
     private LocalDateTime sentTime;
 
     private LocalDateTime receivedTime;
-
-    private Long customerId;
-    
-    private String title;
-    
-    private String urgency;
-    
-    private Integer respondedNumber;
-    
-    private Integer priority;
-    
-    private java.util.List<String> channels;
-    
-    private Boolean requireAck;
-    
-    private LocalDateTime expiryTime;
-    
-    private java.util.Map<String, Object> metadata;
 
 }

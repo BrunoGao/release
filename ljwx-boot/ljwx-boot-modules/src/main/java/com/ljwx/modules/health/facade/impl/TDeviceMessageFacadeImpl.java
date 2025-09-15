@@ -88,4 +88,5 @@ public class TDeviceMessageFacadeImpl implements ITDeviceMessageFacade {
         return tDeviceMessageService.removeBatchByIds(tDeviceMessageBO.getIds(), true);
     }
 
+
 }

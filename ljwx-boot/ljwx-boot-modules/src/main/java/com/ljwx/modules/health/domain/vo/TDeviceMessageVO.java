@@ -56,6 +56,7 @@ public class TDeviceMessageVO extends BaseVO {
     private String title;
 
     private String userName;
+    private String orgName;
     private String departmentName;
 
     private String deviceSn;
@@ -70,6 +71,9 @@ public class TDeviceMessageVO extends BaseVO {
 
     private Integer respondedNumber;
 
+    private Integer targetCount;
+
+    @Schema(description = "响应详情")
     private MessageResponseDetailVO respondedDetail;
 
     private String messageStatus;
@@ -83,5 +87,13 @@ public class TDeviceMessageVO extends BaseVO {
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
+
+    // 中文名称字段
+    private String messageTypeName;
+    private String senderTypeName;  
+    private String receiverTypeName;
+    private String urgencyName;
+    private String messageStatusName;
+    private boolean expired;
 
 }

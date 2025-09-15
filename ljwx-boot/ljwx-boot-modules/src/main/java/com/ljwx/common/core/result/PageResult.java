@@ -32,7 +32,7 @@ public class PageResult<T> implements Serializable {
     }
 
     public static <T> PageResult<T> empty() {
-        return new PageResult<T>(null, 0L, 1L, 10L, 0L);
+        return new PageResult<T>(null, 0L, 1L, 10L);
     }
 
     public static <T> PageResult<T> of(List<T> records, Long total, Long current, Long size) {

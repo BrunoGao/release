@@ -381,14 +381,14 @@ public class OrgStatisticsServiceImpl implements IOrgStatisticsService {
                 vo.setDeviceSn(message.getDeviceSn());
                 vo.setId(message.getId());
                 vo.setMessage(message.getMessage());
-                vo.setMessageStatus(message.getMessageStatus());
-                vo.setMessageType(message.getMessageType());
+                vo.setMessageStatus(message.getMessageStatus() != null ? message.getMessageStatus().getCode() : null);
+                vo.setMessageType(message.getMessageType() != null ? message.getMessageType().getCode() : null);
                 vo.setReceivedTime(message.getReceivedTime());
                 vo.setSentTime(message.getSentTime());
                 
                 // 统计 - 处理null值,避免JSON序列化错误
-                String messageStatus = message.getMessageStatus() != null ? message.getMessageStatus() : "UNKNOWN";
-                String messageType = message.getMessageType() != null ? message.getMessageType() : "UNKNOWN";
+                String messageStatus = message.getMessageStatus() != null ? message.getMessageStatus().getCode() : "UNKNOWN";
+                String messageType = message.getMessageType() != null ? message.getMessageType().getCode() : "UNKNOWN";
                 
                 statusCounts.merge(messageStatus, 1, Integer::sum);
                 typeCounts.merge(messageType, 1, Integer::sum);
