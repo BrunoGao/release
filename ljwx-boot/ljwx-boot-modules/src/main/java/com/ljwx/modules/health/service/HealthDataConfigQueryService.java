@@ -80,6 +80,7 @@ public class HealthDataConfigQueryService {
         "stress",            // 压力
         "pressure_high",     // 收缩压
         "pressure_low",      // 舒张压
+        "location",          // 位置坐标
         "sleepData"          // 睡眠数据
     );
 

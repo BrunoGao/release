@@ -156,9 +156,14 @@ public class UnifiedHealthDataQueryService {
             result.put("total", allDataResult.get("total"));
             result.put("page", allDataResult.get("page"));
             result.put("pageSize", allDataResult.get("pageSize"));
-            result.put("dailyData", allDataResult.get("dailyData")); // 独立daily数据
-            result.put("weeklyData", allDataResult.get("weeklyData")); // 独立weekly数据
             result.put("supportedFields", allDataResult.get("supportedFields")); // 字段配置
+            
+            // 分解的图表数据
+            result.put("sleepData", allDataResult.get("sleepData"));
+            result.put("workoutData", allDataResult.get("workoutData"));
+            result.put("scientificSleepData", allDataResult.get("scientificSleepData"));
+            result.put("exerciseDailyData", allDataResult.get("exerciseDailyData"));
+            result.put("exerciseWeekData", allDataResult.get("exerciseWeekData"));
             result.put("success", true);
             
             return result;
@@ -169,8 +174,11 @@ public class UnifiedHealthDataQueryService {
             
             Map<String, Object> errorResult = new HashMap<>();
             errorResult.put("basicData", Collections.emptyList());
-            errorResult.put("dailyData", Collections.emptyMap());
-            errorResult.put("weeklyData", Collections.emptyMap());
+            errorResult.put("sleepData", Collections.emptyList());
+            errorResult.put("workoutData", Collections.emptyList());
+            errorResult.put("scientificSleepData", Collections.emptyList());
+            errorResult.put("exerciseDailyData", Collections.emptyList());
+            errorResult.put("exerciseWeekData", Collections.emptyList());
             errorResult.put("total", 0);
             errorResult.put("success", false);
             errorResult.put("error", e.getMessage());
@@ -188,7 +196,7 @@ public class UnifiedHealthDataQueryService {
     private Map<String, Object> queryAllHealthData(UnifiedHealthQueryDTO queryDTO) {
         Map<String, Object> result = new HashMap<>();
         
-        // 1. 获取基础分析字段配置（使用 Basic Enabled Metrics）
+        // 1. 获取基础分析字段配置（使用 Basic Enabled Metrics，维持快慢字段分离架构）
         Map<String, String> supportedFields = getBasicAnalysisFields(queryDTO.getCustomerId());
         log.info("📋 基础分析字段: {}", supportedFields.keySet());
         
@@ -235,9 +243,16 @@ public class UnifiedHealthDataQueryService {
         result.put("total", combinedData.size()); // 总记录数
         result.put("page", queryDTO.getPage());
         result.put("pageSize", queryDTO.getPageSize());
-        result.put("dailyData", dailyDataCollection); // 独立的daily数据用于图表
-        result.put("weeklyData", weeklyDataCollection); // 独立的weekly数据用于图表
         result.put("supportedFields", supportedFields); // 字段配置
+        
+        // 将daily数据分解到根级别，方便前端直接访问
+        result.put("sleepData", dailyDataCollection.getOrDefault("sleepData", Collections.emptyList()));
+        result.put("workoutData", dailyDataCollection.getOrDefault("workoutData", Collections.emptyList()));
+        result.put("scientificSleepData", dailyDataCollection.getOrDefault("scientificSleepData", Collections.emptyList()));
+        result.put("exerciseDailyData", dailyDataCollection.getOrDefault("exerciseDailyData", Collections.emptyList()));
+        
+        // 将weekly数据分解到根级别
+        result.put("exerciseWeekData", weeklyDataCollection.getOrDefault("exerciseWeekData", Collections.emptyList()));
         
         log.info("✅ 表格图表分离查询完成: 基础数据{}条(共{}条), daily数据{}项, weekly数据{}项", 
                 basicDataList.size(), combinedData.size(), 
@@ -892,6 +907,30 @@ public class UnifiedHealthDataQueryService {
             dataMap.put("orgName", "未知部门");
         }
     }
+    
+    /**
+     * 获取用户和组织信息
+     */
+    private Map<String, Object> getUserOrgInfo(Long userId, Long orgId, Long customerId) {
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("userName", "未知用户");
+        userInfo.put("orgName", "未知部门");
+        
+        try {
+            if (userId != null) {
+                SysUser user = sysUserService.getById(userId);
+                if (user != null) {
+                    userInfo.put("userName", user.getUserName());
+                    userInfo.put("orgName", user.getOrgName());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ 获取用户信息失败: userId={}, orgId={}, customerId={}, error={}", 
+                    userId, orgId, customerId, e.getMessage());
+        }
+        
+        return userInfo;
+    }
 
     /**
      * 合并daily数据（睡眠等慢字段）
@@ -1346,6 +1385,7 @@ public class UnifiedHealthDataQueryService {
         basicFields.put("step", "fast");
         basicFields.put("calorie", "fast");
         basicFields.put("distance", "fast");
+        basicFields.put("location", "fast");  // 位置字段也应该在基础字段中
         basicFields.put("sleepData", "daily");
         
         // 兼容字段名
@@ -1690,8 +1730,15 @@ public class UnifiedHealthDataQueryService {
             List<Map<String, Object>> scientificSleepDataList = new ArrayList<>();
             
             for (TUserHealthDataDaily daily : dailyList) {
+                // 获取用户和组织信息
+                Map<String, Object> userInfo = getUserOrgInfo(daily.getUserId(), daily.getOrgId(), daily.getCustomerId());
+                
                 Map<String, Object> dailyRecord = new HashMap<>();
                 dailyRecord.put("userId", daily.getUserId());
+                dailyRecord.put("orgId", daily.getOrgId());
+                dailyRecord.put("customerId", daily.getCustomerId());
+                dailyRecord.put("userName", userInfo.get("userName"));
+                dailyRecord.put("orgName", userInfo.get("orgName"));
                 dailyRecord.put("date", daily.getTimestamp());
                 
                 // 收集睡眠数据
@@ -1794,8 +1841,15 @@ public class UnifiedHealthDataQueryService {
                 if ((supportedFields.containsKey("exerciseWeekData") || supportedFields.containsKey("exercise_week")) 
                     && weekly.getExerciseWeekData() != null) {
                     
+                    // 获取用户和组织信息
+                    Map<String, Object> userInfo = getUserOrgInfo(weekly.getUserId(), weekly.getOrgId(), weekly.getCustomerId());
+                    
                     Map<String, Object> weeklyRecord = new HashMap<>();
                     weeklyRecord.put("userId", weekly.getUserId());
+                    weeklyRecord.put("orgId", weekly.getOrgId());
+                    weeklyRecord.put("customerId", weekly.getCustomerId());
+                    weeklyRecord.put("userName", userInfo.get("userName"));
+                    weeklyRecord.put("orgName", userInfo.get("orgName"));
                     weeklyRecord.put("date", weekly.getTimestamp());
                     weeklyRecord.put("rawData", weekly.getExerciseWeekData()); // 原始JSON
                     weeklyRecord.put("processed", processExerciseWeekData(weekly.getExerciseWeekData())); // 解析后数据

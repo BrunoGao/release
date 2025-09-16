@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Arrays;
+import java.util.ArrayList;
 /**
  *  Controller 控制层
  *
@@ -124,12 +125,15 @@ public class TUserHealthDataController {
         try {
             // 转换为统一查询DTO
             UnifiedHealthQueryDTO queryDTO = new UnifiedHealthQueryDTO();
-            queryDTO.setPage(pageQuery.getCurrent());
-            queryDTO.setPageSize(pageQuery.getSize());
+            queryDTO.setPage(pageQuery.getPage());
+            queryDTO.setPageSize(pageQuery.getPageSize());
             queryDTO.setCustomerId(dto.getCustomerId());
-            queryDTO.setUserId(dto.getUserId());
-            queryDTO.setOrgId(dto.getOrgId());
-            queryDTO.setDeviceSn(dto.getDeviceSn());
+            if (dto.getUserId() != null && !dto.getUserId().isEmpty()) {
+                queryDTO.setUserId(Long.parseLong(dto.getUserId()));
+            }
+            if (dto.getOrgId() != null && !dto.getOrgId().isEmpty()) {
+                queryDTO.setOrgId(Long.parseLong(dto.getOrgId()));
+            }
             
             // 时间戳转换
             if (dto.getStartDate() != null) {
@@ -147,24 +151,30 @@ public class TUserHealthDataController {
             data.put("page", result.get("page"));
             data.put("pageSize", result.get("pageSize"));
             data.put("pages", result.get("total").equals(0) ? 0 : 
-                (int)Math.ceil((double)(Long)result.get("total") / (Integer)result.get("pageSize")));
+                (int)Math.ceil((double)(Integer)result.get("total") / (Integer)result.get("pageSize")));
             data.put("total", result.get("total"));
             data.put("records", result.get("basicData")); // 基础表格数据
-            
-            // 独立的图表数据
-            data.put("dailyData", result.get("dailyData")); // 独立daily数据用于图表
-            data.put("weeklyData", result.get("weeklyData")); // 独立weekly数据用于图表
             data.put("supportedFields", result.get("supportedFields")); // 字段配置
+            
+            // 分解的图表数据 - 直接在根级别提供，便于前端访问
+            data.put("sleepData", result.get("sleepData"));
+            data.put("workoutData", result.get("workoutData"));
+            data.put("scientificSleepData", result.get("scientificSleepData"));
+            data.put("exerciseDailyData", result.get("exerciseDailyData"));
+            data.put("exerciseWeekData", result.get("exerciseWeekData"));
             
             // 构建动态列配置（基于Basic Enabled Metrics）
             @SuppressWarnings("unchecked")
             Map<String, String> supportedFields = (Map<String, String>) result.get("supportedFields");
             data.put("columns", buildDynamicColumns(supportedFields));
             
-            log.info("✅ 健康数据页面查询完成: 基础数据{}条, daily数据{}项, weekly数据{}项", 
+            log.info("✅ 健康数据页面查询完成: 基础数据{}条, 睡眠{}条, 锻炼{}条, 科学睡眠{}条, 日常运动{}条, 周运动{}条", 
                     ((List<?>)result.get("basicData")).size(),
-                    ((Map<?, ?>)result.get("dailyData")).size(),
-                    ((Map<?, ?>)result.get("weeklyData")).size());
+                    ((List<?>)result.get("sleepData")).size(),
+                    ((List<?>)result.get("workoutData")).size(),
+                    ((List<?>)result.get("scientificSleepData")).size(),
+                    ((List<?>)result.get("exerciseDailyData")).size(),
+                    ((List<?>)result.get("exerciseWeekData")).size());
             
             return Result.data(data);
             

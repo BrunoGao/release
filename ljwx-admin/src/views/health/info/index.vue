@@ -23,6 +23,9 @@ const tableData = ref<any[]>([]);
 const selectedUserIds = ref<string[]>([]);
 const selectedRows = ref<any[]>([]);
 
+// 健康数据分析数据（从统一API获取）
+const healthAnalyticsData = ref<any>(null);
+
 // 搜索参数
 const today = new Date();
 const startDate = new Date(today.setHours(0, 0, 0, 0)).getTime();
@@ -68,18 +71,40 @@ const loadHealthData = async () => {
     const response = await fetchGetHealthDataBasicList(searchParams.value);
     
     if (response.data) {
+      // 基础表格数据
       tableData.value = response.data.records || [];
       pagination.value.total = response.data.total || 0;
       
-      console.log('加载健康数据成功:', tableData.value.length, '条记录');
+      // 保存完整的健康分析数据（包含图表数据）
+      healthAnalyticsData.value = {
+        basicData: response.data.records || [],
+        sleepData: response.data.sleepData || [],
+        workoutData: response.data.workoutData || [],
+        scientificSleepData: response.data.scientificSleepData || [],
+        exerciseDailyData: response.data.exerciseDailyData || [],
+        exerciseWeekData: response.data.exerciseWeekData || [],
+        records: response.data.records || [], // 基础数据记录，用于心血管和活动量图表
+        supportedFields: response.data.supportedFields || {}
+      };
+      
+      console.log('加载健康数据成功:', {
+        表格数据: tableData.value.length,
+        睡眠数据: healthAnalyticsData.value.sleepData.length,
+        运动数据: healthAnalyticsData.value.workoutData.length,
+        科学睡眠: healthAnalyticsData.value.scientificSleepData.length,
+        日常运动: healthAnalyticsData.value.exerciseDailyData.length,
+        周运动: healthAnalyticsData.value.exerciseWeekData.length
+      });
     } else {
       tableData.value = [];
       pagination.value.total = 0;
+      healthAnalyticsData.value = null;
     }
   } catch (error) {
     console.error('加载健康数据失败:', error);
     tableData.value = [];
     pagination.value.total = 0;
+    healthAnalyticsData.value = null;
   } finally {
     loading.value = false;
   }
@@ -640,11 +665,9 @@ onMounted(() => {
     </NCard>
 
     <!-- 专业图表分析 -->
-    <div v-if="tableData.length > 0">
+    <div v-if="healthAnalyticsData && tableData.length > 0">
       <HealthAnalyticsCharts
-        :selected-user-ids="getAnalyticsUserIds()"
-        :search-params="searchParams"
-        :customer-id="customerId"
+        :health-data="healthAnalyticsData"
         :visible="true"
       />
     </div>
