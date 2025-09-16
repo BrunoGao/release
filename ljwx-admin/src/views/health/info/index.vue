@@ -1,421 +1,404 @@
 <script setup lang="tsx">
-import { NButton, NTooltip, NDropdown, NTabs, NTabPane } from 'naive-ui';
-import { type Ref, h, onMounted, ref, shallowRef, watch } from 'vue';
-import { utils, writeFile } from 'xlsx';
-
-import * as XLSX from 'xlsx';
-
-import { useAppStore } from '@/store/modules/app';
-import { useAuth } from '@/hooks/business/auth';
+import { NCard, NSpace, NButton, NDataTable, NSkeleton, NTag, NTooltip, NProgress, NEmpty } from 'naive-ui';
+import { ref, onMounted, watch, computed, h } from 'vue';
+import { fetchGetHealthDataBasicList, fetchGetHealthAnalytics, fetchGetSleepAnalytics, fetchGetExerciseAnalytics } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
-import { useTable, useTableOperate } from '@/hooks/common/table';
-import { $t } from '@/locales';
-import { transDeleteParams } from '@/utils/common';
-import { fetchDeleteUserHealthData, fetchGetHealthDataConfigList, fetchGetOrgUnitsTree, fetchGetUserHealthDataList } from '@/service/api';
-import { useDict } from '@/hooks/business/dict';
+import { fetchGetOrgUnitsTree } from '@/service/api';
+import { handleBindUsersByOrgId } from '@/utils/deviceUtils';
 import { convertToBeijingTime } from '@/utils/date';
 
-import { handleBindUsersByOrgId } from '@/utils/deviceUtils';
-
 import UserHealthDataSearch from './modules/user-health-data-search.vue';
-import UserHealthDataOperateDrawer from './modules/user-health-data-operate-drawer.vue';
-import SlowFieldsDetailModal from './modules/slow-fields-detail-modal-charts.vue';
+import HealthAnalyticsCharts from './components/HealthAnalyticsCharts.vue';
+
 defineOptions({
-  name: 'TUserHealthDataPage'
+  name: 'HealthInfoPage'
 });
 
-const operateType = ref<NaiveUI.TableOperateType>('add');
-
-const appStore = useAppStore();
 const authStore = useAuthStore();
-
 const customerId = authStore.userInfo?.customerId;
 
-const editingData: Ref<Api.Health.UserHealthData | null> = ref(null);
+// 基础状态
+const loading = ref(false);
+const tableData = ref<any[]>([]);
+const selectedUserIds = ref<string[]>([]);
+const selectedRows = ref<any[]>([]);
 
-// 慢字段详情模态框
-const slowFieldsModalVisible = ref(false);
-const selectedRowSlowFields = ref<any>(null);
-
-// Tab 切换状态
-const activeTab = ref('table');
-const isSelectedSingleUser = ref(false);
-
-// 演示数据选项
-const demoOptions = [
-  {
-    label: '📅 每周运动数据样例',
-    key: 'weekly',
-    icon: () => h('span', { class: 'mr-2' }, '📅')
-  },
-  {
-    label: '💪 运动记录数据样例', 
-    key: 'workout',
-    icon: () => h('span', { class: 'mr-2' }, '💪')
-  }
-];
-
-// 样例数据 - 每周运动数据
-const sampleWeeklyData = {
-  "data": [
-    {
-      "timeStamps": 1679155199000,
-      "totalSteps": 4931,
-      "strengthTimes": 300,
-      "totalTime": 12
-    },
-    {
-      "timeStamps": 1679241599000,
-      "totalSteps": 3931,
-      "strengthTimes": 300,
-      "totalTime": 12
-    },
-    {
-      "timeStamps": 1679327999000,
-      "totalSteps": 3831,
-      "strengthTimes": 300,
-      "totalTime": 12
-    },
-    {
-      "timeStamps": 0,
-      "totalSteps": 0,
-      "strengthTimes": 0,
-      "totalTime": 0
-    },
-    {
-      "timeStamps": 0,
-      "totalSteps": 0,
-      "strengthTimes": 0,
-      "totalTime": 0
-    },
-    {
-      "timeStamps": 0,
-      "totalSteps": 0,
-      "strengthTimes": 0,
-      "totalTime": 0
-    },
-    {
-      "timeStamps": 0,
-      "totalSteps": 0,
-      "strengthTimes": 0,
-      "totalTime": 0
-    }
-  ],
-  "name": "daily",
-  "type": "history",
-  "code": 0
-};
-
-// 样例数据 - 运动记录数据
-const sampleWorkoutData = {
-  "code": 0,
-  "data": [
-    {
-      "calorie": 60,
-      "distance": 900,
-      "startTimeStamp": 1638793635000,
-      "endTimeStamp": 1638793645000,
-      "workoutType": 10
-    },
-    {
-      "calorie": 20,
-      "distance": 440,
-      "startTimeStamp": 1638793166000,
-      "endTimeStamp": 1638793186000,
-      "recordId": 1,
-      "workoutType": 11
-    },
-    {
-      "calorie": 44,
-      "distance": 650,
-      "startTimeStamp": 1638786425000,
-      "endTimeStamp": 1638786455000,
-      "workoutType": 2
-    }
-  ],
-  "name": "workout",
-  "type": "history"
-};
-
+// 搜索参数
 const today = new Date();
 const startDate = new Date(today.setHours(0, 0, 0, 0)).getTime();
 const endDate = new Date(today.setHours(23, 59, 59, 999)).getTime();
 
-// 列配置
-const columns = ref<any[]>([]);
-const enabledDataTypes = ref<Set<string>>(new Set());
+const searchParams = ref({
+  page: 1,
+  pageSize: 20,
+  customerId,
+  orgId: null,
+  userId: null,
+  startDate,
+  endDate
+});
 
-// 初始化列配置
-async function initColumns() {
+// 分页状态
+const pagination = ref({
+  page: 1,
+  pageSize: 20,
+  total: 0,
+  showSizePicker: true,
+  pageSizes: [10, 20, 50, 100],
+  showQuickJumper: true,
+  onChange: (page: number) => {
+    pagination.value.page = page;
+    searchParams.value.page = page;
+    loadHealthData();
+  },
+  onUpdatePageSize: (pageSize: number) => {
+    pagination.value.pageSize = pageSize;
+    pagination.value.page = 1;
+    searchParams.value.page = 1;
+    searchParams.value.pageSize = pageSize;
+    loadHealthData();
+  }
+});
+
+// 加载健康数据
+const loadHealthData = async () => {
+  loading.value = true;
+  
   try {
-    const params: Api.Customer.HealthDataConfigSearchParams = {
-      customerId,
-      orgId: searchParams.orgId || null,
-      page: 1,
-      pageSize: 20
-    };
-
-    const { error, data } = await fetchGetHealthDataConfigList(params);
-    if (!error && data?.records) {
-      enabledDataTypes.value = new Set(
-        data.records.filter((config: Api.Customer.HealthDataConfig) => config.isEnabled === 1).map(config => config.dataType)
-      );
-
-      console.log('enabledDataTypes.value', enabledDataTypes.value);
-      // 生成列配置
-      columns.value = [
-        { type: 'selection', width: 40, align: 'center' },
-        // 固定列
-        {
-          key: 'index',
-          title: $t('common.index'),
-          width: 64,
-          align: 'center'
-        },
-        {
-          key: 'orgName',
-          title: $t('page.health.device.info.orgName'),
-          align: 'center',
-          width: 200
-        },
-        {
-          key: 'userName',
-          title: $t('page.health.data.info.username'),
-          align: 'center',
-          width: 100
-        },
-        {
-          key: 'heartRate',
-          title: `${$t('page.health.data.info.heartrate')}`,
-          width: 60
-        },
-        {
-          key: 'pressureHigh',
-          title: `${$t('page.health.data.info.pressurehigh')}/${$t('page.health.data.info.pressurelow')}(mmHg)`,
-          render: row => `${row.pressureHigh}/${row.pressureLow}`,
-          width: 80
-        },
-        {
-          key: 'bloodOxygen',
-          title: `${$t('page.health.data.info.bloodoxygen')}(%)`,
-          width: 60
-        },
-        {
-          key: 'temperature',
-          title: `${$t('page.health.data.info.temperature')}(℃)`,
-          width: 60
-        },
-        // 动态生成启用的列
-        ...[
-          {
-            key: 'stress',
-            title: `${$t('page.health.data.info.stress')}(级)`,
-            show: enabledDataTypes.value.has('stress'),
-            width: 60
-          },
-          {
-            key: 'step',
-            title: `${$t('page.health.data.info.step')}(步)`,
-            align: 'center',
-            width: 100,
-            show: enabledDataTypes.value.has('step')
-          },
-          {
-            key: 'distance',
-            title: `${$t('page.health.data.info.distance')}(米)`,
-            align: 'center',
-            width: 80,
-            show: enabledDataTypes.value.has('distance')
-          },
-          {
-            key: 'calorie',
-            title: `${$t('page.health.data.info.calorie')}(卡)`,
-            align: 'center',
-            width: 80,
-            show: enabledDataTypes.value.has('calorie')
-          },
-          {
-            key: 'sleepData',
-            title: `${$t('page.health.data.info.sleepdata')}(小时)`,
-            align: 'center',
-            width: 100,
-            show: enabledDataTypes.value.has('sleep'),
-            render: row => {
-              const sleepData = row.sleepData && Object.keys(row.sleepData).length > 0 ? row.sleepData : { value: '-', tooltip: '-' };
-              const valueText = sleepData.value ?? '-';
-              const tooltipText = sleepData.tooltip ?? '-';
-              const tooltipContent = h('div', null, [
-                h('div', { class: 'font-bold mb-2' }, '睡眠详情：'),
-                h('ul', { class: 'list-none m-0 p-0' }, [
-                  ...tooltipText
-                    .split('；')
-                    .filter(Boolean)
-                    .map(t => h('li', { class: 'py-1' }, t))
-                ])
-              ]);
-
-              return h(
-                NTooltip, // 👈 使用变量，不用 resolveComponent
-                {
-                  trigger: 'hover',
-                  placement: 'top'
-                },
-                {
-                  trigger: () =>
-                    h(
-                      'span',
-                      {
-                        style: 'color:#333;cursor:pointer;user-select:none;'
-                      },
-                      valueText
-                    ),
-                  default: () => tooltipContent
-                }
-              );
-            }
-          },
-          {
-            key: 'workoutData',
-            title: `${$t('page.health.data.info.workoutData')}(分钟)`,
-            align: 'center',
-            width: 100,
-            show: enabledDataTypes.value.has('work_out'),
-            render: row => {
-              const workoutData = row.workoutData && Object.keys(row.workoutData).length > 0 ? row.workoutData : { value: '-', tooltip: '-' };
-
-              const valueText = workoutData.value ?? '-';
-              const tooltipText = workoutData.tooltip ?? '-';
-              const tooltipContent = h('div', null, [
-                h('div', { class: 'font-bold mb-2' }, '运动详情：'),
-                h('ul', { class: 'list-none m-0 p-0' }, [
-                  ...tooltipText
-                    .split('；')
-                    .filter(Boolean)
-                    .map(t => h('li', { class: 'py-1' }, t))
-                ])
-              ]);
-
-              return h(
-                NTooltip, // 👈 使用变量，不用 resolveComponent
-                {
-                  trigger: 'hover',
-                  placement: 'top'
-                },
-                {
-                  trigger: () =>
-                    h(
-                      'span',
-                      {
-                        style: 'color:#333;cursor:pointer;user-select:none;'
-                      },
-                      valueText
-                    ),
-                  default: () => tooltipContent
-                }
-              );
-            }
-          },
-          {
-            key: 'exerciseDailyData',
-            title: `${$t('page.health.data.info.exerciseDailyData')}(分钟)`,
-            align: 'center',
-            width: 100,
-            show: enabledDataTypes.value.has('exercise_daily'),
-            render: row => {
-              const exerciseDailyData =
-                row.exerciseDailyData && Object.keys(row.exerciseDailyData).length > 0 ? row.exerciseDailyData : { value: '-', tooltip: '-' };
-
-              const valueText = exerciseDailyData.value ?? '-';
-              const tooltipText = exerciseDailyData.tooltip ?? '-';
-
-              const tooltipContent = h('div', null, [
-                h('div', { class: 'font-bold mb-2' }, '运动详情：'),
-                h('ul', { class: 'list-none m-0 p-0' }, [
-                  ...tooltipText
-                    .split('；')
-                    .filter(Boolean)
-                    .map(t => h('li', { class: 'py-1' }, t))
-                ])
-              ]);
-
-              return h(
-                NTooltip, // 👈 使用变量，不用 resolveComponent
-                {
-                  trigger: 'hover',
-                  placement: 'top'
-                },
-                {
-                  trigger: () =>
-                    h(
-                      'span',
-                      {
-                        style: 'color:#333;cursor:pointer;user-select:none;'
-                      },
-                      valueText
-                    ),
-                  default: () => tooltipContent
-                }
-              );
-            }
-          },
-          {
-            key: 'coordinates',
-            title: `${$t('page.health.data.info.coordinates')}(度)`,
-            align: 'center',
-            minWidth: 300,
-            render: row => `(${row.latitude}, ${row.longitude}, ${row.altitude})`,
-            show: enabledDataTypes.value.has('location')
-          }
-        ].filter(col => col.show !== false), // 只过滤掉明确标记为 show: false 的列
-        // 其他固定列
-        
-        // 慢字段详情按钮列
-        {
-          key: 'slowFields',
-          title: '详细数据',
-          align: 'center',
-          width: 80,
-          render: row => {
-            // 简化检测逻辑 - 只要有慢字段数据就显示按钮
-            const hasSlowFields = row.sleepData || row.workoutData || row.exerciseDailyData || row.exerciseWeekData;
-            
-            if (!hasSlowFields) return '-';
-            
-            return h(NButton, {
-              size: 'small',
-              type: 'primary',
-              ghost: true,
-              onClick: () => openSlowFieldsDetail(row)
-            }, () => '查看');
-          }
-        },
-        {
-          key: 'timestamp',
-          title: $t('page.health.data.info.timestamp'),
-          align: 'center',
-          width: 200,
-          render: row => convertToBeijingTime(row.timestamp)
-        }
-      ];
+    const response = await fetchGetHealthDataBasicList(searchParams.value);
+    
+    if (response.data) {
+      tableData.value = response.data.records || [];
+      pagination.value.total = response.data.total || 0;
+      
+      console.log('加载健康数据成功:', tableData.value.length, '条记录');
+    } else {
+      tableData.value = [];
+      pagination.value.total = 0;
     }
   } catch (error) {
-    console.error('Error fetching health data config:', error);
+    console.error('加载健康数据失败:', error);
+    tableData.value = [];
+    pagination.value.total = 0;
+  } finally {
+    loading.value = false;
   }
-}
+};
 
-const {
-  columns: tableColumns,
-  columnChecks,
-  data,
-  loading,
-  getData,
-  getDataByPage,
-  mobilePagination,
-  searchParams,
-  resetSearchParams
-} = useTable({
-  apiFn: fetchGetUserHealthDataList,
-  apiParams: {
+// 表格列配置
+const columns = computed(() => [
+  {
+    type: 'selection',
+    key: 'selection',
+    width: 50,
+    fixed: 'left'
+  },
+  {
+    key: 'id',
+    title: 'ID',
+    align: 'center',
+    width: 80,
+    render: (row: any) => h(NTag, { size: 'small', type: 'info' }, { default: () => row.id })
+  },
+  {
+    key: 'orgName',
+    title: '部门名称',
+    align: 'center',
+    width: 150,
+    render: (row: any) => row.orgName || '-'
+  },
+  {
+    key: 'userName',
+    title: '员工名称',
+    align: 'center',
+    width: 120,
+    render: (row: any) => {
+      const name = row.userName || '未知员工';
+      return h(NTag, { 
+        size: 'small', 
+        type: name === '未知员工' ? 'warning' : 'success' 
+      }, { default: () => name });
+    }
+  },
+  {
+    key: 'deviceSn',
+    title: '设备序列号',
+    align: 'center',
+    width: 120,
+    render: (row: any) => {
+      if (!row.deviceSn) return '-';
+      return h(NTooltip, {
+        trigger: 'hover'
+      }, {
+        trigger: () => h('span', { 
+          class: 'cursor-pointer text-blue-600 font-mono text-sm' 
+        }, row.deviceSn.substring(0, 8) + '...'),
+        default: () => row.deviceSn
+      });
+    }
+  },
+  // 生理指标列
+  {
+    key: 'vitalSigns',
+    title: '生理指标',
+    align: 'center',
+    width: 300,
+    render: (row: any) => {
+      const indicators = [];
+      
+      // 心率
+      if (row.heartRate) {
+        const color = getHeartRateColor(row.heartRate);
+        indicators.push(
+          h(NTag, { 
+            size: 'small', 
+            color: { color, textColor: '#fff' },
+            class: 'mr-1 mb-1'
+          }, { 
+            default: () => `❤️ ${row.heartRate}bpm` 
+          })
+        );
+      }
+      
+      // 血氧
+      if (row.bloodOxygen) {
+        const color = getBloodOxygenColor(row.bloodOxygen);
+        indicators.push(
+          h(NTag, { 
+            size: 'small', 
+            color: { color, textColor: '#fff' },
+            class: 'mr-1 mb-1'
+          }, { 
+            default: () => `🫁 ${row.bloodOxygen}%` 
+          })
+        );
+      }
+      
+      // 血压
+      if (row.pressureHigh && row.pressureLow) {
+        const color = getBloodPressureColor(row.pressureHigh, row.pressureLow);
+        indicators.push(
+          h(NTag, { 
+            size: 'small', 
+            color: { color, textColor: '#fff' },
+            class: 'mr-1 mb-1'
+          }, { 
+            default: () => `🩸 ${row.pressureHigh}/${row.pressureLow}` 
+          })
+        );
+      }
+      
+      // 体温
+      if (row.temperature) {
+        const color = getTemperatureColor(row.temperature);
+        indicators.push(
+          h(NTag, { 
+            size: 'small', 
+            color: { color, textColor: '#fff' },
+            class: 'mr-1 mb-1'
+          }, { 
+            default: () => `🌡️ ${row.temperature}°C` 
+          })
+        );
+      }
+      
+      return h('div', { class: 'flex flex-wrap' }, indicators);
+    }
+  },
+  // 活动指标列
+  {
+    key: 'activityMetrics',
+    title: '活动指标',
+    align: 'center',
+    width: 250,
+    render: (row: any) => {
+      const metrics = [];
+      
+      // 步数
+      if (row.step) {
+        const progress = Math.min(row.step / 10000 * 100, 100);
+        metrics.push(
+          h('div', { class: 'mb-2' }, [
+            h('div', { class: 'flex items-center gap-2 mb-1' }, [
+              h('span', { class: 'text-xs text-gray-600' }, '🚶 步数'),
+              h('span', { class: 'text-sm font-medium' }, row.step.toLocaleString())
+            ]),
+            h(NProgress, {
+              percentage: progress,
+              color: progress >= 80 ? '#52c41a' : progress >= 60 ? '#faad14' : '#ff4d4f',
+              height: 4
+            })
+          ])
+        );
+      }
+      
+      // 卡路里和距离
+      const secondRow = [];
+      if (row.calorie) {
+        secondRow.push(
+          h(NTag, { 
+            size: 'small', 
+            type: 'warning',
+            class: 'mr-1'
+          }, { 
+            default: () => `🔥 ${row.calorie}kcal` 
+          })
+        );
+      }
+      if (row.distance) {
+        secondRow.push(
+          h(NTag, { 
+            size: 'small', 
+            type: 'info',
+            class: 'mr-1'
+          }, { 
+            default: () => `📏 ${row.distance}km` 
+          })
+        );
+      }
+      
+      if (secondRow.length > 0) {
+        metrics.push(h('div', { class: 'flex flex-wrap' }, secondRow));
+      }
+      
+      return h('div', { class: 'w-full' }, metrics);
+    }
+  },
+  // 位置信息
+  {
+    key: 'coordinates',
+    title: '位置信息',
+    align: 'center',
+    width: 180,
+    render: (row: any) => {
+      if (!row.latitude || !row.longitude) return '-';
+      
+      const coordStr = `${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}`;
+      return h(NTooltip, {
+        trigger: 'hover'
+      }, {
+        trigger: () => h('span', { 
+          class: 'cursor-pointer text-blue-600 font-mono text-xs' 
+        }, coordStr),
+        default: () => h('div', {}, [
+          h('div', {}, `纬度: ${row.latitude}`),
+          h('div', {}, `经度: ${row.longitude}`),
+          row.altitude ? h('div', {}, `海拔: ${row.altitude}m`) : null
+        ])
+      });
+    }
+  },
+  // 时间戳列 - 移到最后
+  {
+    key: 'timestamp',
+    title: '时间戳',
+    align: 'center',
+    width: 160,
+    render: (row: any) => convertToBeijingTime(row.timestamp)
+  }
+]);
+
+// 颜色判断函数
+const getHeartRateColor = (heartRate: number) => {
+  if (heartRate < 60) return '#fa541c'; // 过低-橙红
+  if (heartRate <= 100) return '#52c41a'; // 正常-绿色
+  if (heartRate <= 140) return '#faad14'; // 偏高-黄色
+  return '#f5222d'; // 过高-红色
+};
+
+const getBloodOxygenColor = (oxygen: number) => {
+  if (oxygen >= 95) return '#52c41a'; // 正常-绿色
+  if (oxygen >= 90) return '#faad14'; // 偏低-黄色
+  return '#f5222d'; // 危险-红色
+};
+
+const getBloodPressureColor = (systolic: number, diastolic: number) => {
+  if (systolic <= 120 && diastolic <= 80) return '#52c41a'; // 正常-绿色
+  if (systolic <= 140 && diastolic <= 90) return '#faad14'; // 偏高-黄色
+  return '#f5222d'; // 高血压-红色
+};
+
+const getTemperatureColor = (temp: number) => {
+  if (temp >= 36.1 && temp <= 37.2) return '#52c41a'; // 正常-绿色
+  if (temp < 36.1) return '#1890ff'; // 偏低-蓝色
+  if (temp <= 38.0) return '#faad14'; // 偏高-黄色
+  return '#f5222d'; // 发热-红色
+};
+
+// 处理表格行选择
+const handleRowSelection = (keys: string[], rows: any[]) => {
+  selectedRows.value = rows;
+  selectedUserIds.value = rows.map(row => row.userId).filter(Boolean);
+  
+  console.log('选择的用户:', selectedUserIds.value);
+};
+
+// 获取用于图表分析的用户ID列表
+const getAnalyticsUserIds = () => {
+  // 如果用户在搜索条件中指定了特定用户，使用该用户
+  if (searchParams.value.userId) {
+    return [searchParams.value.userId];
+  }
+  
+  // 否则使用当前表格中所有用户的ID
+  const userIds = tableData.value
+    .map(row => row.userId)
+    .filter(Boolean)
+    .filter((id, index, arr) => arr.indexOf(id) === index); // 去重
+    
+  console.log('图表分析用户ID:', userIds);
+  return userIds;
+};
+
+// 统计信息
+const statistics = computed(() => {
+  if (!tableData.value || tableData.value.length === 0) {
+    return {
+      totalRecords: 0,
+      avgHeartRate: 0,
+      avgBloodOxygen: 0,
+      totalSteps: 0,
+      totalCalories: 0,
+      healthyCount: 0,
+      abnormalCount: 0
+    };
+  }
+  
+  const records = tableData.value;
+  const validHeartRates = records.filter(r => r.heartRate).map(r => r.heartRate);
+  const validBloodOxygen = records.filter(r => r.bloodOxygen).map(r => r.bloodOxygen);
+  const totalSteps = records.reduce((sum, r) => sum + (r.step || 0), 0);
+  const totalCalories = records.reduce((sum, r) => sum + (r.calorie || 0), 0);
+  
+  // 简单健康评估（心率60-100且血氧>=95为健康）
+  const healthyCount = records.filter(r => 
+    r.heartRate >= 60 && r.heartRate <= 100 && r.bloodOxygen >= 95
+  ).length;
+  
+  return {
+    totalRecords: records.length,
+    avgHeartRate: validHeartRates.length > 0 
+      ? Math.round(validHeartRates.reduce((a, b) => a + b, 0) / validHeartRates.length) 
+      : 0,
+    avgBloodOxygen: validBloodOxygen.length > 0 
+      ? Math.round(validBloodOxygen.reduce((a, b) => a + b, 0) / validBloodOxygen.length) 
+      : 0,
+    totalSteps,
+    totalCalories: Math.round(totalCalories),
+    healthyCount,
+    abnormalCount: records.length - healthyCount
+  };
+});
+
+// 搜索处理
+const handleSearch = () => {
+  pagination.value.page = 1;
+  searchParams.value.page = 1;
+  loadHealthData();
+};
+
+const resetSearchParams = () => {
+  searchParams.value = {
     page: 1,
     pageSize: 20,
     customerId,
@@ -423,268 +406,102 @@ const {
     userId: null,
     startDate,
     endDate
-  },
-  columns: () => columns.value
-});
-
-const { drawerVisible, openDrawer, checkedRowKeys, onDeleted, onBatchDeleted } = useTableOperate(data, getData);
-
-function handleAdd() {
-  operateType.value = 'add';
-  openDrawer();
-}
-
-function edit(item: Api.Health.UserHealthData) {
-  operateType.value = 'edit';
-  editingData.value = { ...item };
-  openDrawer();
-}
-
-async function handleDelete(id: string) {
-  // request
-  const { error, data: result } = await fetchDeleteUserHealthData(transDeleteParams([id]));
-  if (!error && result) {
-    await onDeleted();
-  }
-}
-
-async function handleBatchDelete() {
-  // request
-  const { error, data: result } = await fetchDeleteUserHealthData(transDeleteParams(checkedRowKeys.value));
-  if (!error && result) {
-    await onBatchDeleted();
-  }
-}
-
-// 打开慢字段详情
-function openSlowFieldsDetail(row: any) {
-  selectedRowSlowFields.value = {
-    userId: row.userId,
-    userName: row.userName,
-    orgName: row.orgName,
-    timestamp: row.timestamp,
-    sleepData: row.sleepData,
-    workoutData: row.workoutData,
-    exerciseDailyData: row.exerciseDailyData,
-    exerciseWeekData: row.exerciseWeekData,
-    scientificSleepData: row.scientificSleepData
   };
-  slowFieldsModalVisible.value = true;
-}
+  pagination.value.page = 1;
+  loadHealthData();
+};
 
-// 处理演示数据选择
-function handleDemoSelect(key: string) {
-  if (key === 'weekly') {
-    selectedRowSlowFields.value = {
-      userId: "demo_user_001",
-      userName: "张三 (演示用户)",
-      orgName: "技术部",
-      timestamp: Date.now(),
-      exerciseWeekData: sampleWeeklyData,
-      sleepData: null,
-      workoutData: null,
-      exerciseDailyData: null
-    };
-  } else if (key === 'workout') {
-    selectedRowSlowFields.value = {
-      userId: "demo_user_002",
-      userName: "李四 (演示用户)",
-      orgName: "产品部", 
-      timestamp: Date.now(),
-      exerciseWeekData: null,
-      sleepData: null,
-      workoutData: sampleWorkoutData,
-      exerciseDailyData: null
-    };
+// 导出健康数据
+const exportHealthData = () => {
+  if (tableData.value.length === 0) {
+    window.$message?.warning('暂无数据可导出');
+    return;
   }
-  slowFieldsModalVisible.value = true;
-}
-
-function exportExcel() {
-  // 确保包含部门信息列
-  const exportColumns = [
-    {
-      key: 'orgId',
-      title: '直属部门',
-      width: 120
-    },
-    ...columns.value.slice(2)
-  ];
-
-  // 预计算列宽
-  const colWidths = exportColumns.map(item => ({
-    width: item.key === 'coordinates' ? Math.round((Number(item.width || 180) * 1.5) / 6) : Math.round(Number(item.width || 120) / 6),
-    wch: item.key === 'coordinates' ? Math.round((Number(item.width || 180) * 1.5) / 6) : Math.round(Number(item.width || 120) / 6)
-  }));
-
-  // 预计算表头样式
-  const headerStyle = {
-    font: { bold: true, color: { rgb: '000000' }, sz: 12 },
-    fill: { fgColor: { rgb: 'E0E0E0' } },
-    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-    border: {
-      top: { style: 'thin', color: { rgb: '000000' } },
-      bottom: { style: 'thin', color: { rgb: '000000' } },
-      left: { style: 'thin', color: { rgb: '000000' } },
-      right: { style: 'thin', color: { rgb: '000000' } }
-    }
-  };
-
-  // 预计算数据行样式
-  const dataStyle = {
-    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-    font: { color: { rgb: '000000' }, sz: 11 },
-    border: {
-      top: { style: 'thin', color: { rgb: 'E0E0E0' } },
-      bottom: { style: 'thin', color: { rgb: 'E0E0E0' } },
-      left: { style: 'thin', color: { rgb: 'E0E0E0' } },
-      right: { style: 'thin', color: { rgb: 'E0E0E0' } }
-    }
-  };
-
-  // 预计算表头
-  const titleList = exportColumns.map(col => {
-    if (col.key === 'coordinates') return '坐标(纬度,经度,海拔)(度)';
-    if (col.key === 'pressureHigh') return '血压(低压/高压)(mmHg)';
-    if (col.key === 'heartRate') return '心率(次/分)';
-    if (col.key === 'bloodOxygen') return '血氧(%)';
-    if (col.key === 'temperature') return '体温(℃)';
-    if (col.key === 'stress') return '压力(级)';
-    if (col.key === 'step') return '步数(步)';
-    if (col.key === 'distance') return '距离(米)';
-    if (col.key === 'calorie') return '卡路里(卡)';
-    if (col.key === 'sleepData') return '睡眠数据(小时)';
-    if (col.key === 'workOutData') return '每日运动数据(分钟)';
-    if (col.key === 'timestamp') return '时间';
-    if (col.key === 'orgId') return '直属部门';
-    return col.title;
-  });
-
-  // 批量处理数据
-  const excelList = [titleList];
-  const batchSize = 1000;
-  const totalRows = data.value.length;
-
-  for (let i = 0; i < totalRows; i += batchSize) {
-    const batch = data.value.slice(i, i + batchSize);
-    const batchRows = batch.map(item => {
-      return exportColumns.map(col => {
-        if (col.key === 'timestamp') return convertToBeijingTime(item[col.key]);
-        if (col.key === 'coordinates') return `(${item.latitude || 0}, ${item.longitude || 0}, ${item.altitude || 0})`;
-        if (col.key === 'pressureHigh') return `${item.pressureLow || '-'}/${item.pressureHigh || '-'}`;
-        if (col.key === 'sleepData' || col.key === 'workoutData' || col.key === 'exerciseDailyData') {
-          const v = item[col.key];
-          return typeof v === 'object' && v !== null ? (v.tooltip ?? '') : (v ?? '');
-        }
-        if (col.key === 'orgId') return item.orgId || '-';
-        return item[col.key] ?? '-';
-      });
-    });
-    excelList.push(...batchRows);
-  }
-
-  const workBook = utils.book_new();
-  const workSheet = utils.aoa_to_sheet(excelList);
-
-  // 设置列宽
-  workSheet['!cols'] = colWidths;
-
-  // 设置样式
-  const range = XLSX.utils.decode_range(workSheet['!ref'] || 'A1');
-  const totalCols = range.e.c - range.s.c + 1;
-
-  // 只设置表头样式
-  for (let C = 0; C < totalCols; C++) {
-    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
-    if (workSheet[cellAddress]) {
-      workSheet[cellAddress].s = headerStyle;
-    }
-  }
-
-  // 添加筛选功能
-  workSheet['!autofilter'] = { ref: workSheet['!ref'] || 'A1' };
-
-  // 冻结首行
-  workSheet['!freeze'] = { xSplit: '0', ySplit: '1' };
-
-  utils.book_append_sheet(workBook, workSheet, '健康数据列表');
-
-  // 生成文件名
-  const now = new Date();
-  const timestamp = now
-    .toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    })
-    .replace(/[/\s:]/g, '');
-
-  const department = data.value[0]?.orgId || '全部';
-  const userName = data.value[0]?.userName || '全部';
-  const fileName = `健康数据_${department}_${userName}_${timestamp}.xlsx`;
-
-  writeFile(workBook, fileName);
-}
-
-const handleUpload = async ({ file }) => {
+  
   try {
-    const reader = new FileReader();
-    reader.onload = async e => {
-      const excelData = new Uint8Array(e.target.result as ArrayBuffer);
-      const workbook = XLSX.read(excelData, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-      // Send jsonData to your backend API for database insertion
-      await importDataToDatabase(jsonData);
-
-      // Re-fetch the data after import
-      getDataByPage();
-    };
-    reader.readAsArrayBuffer(file);
+    // 构建CSV数据
+    const headers = [
+      'ID', '部门名称', '员工名称', '设备序列号', 
+      '心率(bpm)', '血氧(%)', '体温(°C)', '收缩压', '舒张压', 
+      '压力', '步数', '卡路里', '距离(km)', 
+      '纬度', '经度', '海拔(m)', '时间戳'
+    ];
+    
+    const csvData = tableData.value.map(row => [
+      row.id || '',
+      row.orgName || '',
+      row.userName || '',
+      row.deviceSn || '',
+      row.heartRate || '',
+      row.bloodOxygen || '',
+      row.temperature || '',
+      row.pressureHigh || '',
+      row.pressureLow || '',
+      row.stress || '',
+      row.step || '',
+      row.calorie || '',
+      row.distance || '',
+      row.latitude || '',
+      row.longitude || '',
+      row.altitude || '',
+      convertToBeijingTime(row.timestamp) || ''
+    ]);
+    
+    // 添加表头
+    csvData.unshift(headers);
+    
+    // 转换为CSV格式
+    const csvContent = csvData.map(row => 
+      row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    
+    // 添加BOM以支持中文
+    const bom = '\ufeff';
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    // 生成文件名
+    const now = new Date();
+    const fileName = `健康数据_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.csv`;
+    
+    // 下载文件
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    
+    window.$message?.success(`导出成功：${fileName}`);
+    console.log('✅ 健康数据导出完成:', fileName, `${tableData.value.length}条记录`);
+    
   } catch (error) {
-    console.error('Failed to upload and process Excel file:', error);
+    console.error('❌ 健康数据导出失败:', error);
+    window.$message?.error('导出失败，请重试');
   }
 };
 
-async function importDataToDatabase(jsonData: any) {
-  console.log(jsonData);
-}
-
-onMounted(() => {
-  handleInitOptions();
-  initColumns();
-});
-type OrgUnitsTree = Api.SystemManage.OrgUnitsTree;
-
-/** org units tree data */
-const orgUnitsTree = shallowRef<OrgUnitsTree[]>([]);
+// 组织和用户选项
+const orgUnitsTree = ref<any[]>([]);
 const userOptions = ref<{ label: string; value: string }[]>([]);
 
 async function handleInitOptions() {
-  fetchGetOrgUnitsTree(customerId).then(({ error, data: treeData }) => {
-    if (!error && treeData) {
-      orgUnitsTree.value = treeData;
-      // 初始化时获取第一个部门的员工列表
-      if (treeData.length > 0) {
-        handleBindUsersByOrgId(treeData[0].id).then(result => {
-          if (Array.isArray(result)) {
-            userOptions.value = result;
-          }
-        });
+  const { error, data: treeData } = await fetchGetOrgUnitsTree(customerId);
+  if (!error && treeData) {
+    orgUnitsTree.value = treeData;
+    // 初始化时获取第一个部门的员工列表
+    if (treeData.length > 0) {
+      const result = await handleBindUsersByOrgId(treeData[0].id);
+      if (Array.isArray(result)) {
+        userOptions.value = result;
       }
     }
-  });
+  }
 }
 
 // 监听部门变化，更新员工列表
 watch(
-  () => searchParams.orgId,
+  () => searchParams.value.orgId,
   async newValue => {
     if (newValue) {
       const result = await handleBindUsersByOrgId(String(newValue));
@@ -694,61 +511,252 @@ watch(
     }
   }
 );
+
+onMounted(() => {
+  handleInitOptions();
+  loadHealthData();
+});
 </script>
 
 <template>
-  <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
+  <div class="health-info-container">
+    <!-- 搜索条件 -->
     <UserHealthDataSearch
       v-model:model="searchParams"
       :org-units-tree="orgUnitsTree"
       :user-options="userOptions"
       @reset="resetSearchParams"
-      @search="getDataByPage"
+      @search="handleSearch"
     />
-    <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
-      <NSpace align="center" wrap justify="end" class="lt-sm:w-full">
-        <TableHeaderOperation
-          v-model:columns="columnChecks"
-          :disabled-delete="checkedRowKeys.length === 0"
-          :loading="loading"
-          add-auth="t:user:health:data:add"
-          delete-auth="t:user:health:data:delete"
-          @add="handleAdd"
-          @delete="handleBatchDelete"
-          @refresh="getData"
-        />
-        <NButton size="small" ghost type="primary" @click="exportExcel">
-          <template #icon>
-            <icon-file-icons:microsoft-excel class="text-icon" />
-          </template>
-          导出excel
-        </NButton>
-        <NDropdown :options="demoOptions" @select="handleDemoSelect">
-          <NButton size="small" type="info" ghost>
-            <template #icon>
-              <span class="text-base">📊</span>
-            </template>
-            演示样例数据
-          </NButton>
-        </NDropdown>
-      </NSpace>
+    
+    <!-- 统计概览卡片 -->
+    <NCard :bordered="false" class="mb-4">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <span class="text-lg font-medium">📊 数据概览</span>
+          <NTag v-if="selectedRows.length > 0" type="primary" size="small">
+            已选择 {{ selectedRows.length }} 条记录
+          </NTag>
+        </div>
+      </template>
+      
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <!-- 记录总数 -->
+        <div class="text-center p-3 bg-blue-50 rounded-lg">
+          <div class="text-xl font-bold text-blue-600">{{ statistics.totalRecords }}</div>
+          <div class="text-xs text-blue-500 mt-1">总记录数</div>
+        </div>
+        
+        <!-- 平均心率 -->
+        <div class="text-center p-3 bg-red-50 rounded-lg">
+          <div class="text-xl font-bold text-red-600">{{ statistics.avgHeartRate }}</div>
+          <div class="text-xs text-red-500 mt-1">平均心率(bpm)</div>
+        </div>
+        
+        <!-- 平均血氧 -->
+        <div class="text-center p-3 bg-green-50 rounded-lg">
+          <div class="text-xl font-bold text-green-600">{{ statistics.avgBloodOxygen }}%</div>
+          <div class="text-xs text-green-500 mt-1">平均血氧</div>
+        </div>
+        
+        <!-- 总步数 -->
+        <div class="text-center p-3 bg-purple-50 rounded-lg">
+          <div class="text-xl font-bold text-purple-600">{{ statistics.totalSteps.toLocaleString() }}</div>
+          <div class="text-xs text-purple-500 mt-1">总步数</div>
+        </div>
+        
+        <!-- 总卡路里 -->
+        <div class="text-center p-3 bg-orange-50 rounded-lg">
+          <div class="text-xl font-bold text-orange-600">{{ statistics.totalCalories }}</div>
+          <div class="text-xs text-orange-500 mt-1">总卡路里</div>
+        </div>
+        
+        <!-- 健康记录 -->
+        <div class="text-center p-3 bg-green-50 rounded-lg">
+          <div class="text-xl font-bold text-green-600">{{ statistics.healthyCount }}</div>
+          <div class="text-xs text-green-500 mt-1">健康记录</div>
+        </div>
+        
+        <!-- 异常记录 -->
+        <div class="text-center p-3 bg-red-50 rounded-lg">
+          <div class="text-xl font-bold text-red-600">{{ statistics.abnormalCount }}</div>
+          <div class="text-xs text-red-500 mt-1">异常记录</div>
+        </div>
+      </div>
+    </NCard>
+
+    <!-- 健康数据表格 -->
+    <NCard :bordered="false" class="card-wrapper mb-4">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <span class="font-medium">🏥 健康数据表格</span>
+          <div class="flex items-center gap-2">
+            <NTag v-if="loading" type="warning" size="small">
+              加载中...
+            </NTag>
+            <NButton 
+              size="small" 
+              @click="loadHealthData()" 
+              :loading="loading"
+            >
+              刷新数据
+            </NButton>
+            <NButton 
+              size="small" 
+              type="primary"
+              @click="exportHealthData()"
+              :disabled="loading || tableData.length === 0"
+            >
+              导出数据
+            </NButton>
+          </div>
+        </div>
+      </template>
+      
+      <!-- 骨架屏加载状态 -->
+      <div v-if="loading" class="space-y-4">
+        <NSkeleton height="40px" :sharp="false" />
+        <NSkeleton height="40px" :sharp="false" />
+        <NSkeleton height="40px" :sharp="false" />
+        <NSkeleton height="40px" :sharp="false" />
+        <NSkeleton height="40px" :sharp="false" />
+      </div>
+      
+      <!-- 空数据状态 -->
+      <NEmpty v-else-if="tableData.length === 0" description="暂无健康数据" />
+      
+      <!-- 数据表格 -->
       <NDataTable
-        v-model:checked-row-keys="checkedRowKeys"
-        remote
-        striped
-        size="small"
-        class="sm:h-full"
-        :data="data"
-        :scroll-x="962"
+        v-else
+        :scroll-x="1400"
         :columns="columns"
-        :flex-height="!appStore.isMobile"
+        :data="tableData"
         :loading="loading"
-        :single-line="false"
-        :row-key="row => row.id"
-        :pagination="mobilePagination"
+        :pagination="pagination"
+        :row-key="(row: any) => row.id"
+        @update:checked-row-keys="handleRowSelection"
+        class="health-data-table-content"
       />
-      <UserHealthDataOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" @submitted="getDataByPage" />
-      <SlowFieldsDetailModal v-model:visible="slowFieldsModalVisible" :row-data="selectedRowSlowFields" />
+    </NCard>
+
+    <!-- 专业图表分析 -->
+    <div v-if="tableData.length > 0">
+      <HealthAnalyticsCharts
+        :selected-user-ids="getAnalyticsUserIds()"
+        :search-params="searchParams"
+        :customer-id="customerId"
+        :visible="true"
+      />
+    </div>
+    
+    <!-- 无数据提示 -->
+    <NCard v-else-if="!loading" :bordered="false" class="text-center py-8">
+      <NEmpty description="暂无健康数据，无法生成图表分析" />
     </NCard>
   </div>
 </template>
+
+<style scoped>
+.health-info-container {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: #f5f5f5;
+}
+
+.health-data-table-content {
+  /* 自定义表格样式 */
+  :deep(.n-data-table-th) {
+    background-color: #f8fafc;
+    font-weight: 600;
+  }
+  
+  :deep(.n-data-table-td) {
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  :deep(.n-data-table-tr:hover .n-data-table-td) {
+    background-color: #f0f9ff;
+  }
+}
+
+/* 卡片容器样式 */
+.card-wrapper {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 确保表格容器可以滚动 */
+.card-wrapper :deep(.n-card__content) {
+  max-height: 600px;
+  overflow: auto;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .health-info-container {
+    padding: 8px;
+  }
+  
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .card-wrapper :deep(.n-card__content) {
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 480px) {
+  .health-info-container {
+    padding: 4px;
+  }
+  
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .card-wrapper :deep(.n-card__content) {
+    max-height: 300px;
+  }
+}
+
+/* 滚动条样式优化 */
+.health-info-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.health-info-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.health-info-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.health-info-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 表格内部滚动条样式 */
+.card-wrapper :deep(.n-card__content)::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.card-wrapper :deep(.n-card__content)::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.card-wrapper :deep(.n-card__content)::-webkit-scrollbar-thumb {
+  background: #d1d1d1;
+  border-radius: 2px;
+}
+</style>

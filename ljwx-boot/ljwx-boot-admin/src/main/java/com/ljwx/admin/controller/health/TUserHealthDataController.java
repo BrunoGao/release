@@ -31,6 +31,8 @@ import com.ljwx.modules.health.domain.vo.TUserHealthDataVO;
 import com.ljwx.modules.health.domain.vo.HealthDataPageVO;
 import com.ljwx.modules.health.facade.ITUserHealthDataFacade;
 import com.ljwx.modules.health.service.ITUserHealthDataService;
+import com.ljwx.modules.health.service.UnifiedHealthDataQueryService;
+import com.ljwx.modules.health.domain.dto.UnifiedHealthQueryDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,6 +52,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Arrays;
 /**
  *  Controller 控制层
  *
@@ -70,6 +74,9 @@ public class TUserHealthDataController {
 
     @NonNull
     private ITUserHealthDataService tUserHealthDataService;
+    
+    @NonNull
+    private UnifiedHealthDataQueryService unifiedHealthDataQueryService;
     
 
     
@@ -111,19 +118,110 @@ public class TUserHealthDataController {
 
     @GetMapping("/page")
     @SaCheckPermission("t:user:health:data:page")
-    @Operation(operationId = "1", summary = "获取列表")
+    @Operation(operationId = "1", summary = "获取健康数据列表", 
+              description = "表格图表分离架构：返回基础数据(表格)和独立的daily/weekly数据(图表)")
     public Result<Map<String,Object>> page(PageQuery pageQuery, TUserHealthDataSearchDTO dto) {
-        HealthDataPageVO<Map<String,Object>> vo = tUserHealthDataFacade.listTUserHealthDataPage(pageQuery, dto);
-        Map<String,Object> data = new HashMap<>();
-        data.put("page", vo.getCurrent());
-        data.put("pageSize", vo.getSize());
-        data.put("pages", vo.getTotal() == 0 ? 0 : (int)Math.ceil((double)vo.getTotal()/vo.getSize()));
-        data.put("total", vo.getTotal());
-        data.put("records", vo.getRecords());
-        data.put("columns", vo.getColumns());
-        return Result.data(data);
+        try {
+            // 转换为统一查询DTO
+            UnifiedHealthQueryDTO queryDTO = new UnifiedHealthQueryDTO();
+            queryDTO.setPage(pageQuery.getCurrent());
+            queryDTO.setPageSize(pageQuery.getSize());
+            queryDTO.setCustomerId(dto.getCustomerId());
+            queryDTO.setUserId(dto.getUserId());
+            queryDTO.setOrgId(dto.getOrgId());
+            queryDTO.setDeviceSn(dto.getDeviceSn());
+            
+            // 时间戳转换
+            if (dto.getStartDate() != null) {
+                queryDTO.setStartDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(dto.getStartDate()), ZoneId.systemDefault()));
+            }
+            if (dto.getEndDate() != null) {
+                queryDTO.setEndDate(LocalDateTime.ofInstant(Instant.ofEpochMilli(dto.getEndDate()), ZoneId.systemDefault()));
+            }
+            
+            // 使用统一健康数据查询服务（表格图表分离架构）
+            Map<String, Object> result = unifiedHealthDataQueryService.queryHealthData(queryDTO);
+            
+            // 构建返回格式
+            Map<String, Object> data = new HashMap<>();
+            data.put("page", result.get("page"));
+            data.put("pageSize", result.get("pageSize"));
+            data.put("pages", result.get("total").equals(0) ? 0 : 
+                (int)Math.ceil((double)(Long)result.get("total") / (Integer)result.get("pageSize")));
+            data.put("total", result.get("total"));
+            data.put("records", result.get("basicData")); // 基础表格数据
+            
+            // 独立的图表数据
+            data.put("dailyData", result.get("dailyData")); // 独立daily数据用于图表
+            data.put("weeklyData", result.get("weeklyData")); // 独立weekly数据用于图表
+            data.put("supportedFields", result.get("supportedFields")); // 字段配置
+            
+            // 构建动态列配置（基于Basic Enabled Metrics）
+            @SuppressWarnings("unchecked")
+            Map<String, String> supportedFields = (Map<String, String>) result.get("supportedFields");
+            data.put("columns", buildDynamicColumns(supportedFields));
+            
+            log.info("✅ 健康数据页面查询完成: 基础数据{}条, daily数据{}项, weekly数据{}项", 
+                    ((List<?>)result.get("basicData")).size(),
+                    ((Map<?, ?>)result.get("dailyData")).size(),
+                    ((Map<?, ?>)result.get("weeklyData")).size());
+            
+            return Result.data(data);
+            
+        } catch (Exception e) {
+            log.error("❌ 健康数据页面查询失败: {}", e.getMessage(), e);
+            return Result.failure("查询失败: " + e.getMessage());
+        }
     }
     
+    /**
+     * 构建动态列配置 - 基于Basic Enabled Metrics
+     */
+    private List<Map<String, Object>> buildDynamicColumns(Map<String, String> supportedFields) {
+        List<Map<String, Object>> columns = new ArrayList<>();
+        
+        // 固定基础列
+        columns.add(Map.of("dataIndex", "id", "title", "ID", "width", 80, "key", "id"));
+        columns.add(Map.of("dataIndex", "userName", "title", "用户名称", "width", 120, "key", "userName"));
+        columns.add(Map.of("dataIndex", "orgName", "title", "部门名称", "width", 150, "key", "orgName"));
+        columns.add(Map.of("dataIndex", "deviceSn", "title", "设备序列号", "width", 120, "key", "deviceSn"));
+        columns.add(Map.of("dataIndex", "timestamp", "title", "时间戳", "width", 160, "key", "timestamp"));
+        
+        // 根据配置动态添加健康指标列
+        for (Map.Entry<String, String> entry : supportedFields.entrySet()) {
+            String fieldKey = entry.getKey();
+            String fieldType = entry.getValue();
+            
+            // 只添加快字段（非慢字段）
+            if (!"slow".equals(fieldType)) {
+                Map<String, Object> column = createHealthColumn(fieldKey);
+                if (column != null) {
+                    columns.add(column);
+                }
+            }
+        }
+        
+        return columns;
+    }
+    
+    /**
+     * 创建健康指标列配置
+     */
+    private Map<String, Object> createHealthColumn(String fieldKey) {
+        return switch (fieldKey) {
+            case "heartRate", "heart_rate" -> Map.of("dataIndex", "heartRate", "title", "心率", "width", 80, "key", "heartRate");
+            case "bloodOxygen", "blood_oxygen" -> Map.of("dataIndex", "bloodOxygen", "title", "血氧", "width", 80, "key", "bloodOxygen");
+            case "temperature", "body_temperature" -> Map.of("dataIndex", "temperature", "title", "体温", "width", 80, "key", "temperature");
+            case "pressureHigh", "pressure_high" -> Map.of("dataIndex", "pressureHigh", "title", "收缩压", "width", 80, "key", "pressureHigh");
+            case "pressureLow", "pressure_low" -> Map.of("dataIndex", "pressureLow", "title", "舒张压", "width", 80, "key", "pressureLow");
+            case "stress" -> Map.of("dataIndex", "stress", "title", "压力", "width", 80, "key", "stress");
+            case "step" -> Map.of("dataIndex", "step", "title", "步数", "width", 100, "key", "step");
+            case "calorie" -> Map.of("dataIndex", "calorie", "title", "卡路里", "width", 100, "key", "calorie");
+            case "distance" -> Map.of("dataIndex", "distance", "title", "距离", "width", 100, "key", "distance");
+            case "location" -> Map.of("dataIndex", "coordinates", "title", "坐标", "width", 200, "key", "coordinates", "render", "coordinates");
+            default -> null;
+        };
+    }
 
     @GetMapping("/{id}")
     //@SaCheckPermission("t:user:health:data:get")
