@@ -79,3 +79,13 @@ export function fetchRecordCustomerSwitch(data: {
     data
   });
 }
+
+// =============== Customer Config APIs ===============
+
+/** 获取所有可用的客户列表（用于客户选择器） */
+export function fetchGetAllAvailableCustomers() {
+  return request<Array<{ customerId: number; customerName: string }>>({
+    url: '/t_customer_config/all-customers',
+    method: 'GET'
+  });
+}

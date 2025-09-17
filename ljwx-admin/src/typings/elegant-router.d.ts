@@ -109,6 +109,7 @@ declare module "@elegant-router/types" {
     "multi-menu_second_child": "/multi-menu/second/child";
     "multi-menu_second_child_home": "/multi-menu/second/child/home";
     "system": "/system";
+    "system_customer-select": "/system/customer-select";
     "system_dynamic-menu": "/system/dynamic-menu";
     "system_license": "/system/license";
     "task": "/task";
@@ -268,6 +269,7 @@ declare module "@elegant-router/types" {
     | "monitor_system"
     | "multi-menu_first_child"
     | "multi-menu_second_child_home"
+    | "system_customer-select"
     | "system_dynamic-menu"
     | "system_license"
     | "task"

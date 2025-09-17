@@ -53,7 +53,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  *  Controller 控制层
@@ -363,6 +365,36 @@ public class TCustomerConfigController {
         } catch (Exception e) {
             log.error("更新客户许可证支持状态失败: customerId=" + customerId, e);
             return Result.failure("更新失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取所有可用的客户列表（用于客户选择器）
+     */
+    @GetMapping("/all-customers")
+    @Operation(operationId = "12", summary = "获取所有可用的客户列表")
+    public Result<List<Map<String, Object>>> getAllAvailableCustomers() {
+        try {
+            List<TCustomerConfig> customerConfigs = tCustomerConfigService.list();
+            
+            List<Map<String, Object>> customers = customerConfigs.stream()
+                    .filter(config -> config.getIsDeleted() == null || config.getIsDeleted() == 0) // 过滤未删除的
+                    .map(config -> {
+                        Map<String, Object> customer = new HashMap<>();
+                        customer.put("customerId", config.getId());
+                        customer.put("customerName", config.getCustomerName());
+                        log.debug("Customer: id={}, name={}, isDeleted={}", 
+                                config.getId(), config.getCustomerName(), config.getIsDeleted());
+                        return customer;
+                    })
+                    .collect(Collectors.toList());
+            
+            log.info("获取可用客户列表成功，共{}个客户", customers.size());
+            return Result.data(customers);
+            
+        } catch (Exception e) {
+            log.error("获取可用客户列表失败", e);
+            return Result.failure("获取客户列表失败: " + e.getMessage());
         }
     }
 

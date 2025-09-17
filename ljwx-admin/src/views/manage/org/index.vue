@@ -48,8 +48,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     page: 1,
     pageSize: 20,
     name: null,
-    status: null,
-    id: authStore.userInfo?.customerId // 使用用户的customerId作为orgId查询参数
+    status: null
+    // customerId 将由请求拦截器自动添加
   },
   columns: () => [
     {

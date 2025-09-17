@@ -107,6 +107,12 @@ public class SysOrgUnitsFacadeImpl implements ISysOrgUnitsFacade {
     @Override
     public RPage<SysOrgUnitsTreeVO> listSysOrgUnitsPage(PageQuery pageQuery, SysOrgUnitsSearchDTO sysOrgUnitsSearchDTO) {
         SysOrgUnitsBO sysOrgUnitsBO = CglibUtil.convertObj(sysOrgUnitsSearchDTO, SysOrgUnitsBO::new);
+        
+        // 如果传入了customerId，说明要按租户过滤，将customerId作为id进行查询
+        if (sysOrgUnitsSearchDTO.getCustomerId() != null) {
+            System.out.println("🔍 SysOrgUnitsFacadeImpl - 根据customerId过滤: " + sysOrgUnitsSearchDTO.getCustomerId());
+            sysOrgUnitsBO.setId(sysOrgUnitsSearchDTO.getCustomerId());
+        }
         IPage<SysOrgUnits> sysOrgUnitsIPage = sysOrgUnitsService.listSysOrgUnitsPage(pageQuery, sysOrgUnitsBO);
         List<SysOrgUnits> topOrgUnits = sysOrgUnitsIPage.getRecords();
         if (topOrgUnits.isEmpty()) {

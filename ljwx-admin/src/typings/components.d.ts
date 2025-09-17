@@ -12,6 +12,7 @@ declare module 'vue' {
     ButtonIcon: typeof import('./../components/custom/button-icon.vue')['default']
     CountTo: typeof import('./../components/custom/count-to.vue')['default']
     CustomerSelectionPrompt: typeof import('./../components/common/CustomerSelectionPrompt.vue')['default']
+    CustomerSelector: typeof import('./../components/business/CustomerSelector.vue')['default']
     CustomerSwitcher: typeof import('./../components/common/CustomerSwitcher.vue')['default']
     DarkModeContainer: typeof import('./../components/common/dark-mode-container.vue')['default']
     ExceptionBase: typeof import('./../components/common/exception-base.vue')['default']
@@ -129,6 +130,7 @@ declare module 'vue' {
     SystemLogo: typeof import('./../components/common/system-logo.vue')['default']
     TableColumnSetting: typeof import('./../components/advanced/table-column-setting.vue')['default']
     TableHeaderOperation: typeof import('./../components/advanced/table-header-operation.vue')['default']
+    TenantInfo: typeof import('./../components/common/TenantInfo.vue')['default']
     ThemeSchemaSwitch: typeof import('./../components/common/theme-schema-switch.vue')['default']
     WaveBg: typeof import('./../components/custom/wave-bg.vue')['default']
   }

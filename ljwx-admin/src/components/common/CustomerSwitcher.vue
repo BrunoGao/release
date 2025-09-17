@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, h } from 'vue';
 import { NDropdown, NButton, NInput, NSpace, NSpin, NEmpty, NTag, NAvatar } from 'naive-ui';
 import type { DropdownOption } from 'naive-ui';
 import { useCustomerStore } from '@/store/modules/customer';
@@ -66,10 +66,7 @@ const dropdownOptions = computed((): DropdownOption[] => {
         .slice(0, 3)
         .map(customer => ({
           key: `recent-${customer.id}`,
-          label: customer.name,
-          props: {
-            onClick: () => handleCustomerSwitch(customer.id)
-          }
+          label: customer.name
         }))
     });
   }
@@ -84,10 +81,7 @@ const dropdownOptions = computed((): DropdownOption[] => {
         .filter(customer => customer.id !== currentCustomer.value?.id)
         .map(customer => ({
           key: `all-${customer.id}`,
-          label: customer.name,
-          props: {
-            onClick: () => handleCustomerSwitch(customer.id)
-          }
+          label: customer.name
         }))
     });
   }
@@ -95,15 +89,29 @@ const dropdownOptions = computed((): DropdownOption[] => {
   return options;
 });
 
+// 处理下拉选择
+const handleSelect = (key: string) => {
+  console.log('下拉选择:', key);
+  
+  // 解析客户ID
+  const match = key.match(/(recent|all)-(.+)/);
+  if (match) {
+    const customerId = match[2]; // 保持为字符串
+    handleCustomerSwitch(customerId);
+  }
+};
+
 // 处理客户切换
-const handleCustomerSwitch = async (customerId: number) => {
+const handleCustomerSwitch = async (customerId: string) => { // 改为字符串类型
   try {
+    console.log('开始切换客户:', customerId);
     await customerStore.switchCustomer(customerId);
     dropdownVisible.value = false;
     searchValue.value = '';
+    console.log('客户切换成功');
   } catch (error) {
     console.error('切换客户失败:', error);
-    // 这里可以添加错误提示
+    window.$message?.error('切换客户失败');
   }
 };
 
@@ -130,8 +138,17 @@ const getCustomerAvatar = (customer: typeof currentCustomer.value) => {
 };
 
 onMounted(() => {
+  console.log('[CustomerSwitcher] 组件挂载:', {
+    canSwitch: canSwitch.value,
+    currentCustomer: currentCustomer.value,
+    currentCustomerId: customerStore.currentCustomerId,
+    customerListLength: customerStore.customerList.length,
+    userName: authStore.userInfo?.userName
+  });
+  
   // 组件挂载时加载客户列表（如果有权限）
   if (canSwitch.value && customerStore.customerList.length === 0) {
+    console.log('[CustomerSwitcher] 开始加载客户列表');
     customerStore.loadCustomerList();
   }
 });
@@ -148,6 +165,7 @@ onMounted(() => {
       size="medium"
       :show-arrow="false"
       @show="handleDropdownShow"
+      @select="handleSelect"
     >
       <template #default>
         <NButton

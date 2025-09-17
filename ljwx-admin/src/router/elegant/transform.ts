@@ -255,6 +255,7 @@ const routeMap: RouteMap = {
   "multi-menu_second_child": "/multi-menu/second/child",
   "multi-menu_second_child_home": "/multi-menu/second/child/home",
   "system": "/system",
+  "system_customer-select": "/system/customer-select",
   "system_dynamic-menu": "/system/dynamic-menu",
   "system_license": "/system/license",
   "task": "/task",

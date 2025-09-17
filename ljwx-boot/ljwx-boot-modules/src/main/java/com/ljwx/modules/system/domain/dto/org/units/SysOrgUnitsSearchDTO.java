@@ -52,4 +52,7 @@ public class SysOrgUnitsSearchDTO implements Serializable {
     @Schema(description = "ID")
     private Long id;
 
+    @Schema(description = "客户ID")
+    private Long customerId;
+
 }

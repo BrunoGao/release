@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { SetupStoreId } from '@/enum';
-import { fetchGetCustomerList, fetchCustomerIdByOrgId } from '@/service/api';
+import { fetchGetAllAvailableCustomers } from '@/service/api/customer/customer';
+import { fetchCustomerIdByOrgId } from '@/service/api';
 
 export interface CustomerInfo {
-  id: number;
+  id: string; // 改为字符串类型避免精度问题
   name: string;
   code?: string;
   logo?: string;
@@ -14,16 +15,16 @@ export interface CustomerInfo {
 
 export interface CustomerAccess {
   canSwitch: boolean;
-  defaultCustomerId: number | null;
+  defaultCustomerId: string | null; // 改为字符串类型
   customerList: CustomerInfo[];
 }
 
 export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
   // 状态
-  const currentCustomerId = ref<number | null>(null);
+  const currentCustomerId = ref<string | null>(null); // 改为字符串类型
   const customerList = ref<CustomerInfo[]>([]);
   const canSwitchCustomer = ref(false);
-  const recentCustomers = ref<number[]>([]);
+  const recentCustomers = ref<string[]>([]); // 改为字符串数组
   const loading = ref(false);
 
   // 计算属性
@@ -43,7 +44,7 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
   });
 
   // Actions
-  const setCurrentCustomerId = (customerId: number | null) => {
+  const setCurrentCustomerId = (customerId: string | null) => { // 改为字符串类型
     currentCustomerId.value = customerId;
     
     // 更新最近访问记录
@@ -56,7 +57,7 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
     
     // 持久化到 localStorage
     if (customerId) {
-      localStorage.setItem('currentCustomerId', customerId.toString());
+      localStorage.setItem('currentCustomerId', customerId); // 直接存储字符串
       localStorage.setItem('recentCustomers', JSON.stringify(recentCustomers.value));
     } else {
       localStorage.removeItem('currentCustomerId');
@@ -77,14 +78,17 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
     
     try {
       loading.value = true;
-      const { data } = await fetchGetCustomerList({ 
-        page: 1, 
-        pageSize: 100,
-        status: 'ACTIVE'
-      });
+      const { data } = await fetchGetAllAvailableCustomers();
       
-      if (data?.records) {
-        customerList.value = data.records;
+      // 转换数据格式
+      if (data) {
+        customerList.value = data.map(item => ({
+          id: item.customerId.toString(), // 转换为字符串避免精度问题
+          name: item.customerName,
+          code: item.customerId.toString(),
+          status: 'ACTIVE', // 接口返回的都是可用的客户
+          description: `客户ID: ${item.customerId}`
+        }));
       }
     } catch (error) {
       console.error('加载客户列表失败:', error);
@@ -93,7 +97,7 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
     }
   };
 
-  const switchCustomer = async (customerId: number) => {
+  const switchCustomer = async (customerId: string) => { // 改为字符串类型
     if (!canSwitchCustomer.value) {
       console.warn('当前用户无权限切换客户');
       return;
@@ -102,17 +106,26 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
     try {
       loading.value = true;
       
+      console.log('切换客户: customerId =', customerId);
+      
       // 设置新的客户ID
       setCurrentCustomerId(customerId);
       
       // 清理相关缓存
       await clearCustomerRelatedCache();
       
-      // 重新加载页面数据
-      window.location.reload();
+      // 显示成功消息
+      const customerName = customerList.value.find(c => c.id === customerId)?.name || customerId;
+      window.$message?.success(`已切换到客户: ${customerName}`);
+      
+      // 延迟一下再重新加载页面，让用户看到成功消息
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
       
     } catch (error) {
       console.error('切换客户失败:', error);
+      window.$message?.error('切换客户失败');
       throw error;
     } finally {
       loading.value = false;
@@ -151,7 +164,7 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
     const savedRecentCustomers = localStorage.getItem('recentCustomers');
     
     if (savedCustomerId) {
-      currentCustomerId.value = parseInt(savedCustomerId);
+      currentCustomerId.value = savedCustomerId; // 直接使用字符串，不进行数字转换
     }
     
     if (savedRecentCustomers) {

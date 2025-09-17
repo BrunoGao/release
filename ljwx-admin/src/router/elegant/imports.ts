@@ -81,6 +81,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   monitor_system: () => import("@/views/monitor/system/index.vue"),
   "multi-menu_first_child": () => import("@/views/multi-menu/first_child/index.vue"),
   "multi-menu_second_child_home": () => import("@/views/multi-menu/second_child_home/index.vue"),
+  "system_customer-select": () => import("@/views/system/customer-select/index.vue"),
   "system_dynamic-menu": () => import("@/views/system/dynamic-menu/index.vue"),
   system_license: () => import("@/views/system/license/index.vue"),
   task: () => import("@/views/task/index.vue"),

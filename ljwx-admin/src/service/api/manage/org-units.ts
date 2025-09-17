@@ -91,10 +91,12 @@ export function fetchDeleteOrgUnits(data: Api.Common.DeleteParams) {
 }
 
 /** get org page tree */
-export function fetchGetOrgUnitsTree(id: number) {
+export function fetchGetOrgUnitsTree(id?: number) {
+  const params = id ? { id } : {};
   return request<Api.SystemManage.OrgUnitsTree[]>({
-    url: `/sys_org_units/tree?id=${id}`,
-    method: 'GET'
+    url: '/sys_org_units/tree',
+    method: 'GET',
+    params
   });
 }
 

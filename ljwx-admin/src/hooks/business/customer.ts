@@ -1,7 +1,8 @@
 import { computed } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { useCustomerStore, type CustomerAccess } from '@/store/modules/customer';
-import { fetchGetAccessibleCustomers, fetchCustomerIdByOrgId } from '@/service/api/customer';
+import { fetchGetAllAvailableCustomers } from '@/service/api/customer/customer';
+import { fetchCustomerIdByOrgId } from '@/service/api';
 
 /**
  * 客户业务逻辑 Hook
@@ -11,7 +12,7 @@ export function useCustomer() {
   const customerStore = useCustomerStore();
 
   // 当前用户角色
-  const userRole = computed(() => authStore.userInfo?.roles?.[0] || '');
+  const userRole = computed(() => authStore.userInfo?.roleIds?.[0] || '');
   const userInfo = computed(() => authStore.userInfo);
 
   // 是否是 admin 用户
@@ -29,29 +30,38 @@ export function useCustomer() {
 
     if (isAdmin.value) {
       // admin 用户：可以切换客户，需要加载所有客户列表
-      const { data } = await fetchGetAccessibleCustomers();
+      const { data } = await fetchGetAllAvailableCustomers();
+      const customerList = (data || []).map(item => ({
+        id: item.customerId.toString(), // 转换为字符串避免精度问题
+        name: item.customerName,
+        code: item.customerId.toString(),
+        status: 'ACTIVE',
+        description: `客户ID: ${item.customerId}`
+      }));
+      
       return {
         canSwitch: true,
         defaultCustomerId: null, // 需要手动选择
-        customerList: data || []
+        customerList
       };
     } else {
       // 其他用户：不能切换，使用自己的客户ID
       let customerId = user.customerId;
       
       // 如果用户没有直接的 customerId，尝试通过 orgId 获取
-      if (!customerId && user.orgId && Array.isArray(user.orgId) && user.orgId.length > 0) {
-        try {
-          const { data } = await fetchCustomerIdByOrgId(user.orgId[0]);
-          customerId = data.customerId;
-        } catch (error) {
-          console.error('根据组织ID获取客户ID失败:', error);
-        }
-      }
+      // 注意：如果用户类型定义中没有 orgId 字段，这部分逻辑需要调整
+      // if (!customerId && user.orgId && Array.isArray(user.orgId) && user.orgId.length > 0) {
+      //   try {
+      //     const { data } = await fetchCustomerIdByOrgId(user.orgId[0]);
+      //     customerId = data.customerId;
+      //   } catch (error) {
+      //     console.error('根据组织ID获取客户ID失败:', error);
+      //   }
+      // }
 
       return {
         canSwitch: false,
-        defaultCustomerId: customerId || 0,
+        defaultCustomerId: customerId ? customerId.toString() : null, // 转换为字符串
         customerList: []
       };
     }
@@ -72,7 +82,8 @@ export function useCustomer() {
       customerStore.setCustomerAccess(access);
 
       // 如果有默认客户ID且当前没有设置，则设置默认值
-      if (access.defaultCustomerId && !customerStore.currentCustomerId) {
+      // 注意：对于admin用户，优先使用localStorage中保存的customerId
+      if (!customerStore.currentCustomerId && access.defaultCustomerId) {
         customerStore.setCurrentCustomerId(access.defaultCustomerId);
       }
 
@@ -116,7 +127,7 @@ export function useCustomer() {
   /**
    * 切换客户（仅超级管理员）
    */
-  const switchCustomer = async (customerId: number) => {
+  const switchCustomer = async (customerId: string) => { // 改为字符串类型
     if (!customerStore.canSwitchCustomer) {
       throw new Error('当前用户无权限切换客户');
     }

@@ -54,6 +54,7 @@ public class SysOrgUnitsController {
         System.out.println("  id: " + sysOrgUnitsSearchDTO.getId());
         System.out.println("  name: " + sysOrgUnitsSearchDTO.getName());
         System.out.println("  status: " + sysOrgUnitsSearchDTO.getStatus());
+        System.out.println("  customerId: " + sysOrgUnitsSearchDTO.getCustomerId());
         return Result.data(sysOrgUnitsFacade.listSysOrgUnitsPage(pageQuery, sysOrgUnitsSearchDTO));
     }
 
@@ -93,8 +94,17 @@ public class SysOrgUnitsController {
     @GetMapping("/tree")
     @SaCheckPermission("sys:org:units:tree")
     @Operation(operationId = "6", summary = "获取租户/部门树结构数据")
-    public Result<List<SysOrgUnitsTreeVO>> tree(@RequestParam(value = "id", required = false) Long id) {
-        return Result.data(sysOrgUnitsFacade.queryAllOrgUnitsListConvertToTree(id));
+    public Result<List<SysOrgUnitsTreeVO>> tree(@RequestParam(value = "id", required = false) Long id,
+                                               @RequestParam(value = "customerId", required = false) Long customerId) {
+        System.out.println("🔍 SysOrgUnitsController.tree - 接收到参数:");
+        System.out.println("  id: " + id);
+        System.out.println("  customerId: " + customerId);
+        
+        // 如果传入了customerId，说明要按租户过滤，将customerId作为id进行查询
+        Long effectiveId = (customerId != null) ? customerId : id;
+        System.out.println("  effectiveId: " + effectiveId);
+        
+        return Result.data(sysOrgUnitsFacade.queryAllOrgUnitsListConvertToTree(effectiveId));
     }
 
     @PostMapping("/delete-precheck")

@@ -102,7 +102,9 @@ public class OrgUnitsChangeListener {
         interfaceService.remove(new QueryWrapper<TInterface>().eq("customer_id", o.getId())); // 先清理
         List<TInterface> exists = interfaceService.list(new QueryWrapper<TInterface>().eq("customer_id", o.getId()));
         Set<String> existNames = exists.stream().map(TInterface::getName).collect(Collectors.toSet());
-        interfaceService.list(new QueryWrapper<TInterface>().eq("customer_id", 1).eq("is_deleted", 0)).stream()
+        List<TInterface> templateInterfaces = interfaceService.list(new QueryWrapper<TInterface>().eq("customer_id", 0).eq("is_deleted", 0));
+        log.warn("Found {} template interfaces to clone", templateInterfaces.size());
+        templateInterfaces.stream()
             .filter(i -> !existNames.contains(i.getName()))
             .forEach(i -> {
                 log.warn("Inserting interface name={} for orgId={}", i.getName(), o.getId());
@@ -113,7 +115,7 @@ public class OrgUnitsChangeListener {
                 TInterface n = new TInterface();
                 n.setName(i.getName()); n.setUrl(i.getUrl()); n.setCallInterval(i.getCallInterval());
                 n.setMethod(i.getMethod()); n.setDescription(i.getDescription()); n.setEnabled(i.getEnabled());
-                n.setCustomerId(o.getId()); n.setDeleted(0); n.setCreateTime(i.getCreateTime()); n.setUpdateTime(i.getUpdateTime());
+                n.setCustomerId(o.getId()); n.setIsDeleted(0); n.setCreateTime(i.getCreateTime()); n.setUpdateTime(i.getUpdateTime());
                 n.setApiAuth(i.getApiAuth()); 
                 n.setApiId(i.getApiId());
                 interfaceService.saveOrUpdate(n);
@@ -123,7 +125,10 @@ public class OrgUnitsChangeListener {
     private void cloneHealthDataConfig(SysOrgUnits o) { // 复制健康数据配置
         log.warn("cloneHealthDataConfig called for orgId={}", o.getId());
         healthDataConfigService.remove(new QueryWrapper<THealthDataConfig>().eq("customer_id", o.getId())); // 先清理
-        healthDataConfigService.list(new QueryWrapper<THealthDataConfig>().eq("customer_id", 1)).forEach(h -> {
+        List<THealthDataConfig> templateConfigs = healthDataConfigService.list(new QueryWrapper<THealthDataConfig>().eq("customer_id", 0).eq("is_deleted", 0));
+        log.warn("Found {} template health data configs to clone", templateConfigs.size());
+        templateConfigs.forEach(h -> {
+            log.warn("Cloning health data config: dataType={} for orgId={}", h.getDataType(), o.getId());
             THealthDataConfig n = new THealthDataConfig();
             n.setCustomerId(o.getId()); n.setDataType(h.getDataType()); n.setFrequencyInterval(h.getFrequencyInterval());
             n.setIsRealtime(h.getIsRealtime()); n.setIsEnabled(h.getIsEnabled()); n.setIsDefault(h.getIsDefault());

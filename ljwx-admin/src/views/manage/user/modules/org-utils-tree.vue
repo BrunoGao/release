@@ -40,7 +40,7 @@ const editingData: Ref<Api.SystemManage.OrgUnits | null> = ref(null);
 
 /** init */
 const init = async () => {
-  const { data, error } = await fetchGetOrgUnitsTree(authStore.userInfo?.customerId);
+  const { data, error } = await fetchGetOrgUnitsTree();
   if (!error && data) {
     orgUnitsTreeData.value = data;
   }

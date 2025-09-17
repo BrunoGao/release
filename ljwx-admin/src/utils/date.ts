@@ -21,3 +21,14 @@ export function convertToBeijingTime(timestamp: dayjs.ConfigType) {
 export function formatDate(date: dayjs.ConfigType, format: string = 'YYYY-MM-DD') {
   return dayjs(date).format(format);
 }
+
+/**
+ * format time
+ *
+ * @param time time
+ * @param format format pattern, default is 'HH:mm:ss'
+ * @returns formatted time
+ */
+export function formatTime(time: dayjs.ConfigType, format: string = 'HH:mm:ss') {
+  return dayjs(time).format(format);
+}

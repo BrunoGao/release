@@ -830,6 +830,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'system_customer-select',
+        path: '/system/customer-select',
+        component: 'view.system_customer-select',
+        meta: {
+          title: 'system_customer-select',
+          i18nKey: 'route.system_customer-select'
+        }
+      },
+      {
         name: 'system_dynamic-menu',
         path: '/system/dynamic-menu',
         component: 'view.system_dynamic-menu',

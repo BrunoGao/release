@@ -1,6 +1,7 @@
 import type { AxiosResponse } from 'axios';
 import { BACKEND_ERROR_CODE, REQUEST_LANGUAGE, createFlatRequest, createRequest } from '@sa/axios';
 import { useAuthStore } from '@/store/modules/auth';
+import { useCustomerStore } from '@/store/modules/customer';
 import { $t } from '@/locales';
 import { localStg } from '@/utils/storage';
 import { getServiceBaseURL } from '@/utils/service';
@@ -28,15 +29,35 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
   {
     async onRequest(config) {
       const authStore = useAuthStore();
+      const customerStore = useCustomerStore();
       const Authorization = getAuthorization();
       const language = getLanguage();
 
+      // 确定要使用的customerId
+      let customerId = authStore.userInfo.customerId;
+      
+      // 如果是admin用户且已选择客户，使用选中的客户ID
+      if (authStore.userInfo?.userName === 'admin' && customerStore.currentCustomerId) {
+        customerId = customerStore.currentCustomerId;
+      }
+
       // 自动添加customerId (排除白名单URL)
-      const shouldAddCustomerId = authStore.userInfo.customerId !== undefined && 
+      const shouldAddCustomerId = customerId !== undefined && 
         !EXCLUDE_CUSTOMER_ID_URLS.some(excludeUrl => config.url?.includes(excludeUrl));
+      // 调试信息
+      if (import.meta.env.DEV) {
+        console.log('[Request] customerId injection:', {
+          url: config.url,
+          method: config.method,
+          userCustomerId: authStore.userInfo.customerId,
+          selectedCustomerId: customerStore.currentCustomerId,
+          finalCustomerId: customerId,
+          userName: authStore.userInfo?.userName,
+          shouldAdd: shouldAddCustomerId
+        });
+      }
         
       if (shouldAddCustomerId) {
-        const customerId = authStore.userInfo.customerId;
         
         if (config.method?.toLowerCase() === 'get') {
           // GET请求：添加到查询参数
