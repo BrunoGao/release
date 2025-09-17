@@ -64,7 +64,7 @@ watch(
                 v-model:value="model.userId"
                 size="small"
                 :placeholder="$t('page.health.device.message.form.userName')"
-                :options="[{ label: '全部', value: 'all' }, ...props.userOptions]"
+                :options="props.userOptions"
               />
             </NFormItemGi>
 

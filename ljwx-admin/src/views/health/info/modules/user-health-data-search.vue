@@ -57,7 +57,7 @@ function search() {
                 size="small"
                 clearable
                 :placeholder="$t('page.health.device.message.form.userName')"
-                :options="[{ label: '全部', value: 'all' }, ...props.userOptions]"
+                :options="props.userOptions"
               />
             </NFormItemGi>
             <NFormItemGi span="24 s:8 m:6" :label="$t('page.health.data.info.startDate')" path="startDate">

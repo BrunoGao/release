@@ -68,7 +68,7 @@ watch(
                 v-model:value="model.userId"
                 size="small"
                 :placeholder="$t('page.health.device.message.form.userName')"
-                :options="[{ label: '全部', value: 'all' }, ...props.userOptions]"
+                :options="props.userOptions"
               />
             </NFormItemGi>
 
@@ -87,6 +87,26 @@ watch(
                 size="small"
                 :placeholder="$t('page.health.device.message.form.messageStatus')"
                 :options="[{ label: '全部', value: 'all' }, ...dictOptions('message_status')]"
+              />
+            </NFormItemGi>
+
+            <NFormItemGi span="24 s:8 m:6" label="开始日期" path="startDate">
+              <NDatePicker
+                v-model:value="model.startDate"
+                size="small"
+                type="date"
+                placeholder="选择开始日期"
+                :is-date-disabled="(date: number) => date > Date.now()"
+              />
+            </NFormItemGi>
+
+            <NFormItemGi span="24 s:8 m:6" label="结束日期" path="endDate">
+              <NDatePicker
+                v-model:value="model.endDate"
+                size="small"
+                type="date"
+                placeholder="选择结束日期"
+                :is-date-disabled="(date: number) => date > Date.now()"
               />
             </NFormItemGi>
           </NGrid>
