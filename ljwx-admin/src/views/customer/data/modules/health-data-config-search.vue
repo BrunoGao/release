@@ -10,10 +10,6 @@ interface Emits {
   (e: 'reset'): void;
   (e: 'search'): void;
 }
-interface Props {
-  orgUnitsName: Array<any>;
-}
-const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const model = defineModel<Api.Customer.HealthDataConfigSearchParams>('model', { required: true });
@@ -34,16 +30,6 @@ function search() {
     <NForm :model="model" label-placement="left" :show-feedback="false" :label-width="80">
       <NGrid responsive="screen" item-responsive :x-gap="8" :y-gap="8" cols="1 s:1 m:5 l:5 xl:5 2xl:5">
         <NGridItem span="4">
-          <NGrid responsive="screen" item-responsive :x-gap="8">
-            <NFormItemGi span="24 s:8 m:12" :label="$t('page.customer.config.customerName')" path="departmentName">
-              <NSelect
-                v-model:value="model.customerId"
-                size="small"
-                :placeholder="$t('page.customer.config.customerName')"
-                :options="props.orgUnitsName"
-              />
-            </NFormItemGi>
-          </NGrid>
           <NGrid responsive="screen" item-responsive :x-gap="8">
             <NFormItemGi span="24 s:8 m:6" :label="$t('page.customer.healthDataConfig.dataType')" path="dataType">
               <NInput v-model:value="model.dataType" size="small" :placeholder="$t('page.customer.healthDataConfig.form.dataType')" />

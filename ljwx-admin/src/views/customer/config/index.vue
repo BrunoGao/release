@@ -11,7 +11,6 @@ import { transDeleteParams } from '@/utils/common';
 import { fetchDeleteCustomerConfig, fetchGetCustomerConfigList, fetchGetOrgUnitsTree } from '@/service/api';
 import { request } from '@/service/request';
 import { useDict } from '@/hooks/business/dict';
-import CustomerConfigSearch from './modules/customer-config-search.vue';
 import CustomerConfigOperateDrawer from './modules/customer-config-operate-drawer.vue';
 
 defineOptions({
@@ -219,22 +218,6 @@ async function handleBatchDelete() {
 }
 
 
-const orgUnitsName = ref<{ label: string; value: string }[]>([]);
-
-async function handleInitOptions() {
-  fetchGetOrgUnitsTree(customerId).then(({ error: err, data: treeData }) => {
-    if (!err && treeData) {
-      // 提取 parentId 为 0 的选项
-      orgUnitsName.value = treeData
-        .filter(item => item.parentId === 0)
-        .map(item => ({
-          label: item.name,
-          value: item.id
-        }));
-    }
-  });
-}
-handleInitOptions();
 
 // 许可证管理功能
 const licenseModalVisible = ref(false);
@@ -480,7 +463,6 @@ function formatDateTime(dateTime: string | null): string {
       </NCollapse>
     </NCard>
 
-    <CustomerConfigSearch v-model:model="searchParams" :org-units-name="orgUnitsName" @reset="resetSearchParams" @search="getDataByPage" />
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <TableHeaderOperation
         v-model:columns="columnChecks"

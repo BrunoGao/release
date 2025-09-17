@@ -146,23 +146,6 @@ async function handleBatchDelete() {
   }
 }
 
-/** org units tree data */
-const orgUnitsName = ref<{ label: string; value: string }[]>([]);
-
-async function handleInitOptions() {
-  fetchGetOrgUnitsTree(customerId).then(({ error: err, data: treeData }) => {
-    if (!err && treeData) {
-      // 提取 parentId 为 0 的选项
-      orgUnitsName.value = treeData
-        .filter(item => item.parentId === 0)
-        .map(item => ({
-          label: item.name,
-          value: item.id
-        }));
-    }
-  });
-}
-handleInitOptions();
 
 const manualExpanded = ref<string[]>([]);
 </script>
@@ -328,7 +311,7 @@ const manualExpanded = ref<string[]>([]);
       </NCollapse>
     </NCard>
 
-    <InterfaceSearch v-model:model="searchParams" :org-units-name="orgUnitsName" @reset="resetSearchParams" @search="getDataByPage" />
+    <InterfaceSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <TableHeaderOperation
         v-model:columns="columnChecks"
