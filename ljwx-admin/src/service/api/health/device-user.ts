@@ -4,18 +4,30 @@ import { request } from '@/service/request';
 
 /** get deviceUser list */
 export function fetchGetDeviceUserList(params?: Api.Health.DeviceUserSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.DeviceUserList>({
     url: '/t_device_user/page',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 
 export function fetchGetUnbindDeviceUserList(params?: Api.Health.DeviceUserSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.DeviceUserList>({
     url: '/t_device_user/unbind/list',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 

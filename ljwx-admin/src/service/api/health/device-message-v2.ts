@@ -4,10 +4,16 @@ import { request } from '@/service/request';
 
 /** 获取V2消息列表 */
 export function fetchGetDeviceMessageV2List(params?: Api.Health.DeviceMessageV2SearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.DeviceMessageV2List>({
     url: '/api/v2/messages',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 
@@ -287,10 +293,16 @@ export function fetchExportMessages(queryDTO: Api.Health.DeviceMessageV2SearchPa
 
 /** V1兼容性分页查询 */
 export function fetchGetDeviceMessageV1Compatible(params?: Api.Health.DeviceMessageSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.DeviceMessageList>({
     url: '/t_device_message/page',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 

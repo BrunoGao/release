@@ -4,10 +4,16 @@ import { request } from '@/service/request';
 
 /** get healthBaseline list */
 export function fetchGetHealthBaselineList(params?: Api.Health.HealthBaselineSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.HealthBaselineList>({
     url: '/t_health_baseline/page',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 

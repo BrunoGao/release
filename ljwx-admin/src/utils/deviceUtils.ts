@@ -123,7 +123,7 @@ export async function handleBindUsersByOrgId(orgId: string): Promise<{ label: st
 
     if (result?.userMap && Object.keys(result.userMap).length > 0) {
       const options = [
-  
+        { label: '全部用户', value: 'all' },
         ...Object.entries(result.userMap).map(([id, name]) => ({
           label: String(name || ''),
           value: String(id || '')

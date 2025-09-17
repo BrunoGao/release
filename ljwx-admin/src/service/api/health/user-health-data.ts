@@ -4,12 +4,19 @@ import { request } from '@/service/request';
 
 /** get userHealthData list */
 export function fetchGetUserHealthDataList(params?: Api.Health.UserHealthDataSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.UserHealthDataList>({
     url: '/t_user_health_data/page',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
+
 
 export function fetchGetUserHealthDataById(id: string) {
   return request<Api.Health.UserHealthDataList>({

@@ -4,10 +4,16 @@ import { request } from '@/service/request';
 
 /** get deviceInfo list */
 export function fetchGetDeviceInfoList(params?: Api.Health.DeviceInfoSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.DeviceInfoList>({
     url: '/t_device_info/page',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 

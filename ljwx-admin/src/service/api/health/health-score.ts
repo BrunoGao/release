@@ -4,10 +4,16 @@ import { request } from '@/service/request';
 
 /** get healthScore list */
 export function fetchGetHealthScoreList(params?: Api.Health.HealthScoreSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.HealthScoreList>({
     url: '/t_health_score/page',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 

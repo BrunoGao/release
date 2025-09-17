@@ -17,36 +17,60 @@ export function fetchGatherTotalInfo(customerId: number) {
 
 /** 获取基础健康数据列表 - 标准分页查询 */
 export function fetchGetHealthDataBasicList(params?: Api.Health.BasicHealthDataSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.BasicHealthDataList>({
     url: '/t_user_health_data/page',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 
 /** 获取健康数据分析结果 - 慢数据聚合（专业图表分析） */
 export function fetchGetHealthAnalytics(params?: Api.Health.HealthAnalyticsSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.HealthAnalyticsResult>({
     url: '/t_user_health_data/analytics/aggregated',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 
 /** 获取睡眠专项分析 */
 export function fetchGetSleepAnalytics(params?: Api.Health.HealthAnalyticsSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.SleepAnalyticsResult>({
     url: '/t_user_health_data/analytics/sleep',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 
 /** 获取运动专项分析 */
 export function fetchGetExerciseAnalytics(params?: Api.Health.HealthAnalyticsSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.ExerciseAnalyticsResult>({
     url: '/t_user_health_data/analytics/exercise',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }

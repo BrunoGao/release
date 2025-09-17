@@ -4,10 +4,16 @@ import { request } from '@/service/request';
 
 /** get alertrules list */
 export function fetchGetAlertRulesList(params?: Api.Health.AlertRulesSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   return request<Api.Health.AlertRulesList>({
     url: '/t_alert_rules/page',
     method: 'GET',
-    params
+    params: filteredParams
   });
 }
 

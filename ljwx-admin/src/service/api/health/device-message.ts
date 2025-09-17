@@ -4,8 +4,14 @@ import { request } from '@/service/request';
 
 /** get deviceMessage list */
 export function fetchGetDeviceMessageList(params?: Api.Health.DeviceMessageSearchParams) {
+  // Filter out userId if it's 'all'
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  
   const urlParams = new URLSearchParams();
-  Object.entries(params || {}).forEach(([key, value]) => {
+  Object.entries(filteredParams || {}).forEach(([key, value]) => {
     if (value !== null && value !== undefined) {
       urlParams.append(key, value);
     }

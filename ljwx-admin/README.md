@@ -41,8 +41,8 @@
 ##### 前置环境
 
 - **Git**: 你需要git来克隆和管理项目版本。
-- **NodeJS**: >=18.12.0，推荐 18.19.0 或更高。
-- **pnpm**: >= 8.7.0，推荐 8.14.0 或更高。
+- **NodeJS**: >=18.12.0，推荐 18.19.0 或更高。(当前测试版本: v21.7.3)
+- **pnpm**: >= 8.7.0，推荐 8.14.0 或更高。(当前测试版本: v9.7.0)
 
 ##### 克隆项目
 
@@ -516,7 +516,107 @@ fetchGetUserList({
 }
 ```
 
+## ⚠️ 版本配套说明
+
+### Node.js 和 pnpm 版本兼容性
+
+本项目在不同版本组合下的兼容性测试结果：
+
+#### ✅ 推荐版本组合
+- **Node.js v18.19.0 + pnpm v8.14.0** - 最稳定的生产环境配置
+- **Node.js v21.7.3 + pnpm v9.7.0** - 当前开发测试验证版本
+
+#### 🚨 常见版本问题及解决方案
+
+**问题1: PostCSS 与 nanoid 兼容性错误**
+```bash
+Error [ERR_REQUIRE_ESM]: require() of ES Module nanoid/non-secure/index.js not supported
+```
+
+**解决方案:**
+```bash
+# 1. 清理依赖
+rm -rf node_modules pnpm-lock.yaml
+
+# 2. 重新安装
+pnpm install
+
+# 3. 如果问题持续存在，尝试降级到推荐版本
+nvm use 18.19.0  # 或使用 n 18.19.0
+npm install -g pnpm@8.14.0
+```
+
+**问题2: entities 包导出路径错误**
+```bash
+Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './lib/decode_codepoint.js' not defined
+```
+
+**解决方案:**
+```bash
+# 完全清理并重新安装
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
+```
+
+#### 📋 版本兼容性检查清单
+
+在遇到启动问题时，请按顺序检查：
+
+1. **检查版本**
+   ```bash
+   node --version    # 应该 >= 18.12.0
+   pnpm --version    # 应该 >= 8.7.0
+   ```
+
+2. **清理依赖**
+   ```bash
+   rm -rf node_modules pnpm-lock.yaml
+   ```
+
+3. **重新安装**
+   ```bash
+   pnpm install
+   ```
+
+4. **验证启动**
+   ```bash
+   pnpm run dev
+   ```
+
+#### 🔧 开发环境配置建议
+
+**使用 nvm 管理 Node.js 版本:**
+```bash
+# 安装推荐版本
+nvm install 18.19.0
+nvm use 18.19.0
+
+# 设置为默认版本
+nvm alias default 18.19.0
+```
+
+**使用 npm 全局安装 pnpm:**
+```bash
+npm install -g pnpm@8.14.0
+```
+
 ## 📝 更新日志
+
+### v1.3.9 - 全模块用户过滤统一优化 (2025-09-17)
+- 🔧 **全模块 userId="all" 过滤修复**
+  - 修复 Health、Device、Alert、Message 模块API中 `userId="all"` 导致的 `NumberFormatException` 错误
+  - 在 `deviceUtils.ts` 中为用户选择器添加"全部用户"选项（value: "all"）
+  - 全面优化18个API函数，当 `userId="all"` 时自动过滤该参数，实现统一的用户过滤机制
+  - **健康数据模块**：`fetchGetUserHealthDataList`、`fetchGetHealthBaselineList`、`fetchGetHealthScoreList`、`fetchGetHealthDataBasicList`、`fetchGetHealthAnalytics`、`fetchGetSleepAnalytics`、`fetchGetExerciseAnalytics`
+  - **设备管理模块**：`fetchGetDeviceInfoList`、`fetchGetDeviceUserList`、`fetchGetUnbindDeviceUserList`、`fetchGetUserDeviceList`
+  - **告警管理模块**：`fetchGetAlertInfoList`、`fetchGetAlertRulesList`
+  - **消息管理模块**：`fetchGetDeviceMessageList`、`fetchGetDeviceMessageV2List`、`fetchGetDeviceMessageV1Compatible`
+  - 采用前端统一过滤方案，在API层面透明处理，保持接口调用的一致性和简洁性
+- 📚 **版本兼容性文档化**
+  - 新增 Node.js v21.7.3 + pnpm v9.7.0 版本组合测试验证
+  - 详细记录 PostCSS/nanoid 和 entities 包的兼容性问题及解决方案
+  - 建立版本问题快速排查清单和标准化解决流程
+  - 提供开发环境配置的最佳实践指南
 
 ### v1.3.8 - 多租户数据库表结构优化与查询性能提升 (2025-08-28)
 - 🚀 **数据库多租户架构完善**
