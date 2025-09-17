@@ -52,12 +52,26 @@ export function useRouterPush(inSetup = true) {
     // Handle special routes that should open in new window
     if (key === 'bigscreen') {
       console.log('Intercepting bigscreen navigation');
-      // Import auth store dynamically to avoid circular dependencies
-      import('@/store/modules/auth').then(({ useAuthStore }) => {
+      // Import both auth and customer stores dynamically to avoid circular dependencies
+      Promise.all([
+        import('@/store/modules/auth'),
+        import('@/store/modules/customer')
+      ]).then(([{ useAuthStore }, { useCustomerStore }]) => {
         const authStore = useAuthStore();
+        const customerStore = useCustomerStore();
+        
+        // 确定要使用的customerId
+        let customerId = authStore.userInfo.customerId;
+        
+        // 如果是admin用户且已选择客户，使用选中的客户ID
+        if (authStore.userInfo?.userName === 'admin' && customerStore.currentCustomerId) {
+          customerId = customerStore.currentCustomerId;
+        }
+        
         const bigscreenUrl = import.meta.env.VITE_BIGSCREEN_URL || 'http://localhost:5002';
-        const url = `${bigscreenUrl}/main?customerId=${authStore.userInfo.customerId}`;
+        const url = `${bigscreenUrl}/main?customerId=${customerId}`;
         console.log('Opening bigscreen URL:', url);
+        console.log('Using customerId:', customerId, '(admin selected:', customerStore.currentCustomerId, ')');
         window.open(url, '_blank');
       });
       return Promise.resolve();
