@@ -7,7 +7,7 @@ from .models import db, HealthBaseline, OrgHealthBaseline, UserHealthData, UserI
 from flask import jsonify
 import logging
 import statistics as py_statistics
-from .health_cache_manager import health_cache, cache_result
+from .health_cache_service import health_cache_service as health_cache
 
 logger = logging.getLogger(__name__)
 

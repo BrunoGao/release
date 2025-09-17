@@ -10,6 +10,8 @@ import { $t } from '@/locales';
 import { useRouteStore } from '../route';
 import { useTabStore } from '../tab';
 import { useDictStore } from '../dict';
+import { useCustomerStore } from '../customer';
+import { useCustomer } from '@/hooks/business/customer';
 import { clearAuthStorage, getToken } from './shared';
 
 export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
@@ -17,6 +19,8 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   const routeStore = useRouteStore();
   const tabStore = useTabStore();
   const dictStore = useDictStore();
+  const customerStore = useCustomerStore();
+  const { initializeCustomerContext, resetCustomerContext } = useCustomer();
   const { toLogin, redirectFromLogin } = useRouterPush(false);
   const { loading: loginLoading, startLoading, endLoading } = useLoading();
 
@@ -49,6 +53,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     const authStore = useAuthStore();
 
     clearAuthStorage();
+
+    // 重置客户上下文
+    resetCustomerContext();
 
     authStore.$reset();
 
@@ -121,6 +128,15 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
       console.log('[getUserInfo] Success:', info);
       // update store
       Object.assign(userInfo, info);
+
+      // 初始化客户上下文
+      try {
+        await initializeCustomerContext();
+        console.log('[getUserInfo] Customer context initialized');
+      } catch (customerError) {
+        console.error('[getUserInfo] Failed to initialize customer context:', customerError);
+        // 客户上下文初始化失败不应该阻止登录，但要记录错误
+      }
 
       return true;
     }

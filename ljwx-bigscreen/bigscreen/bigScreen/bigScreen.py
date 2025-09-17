@@ -17,7 +17,7 @@ from .alert import test_wechat_alert as alert_test_wechat_alert, generate_alert_
 from .alert import generate_alert_chart as alert_generate_alert_chart, deal_alert as alert_deal_alert, generate_alert_stats as alert_generate_alert_stats, generate_alert_chart_by_type
 from .alert import acknowledge_alert as alert_acknowledge_alert
 from .alert import fetch_alerts_by_orgIdAndUserId as alert_fetch_alerts_by_orgIdAndUserId
-from .message.v1.service import fetch_messages as message_fetch_messages, send_message as message_send_message, received_messages as message_received_messages, generate_message_stats as message_generate_message_stats, fetch_messages_by_orgIdAndUserId as message_fetch_messages_by_orgIdAndUserId
+from .message import fetch_messages as message_fetch_messages, send_message as message_send_message, received_messages as message_received_messages, generate_message_stats as message_generate_message_stats, fetch_messages_by_orgIdAndUserId as message_fetch_messages_by_orgIdAndUserId
 from .user import get_user_info as user_get_user_info, get_all_users as user_get_all_users, get_user_deviceSn as user_get_user_deviceSn, get_user_id as user_get_user_id
 from .org import fetch_departments_by_orgId, fetch_departments, fetch_users_stats_by_orgId
 from .org import fetch_users_by_orgId
@@ -30,32 +30,26 @@ from .user_health_data import get_health_trends, get_health_baseline, get_baseli
 from .health_baseline import HealthBaselineQuery, generate_baseline_task
 from .watch_log import upload_watch_log as watch_log_upload_watch_log, watch_logs_page as watch_log_watch_logs_page, get_watch_logs as watch_log_get_watch_logs, get_watch_log_stats as watch_log_get_watch_log_stats
 from .health_profile import get_profile_monitor, manual_generate_profiles, get_health_profiles, get_profile_statistics
-from .weight_calculator import WeightCalculator
-from .health_baseline_manager import HealthBaselineManager
-from .recommendation_tracker import RecommendationTracker
-from .health_recommendation_engine import RealTimeHealthRecommendationEngine
-from .health_cache_integration import health_data_cache_integration, cache_health_data, cache_health_chart, cache_health_stats
+# from .weight_calculator import WeightCalculator  # 模块不存在，暂时注释
+# from .health_baseline_manager import HealthBaselineManager  # 模块不存在，暂时注释
+# from .recommendation_tracker import RecommendationTracker  # 模块不存在，暂时注释
+# from .health_recommendation_engine import RealTimeHealthRecommendationEngine  # 模块不存在，暂时注释
+# from .health_cache_integration import health_data_cache_integration, cache_health_data, cache_health_chart, cache_health_stats  # 模块不存在，暂时注释
 from redis import Redis
-from .health_data_batch_processor import optimized_upload_health_data, save_health_data_fast, get_optimizer_stats
-from .health_config_cache_listener import get_health_config_listener, get_enabled_metrics, get_listener_stats
-from .redis_stream_manager import get_stream_manager
-from .stream_consumers import get_consumer_manager
-from .stream_gradual_switch_manager import get_switch_manager, should_use_stream_processing
-from .stream_monitoring_dashboard import monitoring_bp
-from .stream_rollback_plan import get_rollback_plan
-from .statistics_module import get_realtime_stats_data, get_statistics_overview_data
-from .message.v1.service import save_device_message_data, send_device_message_data, receive_device_messages_data
+# from .health_data_batch_processor import optimized_upload_health_data, save_health_data_fast, get_optimizer_stats  # 模块有依赖问题，暂时注释
+# from .health_config_cache_listener import get_health_config_listener, get_enabled_metrics, get_listener_stats  # 模块不存在，暂时注释
+# from .redis_stream_manager import get_stream_manager  # 模块不存在，暂时注释
+# from .stream_consumers import get_consumer_manager  # 模块不存在，暂时注释
+# from .stream_gradual_switch_manager import get_switch_manager, should_use_stream_processing  # 模块不存在，暂时注释
+# from .stream_monitoring_dashboard import monitoring_bp  # 模块不存在，暂时注释
+# from .stream_rollback_plan import get_rollback_plan  # 模块不存在，暂时注释
+# from .statistics_module import get_realtime_stats_data, get_statistics_overview_data  # 模块不存在，暂时注释
+from .message import save_device_message_data, send_device_message_data, receive_device_messages_data
 from .device import get_device_analysis_data
-from .health_analysis import get_customer_comprehensive_analysis, get_health_trends_analysis_data
-from .license_manager import get_license_manager, license_required, check_device_license, get_license_dashboard_data
-# V2消息系统导入 - 暂时禁用以避免导入错误
-try:
-    from .message.v2.integration import get_integration_manager, initialize_v2_system, create_integration_config
-    V2_SYSTEM_AVAILABLE = True
-except ImportError as e:
-    # system_logger 还未定义，使用print
-    print(f"⚠️  V2消息系统导入失败，使用V1系统: {e}")
-    V2_SYSTEM_AVAILABLE = False
+# from .health_analysis import get_customer_comprehensive_analysis, get_health_trends_analysis_data  # 模块不存在，暂时注释
+# from .license_manager import get_license_manager, license_required, check_device_license, get_license_dashboard_data  # 模块不存在，暂时注释
+# V2消息系统已移除
+V2_SYSTEM_AVAILABLE = False
 import requests  # 用于发送HTTP请求
 import json
 import threading
@@ -92,14 +86,14 @@ api_logger = logging.getLogger('api')
 system_logger = logging.getLogger('system')
 query_logger = logging.getLogger('query')
 
-# 导入消息V2增强功能 - 在日志器初始化后
+# 导入消息功能
 try:
     from .message import acknowledge_message, batch_acknowledge_messages, get_watch_message_summary, mark_message_as_read_on_watch
-    MESSAGE_V2_FEATURES_AVAILABLE = True
-    system_logger.info("✅ 消息V2增强功能导入成功")
+    MESSAGE_FEATURES_AVAILABLE = True
+    system_logger.info("✅ 消息功能导入成功")
 except ImportError as e:
-    MESSAGE_V2_FEATURES_AVAILABLE = False
-    system_logger.warning(f"⚠️  消息V2增强功能导入失败: {e}")
+    MESSAGE_FEATURES_AVAILABLE = False
+    system_logger.warning(f"⚠️  消息功能导入失败: {e}")
     # 创建占位函数以避免运行时错误
     def acknowledge_message(data):
         return {'success': False, 'message': '功能不可用'}, 503
@@ -132,7 +126,7 @@ db.init_app(app)
 app.register_blueprint(config_bp, url_prefix='/api')
 
 # 注册Stream监控仪表板蓝图
-app.register_blueprint(monitoring_bp)
+# app.register_blueprint(monitoring_bp)  # monitoring_bp未定义，暂时注释
 
 # 注册健康系统API蓝图
 # Temporarily disable health_api blueprint to use simplified route
@@ -155,32 +149,8 @@ except ImportError as e:
 except Exception as e:
     system_logger.error(f"❌ 健康分析API V2.0模块加载异常: {e}")
 
-# 初始化V2消息系统 - 仅在可用时执行
-if V2_SYSTEM_AVAILABLE:
-    try:
-        v2_config = create_integration_config(
-            enable_performance_monitoring=True,
-            enable_health_checks=True,
-            enable_cache_warming=True
-        )
-        if initialize_v2_system(v2_config, app):
-            system_logger.info("✅ 消息V2系统初始化成功")
-        else:
-            system_logger.warning("⚠️  消息V2系统初始化失败")
-    except Exception as e:
-        system_logger.warning(f"⚠️  消息V2系统初始化异常: {e}")
-        system_logger.info("✅ 继续使用V1消息系统")
-
-# 注册V1消息路由
-try:
-    from .message.v1.routes import register_v1_message_routes
-    register_v1_message_routes(app)
-    system_logger.info("✅ V1消息系统路由注册完成")
-except Exception as e:
-    system_logger.error(f"❌ V1消息系统路由注册失败: {e}")
-    # 如果V1路由注册失败，保持现有的内联路由作为备用
-else:
-    system_logger.info("✅ 使用V1消息系统，V2系统未启用")
+# V2消息系统已移除，使用V1消息系统
+system_logger.info("✅ 使用V1消息系统")
 
 # 实时统计API - 重构后使用模块化实现
 @app.route('/api/realtime_stats', methods=['GET'])
@@ -202,16 +172,17 @@ system_logger.info('实时统计API直接路由注册成功')
 # 主路由模块已删除，不再需要导入
 # 主路由功能已集成到其他模块中
 
-# 注册设备绑定蓝图
-try:
-    from .device_bind import device_bind_bp
-    app.register_blueprint(device_bind_bp)
-    system_logger.info('设备绑定模块注册成功')
-except ImportError as e:
-    system_logger.warning(f'设备绑定模块导入失败，使用兼容版本: {e}')
-    from .device_bind_compatible import device_bind_bp
-    app.register_blueprint(device_bind_bp)
-    system_logger.info('设备绑定兼容模块注册成功')
+# 设备绑定模块已禁用
+# try:
+#     from .device_bind import device_bind_bp
+#     app.register_blueprint(device_bind_bp)
+#     system_logger.info('设备绑定模块注册成功')
+# except ImportError as e:
+#     system_logger.warning(f'设备绑定模块导入失败，使用兼容版本: {e}')
+#     from .device_bind_compatible import device_bind_bp
+#     app.register_blueprint(device_bind_bp)
+#     system_logger.info('设备绑定兼容模块注册成功')
+system_logger.info('设备绑定模块已禁用')
 
 # 注册监控蓝图
 try:
@@ -295,7 +266,7 @@ with app.app_context():
         import traceback
         traceback.print_exc()
 
-# 初始化Redis Stream系统
+# Redis Stream系统已禁用
 stream_manager = None
 consumer_manager = None
 
@@ -303,25 +274,16 @@ consumer_manager = None
 # metrics_collector 将在 initialize_metrics_collector() 中初始化
 
 def initialize_stream_system():
-    """初始化Stream系统"""
+    """Stream系统已禁用"""
     global stream_manager, consumer_manager
     
-    try:
-        stream_manager = get_stream_manager()
-        consumer_manager = get_consumer_manager()
-        
-        # 启动消费者（仅在验证阶段，不写数据库）
-        consumer_manager.start_all_consumers()
-        
-        logger.info("✅ Stream系统初始化完成")
-        return True
-    except Exception as e:
-        logger.error(f"❌ Stream系统初始化失败: {e}")
-        return False
+    # Stream系统已禁用，不进行初始化
+    logger.info("Stream系统已禁用")
+    return False
 
-# 在应用启动时调用
-with app.app_context():
-    initialize_stream_system()
+# Stream系统初始化已禁用
+# with app.app_context():
+#     initialize_stream_system()
 
 # logger已在前面定义
 
@@ -637,9 +599,10 @@ def health_profile():
 def config_management():
     return render_template('config_management.html')
 
-@app.route("/device_bind")  # 设备绑定管理页面路由
-def device_bind():
-    return render_template('device_bind_management.html')
+# 设备绑定管理页面已禁用
+# @app.route("/device_bind")  # 设备绑定管理页面路由
+# def device_bind():
+#     return render_template('device_bind_management.html')
 
 @app.route("/get_interface_config", methods=['GET'])
 def get_interface_config():
@@ -963,7 +926,7 @@ def received_messages(deviceSn=None):
 def acknowledge_device_message():
     """手机端消息确认API - 完善消息数据流"""
     try:
-        if not MESSAGE_V2_FEATURES_AVAILABLE:
+        if not MESSAGE_FEATURES_AVAILABLE:
             return jsonify({
                 'success': False,
                 'message': '消息V2增强功能不可用'
@@ -984,7 +947,7 @@ def acknowledge_device_message():
 def batch_acknowledge_device_messages():
     """批量消息确认API"""
     try:
-        if not MESSAGE_V2_FEATURES_AVAILABLE:
+        if not MESSAGE_FEATURES_AVAILABLE:
             return jsonify({
                 'success': False,
                 'message': '消息V2增强功能不可用'
@@ -1005,7 +968,7 @@ def batch_acknowledge_device_messages():
 def get_watch_message_summary_api():
     """手表端消息摘要API"""
     try:
-        if not MESSAGE_V2_FEATURES_AVAILABLE:
+        if not MESSAGE_FEATURES_AVAILABLE:
             return jsonify({
                 'success': False,
                 'message': '消息V2增强功能不可用'
@@ -1032,7 +995,7 @@ def get_watch_message_summary_api():
 def mark_message_read_on_watch_api():
     """手表端标记消息已读API"""
     try:
-        if not MESSAGE_V2_FEATURES_AVAILABLE:
+        if not MESSAGE_FEATURES_AVAILABLE:
             return jsonify({
                 'success': False,
                 'message': '消息V2增强功能不可用'
@@ -1250,41 +1213,22 @@ def handle_health_data():
         else:
             print(f"✅ License验证通过: {device_sn}")
     
-    # 检查是否应该使用Stream处理
-    try:
-        use_stream = should_use_stream_processing(device_sn)
-        if use_stream:
-            print(f"🌊 设备 {device_sn} 使用Stream处理")
-            # 使用Stream处理
-            stream_manager = get_stream_manager()
-            stream_id = stream_manager.add_health_data({
-                'data': health_data.get('data'),
-                'device_sn': device_sn,
-                'message_type': 'health_data',
-                'timestamp': int(time.time()),
-                'api_version': 'v1_stream_auto'
-            })
-            
-            health_logger.info('健康数据Stream处理', extra={
-                'device_sn': device_sn,
-                'stream_id': stream_id,
-                'processing_type': 'stream_auto'
-            })
-            
-            return jsonify({
-                "status": "accepted",
-                "message": "数据已提交Stream处理",
-                "stream_id": stream_id,
-                "processing_type": "stream"
-            })
-        else:
-            print(f"🔄 设备 {device_sn} 使用传统处理")
-    except Exception as stream_error:
-        print(f"⚠️ Stream切换检查失败，回退到传统处理: {stream_error}")
+    # Stream处理已禁用，直接使用传统处理
+    # try:
+    #     use_stream = should_use_stream_processing(device_sn)
+    #     if use_stream:
+    #         print(f"🌊 设备 {device_sn} 使用Stream处理")
+    #         return jsonify({"status": "error", "message": "Stream系统已禁用"}), 503
+    #     else:
+    #         print(f"🔄 设备 {device_sn} 使用传统处理")
+    # except Exception as stream_error:
+    #     print(f"⚠️ Stream切换检查失败，回退到传统处理: {stream_error}")
     
-    print(f"🏥 调用optimized_upload_health_data处理函数")
-    result = optimized_upload_health_data(health_data)
-    print(f"🏥 optimized_upload_health_data处理结果: {result.get_json() if hasattr(result, 'get_json') else result}")
+    print(f"🔄 设备 {device_sn} 使用传统处理")
+    
+    print(f"🏥 调用user_upload_health_data处理函数")
+    result = user_upload_health_data(health_data)
+    print(f"🏥 user_upload_health_data处理结果: {result.get_json() if hasattr(result, 'get_json') else result}")
     return result
 
 @app.route("/upload_health_data_optimized", methods=['POST'])
@@ -1305,205 +1249,32 @@ def handle_health_data_optimized():
     
     health_logger.info('优化版健康数据上传',extra={'device_sn':device_sn})
     
-    return optimized_upload_health_data(health_data)
+    return user_upload_health_data(health_data)
 
 # ============= Stream版本API接口 =============
 
-@app.route("/upload_health_data_v2", methods=['POST'])
-@log_api_request('/upload_health_data_v2', 'POST')
-def upload_health_data_stream():
-    """Redis Stream版本 - 健康数据上传"""
-    try:
-        health_data = request.get_json()
-        
-        if not health_data:
-            return jsonify({
-                "status": "error", 
-                "message": "请求体不能为空"
-            }), 400
-        
-        # 提取设备SN用于日志
-        data_field = health_data.get('data', {})
-        if isinstance(data_field, list) and len(data_field) > 0:
-            device_sn = data_field[0].get('deviceSn') or data_field[0].get('id')
-        elif isinstance(data_field, dict):
-            device_sn = data_field.get('deviceSn') or data_field.get('id')
-        else:
-            device_sn = "unknown"
-        
-        # 添加到Stream
-        stream_id = stream_manager.add_health_data({
-            'data': health_data.get('data'),
-            'device_sn': device_sn,
-            'message_type': 'health_data',
-            'timestamp': int(time.time()),
-            'api_version': 'v2'
-        })
-        
-        # 立即响应
-        health_logger.info('健康数据Stream上传', extra={
-            'device_sn': device_sn,
-            'stream_id': stream_id,
-            'api_version': 'v2'
-        })
-        
-        return jsonify({
-            "status": "accepted",
-            "stream_id": stream_id,
-            "message": "数据已加入处理队列",
-            "processing": "async"
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Stream健康数据上传失败: {e}")
-        return jsonify({
-            "status": "error",
-            "message": f"上传失败: {str(e)}"
-        }), 500
 
-@app.route("/upload_device_info_v2", methods=['POST'])
-@log_api_request('/upload_device_info_v2', 'POST')
-def upload_device_info_stream():
-    """Redis Stream版本 - 设备信息上传"""
-    try:
-        device_info = request.get_json()
-        
-        if not device_info:
-            return jsonify({
-                "status": "error", 
-                "message": "请求体不能为空"
-            }), 400
-        
-        # 提取设备SN
-        device_sn = (device_info.get('SerialNumber') or 
-                    device_info.get('deviceSn') or 
-                    "unknown")
-        
-        # 添加到Stream
-        stream_id = stream_manager.add_device_info({
-            'data': device_info,
-            'device_sn': device_sn,
-            'message_type': 'device_info',
-            'timestamp': int(time.time()),
-            'api_version': 'v2'
-        })
-        
-        device_logger.info('设备信息Stream上传', extra={
-            'device_sn': device_sn,
-            'stream_id': stream_id
-        })
-        
-        return jsonify({
-            "status": "accepted",
-            "stream_id": stream_id,
-            "message": "设备信息已加入处理队列"
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Stream设备信息上传失败: {e}")
-        return jsonify({
-            "status": "error",
-            "message": f"上传失败: {str(e)}"
-        }), 500
 
-@app.route("/upload_common_event_v2", methods=['POST'])
-@log_api_request('/upload_common_event_v2', 'POST')  
-def upload_common_event_stream():
-    """Redis Stream版本 - 通用事件上传"""
-    try:
-        event_data = request.get_json()
-        
-        if not event_data:
-            return jsonify({
-                "status": "error",
-                "message": "请求体不能为空"
-            }), 400
-        
-        # 提取设备SN
-        device_sn = (event_data.get('deviceSn') or 
-                    event_data.get('id') or
-                    "unknown")
-        
-        # 添加到Stream  
-        stream_id = stream_manager.add_common_event({
-            'data': event_data,
-            'device_sn': device_sn,
-            'message_type': 'common_event',
-            'timestamp': int(time.time()),
-            'api_version': 'v2'
-        })
-        
-        alert_logger.info('通用事件Stream上传', extra={
-            'device_sn': device_sn,
-            'stream_id': stream_id,
-            'event_type': event_data.get('eventType', 'unknown')
-        })
-        
-        return jsonify({
-            "status": "accepted", 
-            "stream_id": stream_id,
-            "message": "事件已加入处理队列"
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Stream事件上传失败: {e}")
-        return jsonify({
-            "status": "error",
-            "message": f"上传失败: {str(e)}"
-        }), 500
 
-# ============= Stream监控接口 =============
+# ============= Stream监控接口已禁用 =============
 
-@app.route("/api/stream_stats", methods=['GET'])
-def get_stream_stats():
-    """获取Stream统计信息"""
-    try:
-        if stream_manager is None:
-            return jsonify({"error": "Stream系统未初始化"}), 503
-            
-        stats = stream_manager.get_all_streams_stats()
-        consumer_stats = consumer_manager.get_all_stats() if consumer_manager else {}
-        
-        return jsonify({
-            "stream_stats": stats,
-            "consumer_stats": consumer_stats,
-            "timestamp": int(time.time())
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ 获取Stream统计失败: {e}")
-        return jsonify({"error": str(e)}), 500
+# @app.route("/api/stream_stats", methods=['GET'])
+# def get_stream_stats():
+#     """获取Stream统计信息 - 已禁用"""
+#     return jsonify({"error": "Stream系统已禁用"}), 503
 
-@app.route("/api/stream_health", methods=['GET'])
-def check_stream_health():
-    """Stream健康检查"""
-    try:
-        if stream_manager is None:
-            return jsonify({
-                "healthy": False,
-                "error": "Stream系统未初始化"
-            }), 503
-        
-        healthy = stream_manager.health_check()
-        
-        return jsonify({
-            "healthy": healthy,
-            "timestamp": int(time.time()),
-            "streams": list(stream_manager.streams_config.keys())
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Stream健康检查失败: {e}")
-        return jsonify({
-            "healthy": False,
-            "error": str(e)
-        }), 500
+# @app.route("/api/stream_health", methods=['GET'])
+# def check_stream_health():
+#     """Stream健康检查 - 已禁用"""
+#     return jsonify({
+#         "healthy": False,
+#         "error": "Stream系统已禁用"
+#     }), 503
 
 @app.route("/optimizer_stats", methods=['GET'])
 def get_optimizer_stats():
-    """获取优化器统计信息"""
-    from .optimized_health_data import get_optimizer_stats
-    return get_optimizer_stats()
+    """获取优化器统计信息 - 已禁用"""
+    return jsonify({"error": "优化器模块已禁用"}), 503
 
 @app.route('/fetch_health_data', methods=['GET'])
 def fetch_health_data(deviceSn=None):
@@ -1743,7 +1514,7 @@ def cache_result(ttl_hours=1):
 
 # 在generateHealthJson路由上添加缓存
 @app.route('/generateHealthJson')
-@cache_result(ttl_hours=1)
+# TODO: Add caching decorator when needed
 def generate_health_json():
     customerId = request.args.get('customerId')
     userId = request.args.get('userId')
@@ -2332,7 +2103,7 @@ def get_total_info(customer_id=None):
     
     #导入底层函数
     from .alert import fetch_alerts_by_orgIdAndUserId as fetch_alerts
-    from .message.v1.service import fetch_messages_by_orgIdAndUserId as fetch_messages
+    from .message import fetch_messages_by_orgIdAndUserId as fetch_messages
     from .device import fetch_devices_by_orgIdAndUserId as fetch_devices
     from .user import get_user_info_by_orgIdAndUserId as fetch_users
     from .user_health_data import fetch_health_data_by_orgIdAndUserId as fetch_health_data
@@ -4950,7 +4721,7 @@ def get_personal_messages():
             }), 404
         
         # 获取个人消息数据
-        from .message.v1.service import fetch_messages_by_orgIdAndUserId
+        from .message import fetch_messages_by_orgIdAndUserId
         msg_result = fetch_messages_by_orgIdAndUserId(None, user_id, None)
         
         if not msg_result:
@@ -5881,20 +5652,21 @@ if __name__ == "__main__":
         # 初始化Redis Stream系统
         try:
             # 初始化Stream管理器
-            stream_manager = get_stream_manager()
+            # stream_manager = get_stream_manager()  # Stream系统已禁用
+            print("Redis Stream系统已禁用")
             print("🌊 Redis Stream管理器已初始化")
             
             # 初始化消费者管理器
-            consumer_manager = get_consumer_manager()
+            # consumer_manager = get_consumer_manager()  # Stream系统已禁用
             consumer_manager.start_all_consumers()
             print("🔄 Stream消费者已启动")
             
             # 初始化灰度切换管理器
-            switch_manager = get_switch_manager()
+            # switch_manager = get_switch_manager()  # Stream系统已禁用
             print("🎛️  灰度切换管理器已初始化")
             
             # 初始化回滚预案
-            rollback_plan = get_rollback_plan()
+            # rollback_plan = get_rollback_plan()  # Stream系统已禁用
             backup_result = rollback_plan.create_migration_backup()
             if 'error' not in backup_result:
                 print(f"💾 迁移备份已创建: {backup_result['backup_id']}")

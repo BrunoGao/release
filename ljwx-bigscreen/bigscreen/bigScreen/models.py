@@ -67,140 +67,125 @@ class DeviceMessage(db.Model):
     __tablename__ = 't_device_message'
 
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    device_sn = db.Column(db.String(255), nullable=False)
-    message = db.Column(db.Text, nullable=False)   
-    org_id = db.Column(db.String(50), nullable=True)  # 修改: department_info -> org_id
-    user_id = db.Column(db.String(50), nullable=True)
-    customer_id = db.Column(db.BigInteger, nullable=False, default=0, comment='租户ID，继承自设备所属租户')
-    message_type = db.Column(db.String(50), nullable=False)
-    sender_type = db.Column(db.String(50), nullable=False)
-    receiver_type = db.Column(db.String(50), nullable=False)
-    message_status = db.Column(db.String(50), default='pending', nullable=False)
-    responded_number = db.Column(db.Integer, default=0, nullable=False)
-    sent_time = db.Column(db.DateTime, default=datetime.utcnow)
-    received_time = db.Column(db.DateTime, nullable=True)
-    create_user = db.Column(db.String(255), nullable=True)
-    create_user_id = db.Column(db.BigInteger, nullable=True)
-    create_time = db.Column(db.DateTime, default=datetime.utcnow)
-    update_user = db.Column(db.String(255), nullable=True)
-    update_user_id = db.Column(db.BigInteger, nullable=True)
-    update_time = db.Column(db.DateTime, nullable=True)
-    is_deleted = db.Column(db.Boolean, default=False)
-
-class DeviceMessageV2(db.Model):
-    __tablename__ = 't_device_message_v2'
-
-    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    message_id = db.Column(db.String(64), nullable=False, unique=True)
     customer_id = db.Column(db.BigInteger, nullable=False)
-    department_id = db.Column(db.BigInteger, nullable=False)
-    user_id = db.Column(db.BigInteger, nullable=False)
-    device_sn = db.Column(db.String(64), nullable=True)
+    org_id = db.Column(db.BigInteger, nullable=True)
+    user_id = db.Column(db.String(64), nullable=True)
+    device_sn = db.Column(db.String(128), nullable=True)
+    title = db.Column(db.String(255), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    message_type = db.Column(db.Enum('task', 'job', 'announcement', 'notification', 'alert', 'emergency'), nullable=False)
-    sender_type = db.Column(db.Enum('system', 'user', 'device', 'admin'), nullable=False)
-    receiver_type = db.Column(db.Enum('user', 'department', 'broadcast'), nullable=False)
-    priority_level = db.Column(db.SmallInteger, nullable=False, default=3)
-    message_status = db.Column(db.Enum('pending', 'delivered', 'acknowledged', 'failed', 'expired'), nullable=False, default='pending')
-    sent_time = db.Column(db.DateTime(3), nullable=True)
-    received_time = db.Column(db.DateTime(3), nullable=True)
-    acknowledged_time = db.Column(db.DateTime(3), nullable=True)
-    expired_time = db.Column(db.DateTime(3), nullable=True)
-    target_user_count = db.Column(db.Integer, nullable=False, default=1)
-    acknowledged_count = db.Column(db.Integer, nullable=False, default=0)
-    create_user_id = db.Column(db.BigInteger, nullable=True)
-    create_time = db.Column(db.DateTime(3), nullable=False, server_default=db.func.current_timestamp())
-    update_time = db.Column(db.DateTime(3), nullable=True, onupdate=db.func.current_timestamp())
-    is_deleted = db.Column(db.Boolean, nullable=False, default=False)
-    version = db.Column(db.Integer, nullable=False, default=1)
-
+    message_type = db.Column(db.Enum('NOTIFICATION','ALERT','WARNING','INFO','EMERGENCY','JOB','TASK'), default='NOTIFICATION', nullable=False)
+    sender_type = db.Column(db.Enum('SYSTEM','USER','DEVICE','API'), default='SYSTEM', nullable=False)
+    receiver_type = db.Column(db.Enum('USER','DEVICE','GROUP','BROADCAST'), default='USER', nullable=False)
+    urgency = db.Column(db.Enum('LOW','MEDIUM','HIGH','CRITICAL'), default='MEDIUM', nullable=False)
+    priority_level = db.Column(db.Integer, default=3, nullable=True)
+    message_status = db.Column(db.Enum('DRAFT','PENDING','SENT','DELIVERED','ACKNOWLEDGED','FAILED','EXPIRED'), default='PENDING', nullable=False)
+    channels = db.Column(db.JSON, nullable=True)
+    require_ack = db.Column(db.Boolean, default=False, nullable=True)
+    message_metadata = db.Column(db.JSON, nullable=True)
+    sent_time = db.Column(db.DateTime, nullable=True)
+    received_time = db.Column(db.DateTime, nullable=True)
+    acknowledged_time = db.Column(db.DateTime, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    responded_number = db.Column(db.Integer, default=0, nullable=True)
+    target_count = db.Column(db.Integer, default=0, nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    create_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    update_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    create_user = db.Column(db.String(64), nullable=True)
+    update_user = db.Column(db.String(64), nullable=True)
+    version = db.Column(db.Integer, default=1, nullable=True)
+    
     def to_dict(self):
         return {
             'id': self.id,
+            'message_id': self.message_id,
             'customer_id': self.customer_id,
-            'department_id': self.department_id,
+            'org_id': self.org_id,
             'user_id': self.user_id,
             'device_sn': self.device_sn,
+            'title': self.title,
             'message': self.message,
             'message_type': self.message_type,
             'sender_type': self.sender_type,
             'receiver_type': self.receiver_type,
+            'urgency': self.urgency,
             'priority_level': self.priority_level,
             'message_status': self.message_status,
-            'sent_time': self.sent_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.sent_time else None,
-            'received_time': self.received_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.received_time else None,
-            'acknowledged_time': self.acknowledged_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.acknowledged_time else None,
-            'expired_time': self.expired_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.expired_time else None,
-            'target_user_count': self.target_user_count,
-            'acknowledged_count': self.acknowledged_count,
-            'create_user_id': self.create_user_id,
-            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.create_time else None,
-            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.update_time else None,
+            'channels': self.channels,
+            'require_ack': self.require_ack,
+            'metadata': self.message_metadata,
+            'sent_time': self.sent_time.strftime('%Y-%m-%d %H:%M:%S') if self.sent_time else None,
+            'received_time': self.received_time.strftime('%Y-%m-%d %H:%M:%S') if self.received_time else None,
+            'acknowledged_time': self.acknowledged_time.strftime('%Y-%m-%d %H:%M:%S') if self.acknowledged_time else None,
+            'expires_at': self.expires_at.strftime('%Y-%m-%d %H:%M:%S') if self.expires_at else None,
+            'responded_number': self.responded_number,
+            'target_count': self.target_count,
             'is_deleted': self.is_deleted,
+            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
+            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None,
+            'create_user': self.create_user,
+            'update_user': self.update_user,
             'version': self.version
         }
+
 
 class DeviceMessageDetail(db.Model):
     __tablename__ = 't_device_message_detail'
 
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     message_id = db.Column(db.BigInteger, nullable=False)
-    device_sn = db.Column(db.String(255), nullable=False)
-    message = db.Column(db.Text, nullable=False)
-    message_type = db.Column(db.String(50), nullable=False)
-    sender_type = db.Column(db.String(50), nullable=False)
-    receiver_type = db.Column(db.String(50), nullable=False)
-    message_status = db.Column(db.String(50), default='pending', nullable=False)
-    sent_time = db.Column(db.DateTime, default=datetime.utcnow)
-    received_time = db.Column(db.DateTime, nullable=True)
-    create_user = db.Column(db.String(255), nullable=True)
-    create_user_id = db.Column(db.BigInteger, nullable=True)
-    create_time = db.Column(db.DateTime, default=datetime.utcnow)
-    update_user = db.Column(db.String(255), nullable=True)
-    update_user_id = db.Column(db.BigInteger, nullable=True)
-    update_time = db.Column(db.DateTime, nullable=True)
-    is_deleted = db.Column(db.Boolean, default=False)
-
-class DeviceMessageDetailV2(db.Model):
-    __tablename__ = 't_device_message_detail_v2'
-
-    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    message_id = db.Column(db.BigInteger, nullable=False)
     customer_id = db.Column(db.BigInteger, nullable=False)
-    user_id = db.Column(db.BigInteger, nullable=False)
-    device_sn = db.Column(db.String(64), nullable=True)
-    response_message = db.Column(db.Text, nullable=True)
-    response_type = db.Column(db.Enum('acknowledged', 'rejected', 'ignored', 'timeout'), nullable=False, default='acknowledged')
-    response_time = db.Column(db.DateTime(3), nullable=True)
-    delivery_status = db.Column(db.Enum('pending', 'delivered', 'failed', 'retry'), nullable=False, default='pending')
-    delivery_attempt_count = db.Column(db.SmallInteger, nullable=False, default=0)
-    last_delivery_time = db.Column(db.DateTime(3), nullable=True)
-    delivery_error = db.Column(db.String(500), nullable=True)
+    distribution_id = db.Column(db.String(64), nullable=False)
+    target_id = db.Column(db.String(128), nullable=False)
+    target_type = db.Column(db.Enum('DEVICE','USER','GROUP'), nullable=False)
+    device_sn = db.Column(db.String(128), nullable=True)
+    user_id = db.Column(db.String(64), nullable=True)
+    channel = db.Column(db.Enum('DEVICE','SMS','EMAIL','PUSH','WECHAT'), default='DEVICE', nullable=False)
+    delivery_status = db.Column(db.Enum('PENDING','SENT','DELIVERED','ACKNOWLEDGED','FAILED','EXPIRED'), default='PENDING', nullable=False)
+    sent_time = db.Column(db.DateTime, nullable=True)
+    delivered_time = db.Column(db.DateTime, nullable=True)
+    acknowledged_time = db.Column(db.DateTime, nullable=True)
+    response_duration = db.Column(db.Integer, nullable=True)
+    response_data = db.Column(db.JSON, nullable=True)
+    delivery_details = db.Column(db.JSON, nullable=True)
     client_info = db.Column(db.JSON, nullable=True)
-    response_location = db.Column(db.JSON, nullable=True)
-    create_time = db.Column(db.DateTime(3), nullable=False, server_default=db.func.current_timestamp())
-    update_time = db.Column(db.DateTime(3), nullable=True, onupdate=db.func.current_timestamp())
-    is_deleted = db.Column(db.Boolean, nullable=False, default=False)
-
+    location_info = db.Column(db.JSON, nullable=True)
+    failure_reason = db.Column(db.String(500), nullable=True)
+    retry_count = db.Column(db.Integer, default=0, nullable=True)
+    last_retry_time = db.Column(db.DateTime, nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    create_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    update_time = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
     def to_dict(self):
         return {
             'id': self.id,
             'message_id': self.message_id,
             'customer_id': self.customer_id,
-            'user_id': self.user_id,
+            'distribution_id': self.distribution_id,
+            'target_id': self.target_id,
+            'target_type': self.target_type,
             'device_sn': self.device_sn,
-            'response_message': self.response_message,
-            'response_type': self.response_type,
-            'response_time': self.response_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.response_time else None,
+            'user_id': self.user_id,
+            'channel': self.channel,
             'delivery_status': self.delivery_status,
-            'delivery_attempt_count': self.delivery_attempt_count,
-            'last_delivery_time': self.last_delivery_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.last_delivery_time else None,
-            'delivery_error': self.delivery_error,
+            'sent_time': self.sent_time.strftime('%Y-%m-%d %H:%M:%S') if self.sent_time else None,
+            'delivered_time': self.delivered_time.strftime('%Y-%m-%d %H:%M:%S') if self.delivered_time else None,
+            'acknowledged_time': self.acknowledged_time.strftime('%Y-%m-%d %H:%M:%S') if self.acknowledged_time else None,
+            'response_duration': self.response_duration,
+            'response_data': self.response_data,
+            'delivery_details': self.delivery_details,
             'client_info': self.client_info,
-            'response_location': self.response_location,
-            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.create_time else None,
-            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] if self.update_time else None,
-            'is_deleted': self.is_deleted
+            'location_info': self.location_info,
+            'failure_reason': self.failure_reason,
+            'retry_count': self.retry_count,
+            'last_retry_time': self.last_retry_time.strftime('%Y-%m-%d %H:%M:%S') if self.last_retry_time else None,
+            'is_deleted': self.is_deleted,
+            'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S') if self.create_time else None,
+            'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S') if self.update_time else None
         }
+
     
 class HealthDataConfig(db.Model):
     __tablename__ = 't_health_data_config'

@@ -494,6 +494,6 @@ class HealthProfileScheduler:
             self.thread.join()
         logger.info("健康画像定时任务已停止")
 
-# 全局调度器实例
+# 全局调度器实例 - 已禁用自动启动
 scheduler=HealthProfileScheduler()
-scheduler.start() # 自动启动定时任务 
+# scheduler.start() # 自动启动定时任务 - 已禁用 

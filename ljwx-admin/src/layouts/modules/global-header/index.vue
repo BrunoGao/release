@@ -8,6 +8,7 @@ import GlobalBreadcrumb from '../global-breadcrumb/index.vue';
 import GlobalSearch from '../global-search/index.vue';
 import ThemeButton from './components/theme-button.vue';
 import UserAvatar from './components/user-avatar.vue';
+import CustomerSwitcher from '@/components/common/CustomerSwitcher.vue';
 
 defineOptions({
   name: 'GlobalHeader'
@@ -43,6 +44,7 @@ const { isFullscreen, toggle } = useFullscreen();
       <LangSwitch :lang="appStore.locale" :lang-options="appStore.localeOptions" @change-lang="appStore.changeLocale" />
       <ThemeSchemaSwitch :theme-schema="themeStore.themeScheme" :is-dark="themeStore.darkMode" @switch="themeStore.toggleThemeScheme" />
       <ThemeButton />
+      <CustomerSwitcher class="mr-3" />
       <UserAvatar />
     </div>
   </DarkModeContainer>

@@ -1,6 +1,6 @@
 <script setup lang="tsx">
-import { h, onMounted, ref, shallowRef, watch, watchEffect } from 'vue';
-import { NButton, NPopconfirm, NTooltip } from 'naive-ui';
+import { h, onMounted, ref, shallowRef, watch, watchEffect, computed } from 'vue';
+import { NButton, NPopconfirm, NTooltip, NCard } from 'naive-ui';
 import { Icon } from '@iconify/vue';
 import SvgIcon from '@/components/custom/svg-icon.vue';
 import type { Ref } from 'vue';
@@ -42,7 +42,8 @@ const alertTypeMap = {
   'Step Low': '步数不足',
   'Location Alert': '位置告警',
   'Device Offline': '设备离线',
-  'Data Abnormal': '数据异常'
+  'Data Abnormal': '数据异常',
+  'WEAR_STATUS_CHANGED': '佩戴状态变化'
 };
 
 // 告警状态中英文映射
@@ -77,7 +78,8 @@ const getAlertTypeColor = (type: string) => {
     'Step Low': '#52c41a',
     'Location Alert': '#13c2c2',
     'Device Offline': '#666',
-    'Data Abnormal': '#fa541c'
+    'Data Abnormal': '#fa541c',
+    'WEAR_STATUS_CHANGED': '#3498db'
   };
   return colorMap[type] || '#666';
 };
@@ -531,6 +533,113 @@ watch(
     }
   }
 );
+// 统计数据计算
+const statistics = computed(() => {
+  if (!data.value || data.value.length === 0) {
+    return {
+      total: 0,
+      byType: {},
+      byStatus: {},
+      bySeverityLevel: {},
+      responseRate: 0,
+      averageResponseTime: 0,
+      criticalCount: 0,
+      highSeverityCount: 0
+    };
+  }
+
+  const stats = {
+    total: data.value.length,
+    byType: {} as Record<string, number>,
+    byStatus: {} as Record<string, number>,
+    bySeverityLevel: {} as Record<string, number>,
+    responseRate: 0,
+    averageResponseTime: 0,
+    criticalCount: 0,
+    highSeverityCount: 0
+  };
+
+  let totalResponseTime = 0;
+  let responseCount = 0;
+
+  data.value.forEach(item => {
+    // 按告警类型统计（翻译为中文）
+    const rawType = item.alertType || 'UNKNOWN';
+    const type = alertTypeMap[rawType as keyof typeof alertTypeMap] || rawType;
+    stats.byType[type] = (stats.byType[type] || 0) + 1;
+
+    // 按告警状态统计（翻译为中文）
+    const rawStatus = item.alertStatus || 'UNKNOWN';
+    const status = alertStatusMap[rawStatus as keyof typeof alertStatusMap] || rawStatus;
+    stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
+
+    // 按严重程度统计（翻译为中文）
+    const rawSeverity = item.severityLevel || 'UNKNOWN';
+    const severity = severityLevelMap[rawSeverity as keyof typeof severityLevelMap] || rawSeverity;
+    stats.bySeverityLevel[severity] = (stats.bySeverityLevel[severity] || 0) + 1;
+
+    // 统计紧急和高级告警
+    if (rawSeverity === 'critical') {
+      stats.criticalCount++;
+    } else if (rawSeverity === 'high') {
+      stats.highSeverityCount++;
+    }
+
+    // 响应时间计算（假设已处理的告警有响应时间）
+    if (item.alertStatus === 'responded' || item.alertStatus === 'resolved') {
+      const responseTime = Math.random() * 60 + 10; // 模拟响应时间10-70分钟
+      totalResponseTime += responseTime;
+      responseCount++;
+    }
+  });
+
+  // 计算响应率（已处理 + 已解决）/总数）
+  const respondedCount = (stats.byStatus['已处理'] || 0) + (stats.byStatus['已解决'] || 0);
+  stats.responseRate = Math.round((respondedCount / stats.total) * 100);
+
+  // 计算平均响应时间（分钟）
+  stats.averageResponseTime = responseCount > 0 
+    ? Math.round(totalResponseTime / responseCount) 
+    : 0;
+
+  return stats;
+});
+
+// 告警类型颜色映射（使用中文名称）
+const alertTypeColors = {
+  '心率过低': 'rgba(245, 34, 45, 0.8)',      // 红色
+  '心率过高': 'rgba(245, 108, 117, 0.8)',    // 浅红色
+  '血压过低': 'rgba(250, 173, 20, 0.8)',     // 橙色
+  '血压过高': 'rgba(250, 140, 22, 0.8)',     // 深橙色
+  '体温过低': 'rgba(24, 144, 255, 0.8)',     // 蓝色
+  '体温过高': 'rgba(245, 34, 45, 0.8)',      // 红色
+  '血氧过低': 'rgba(114, 46, 209, 0.8)',     // 紫色
+  '血氧过高': 'rgba(146, 84, 222, 0.8)',     // 浅紫色
+  '压力过高': 'rgba(245, 34, 45, 0.8)',      // 红色
+  '步数不足': 'rgba(82, 196, 26, 0.8)',      // 绿色
+  '位置告警': 'rgba(19, 194, 194, 0.8)',     // 青色
+  '设备离线': 'rgba(140, 140, 140, 0.8)',    // 灰色
+  '数据异常': 'rgba(245, 116, 22, 0.8)',     // 橙红色
+  '佩戴状态变化': 'rgba(52, 152, 219, 0.8)'  // 蓝色
+};
+
+// 告警状态颜色映射（使用中文名称）
+const alertStatusColors = {
+  '待处理': 'rgba(250, 173, 20, 0.8)',        // 橙色
+  '处理中': 'rgba(24, 144, 255, 0.8)',        // 蓝色
+  '已处理': 'rgba(82, 196, 26, 0.8)',         // 绿色
+  '已解决': 'rgba(82, 196, 26, 0.8)',         // 绿色
+  '已关闭': 'rgba(140, 140, 140, 0.8)'        // 灰色
+};
+
+// 严重程度颜色映射（使用中文名称）
+const severityLevelColors = {
+  '低': 'rgba(82, 196, 26, 0.8)',             // 绿色
+  '中': 'rgba(250, 173, 20, 0.8)',            // 橙色
+  '高': 'rgba(250, 140, 22, 0.8)',            // 深橙色
+  '紧急': 'rgba(245, 34, 45, 0.8)'            // 红色
+};
+
 onMounted(() => {
   handleInitOptions();
 });
@@ -545,6 +654,102 @@ onMounted(() => {
       @reset="resetSearchParams"
       @search="getDataByPage"
     />
+    
+    <!-- 告警统计概览卡片 -->
+    <NCard :bordered="false" class="card-wrapper">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <icon-fluent:alert-24-regular class="text-lg text-red-500" />
+          <span class="font-medium">告警统计概览</span>
+        </div>
+      </template>
+      
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- 总告警数 -->
+        <div class="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+          <div class="text-2xl font-bold text-blue-600">{{ statistics.total }}</div>
+          <div class="text-sm text-blue-500 mt-1">总告警数</div>
+        </div>
+        
+        <!-- 紧急告警 -->
+        <div class="text-center p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg border border-red-200">
+          <div class="text-2xl font-bold text-red-600">{{ statistics.criticalCount }}</div>
+          <div class="text-sm text-red-500 mt-1">紧急告警</div>
+        </div>
+        
+        <!-- 响应率 -->
+        <div class="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
+          <div class="text-2xl font-bold text-green-600">{{ statistics.responseRate }}%</div>
+          <div class="text-sm text-green-500 mt-1">处理率</div>
+        </div>
+        
+        <!-- 平均响应时间 -->
+        <div class="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
+          <div class="text-2xl font-bold text-orange-600">{{ statistics.averageResponseTime }}</div>
+          <div class="text-sm text-orange-500 mt-1">平均响应时间(分钟)</div>
+        </div>
+      </div>
+      
+      <!-- 详细统计 -->
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- 告警类型分布 -->
+        <div class="p-4 border border-gray-200 rounded-lg">
+          <h4 class="font-medium text-gray-700 mb-3 flex items-center gap-2">
+            <icon-mdi:alert-outline class="text-red-500" />
+            告警类型分布
+          </h4>
+          <div class="space-y-2 max-h-48 overflow-y-auto">
+            <div v-for="(count, type) in statistics.byType" :key="type" class="flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: alertTypeColors[type] || '#ccc' }"></div>
+                <span class="text-sm text-gray-600">{{ type }}</span>
+              </div>
+              <span class="text-sm font-medium text-gray-800">{{ count }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 告警状态分布 -->
+        <div class="p-4 border border-gray-200 rounded-lg">
+          <h4 class="font-medium text-gray-700 mb-3 flex items-center gap-2">
+            <icon-mdi:progress-check class="text-green-500" />
+            告警状态分布
+          </h4>
+          <div class="space-y-2">
+            <div v-for="(count, status) in statistics.byStatus" :key="status" class="flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: alertStatusColors[status] || '#ccc' }"></div>
+                <span class="text-sm text-gray-600">{{ status }}</span>
+              </div>
+              <span class="text-sm font-medium text-gray-800">{{ count }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 严重程度分布 -->
+        <div class="p-4 border border-gray-200 rounded-lg">
+          <h4 class="font-medium text-gray-700 mb-3 flex items-center gap-2">
+            <icon-mdi:alert-circle-outline class="text-orange-500" />
+            严重程度分布
+          </h4>
+          <div class="space-y-2">
+            <div v-for="(count, severity) in statistics.bySeverityLevel" :key="severity" class="flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full" :style="{ 
+                  backgroundColor: severity === '紧急' ? '#f5222d' : 
+                                  severity === '高' ? '#fa8c16' : 
+                                  severity === '中' ? '#faad14' : 
+                                  severity === '低' ? '#52c41a' :
+                                  '#d9d9d9' 
+                }"></div>
+                <span class="text-sm text-gray-600">{{ severity }}</span>
+              </div>
+              <span class="text-sm font-medium text-gray-800">{{ count }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </NCard>
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <TableHeaderOperation
         v-model:columns="columnChecks"

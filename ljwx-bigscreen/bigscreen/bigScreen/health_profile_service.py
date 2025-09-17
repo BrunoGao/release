@@ -6,7 +6,7 @@ from datetime import datetime,timedelta
 import mysql.connector,schedule
 from statistics import mean,stdev
 from concurrent.futures import ThreadPoolExecutor,as_completed
-from .health_cache_manager import health_cache, cache_result
+from .health_cache_service import health_cache_service as health_cache
 
 logging.basicConfig(level=logging.INFO,format='%(asctime)s [%(levelname)s] %(message)s')
 logger=logging.getLogger(__name__)

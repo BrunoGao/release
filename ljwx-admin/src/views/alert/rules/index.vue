@@ -65,33 +65,203 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       key: 'physicalSign',
       title: '监控指标',
       align: 'center',
-      minWidth: 120,
+      minWidth: 180,
       render: row => {
         if (row.ruleCategory === 'COMPOSITE') {
-          return <NTag type="info" size="small">多指标组合</NTag>;
+          // 复合规则：显示多指标组合
+          const indicators = row.compositeIndicators || row.physicalSigns || [];
+          if (indicators.length > 0) {
+            return (
+              <div class="flex flex-col gap-1">
+                <NTag type="warning" size="small" class="mb-1">
+                  <NIcon size="12" class="mr-1">
+                    <i class="i-material-symbols:group-work"></i>
+                  </NIcon>
+                  多指标组合 ({indicators.length})
+                </NTag>
+                <div class="flex flex-wrap gap-1 composite-indicators">
+                  {indicators.slice(0, 3).map((indicator, index) => (
+                    <NTag key={index} type="info" size="tiny" class="text-xs">
+                      {dictTag('health_data_type', indicator)?.props?.children || indicator}
+                    </NTag>
+                  ))}
+                  {indicators.length > 3 && (
+                    <NTooltip trigger="hover">
+                      {{
+                        trigger: () => (
+                          <NTag type="default" size="tiny" class="text-xs cursor-pointer">
+                            +{indicators.length - 3}
+                          </NTag>
+                        ),
+                        default: () => (
+                          <div class="flex flex-col gap-1">
+                            {indicators.slice(3).map((indicator, index) => (
+                              <span key={index} class="text-xs">
+                                {dictTag('health_data_type', indicator)?.props?.children || indicator}
+                              </span>
+                            ))}
+                          </div>
+                        )
+                      }}
+                    </NTooltip>
+                  )}
+                </div>
+              </div>
+            );
+          } else {
+            return (
+              <NTag type="warning" size="small">
+                <NIcon size="12" class="mr-1">
+                  <i class="i-material-symbols:warning"></i>
+                </NIcon>
+                未配置指标
+              </NTag>
+            );
+          }
+        } else if (row.ruleCategory === 'COMPLEX') {
+          // 复杂规则：显示AI分析标识
+          return (
+            <NTag type="error" size="small">
+              <NIcon size="12" class="mr-1">
+                <i class="i-material-symbols:auto-awesome"></i>
+              </NIcon>
+              AI智能分析
+            </NTag>
+          );
+        } else {
+          // 单体征规则：显示具体指标
+          const indicator = dictTag('health_data_type', row.physicalSign);
+          if (indicator) {
+            return (
+              <NTag type="primary" size="small">
+                <NIcon size="12" class="mr-1">
+                  <i class="i-material-symbols:monitor-heart"></i>
+                </NIcon>
+                {indicator}
+              </NTag>
+            );
+          } else {
+            return (
+              <NTag type="default" size="small">
+                <NIcon size="12" class="mr-1">
+                  <i class="i-material-symbols:help"></i>
+                </NIcon>
+                {row.physicalSign || '未设置'}
+              </NTag>
+            );
+          }
         }
-        return dictTag('health_data_type', row.physicalSign);
       }
     },
     {
       key: 'thresholds',
       title: '阈值范围',
       align: 'center',
-      minWidth: 120,
+      minWidth: 150,
       render: row => {
         if (row.ruleCategory === 'COMPOSITE') {
-          return <span class="text-gray-500">复合条件</span>;
+          // 复合规则：显示复合条件
+          const conditions = row.compositeConditions || [];
+          if (conditions.length > 0) {
+            return (
+              <div class="flex flex-col gap-1 composite-conditions">
+                <NTag type="warning" size="small" class="mb-1">
+                  <NIcon size="12" class="mr-1">
+                    <i class="i-material-symbols:rule"></i>
+                  </NIcon>
+                  复合条件 ({conditions.length})
+                </NTag>
+                {conditions.slice(0, 2).map((condition, index) => (
+                  <div key={index} class="text-xs text-gray-600 condition-item px-2 py-1">
+                    {condition.indicator}: {condition.operator} {condition.value}
+                  </div>
+                ))}
+                {conditions.length > 2 && (
+                  <NTooltip trigger="hover">
+                    {{
+                      trigger: () => (
+                        <div class="text-xs text-blue-600 cursor-pointer hover:text-blue-800">
+                          查看更多条件 (+{conditions.length - 2})
+                        </div>
+                      ),
+                      default: () => (
+                        <div class="flex flex-col gap-1 max-w-60">
+                          {conditions.slice(2).map((condition, index) => (
+                            <div key={index} class="text-xs p-2 tooltip-condition">
+                              <strong>{condition.indicator}</strong>: {condition.operator} {condition.value}
+                              {condition.unit && <span class="text-gray-500"> {condition.unit}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }}
+                  </NTooltip>
+                )}
+              </div>
+            );
+          } else {
+            return (
+              <NTag type="warning" size="small">
+                <NIcon size="12" class="mr-1">
+                  <i class="i-material-symbols:warning"></i>
+                </NIcon>
+                未配置条件
+              </NTag>
+            );
+          }
+        } else if (row.ruleCategory === 'COMPLEX') {
+          // 复杂规则：显示AI条件
+          return (
+            <NTag type="error" size="small">
+              <NIcon size="12" class="mr-1">
+                <i class="i-material-symbols:psychology"></i>
+              </NIcon>
+              AI算法决策
+            </NTag>
+          );
+        } else {
+          // 单体征规则：显示具体阈值
+          const min = row.thresholdMin;
+          const max = row.thresholdMax;
+          
+          if (min != null && max != null) {
+            return (
+              <NTag type="primary" size="small">
+                <NIcon size="12" class="mr-1">
+                  <i class="i-material-symbols:straighten"></i>
+                </NIcon>
+                {min} - {max}
+              </NTag>
+            );
+          } else if (min != null) {
+            return (
+              <NTag type="warning" size="small">
+                <NIcon size="12" class="mr-1">
+                  <i class="i-material-symbols:keyboard-arrow-up"></i>
+                </NIcon>
+                ≥ {min}
+              </NTag>
+            );
+          } else if (max != null) {
+            return (
+              <NTag type="error" size="small">
+                <NIcon size="12" class="mr-1">
+                  <i class="i-material-symbols:keyboard-arrow-down"></i>
+                </NIcon>
+                ≤ {max}
+              </NTag>
+            );
+          }
+          
+          return (
+            <NTag type="default" size="small">
+              <NIcon size="12" class="mr-1">
+                <i class="i-material-symbols:help"></i>
+              </NIcon>
+              未设置
+            </NTag>
+          );
         }
-        const min = row.thresholdMin;
-        const max = row.thresholdMax;
-        if (min != null && max != null) {
-          return <span class="text-primary">{min} - {max}</span>;
-        } else if (min != null) {
-          return <span class="text-warning">≥ {min}</span>;
-        } else if (max != null) {
-          return <span class="text-error">≤ {max}</span>;
-        }
-        return <span class="text-gray-400">-</span>;
       }
     },
     {
@@ -837,6 +1007,79 @@ function onWizardSuccess() {
   align-items: center;
 }
 
+/* 多指标组合显示样式优化 */
+.composite-indicators {
+  max-width: 160px;
+}
+
+.composite-indicators .n-tag {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composite-conditions {
+  max-width: 140px;
+}
+
+.composite-conditions .condition-item {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.composite-conditions .condition-item:hover {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
+}
+
+/* 工具提示内的条件显示优化 */
+.tooltip-condition {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.tooltip-condition:hover {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+/* 监控指标图标美化 */
+.indicator-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  margin-right: 6px;
+}
+
+/* 阈值标签优化 */
+.threshold-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.threshold-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
 /* 响应式优化 */
 @media (max-width: 768px) {
   .examples-grid {
@@ -849,6 +1092,11 @@ function onWizardSuccess() {
   
   .manual-scrollable {
     max-height: 400px;
+  }
+  
+  .composite-indicators,
+  .composite-conditions {
+    max-width: 120px;
   }
 }
 
