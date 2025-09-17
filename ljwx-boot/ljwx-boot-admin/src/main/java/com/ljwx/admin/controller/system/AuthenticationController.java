@@ -54,9 +54,9 @@ public class AuthenticationController {
     }
 
     @GetMapping("/user_info")
-    @SaCheckPermission("auth:userInfo")
     @Operation(operationId = "10", summary = "获取当前用户详情信息（排除管理员）")
     public Result<SysUserVO> getCurrentUserInfo() {
+        // 获取当前用户信息是基础功能，不需要额外权限检查，只要登录即可
         return Result.data(authenticationFacade.getCurrentUserInfo());
     }
 
@@ -68,9 +68,9 @@ public class AuthenticationController {
     }
 
     @GetMapping("/user_route")
-    @SaCheckPermission("auth:userRoute")
     @Operation(operationId = "12", summary = "获取当前用户的权限路由")
     public Result<SysUserRouteVO> queryUserRoute() {
+        // 获取当前用户的路由权限是基础功能，不需要额外权限检查
         return Result.data(authenticationFacade.queryUserRouteWithUserId(GlobalUserHolder.getUserId()));
     }
 
