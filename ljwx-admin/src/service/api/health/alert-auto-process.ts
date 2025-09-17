@@ -1,8 +1,6 @@
 import { request } from '@/service/request';
 
-/**
- * 获取告警自动处理规则列表
- */
+/** 获取告警自动处理规则列表 */
 export function fetchGetAlertAutoProcessList(params?: Api.Health.AlertAutoProcessSearchParams) {
   return request<Api.Health.AlertAutoProcessList>({
     url: '/admin/health/alert-auto-process/list',
@@ -11,9 +9,7 @@ export function fetchGetAlertAutoProcessList(params?: Api.Health.AlertAutoProces
   });
 }
 
-/**
- * 获取告警自动处理规则详情
- */
+/** 获取告警自动处理规则详情 */
 export function fetchGetAlertAutoProcess(id: string) {
   return request<Api.Health.AlertAutoProcess>({
     url: `/admin/health/alert-auto-process/${id}`,
@@ -21,9 +17,7 @@ export function fetchGetAlertAutoProcess(id: string) {
   });
 }
 
-/**
- * 新增告警自动处理规则
- */
+/** 新增告警自动处理规则 */
 export function fetchAddAlertAutoProcess(data: Api.Health.AlertAutoProcessEdit) {
   return request<boolean>({
     url: '/admin/health/alert-auto-process',
@@ -32,9 +26,7 @@ export function fetchAddAlertAutoProcess(data: Api.Health.AlertAutoProcessEdit) 
   });
 }
 
-/**
- * 更新告警自动处理规则
- */
+/** 更新告警自动处理规则 */
 export function fetchUpdateAlertAutoProcess(data: Api.Health.AlertAutoProcessEdit) {
   return request<boolean>({
     url: '/admin/health/alert-auto-process',
@@ -43,9 +35,7 @@ export function fetchUpdateAlertAutoProcess(data: Api.Health.AlertAutoProcessEdi
   });
 }
 
-/**
- * 删除告警自动处理规则
- */
+/** 删除告警自动处理规则 */
 export function fetchDeleteAlertAutoProcess(data: Api.Common.DeleteParams) {
   return request<boolean>({
     url: '/admin/health/alert-auto-process',
@@ -54,9 +44,7 @@ export function fetchDeleteAlertAutoProcess(data: Api.Common.DeleteParams) {
   });
 }
 
-/**
- * 批量启用/禁用自动处理
- */
+/** 批量启用/禁用自动处理 */
 export function fetchToggleAutoProcess(data: { ids: string[]; enabled: boolean }) {
   return request<boolean>({
     url: '/admin/health/alert-auto-process/toggle-auto-process',
@@ -65,9 +53,7 @@ export function fetchToggleAutoProcess(data: { ids: string[]; enabled: boolean }
   });
 }
 
-/**
- * 获取自动处理规则统计
- */
+/** 获取自动处理规则统计 */
 export function fetchGetAlertAutoProcessStats(params?: { customerId?: string }) {
   return request<Api.Health.AlertAutoProcessStats>({
     url: '/admin/health/alert-auto-process/stats',
@@ -76,9 +62,7 @@ export function fetchGetAlertAutoProcessStats(params?: { customerId?: string }) 
   });
 }
 
-/**
- * 导出自动处理规则
- */
+/** 导出自动处理规则 */
 export function fetchExportAlertAutoProcess(params?: Api.Health.AlertAutoProcessSearchParams) {
   return request<Blob>({
     url: '/admin/health/alert-auto-process/export',
@@ -88,9 +72,7 @@ export function fetchExportAlertAutoProcess(params?: Api.Health.AlertAutoProcess
   });
 }
 
-/**
- * 获取自动处理动作选项
- */
+/** 获取自动处理动作选项 */
 export function fetchGetActionOptions() {
   return request<Record<string, string>>({
     url: '/admin/health/alert-auto-process/action-options',
@@ -98,9 +80,7 @@ export function fetchGetActionOptions() {
   });
 }
 
-/**
- * 获取严重程度选项
- */
+/** 获取严重程度选项 */
 export function fetchGetSeverityOptions() {
   return request<Record<string, string>>({
     url: '/admin/health/alert-auto-process/severity-options',

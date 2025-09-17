@@ -26,7 +26,7 @@ const { domRef, updateOptions } = useEcharts(chartRef, {
 
 watch(
   () => props.data,
-  (newData) => {
+  newData => {
     if (newData && newData.length > 0) {
       updateChart();
     }
@@ -61,10 +61,10 @@ function updateChart() {
       textStyle: {
         color: '#374151'
       },
-      formatter: function(params: any) {
+      formatter(params: any) {
         let result = `<div style="padding: 8px;">`;
         result += `<div style="font-weight: 600; margin-bottom: 8px;">${params[0].name}</div>`;
-        
+
         params.forEach((param: any) => {
           if (param.value !== null) {
             result += `
@@ -75,7 +75,7 @@ function updateChart() {
             `;
           }
         });
-        
+
         result += `</div>`;
         return result;
       }
@@ -191,11 +191,11 @@ function updateChart() {
     animation: true,
     animationDuration: 1200,
     animationEasing: 'elasticOut',
-    animationDelay: function(idx: number) {
+    animationDelay(idx: number) {
       return idx * 100;
     }
   };
-  
+
   updateOptions(option);
 }
 
@@ -207,7 +207,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="chartRef" class="w-full h-full min-h-80" />
+  <div ref="chartRef" class="h-full min-h-80 w-full" />
 </template>
 
 <style scoped>

@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { NButton, NCard, NDataTable, NPopconfirm, NTag, NSwitch, NSpace, NTooltip, NBadge } from 'naive-ui';
+import { NBadge, NButton, NCard, NDataTable, NPopconfirm, NSpace, NSwitch, NTag, NTooltip } from 'naive-ui';
 import type { Ref } from 'vue';
 import { computed, h, onMounted, ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
@@ -9,11 +9,11 @@ import { useAuthStore } from '@/store/modules/auth';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import { transDeleteParams } from '@/utils/common';
-import { 
-  fetchGetAlertAutoProcessList, 
-  fetchDeleteAlertAutoProcess, 
-  fetchToggleAutoProcess,
-  fetchGetAlertAutoProcessStats 
+import {
+  fetchDeleteAlertAutoProcess,
+  fetchGetAlertAutoProcessList,
+  fetchGetAlertAutoProcessStats,
+  fetchToggleAutoProcess
 } from '@/service/api/health/alert-auto-process';
 import TableHeaderOperation from '@/components/advanced/table-header-operation.vue';
 import AlertAutoProcessSearch from './modules/alert-auto-process-search.vue';
@@ -35,10 +35,10 @@ const customerId = authStore.userInfo?.customerId;
 // 获取严重程度标签颜色
 function getSeverityColor(severity: string) {
   const colors = {
-    'critical': 'error',
-    'major': 'warning', 
-    'minor': 'info',
-    'info': 'default'
+    critical: 'error',
+    major: 'warning',
+    minor: 'info',
+    info: 'default'
   };
   return colors[severity as keyof typeof colors] || 'default';
 }
@@ -46,10 +46,10 @@ function getSeverityColor(severity: string) {
 // 获取自动处理动作标签颜色
 function getActionColor(action: string) {
   const colors = {
-    'AUTO_RESOLVE': 'success',
-    'AUTO_ACKNOWLEDGE': 'info',
-    'AUTO_ESCALATE': 'warning', 
-    'AUTO_SUPPRESS': 'error'
+    AUTO_RESOLVE: 'success',
+    AUTO_ACKNOWLEDGE: 'info',
+    AUTO_ESCALATE: 'warning',
+    AUTO_SUPPRESS: 'error'
   };
   return colors[action as keyof typeof colors] || 'default';
 }
@@ -57,10 +57,10 @@ function getActionColor(action: string) {
 // 获取自动处理动作文本
 function getActionText(action: string) {
   const texts = {
-    'AUTO_RESOLVE': '自动解决',
-    'AUTO_ACKNOWLEDGE': '自动确认',
-    'AUTO_ESCALATE': '自动升级',
-    'AUTO_SUPPRESS': '自动抑制'
+    AUTO_RESOLVE: '自动解决',
+    AUTO_ACKNOWLEDGE: '自动确认',
+    AUTO_ESCALATE: '自动升级',
+    AUTO_SUPPRESS: '自动抑制'
   };
   return texts[action as keyof typeof texts] || action;
 }
@@ -81,7 +81,7 @@ const tableColumns = computed(() => [
     render: (row: Api.Health.AlertAutoProcess) => row.physicalSign || '-'
   },
   {
-    key: 'alertType', 
+    key: 'alertType',
     title: '告警类型',
     align: 'center',
     width: 120,
@@ -92,13 +92,12 @@ const tableColumns = computed(() => [
     title: '严重程度',
     align: 'center',
     width: 100,
-    render: (row: Api.Health.AlertAutoProcess) => 
-      h(NTag, { type: getSeverityColor(row.level) as any }, () => row.level || '-')
+    render: (row: Api.Health.AlertAutoProcess) => h(NTag, { type: getSeverityColor(row.level) as any }, () => row.level || '-')
   },
   {
     key: 'thresholds',
     title: '阈值范围',
-    align: 'center', 
+    align: 'center',
     width: 150,
     render: (row: Api.Health.AlertAutoProcess) => {
       if (row.thresholdMin !== null && row.thresholdMax !== null) {
@@ -116,35 +115,30 @@ const tableColumns = computed(() => [
     title: '自动处理',
     align: 'center',
     width: 100,
-    render: (row: Api.Health.AlertAutoProcess) => 
-      h(NBadge, { dot: true, type: row.autoProcessEnabled ? 'success' : 'default' }, 
-        () => row.autoProcessEnabled ? '已启用' : '已禁用')
+    render: (row: Api.Health.AlertAutoProcess) =>
+      h(NBadge, { dot: true, type: row.autoProcessEnabled ? 'success' : 'default' }, () => (row.autoProcessEnabled ? '已启用' : '已禁用'))
   },
   {
     key: 'autoProcessAction',
     title: '处理动作',
     align: 'center',
     width: 120,
-    render: (row: Api.Health.AlertAutoProcess) => 
-      row.autoProcessAction 
-        ? h(NTag, { type: getActionColor(row.autoProcessAction) as any }, () => getActionText(row.autoProcessAction))
-        : '-'
+    render: (row: Api.Health.AlertAutoProcess) =>
+      row.autoProcessAction ? h(NTag, { type: getActionColor(row.autoProcessAction) as any }, () => getActionText(row.autoProcessAction)) : '-'
   },
   {
     key: 'autoProcessDelaySeconds',
     title: '延迟时间',
     align: 'center',
     width: 100,
-    render: (row: Api.Health.AlertAutoProcess) => 
-      row.autoProcessDelaySeconds ? `${row.autoProcessDelaySeconds}秒` : '-'
+    render: (row: Api.Health.AlertAutoProcess) => (row.autoProcessDelaySeconds ? `${row.autoProcessDelaySeconds}秒` : '-')
   },
   {
-    key: 'suppressDurationMinutes', 
+    key: 'suppressDurationMinutes',
     title: '抑制时长',
     align: 'center',
     width: 100,
-    render: (row: Api.Health.AlertAutoProcess) =>
-      row.suppressDurationMinutes ? `${row.suppressDurationMinutes}分钟` : '-'
+    render: (row: Api.Health.AlertAutoProcess) => (row.suppressDurationMinutes ? `${row.suppressDurationMinutes}分钟` : '-')
   },
   {
     key: 'isEnabled',
@@ -206,15 +200,7 @@ const tableColumns = computed(() => [
   }
 ]);
 
-const {
-  data,
-  loading,
-  getData,
-  getDataByPage,
-  searchParams,
-  updateSearchParams,
-  resetSearchParams
-} = useTable({
+const { data, loading, getData, getDataByPage, searchParams, updateSearchParams, resetSearchParams } = useTable({
   apiFn: fetchGetAlertAutoProcessList,
   apiParams: {
     page: 1,
@@ -287,7 +273,7 @@ async function handleBatchToggleAutoProcess(enabled: boolean) {
   if (checkedRowKeys.value.length === 0) {
     return;
   }
-  
+
   const { error } = await fetchToggleAutoProcess({
     ids: checkedRowKeys.value,
     enabled
@@ -317,28 +303,28 @@ onMounted(async () => {
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
     <!-- 统计卡片 -->
-    <div v-if="statsData" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+    <div v-if="statsData" class="grid grid-cols-1 mb-4 gap-4 md:grid-cols-4">
       <NCard size="small">
         <div class="text-center">
-          <div class="text-2xl font-bold text-blue-500">{{ statsData.totalRules }}</div>
+          <div class="text-2xl text-blue-500 font-bold">{{ statsData.totalRules }}</div>
           <div class="text-sm text-gray-500">总规则数</div>
         </div>
       </NCard>
       <NCard size="small">
         <div class="text-center">
-          <div class="text-2xl font-bold text-green-500">{{ statsData.autoProcessEnabledRules }}</div>
+          <div class="text-2xl text-green-500 font-bold">{{ statsData.autoProcessEnabledRules }}</div>
           <div class="text-sm text-gray-500">自动处理规则</div>
         </div>
       </NCard>
       <NCard size="small">
         <div class="text-center">
-          <div class="text-2xl font-bold text-purple-500">{{ statsData.autoProcessCoverageRate?.toFixed(1) }}%</div>
+          <div class="text-2xl text-purple-500 font-bold">{{ statsData.autoProcessCoverageRate?.toFixed(1) }}%</div>
           <div class="text-sm text-gray-500">覆盖率</div>
         </div>
       </NCard>
       <NCard size="small">
         <div class="text-center">
-          <div class="text-2xl font-bold text-orange-500">{{ statsData.recentAutoProcessCount || 0 }}</div>
+          <div class="text-2xl text-orange-500 font-bold">{{ statsData.recentAutoProcessCount || 0 }}</div>
           <div class="text-sm text-gray-500">24h处理次数</div>
         </div>
       </NCard>
@@ -346,43 +332,32 @@ onMounted(async () => {
 
     <!-- 搜索区域 -->
     <NCard :bordered="false" class="card-wrapper">
-      <AlertAutoProcessSearch 
-        v-model:model="searchParams" 
-        @reset="resetSearchParams" 
-        @search="getDataByPage" 
-      />
+      <AlertAutoProcessSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     </NCard>
 
     <!-- 表格区域 -->
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <!-- 工具栏 -->
-      <div class="flex justify-between items-center mb-4">
+      <div class="mb-4 flex items-center justify-between">
         <NSpace>
-          <NButton v-if="hasAuth('alert:rules:add')" type="primary" @click="handleAdd">
-            新增规则
-          </NButton>
-          <NButton 
-            v-if="hasAuth('alert:rules:edit')" 
+          <NButton v-if="hasAuth('alert:rules:add')" type="primary" @click="handleAdd">新增规则</NButton>
+          <NButton
+            v-if="hasAuth('alert:rules:edit')"
             type="success"
             :disabled="checkedRowKeys.length === 0"
             @click="handleBatchToggleAutoProcess(true)"
           >
             批量启用自动处理
           </NButton>
-          <NButton 
-            v-if="hasAuth('alert:rules:edit')" 
+          <NButton
+            v-if="hasAuth('alert:rules:edit')"
             type="warning"
             :disabled="checkedRowKeys.length === 0"
             @click="handleBatchToggleAutoProcess(false)"
           >
             批量禁用自动处理
           </NButton>
-          <NButton
-            v-if="hasAuth('alert:rules:remove')"
-            type="error"
-            :disabled="checkedRowKeys.length === 0"
-            @click="handleBatchDelete"
-          >
+          <NButton v-if="hasAuth('alert:rules:remove')" type="error" :disabled="checkedRowKeys.length === 0" @click="handleBatchDelete">
             批量删除
           </NButton>
         </NSpace>
@@ -411,7 +386,12 @@ onMounted(async () => {
       v-model:visible="drawerVisible"
       :operate-type="operateType"
       :row-data="editingData"
-      @submitted="async () => { await getDataByPage(); await loadStats(); }"
+      @submitted="
+        async () => {
+          await getDataByPage();
+          await loadStats();
+        }
+      "
     />
   </div>
 </template>

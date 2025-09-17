@@ -1,6 +1,6 @@
 <script setup lang="tsx">
-import { NButton, NPopconfirm, NTag, NSpace, NProgress } from 'naive-ui';
-import { type Ref, onMounted, ref, shallowRef, watch, computed, h } from 'vue';
+import { NButton, NPopconfirm, NProgress, NSpace, NTag } from 'naive-ui';
+import { type Ref, computed, h, onMounted, ref, shallowRef, watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
 import { useAuthStore } from '@/store/modules/auth';
@@ -32,7 +32,7 @@ const analyticsVisible = ref(false);
 // 模拟 API 调用函数
 const fetchGetRecommendationList = async (params: any) => {
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
+
   const mockRecommendations = [
     {
       id: '1',
@@ -239,9 +239,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
         const score = row.effectivenesScore;
         return (
           <div class="flex items-center justify-center">
-            <span class={`font-medium ${score >= 4 ? 'text-green-600' : score >= 3 ? 'text-yellow-600' : 'text-red-600'}`}>
-              {score}/5
-            </span>
+            <span class={`font-medium ${score >= 4 ? 'text-green-600' : score >= 3 ? 'text-yellow-600' : 'text-red-600'}`}>{score}/5</span>
           </div>
         );
       }
@@ -261,31 +259,16 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       minWidth: 280,
       render: row => (
         <NSpace size="small">
-          <NButton 
-            type="info" 
-            quaternary 
-            size="small" 
-            onClick={() => viewAnalytics(row)}
-          >
+          <NButton type="info" quaternary size="small" onClick={() => viewAnalytics(row)}>
             查看详情
           </NButton>
           {row.status === 'pending' && hasAuth('health:recommendation:send') && (
-            <NButton 
-              type="primary" 
-              quaternary 
-              size="small" 
-              onClick={() => sendRecommendation(row)}
-            >
+            <NButton type="primary" quaternary size="small" onClick={() => sendRecommendation(row)}>
               发送
             </NButton>
           )}
           {hasAuth('health:recommendation:edit') && (
-            <NButton 
-              type="primary" 
-              quaternary 
-              size="small" 
-              onClick={() => edit(row)}
-            >
+            <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
               {$t('common.edit')}
             </NButton>
           )}
@@ -333,13 +316,13 @@ function openTemplateManager() {
 async function sendRecommendation(item: Api.Health.RecommendationTask) {
   // 模拟发送操作
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
+
   const index = data.value.findIndex(d => d.id === item.id);
   if (index > -1) {
     data.value[index].status = 'sent';
     data.value[index].scheduledAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
   }
-  
+
   window.$message?.success('健康建议发送成功');
 }
 
@@ -403,10 +386,10 @@ const recommendationStats = computed(() => {
     completed: 0,
     avgEffectiveness: 0
   };
-  
+
   let totalEffectiveness = 0;
   let completedCount = 0;
-  
+
   data.value.forEach(item => {
     if (item.status === 'pending') {
       stats.pending++;
@@ -420,7 +403,7 @@ const recommendationStats = computed(() => {
       }
     }
   });
-  
+
   stats.avgEffectiveness = completedCount > 0 ? totalEffectiveness / completedCount : 0;
   return stats;
 });
@@ -429,42 +412,42 @@ const recommendationStats = computed(() => {
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
     <!-- 统计卡片 -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <div class="grid grid-cols-1 mb-4 gap-4 lg:grid-cols-4 sm:grid-cols-2">
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">总建议数</div>
-            <div class="text-2xl font-bold text-primary">{{ recommendationStats.total }}</div>
+            <div class="text-2xl text-primary font-bold">{{ recommendationStats.total }}</div>
           </div>
           <div class="text-3xl text-primary opacity-20">💡</div>
         </div>
       </NCard>
-      
+
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">待发送</div>
-            <div class="text-2xl font-bold text-warning">{{ recommendationStats.pending }}</div>
+            <div class="text-2xl text-warning font-bold">{{ recommendationStats.pending }}</div>
           </div>
           <div class="text-3xl text-warning opacity-20">⏳</div>
         </div>
       </NCard>
-      
+
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">已完成</div>
-            <div class="text-2xl font-bold text-success">{{ recommendationStats.completed }}</div>
+            <div class="text-2xl text-success font-bold">{{ recommendationStats.completed }}</div>
           </div>
           <div class="text-3xl text-success opacity-20">✅</div>
         </div>
       </NCard>
-      
+
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">平均有效性</div>
-            <div class="text-2xl font-bold text-info">{{ recommendationStats.avgEffectiveness.toFixed(1) }}/5</div>
+            <div class="text-2xl text-info font-bold">{{ recommendationStats.avgEffectiveness.toFixed(1) }}/5</div>
           </div>
           <div class="text-3xl text-info opacity-20">📊</div>
         </div>
@@ -480,7 +463,7 @@ const recommendationStats = computed(() => {
       @reset="resetSearchParams"
       @search="getDataByPage"
     />
-    
+
     <!-- 主要内容区域 -->
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <template #header>
@@ -496,7 +479,7 @@ const recommendationStats = computed(() => {
           </NSpace>
         </div>
       </template>
-      
+
       <TableHeaderOperation
         v-model:columns="columnChecks"
         :checked-row-keys="checkedRowKeys"
@@ -516,7 +499,7 @@ const recommendationStats = computed(() => {
           </NButton>
         </template>
       </TableHeaderOperation>
-      
+
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
         striped
@@ -534,26 +517,20 @@ const recommendationStats = computed(() => {
     </NCard>
 
     <!-- 操作抽屉 -->
-    <HealthRecommendationOperateDrawer 
-      v-model:visible="drawerVisible" 
-      :operate-type="operateType" 
-      :row-data="editingData" 
+    <HealthRecommendationOperateDrawer
+      v-model:visible="drawerVisible"
+      :operate-type="operateType"
+      :row-data="editingData"
       :org-units-tree="orgUnitsTree"
       :user-options="userOptions"
-      @submitted="getDataByPage" 
+      @submitted="getDataByPage"
     />
 
     <!-- 模板管理器弹窗 -->
-    <RecommendationTemplateManager 
-      v-model:visible="templateManagerVisible"
-      @template-updated="getData"
-    />
+    <RecommendationTemplateManager v-model:visible="templateManagerVisible" @template-updated="getData" />
 
     <!-- 分析详情弹窗 -->
-    <RecommendationAnalytics 
-      v-model:visible="analyticsVisible"
-      :recommendation-data="editingData"
-    />
+    <RecommendationAnalytics v-model:visible="analyticsVisible" :recommendation-data="editingData" />
   </div>
 </template>
 

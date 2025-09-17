@@ -7,11 +7,11 @@ import { useRouterPush } from '@/hooks/common/router';
 import { fetchGetUserInfo, fetchLogin } from '@/service/api';
 import { localStg } from '@/utils/storage';
 import { $t } from '@/locales';
+import { useCustomer } from '@/hooks/business/customer';
 import { useRouteStore } from '../route';
 import { useTabStore } from '../tab';
 import { useDictStore } from '../dict';
 import { useCustomerStore } from '../customer';
-import { useCustomer } from '@/hooks/business/customer';
 import { clearAuthStorage, getToken } from './shared';
 
 export const useAuthStore = defineStore(SetupStoreId.Auth, () => {

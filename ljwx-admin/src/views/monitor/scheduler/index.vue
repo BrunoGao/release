@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { NButton, NPopconfirm, NCard, NCollapse, NCollapseItem, NAlert, NList, NListItem, NIcon, NTag } from 'naive-ui';
+import { NAlert, NButton, NCard, NCollapse, NCollapseItem, NIcon, NList, NListItem, NPopconfirm, NTag } from 'naive-ui';
 import { h, ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { $t } from '@/locales';
@@ -273,12 +273,12 @@ async function handleBatchDelete() {
               <NIcon size="20" color="#3b82f6">
                 <i class="i-material-symbols:schedule"></i>
               </NIcon>
-              <span class="text-lg font-semibold text-gray-800">定时任务调度管理使用手册</span>
+              <span class="text-lg text-gray-800 font-semibold">定时任务调度管理使用手册</span>
               <NTag type="info" size="small">点击展开/收起</NTag>
             </div>
           </template>
-          
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+
+          <div class="grid grid-cols-1 mt-4 gap-4 lg:grid-cols-2">
             <!-- 健康任务说明 -->
             <div>
               <NCard size="small" class="manual-section">
@@ -287,7 +287,7 @@ async function handleBatchDelete() {
                     <NIcon size="18" color="#10b981">
                       <i class="i-material-symbols:health-and-safety"></i>
                     </NIcon>
-                    <span class="font-medium text-green-700">健康定时任务说明</span>
+                    <span class="text-green-700 font-medium">健康定时任务说明</span>
                   </div>
                 </template>
                 <NList size="small">
@@ -339,11 +339,11 @@ async function handleBatchDelete() {
                     <NIcon size="18" color="#f59e0b">
                       <i class="i-material-symbols:touch-app"></i>
                     </NIcon>
-                    <span class="font-medium text-amber-700">操作功能指南</span>
+                    <span class="text-amber-700 font-medium">操作功能指南</span>
                   </div>
                 </template>
-                
-                <div class="grid grid-cols-1 gap-4 mt-3">
+
+                <div class="grid grid-cols-1 mt-3 gap-4">
                   <div class="operation-guide">
                     <div class="guide-header">
                       <NIcon size="16" color="#3b82f6">
@@ -352,9 +352,21 @@ async function handleBatchDelete() {
                       <span class="guide-title">任务执行控制</span>
                     </div>
                     <div class="guide-content">
-                      <div class="guide-step">• <strong>立即执行</strong>：点击操作按钮中的"立即执行"测试任务</div>
-                      <div class="guide-step">• <strong>暂停/恢复</strong>：控制任务的启用状态</div>
-                      <div class="guide-step">• <strong>批量操作</strong>：选择多个任务进行批量管理</div>
+                      <div class="guide-step">
+                        •
+                        <strong>立即执行</strong>
+                        ：点击操作按钮中的"立即执行"测试任务
+                      </div>
+                      <div class="guide-step">
+                        •
+                        <strong>暂停/恢复</strong>
+                        ：控制任务的启用状态
+                      </div>
+                      <div class="guide-step">
+                        •
+                        <strong>批量操作</strong>
+                        ：选择多个任务进行批量管理
+                      </div>
                     </div>
                   </div>
 
@@ -366,9 +378,21 @@ async function handleBatchDelete() {
                       <span class="guide-title">任务配置管理</span>
                     </div>
                     <div class="guide-content">
-                      <div class="guide-step">• <strong>编辑任务</strong>：修改Cron表达式和任务描述</div>
-                      <div class="guide-step">• <strong>查看状态</strong>：监控任务运行状态和执行历史</div>
-                      <div class="guide-step">• <strong>添加任务</strong>：创建新的定时任务</div>
+                      <div class="guide-step">
+                        •
+                        <strong>编辑任务</strong>
+                        ：修改Cron表达式和任务描述
+                      </div>
+                      <div class="guide-step">
+                        •
+                        <strong>查看状态</strong>
+                        ：监控任务运行状态和执行历史
+                      </div>
+                      <div class="guide-step">
+                        •
+                        <strong>添加任务</strong>
+                        ：创建新的定时任务
+                      </div>
                     </div>
                   </div>
 
@@ -380,9 +404,21 @@ async function handleBatchDelete() {
                       <span class="guide-title">注意事项</span>
                     </div>
                     <div class="guide-content">
-                      <div class="guide-step">• <strong>健康任务</strong>：系统预置的健康相关任务请勿随意删除</div>
-                      <div class="guide-step">• <strong>时间设置</strong>：修改执行时间时注意避免任务冲突</div>
-                      <div class="guide-step">• <strong>监控日志</strong>：定期查看任务执行日志确保正常运行</div>
+                      <div class="guide-step">
+                        •
+                        <strong>健康任务</strong>
+                        ：系统预置的健康相关任务请勿随意删除
+                      </div>
+                      <div class="guide-step">
+                        •
+                        <strong>时间设置</strong>
+                        ：修改执行时间时注意避免任务冲突
+                      </div>
+                      <div class="guide-step">
+                        •
+                        <strong>监控日志</strong>
+                        ：定期查看任务执行日志确保正常运行
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -398,12 +434,24 @@ async function handleBatchDelete() {
               </NIcon>
             </template>
             <div>
-              <div class="font-medium mb-2">任务状态说明：</div>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                <div><NTag type="success" size="small">WAITING</NTag> 等待执行</div>
-                <div><NTag type="info" size="small">RUNNING</NTag> 正在执行</div>
-                <div><NTag type="warning" size="small">PAUSED</NTag> 已暂停</div>
-                <div><NTag type="error" size="small">ERROR</NTag> 执行错误</div>
+              <div class="mb-2 font-medium">任务状态说明：</div>
+              <div class="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
+                <div>
+                  <NTag type="success" size="small">WAITING</NTag>
+                  等待执行
+                </div>
+                <div>
+                  <NTag type="info" size="small">RUNNING</NTag>
+                  正在执行
+                </div>
+                <div>
+                  <NTag type="warning" size="small">PAUSED</NTag>
+                  已暂停
+                </div>
+                <div>
+                  <NTag type="error" size="small">ERROR</NTag>
+                  执行错误
+                </div>
               </div>
             </div>
           </NAlert>

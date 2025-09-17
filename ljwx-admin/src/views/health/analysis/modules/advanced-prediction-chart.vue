@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 
 interface PredictionPoint {
@@ -37,16 +37,16 @@ const { domRef, updateOptions } = useEcharts(chartRef, {
 // 计算预测统计信息
 const predictionStats = computed(() => {
   if (!props.data || props.data.length === 0) return null;
-  
+
   const actualData = props.data.filter(item => item.actual !== undefined);
   const predictedData = props.data.filter(item => item.actual === undefined);
-  
+
   const avgActual = actualData.reduce((sum, item) => sum + (item.actual || 0), 0) / actualData.length;
   const avgPredicted = predictedData.reduce((sum, item) => sum + item.predicted, 0) / predictedData.length;
   const avgConfidence = props.data.reduce((sum, item) => sum + item.confidence, 0) / props.data.length;
-  
+
   const trend = avgPredicted > avgActual ? 'increasing' : avgPredicted < avgActual ? 'decreasing' : 'stable';
-  
+
   return {
     avgActual: Math.round(avgActual * 10) / 10,
     avgPredicted: Math.round(avgPredicted * 10) / 10,
@@ -59,7 +59,7 @@ const predictionStats = computed(() => {
 
 watch(
   () => props.data,
-  (newData) => {
+  newData => {
     if (newData && newData.length > 0) {
       updateChart();
     }
@@ -75,20 +75,20 @@ function updateChart() {
 
   // 分离历史数据和预测数据
   const splitIndex = props.data.findIndex(item => item.actual === undefined);
-  
+
   // 计算置信区间
   const upperBoundData = props.data.map((item, index) => {
     if (index >= splitIndex - 1 && item.predicted !== null) {
       const confidence = item.confidence;
-      return Math.round(item.predicted + (item.predicted * (1 - confidence) * 0.3));
+      return Math.round(item.predicted + item.predicted * (1 - confidence) * 0.3);
     }
     return null;
   });
-  
+
   const lowerBoundData = props.data.map((item, index) => {
     if (index >= splitIndex - 1 && item.predicted !== null) {
       const confidence = item.confidence;
-      return Math.round(item.predicted - (item.predicted * (1 - confidence) * 0.3));
+      return Math.round(item.predicted - item.predicted * (1 - confidence) * 0.3);
     }
     return null;
   });
@@ -117,10 +117,10 @@ function updateChart() {
       textStyle: {
         color: '#374151'
       },
-      formatter: function(params: any) {
+      formatter(params: any) {
         let result = `<div style="padding: 8px;">`;
         result += `<div style="font-weight: 600; margin-bottom: 8px;">${params[0].name}</div>`;
-        
+
         params.forEach((param: any) => {
           if (param.value !== null && param.seriesName !== '置信度上限' && param.seriesName !== '置信度下限') {
             result += `
@@ -131,7 +131,7 @@ function updateChart() {
             `;
           }
         });
-        
+
         // 添加预测统计信息
         if (predictionStats.value && params[0].dataIndex >= splitIndex - 1) {
           result += `
@@ -141,7 +141,7 @@ function updateChart() {
             </div>
           `;
         }
-        
+
         result += `</div>`;
         return result;
       }
@@ -290,9 +290,7 @@ function updateChart() {
       {
         name: '预测数据',
         type: 'line',
-        data: predictedData.map((value, index) => 
-          index >= splitIndex - 1 ? value : null
-        ),
+        data: predictedData.map((value, index) => (index >= splitIndex - 1 ? value : null)),
         smooth: true,
         symbol: 'diamond',
         symbolSize: 8,
@@ -336,12 +334,14 @@ function updateChart() {
       {
         name: '异常检测',
         type: 'scatter',
-        data: props.data.map((item, index) => {
-          if (item.anomaly) {
-            return [index, item.actual || item.predicted];
-          }
-          return null;
-        }).filter(item => item !== null),
+        data: props.data
+          .map((item, index) => {
+            if (item.anomaly) {
+              return [index, item.actual || item.predicted];
+            }
+            return null;
+          })
+          .filter(item => item !== null),
         symbol: 'triangle',
         symbolSize: 12,
         itemStyle: {
@@ -363,8 +363,9 @@ function updateChart() {
         left: 'center',
         bottom: '3%',
         style: {
-          text: predictionStats.value ? 
-            `预测趋势: ${getTrendText(predictionStats.value.trend)} | 平均置信度: ${predictionStats.value.avgConfidence.toFixed(1)}% | 预期变化: ${predictionStats.value.changePercent > 0 ? '+' : ''}${predictionStats.value.changePercent}%` : '',
+          text: predictionStats.value
+            ? `预测趋势: ${getTrendText(predictionStats.value.trend)} | 平均置信度: ${predictionStats.value.avgConfidence.toFixed(1)}% | 预期变化: ${predictionStats.value.changePercent > 0 ? '+' : ''}${predictionStats.value.changePercent}%`
+            : '',
           fontSize: 12,
           fill: '#6b7280'
         }
@@ -374,16 +375,20 @@ function updateChart() {
     animationDuration: 2000,
     animationEasing: 'elasticOut'
   };
-  
+
   updateOptions(option);
 }
 
 function getTrendText(trend: string) {
   switch (trend) {
-    case 'increasing': return '⬆ 上升';
-    case 'decreasing': return '⬇ 下降';
-    case 'stable': return '➡ 稳定';
-    default: return '❓ 未知';
+    case 'increasing':
+      return '⬆ 上升';
+    case 'decreasing':
+      return '⬇ 下降';
+    case 'stable':
+      return '➡ 稳定';
+    default:
+      return '❓ 未知';
   }
 }
 
@@ -395,7 +400,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="chartRef" class="w-full h-full min-h-80" />
+  <div ref="chartRef" class="h-full min-h-80 w-full" />
 </template>
 
 <style scoped>

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 import { SetupStoreId } from '@/enum';
 import { fetchGetAllAvailableCustomers } from '@/service/api/customer/customer';
 import { fetchCustomerIdByOrgId } from '@/service/api';
@@ -38,15 +38,14 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
   });
 
   const recentCustomerList = computed(() => {
-    return recentCustomers.value
-      .map(id => customerList.value.find(c => c.id === id))
-      .filter(Boolean) as CustomerInfo[];
+    return recentCustomers.value.map(id => customerList.value.find(c => c.id === id)).filter(Boolean) as CustomerInfo[];
   });
 
   // Actions
-  const setCurrentCustomerId = (customerId: string | null) => { // 改为字符串类型
+  const setCurrentCustomerId = (customerId: string | null) => {
+    // 改为字符串类型
     currentCustomerId.value = customerId;
-    
+
     // 更新最近访问记录
     if (customerId && !recentCustomers.value.includes(customerId)) {
       recentCustomers.value.unshift(customerId);
@@ -54,7 +53,7 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
         recentCustomers.value = recentCustomers.value.slice(0, 5);
       }
     }
-    
+
     // 持久化到 localStorage
     if (customerId) {
       localStorage.setItem('currentCustomerId', customerId); // 直接存储字符串
@@ -67,7 +66,7 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
   const setCustomerAccess = (access: CustomerAccess) => {
     canSwitchCustomer.value = access.canSwitch;
     customerList.value = access.customerList;
-    
+
     if (access.defaultCustomerId) {
       setCurrentCustomerId(access.defaultCustomerId);
     }
@@ -75,11 +74,11 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
 
   const loadCustomerList = async () => {
     if (!canSwitchCustomer.value) return;
-    
+
     try {
       loading.value = true;
       const { data } = await fetchGetAllAvailableCustomers();
-      
+
       // 转换数据格式
       if (data) {
         customerList.value = data.map(item => ({
@@ -97,7 +96,8 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
     }
   };
 
-  const switchCustomer = async (customerId: string) => { // 改为字符串类型
+  const switchCustomer = async (customerId: string) => {
+    // 改为字符串类型
     if (!canSwitchCustomer.value) {
       console.warn('当前用户无权限切换客户');
       return;
@@ -105,24 +105,23 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
 
     try {
       loading.value = true;
-      
+
       console.log('切换客户: customerId =', customerId);
-      
+
       // 设置新的客户ID
       setCurrentCustomerId(customerId);
-      
+
       // 清理相关缓存
       await clearCustomerRelatedCache();
-      
+
       // 显示成功消息
       const customerName = customerList.value.find(c => c.id === customerId)?.name || customerId;
       window.$message?.success(`已切换到客户: ${customerName}`);
-      
+
       // 延迟一下再重新加载页面，让用户看到成功消息
       setTimeout(() => {
         window.location.reload();
       }, 500);
-      
     } catch (error) {
       console.error('切换客户失败:', error);
       window.$message?.error('切换客户失败');
@@ -144,14 +143,8 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
 
   const clearCustomerRelatedCache = async () => {
     // 清理所有与客户相关的缓存数据
-    const cacheKeys = [
-      'userOptions',
-      'orgUnitsTree',
-      'deviceOptions',
-      'healthData',
-      'messageCache'
-    ];
-    
+    const cacheKeys = ['userOptions', 'orgUnitsTree', 'deviceOptions', 'healthData', 'messageCache'];
+
     cacheKeys.forEach(key => {
       localStorage.removeItem(key);
       sessionStorage.removeItem(key);
@@ -162,11 +155,11 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
     // 从 localStorage 恢复状态
     const savedCustomerId = localStorage.getItem('currentCustomerId');
     const savedRecentCustomers = localStorage.getItem('recentCustomers');
-    
+
     if (savedCustomerId) {
       currentCustomerId.value = savedCustomerId; // 直接使用字符串，不进行数字转换
     }
-    
+
     if (savedRecentCustomers) {
       try {
         recentCustomers.value = JSON.parse(savedRecentCustomers);
@@ -183,7 +176,7 @@ export const useCustomerStore = defineStore(SetupStoreId.Customer, () => {
     canSwitchCustomer.value = false;
     recentCustomers.value = [];
     loading.value = false;
-    
+
     // 清理存储
     localStorage.removeItem('currentCustomerId');
     localStorage.removeItem('recentCustomers');

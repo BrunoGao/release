@@ -73,13 +73,17 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       minWidth: 120
     },
     // 只有admin用户才显示租户列
-    ...(isAdmin.value ? [{
-      key: 'customerId',
-      title: '租户ID',
-      align: 'center',
-      width: 100,
-      render: row => row.customerId || '全局'
-    }] : []),
+    ...(isAdmin.value
+      ? [
+          {
+            key: 'customerId',
+            title: '租户ID',
+            align: 'center',
+            width: 100,
+            render: row => row.customerId || '全局'
+          }
+        ]
+      : []),
     {
       key: 'isAdmin',
       title: $t('page.manage.role.isAdmin'),
@@ -118,10 +122,10 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       render: row => (
         <div class="flex-center gap-12px">
           {hasAuth('sys:role:menu:add') && (
-            <NButton 
-              type="info" 
-              secondary 
-              size="small" 
+            <NButton
+              type="info"
+              secondary
+              size="small"
               class="permission-btn menu-permission-btn"
               onClick={() => handleMenuAuth(row.id)}
               renderIcon={() => <SvgIcon icon="material-symbols:menu-book" class="text-14px" />}
@@ -130,10 +134,10 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
             </NButton>
           )}
           {hasAuth('sys:role:permission:add') && (
-            <NButton 
-              type="warning" 
-              secondary 
-              size="small" 
+            <NButton
+              type="warning"
+              secondary
+              size="small"
               class="permission-btn button-permission-btn"
               onClick={() => handleButtonAuth(row.id)}
               renderIcon={() => <SvgIcon icon="material-symbols:smart-button" class="text-14px" />}
@@ -227,13 +231,13 @@ function handleButtonAuth(id: string) {
         :row-key="row => row.id"
         :pagination="mobilePagination"
       />
-      <RoleOperateDrawer 
-        v-model:visible="drawerVisible" 
-        :operate-type="operateType" 
-        :row-data="editingData" 
+      <RoleOperateDrawer
+        v-model:visible="drawerVisible"
+        :operate-type="operateType"
+        :row-data="editingData"
         :is-admin="isAdmin"
         :current-customer-id="currentCustomerId"
-        @submitted="getDataByPage" 
+        @submitted="getDataByPage"
       />
       <MenuAuthModal v-model:visible="menuModalVisible" :role-id="editingId" />
       <ButtonAuthModal v-model:visible="buttonModalVisible" :role-id="editingId" />

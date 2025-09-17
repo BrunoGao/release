@@ -30,6 +30,9 @@ declare namespace Api {
       Api.Common.CommonSearchParams;
 
     /** position edit model */
-    type PositionEdit = Pick<Api.SystemManage.Position, 'id' | 'code' | 'name' | 'abbr' | 'sort' | 'description' | 'status' | 'orgId' | 'weight' | 'customerId'>;
+    type PositionEdit = Pick<
+      Api.SystemManage.Position,
+      'id' | 'code' | 'name' | 'abbr' | 'sort' | 'description' | 'status' | 'orgId' | 'weight' | 'customerId'
+    >;
   }
 }

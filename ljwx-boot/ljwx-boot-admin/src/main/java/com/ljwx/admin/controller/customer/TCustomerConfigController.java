@@ -35,6 +35,7 @@ import com.ljwx.modules.customer.domain.entity.TCustomerConfig;
 import com.ljwx.modules.customer.domain.vo.TCustomerConfigVO;
 import com.ljwx.modules.customer.facade.ITCustomerConfigFacade;
 import com.ljwx.modules.customer.service.ITCustomerConfigService;
+import com.ljwx.modules.system.domain.dto.org.units.DepartmentDeletePreCheckDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -122,6 +123,20 @@ public class TCustomerConfigController {
     @Operation(operationId = "5", summary = "批量删除信息")
     public Result<Boolean> batchDelete(@Parameter(description = "删除对象") @RequestBody TCustomerConfigDeleteDTO tCustomerConfigDeleteDTO) {
         return Result.status(tCustomerConfigFacade.batchDelete(tCustomerConfigDeleteDTO));
+    }
+
+    @PostMapping("/tenant-delete-precheck")
+    @SaCheckPermission("t:customer:config:delete")
+    @Operation(operationId = "6", summary = "删除租户前置检查 - 分析影响的部门、用户和设备")
+    public Result<DepartmentDeletePreCheckDTO> tenantDeletePrecheck(@Parameter(description = "删除对象") @RequestBody TCustomerConfigDeleteDTO tCustomerConfigDeleteDTO) {
+        return Result.data(tCustomerConfigFacade.tenantDeletePreCheck(tCustomerConfigDeleteDTO));
+    }
+
+    @DeleteMapping("/tenant-cascade-delete")
+    @SaCheckPermission("t:customer:config:delete")
+    @Operation(operationId = "7", summary = "级联删除租户 - 包含部门、用户和设备")
+    public Result<Boolean> tenantCascadeDelete(@Parameter(description = "删除对象") @RequestBody TCustomerConfigDeleteDTO tCustomerConfigDeleteDTO) {
+        return Result.status(tCustomerConfigFacade.tenantCascadeDelete(tCustomerConfigDeleteDTO));
     }
 
     // ==================== Logo管理相关接口 ====================

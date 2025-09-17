@@ -62,13 +62,7 @@ function search() {
             </NFormItemGi>
 
             <NFormItemGi span="24 s:8 m:6" :label="statusLabel" path="status">
-              <NSelect
-                v-model:value="model.status"
-                size="small"
-                :placeholder="statusPlaceholder"
-                :options="dictOptions('status')"
-                clearable
-              />
+              <NSelect v-model:value="model.status" size="small" :placeholder="statusPlaceholder" :options="dictOptions('status')" clearable />
             </NFormItemGi>
           </NGrid>
         </NGridItem>

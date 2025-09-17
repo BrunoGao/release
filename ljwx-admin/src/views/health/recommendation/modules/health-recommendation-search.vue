@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
-import { NButton, NCard, NForm, NFormItem, NInput, NSelect, NTreeSelect, NDatePicker } from 'naive-ui';
+import { NButton, NCard, NDatePicker, NForm, NFormItem, NInput, NSelect, NTreeSelect } from 'naive-ui';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -87,7 +87,7 @@ const healthScoreOptions = [
 ];
 
 // 组织树选项
-const orgOptions = computed(() => 
+const orgOptions = computed(() =>
   props.orgUnitsTree.map(item => ({
     key: item.id,
     label: item.name,
@@ -111,7 +111,7 @@ const orgOptions = computed(() =>
     </template>
 
     <NForm ref="queryFormRef" :model="model" label-placement="left" :label-width="80">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 sm:grid-cols-2 xl:grid-cols-4">
         <!-- 建议标题/内容 -->
         <NFormItem label="建议内容" path="keyword">
           <NInput v-model:value="model.keyword" clearable placeholder="搜索标题或内容关键词" />
@@ -119,53 +119,27 @@ const orgOptions = computed(() =>
 
         <!-- 目标用户 -->
         <NFormItem label="目标用户" path="userId">
-          <NSelect 
-            v-model:value="model.userId" 
-            :options="userOptions" 
-            clearable 
-            filterable
-            placeholder="请选择用户" 
-          />
+          <NSelect v-model:value="model.userId" :options="userOptions" clearable filterable placeholder="请选择用户" />
         </NFormItem>
 
         <!-- 建议类型 -->
         <NFormItem label="建议类型" path="recommendationType">
-          <NSelect 
-            v-model:value="model.recommendationType" 
-            :options="typeOptions" 
-            clearable 
-            placeholder="请选择建议类型" 
-          />
+          <NSelect v-model:value="model.recommendationType" :options="typeOptions" clearable placeholder="请选择建议类型" />
         </NFormItem>
 
         <!-- 建议状态 -->
         <NFormItem label="建议状态" path="status">
-          <NSelect 
-            v-model:value="model.status" 
-            :options="statusOptions" 
-            clearable 
-            placeholder="请选择状态" 
-          />
+          <NSelect v-model:value="model.status" :options="statusOptions" clearable placeholder="请选择状态" />
         </NFormItem>
 
         <!-- 优先级 -->
         <NFormItem label="优先级" path="priority">
-          <NSelect 
-            v-model:value="model.priority" 
-            :options="priorityOptions" 
-            clearable 
-            placeholder="请选择优先级" 
-          />
+          <NSelect v-model:value="model.priority" :options="priorityOptions" clearable placeholder="请选择优先级" />
         </NFormItem>
 
         <!-- 生成方式 -->
         <NFormItem label="生成方式" path="aiGenerated">
-          <NSelect 
-            v-model:value="model.aiGenerated" 
-            :options="generationOptions" 
-            clearable 
-            placeholder="请选择生成方式" 
-          />
+          <NSelect v-model:value="model.aiGenerated" :options="generationOptions" clearable placeholder="请选择生成方式" />
         </NFormItem>
 
         <!-- 组织部门 -->
@@ -183,34 +157,17 @@ const orgOptions = computed(() =>
 
         <!-- 有效性评分 -->
         <NFormItem label="有效性评分" path="effectivenessScore">
-          <NSelect 
-            v-model:value="model.effectivenessScore" 
-            :options="effectivenessOptions" 
-            clearable 
-            placeholder="请选择评分" 
-          />
+          <NSelect v-model:value="model.effectivenessScore" :options="effectivenessOptions" clearable placeholder="请选择评分" />
         </NFormItem>
 
         <!-- 健康评分范围 -->
         <NFormItem label="健康评分" path="healthScoreRange">
-          <NSelect 
-            v-model:value="model.healthScoreRange" 
-            :options="healthScoreOptions" 
-            clearable 
-            placeholder="请选择评分范围" 
-          />
+          <NSelect v-model:value="model.healthScoreRange" :options="healthScoreOptions" clearable placeholder="请选择评分范围" />
         </NFormItem>
 
         <!-- 创建时间范围 -->
         <NFormItem label="创建时间" path="dateRange" class="sm:col-span-2">
-          <NDatePicker
-            v-model:value="model.dateRange"
-            type="daterange"
-            clearable
-            placeholder="请选择日期范围"
-            format="yyyy-MM-dd"
-            class="w-full"
-          />
+          <NDatePicker v-model:value="model.dateRange" type="daterange" clearable placeholder="请选择日期范围" format="yyyy-MM-dd" class="w-full" />
         </NFormItem>
 
         <!-- 发送时间范围 -->
@@ -226,7 +183,7 @@ const orgOptions = computed(() =>
         </NFormItem>
       </div>
 
-      <div class="flex-y-center justify-end gap-12px mt-4">
+      <div class="mt-4 flex-y-center justify-end gap-12px">
         <NButton @click="reset">
           <template #icon>
             <div class="i-mdi:refresh" />

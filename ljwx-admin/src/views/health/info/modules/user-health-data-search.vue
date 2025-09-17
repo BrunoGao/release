@@ -28,7 +28,6 @@ function reset() {
 function search() {
   emit('search');
 }
-
 </script>
 
 <template>

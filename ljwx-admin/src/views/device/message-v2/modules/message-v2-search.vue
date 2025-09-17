@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { NButton, NForm, NFormItem, NGrid, NGridItem, NInput, NSelect, NDatePicker, NSpace } from 'naive-ui';
+import { NButton, NDatePicker, NForm, NFormItem, NGrid, NGridItem, NInput, NSelect, NSpace } from 'naive-ui';
 import type { SelectOption } from 'naive-ui';
 import { useDict } from '@/hooks/business/dict';
 import { $t } from '@/locales';
@@ -109,96 +109,47 @@ function handleSearch() {
       <NGrid :cols="24" :x-gap="18">
         <!-- 基础搜索条件 -->
         <NFormItem :span="6" label="消息ID">
-          <NInput 
-            v-model:value="model.messageId" 
-            placeholder="请输入消息ID"
-            clearable
-          />
+          <NInput v-model:value="model.messageId" placeholder="请输入消息ID" clearable />
         </NFormItem>
-        
+
         <NFormItem :span="6" label="标题关键词">
-          <NInput 
-            v-model:value="model.keyword" 
-            placeholder="请输入标题关键词"
-            clearable
-          />
+          <NInput v-model:value="model.keyword" placeholder="请输入标题关键词" clearable />
         </NFormItem>
-        
+
         <NFormItem :span="6" label="部门">
-          <NSelect
-            v-model:value="model.orgId"
-            :options="orgOptions"
-            placeholder="请选择部门"
-            clearable
-            filterable
-          />
+          <NSelect v-model:value="model.orgId" :options="orgOptions" placeholder="请选择部门" clearable filterable />
         </NFormItem>
-        
+
         <NFormItem :span="6" label="用户">
-          <NSelect
-            v-model:value="model.userId"
-            :options="allUserOptions"
-            placeholder="请选择用户"
-            clearable
-            filterable
-          />
+          <NSelect v-model:value="model.userId" :options="allUserOptions" placeholder="请选择用户" clearable filterable />
         </NFormItem>
-        
+
         <!-- 消息属性条件 -->
         <NFormItem :span="6" label="消息类型">
-          <NSelect
-            v-model:value="model.messageType"
-            :options="messageTypeV2Options"
-            placeholder="请选择消息类型"
-            clearable
-          />
+          <NSelect v-model:value="model.messageType" :options="messageTypeV2Options" placeholder="请选择消息类型" clearable />
         </NFormItem>
-        
+
         <NFormItem :span="6" label="消息状态">
-          <NSelect
-            v-model:value="model.messageStatus"
-            :options="messageStatusV2Options"
-            placeholder="请选择消息状态"
-            clearable
-          />
+          <NSelect v-model:value="model.messageStatus" :options="messageStatusV2Options" placeholder="请选择消息状态" clearable />
         </NFormItem>
-        
+
         <NFormItem :span="6" label="紧急程度">
-          <NSelect
-            v-model:value="model.urgency"
-            :options="urgencyV2Options"
-            placeholder="请选择紧急程度"
-            clearable
-          />
+          <NSelect v-model:value="model.urgency" :options="urgencyV2Options" placeholder="请选择紧急程度" clearable />
         </NFormItem>
-        
+
         <NFormItem :span="6" label="发送者类型">
-          <NSelect
-            v-model:value="model.senderType"
-            :options="senderTypeV2Options"
-            placeholder="请选择发送者类型"
-            clearable
-          />
+          <NSelect v-model:value="model.senderType" :options="senderTypeV2Options" placeholder="请选择发送者类型" clearable />
         </NFormItem>
-        
+
         <!-- 设备相关条件 -->
         <NFormItem :span="6" label="设备序列号">
-          <NInput 
-            v-model:value="model.deviceSn" 
-            placeholder="请输入设备序列号"
-            clearable
-          />
+          <NInput v-model:value="model.deviceSn" placeholder="请输入设备序列号" clearable />
         </NFormItem>
-        
+
         <NFormItem :span="6" label="接收者类型">
-          <NSelect
-            v-model:value="model.receiverType"
-            :options="receiverTypeV2Options"
-            placeholder="请选择接收者类型"
-            clearable
-          />
+          <NSelect v-model:value="model.receiverType" :options="receiverTypeV2Options" placeholder="请选择接收者类型" clearable />
         </NFormItem>
-        
+
         <!-- 时间范围条件 -->
         <NFormItem :span="6" label="创建时间">
           <NDatePicker
@@ -210,7 +161,7 @@ function handleSearch() {
             style="width: 100%"
           />
         </NFormItem>
-        
+
         <NFormItem :span="6" label="">
           <NDatePicker
             v-model:value="model.endTime"
@@ -221,7 +172,7 @@ function handleSearch() {
             style="width: 100%"
           />
         </NFormItem>
-        
+
         <!-- 操作按钮 -->
         <NFormItem :span="24" class="flex justify-end">
           <NSpace>

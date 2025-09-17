@@ -1,6 +1,6 @@
 <script setup lang="tsx">
-import { NButton, NPopconfirm, NTag, NSpace, NAvatar, NProgress } from 'naive-ui';
-import { type Ref, onMounted, ref, shallowRef, watch, computed, h } from 'vue';
+import { NAvatar, NButton, NPopconfirm, NProgress, NSpace, NTag } from 'naive-ui';
+import { type Ref, computed, h, onMounted, ref, shallowRef, watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
 import { useAuthStore } from '@/store/modules/auth';
@@ -33,7 +33,7 @@ const selectedProfile = ref(null);
 // 模拟 API 调用函数
 const fetchGetHealthProfileList = async (params: any) => {
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
+
   const mockProfiles = [
     {
       id: '1',
@@ -159,7 +159,9 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           <NAvatar src={row.avatar} size="small" />
           <div>
             <div class="font-medium">{row.userName}</div>
-            <div class="text-xs text-gray-500">{row.userDepartment} · {row.userPosition}</div>
+            <div class="text-xs text-gray-500">
+              {row.userDepartment} · {row.userPosition}
+            </div>
           </div>
         </div>
       )
@@ -171,10 +173,11 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       width: 120,
       render: row => (
         <div class="flex items-center justify-center">
-          <span class={`font-bold text-lg ${
-            row.overallHealthScore >= 80 ? 'text-green-600' : 
-            row.overallHealthScore >= 60 ? 'text-yellow-600' : 'text-red-600'
-          }`}>
+          <span
+            class={`font-bold text-lg ${
+              row.overallHealthScore >= 80 ? 'text-green-600' : row.overallHealthScore >= 60 ? 'text-yellow-600' : 'text-red-600'
+            }`}
+          >
             {row.overallHealthScore}
           </span>
         </div>
@@ -202,8 +205,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       width: 120,
       render: row => (
         <div class="flex items-center justify-center">
-          <NProgress 
-            type="circle" 
+          <NProgress
+            type="circle"
             size="small"
             percentage={row.profileCompleteness}
             status={row.profileCompleteness >= 90 ? 'success' : row.profileCompleteness >= 70 ? 'info' : 'warning'}
@@ -226,10 +229,16 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
             <span class={`font-medium ${row.keyMetrics.cardiovascular.score >= 70 ? 'text-green-600' : 'text-red-600'}`}>
               {row.keyMetrics.cardiovascular.score}
             </span>
-            <span class={`${row.keyMetrics.cardiovascular.trend === 'up' ? 'text-green-500' : 
-              row.keyMetrics.cardiovascular.trend === 'down' ? 'text-red-500' : 'text-gray-500'}`}>
-              {row.keyMetrics.cardiovascular.trend === 'up' ? '↗' : 
-               row.keyMetrics.cardiovascular.trend === 'down' ? '↘' : '→'}
+            <span
+              class={`${
+                row.keyMetrics.cardiovascular.trend === 'up'
+                  ? 'text-green-500'
+                  : row.keyMetrics.cardiovascular.trend === 'down'
+                    ? 'text-red-500'
+                    : 'text-gray-500'
+              }`}
+            >
+              {row.keyMetrics.cardiovascular.trend === 'up' ? '↗' : row.keyMetrics.cardiovascular.trend === 'down' ? '↘' : '→'}
             </span>
           </div>
           <div class="flex items-center gap-1">
@@ -237,21 +246,27 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
             <span class={`font-medium ${row.keyMetrics.respiratory.score >= 70 ? 'text-green-600' : 'text-red-600'}`}>
               {row.keyMetrics.respiratory.score}
             </span>
-            <span class={`${row.keyMetrics.respiratory.trend === 'up' ? 'text-green-500' : 
-              row.keyMetrics.respiratory.trend === 'down' ? 'text-red-500' : 'text-gray-500'}`}>
-              {row.keyMetrics.respiratory.trend === 'up' ? '↗' : 
-               row.keyMetrics.respiratory.trend === 'down' ? '↘' : '→'}
+            <span
+              class={`${
+                row.keyMetrics.respiratory.trend === 'up'
+                  ? 'text-green-500'
+                  : row.keyMetrics.respiratory.trend === 'down'
+                    ? 'text-red-500'
+                    : 'text-gray-500'
+              }`}
+            >
+              {row.keyMetrics.respiratory.trend === 'up' ? '↗' : row.keyMetrics.respiratory.trend === 'down' ? '↘' : '→'}
             </span>
           </div>
           <div class="flex items-center gap-1">
             <span>心理:</span>
-            <span class={`font-medium ${row.keyMetrics.mental.score >= 70 ? 'text-green-600' : 'text-red-600'}`}>
-              {row.keyMetrics.mental.score}
-            </span>
-            <span class={`${row.keyMetrics.mental.trend === 'up' ? 'text-green-500' : 
-              row.keyMetrics.mental.trend === 'down' ? 'text-red-500' : 'text-gray-500'}`}>
-              {row.keyMetrics.mental.trend === 'up' ? '↗' : 
-               row.keyMetrics.mental.trend === 'down' ? '↘' : '→'}
+            <span class={`font-medium ${row.keyMetrics.mental.score >= 70 ? 'text-green-600' : 'text-red-600'}`}>{row.keyMetrics.mental.score}</span>
+            <span
+              class={`${
+                row.keyMetrics.mental.trend === 'up' ? 'text-green-500' : row.keyMetrics.mental.trend === 'down' ? 'text-red-500' : 'text-gray-500'
+              }`}
+            >
+              {row.keyMetrics.mental.trend === 'up' ? '↗' : row.keyMetrics.mental.trend === 'down' ? '↘' : '→'}
             </span>
           </div>
           <div class="flex items-center gap-1">
@@ -259,10 +274,16 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
             <span class={`font-medium ${row.keyMetrics.physical.score >= 70 ? 'text-green-600' : 'text-red-600'}`}>
               {row.keyMetrics.physical.score}
             </span>
-            <span class={`${row.keyMetrics.physical.trend === 'up' ? 'text-green-500' : 
-              row.keyMetrics.physical.trend === 'down' ? 'text-red-500' : 'text-gray-500'}`}>
-              {row.keyMetrics.physical.trend === 'up' ? '↗' : 
-               row.keyMetrics.physical.trend === 'down' ? '↘' : '→'}
+            <span
+              class={`${
+                row.keyMetrics.physical.trend === 'up'
+                  ? 'text-green-500'
+                  : row.keyMetrics.physical.trend === 'down'
+                    ? 'text-red-500'
+                    : 'text-gray-500'
+              }`}
+            >
+              {row.keyMetrics.physical.trend === 'up' ? '↗' : row.keyMetrics.physical.trend === 'down' ? '↘' : '→'}
             </span>
           </div>
         </div>
@@ -273,11 +294,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       title: '预警数',
       align: 'center',
       width: 80,
-      render: row => (
-        <span class={`font-medium ${row.alerts > 0 ? 'text-red-600' : 'text-green-600'}`}>
-          {row.alerts}
-        </span>
-      )
+      render: row => <span class={`font-medium ${row.alerts > 0 ? 'text-red-600' : 'text-green-600'}`}>{row.alerts}</span>
     },
     {
       key: 'recommendations',
@@ -291,10 +308,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center',
       width: 100,
       render: row => (
-        <span class={`font-medium ${
-          row.dataQuality >= 90 ? 'text-green-600' : 
-          row.dataQuality >= 70 ? 'text-yellow-600' : 'text-red-600'
-        }`}>
+        <span class={`font-medium ${row.dataQuality >= 90 ? 'text-green-600' : row.dataQuality >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
           {row.dataQuality}%
         </span>
       )
@@ -314,29 +328,14 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       minWidth: 280,
       render: row => (
         <NSpace size="small">
-          <NButton 
-            type="info" 
-            quaternary 
-            size="small" 
-            onClick={() => viewProfile(row)}
-          >
+          <NButton type="info" quaternary size="small" onClick={() => viewProfile(row)}>
             查看详情
           </NButton>
-          <NButton 
-            type="primary" 
-            quaternary 
-            size="small" 
-            onClick={() => generateProfile(row)}
-          >
+          <NButton type="primary" quaternary size="small" onClick={() => generateProfile(row)}>
             重新生成
           </NButton>
           {hasAuth('health:profile:edit') && (
-            <NButton 
-              type="primary" 
-              quaternary 
-              size="small" 
-              onClick={() => edit(row)}
-            >
+            <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
               {$t('common.edit')}
             </NButton>
           )}
@@ -385,14 +384,14 @@ async function generateProfile(item: Api.Health.HealthProfile) {
   // 模拟重新生成画像
   window.$message?.info('正在重新生成健康画像...');
   await new Promise(resolve => setTimeout(resolve, 2000));
-  
+
   // 更新数据
   const index = data.value.findIndex(d => d.id === item.id);
   if (index > -1) {
     data.value[index].lastUpdated = new Date().toISOString().replace('T', ' ').substring(0, 19);
     data.value[index].profileCompleteness = Math.min(100, data.value[index].profileCompleteness + 5);
   }
-  
+
   window.$message?.success('健康画像生成完成');
 }
 
@@ -456,10 +455,10 @@ const profileStats = computed(() => {
     needUpdate: 0,
     avgHealthScore: 0
   };
-  
+
   let totalHealthScore = 0;
   const now = new Date();
-  
+
   data.value.forEach(profile => {
     if (profile.riskLevel === 'high') {
       stats.highRisk++;
@@ -467,17 +466,17 @@ const profileStats = computed(() => {
     if (profile.profileCompleteness < 80) {
       stats.lowCompleteness++;
     }
-    
+
     // 检查是否需要更新（超过7天）
     const lastUpdate = new Date(profile.lastUpdated);
     const daysSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceUpdate > 7) {
       stats.needUpdate++;
     }
-    
+
     totalHealthScore += profile.overallHealthScore;
   });
-  
+
   stats.avgHealthScore = data.value.length > 0 ? totalHealthScore / data.value.length : 0;
   return stats;
 });
@@ -486,42 +485,42 @@ const profileStats = computed(() => {
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
     <!-- 统计卡片 -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <div class="grid grid-cols-1 mb-4 gap-4 lg:grid-cols-4 sm:grid-cols-2">
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">总画像数</div>
-            <div class="text-2xl font-bold text-primary">{{ profileStats.total }}</div>
+            <div class="text-2xl text-primary font-bold">{{ profileStats.total }}</div>
           </div>
           <div class="text-3xl text-primary opacity-20">👤</div>
         </div>
       </NCard>
-      
+
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">高风险用户</div>
-            <div class="text-2xl font-bold text-error">{{ profileStats.highRisk }}</div>
+            <div class="text-2xl text-error font-bold">{{ profileStats.highRisk }}</div>
           </div>
           <div class="text-3xl text-error opacity-20">⚠️</div>
         </div>
       </NCard>
-      
+
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">待完善画像</div>
-            <div class="text-2xl font-bold text-warning">{{ profileStats.lowCompleteness }}</div>
+            <div class="text-2xl text-warning font-bold">{{ profileStats.lowCompleteness }}</div>
           </div>
           <div class="text-3xl text-warning opacity-20">📊</div>
         </div>
       </NCard>
-      
+
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">平均健康分</div>
-            <div class="text-2xl font-bold text-success">{{ profileStats.avgHealthScore.toFixed(0) }}</div>
+            <div class="text-2xl text-success font-bold">{{ profileStats.avgHealthScore.toFixed(0) }}</div>
           </div>
           <div class="text-3xl text-success opacity-20">💚</div>
         </div>
@@ -537,7 +536,7 @@ const profileStats = computed(() => {
       @reset="resetSearchParams"
       @search="getDataByPage"
     />
-    
+
     <!-- 主要内容区域 -->
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <template #header>
@@ -553,7 +552,7 @@ const profileStats = computed(() => {
           </NSpace>
         </div>
       </template>
-      
+
       <TableHeaderOperation
         v-model:columns="columnChecks"
         :checked-row-keys="checkedRowKeys"
@@ -573,7 +572,7 @@ const profileStats = computed(() => {
           </NButton>
         </template>
       </TableHeaderOperation>
-      
+
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
         striped
@@ -591,26 +590,20 @@ const profileStats = computed(() => {
     </NCard>
 
     <!-- 操作抽屉 -->
-    <HealthProfileOperateDrawer 
-      v-model:visible="drawerVisible" 
-      :operate-type="operateType" 
-      :row-data="editingData" 
+    <HealthProfileOperateDrawer
+      v-model:visible="drawerVisible"
+      :operate-type="operateType"
+      :row-data="editingData"
       :org-units-tree="orgUnitsTree"
       :user-options="userOptions"
-      @submitted="getDataByPage" 
+      @submitted="getDataByPage"
     />
 
     <!-- 画像详情查看器 -->
-    <ProfileAnalyticsViewer 
-      v-model:visible="analyticsViewerVisible"
-      :profile-data="selectedProfile"
-    />
+    <ProfileAnalyticsViewer v-model:visible="analyticsViewerVisible" :profile-data="selectedProfile" />
 
     <!-- 模板管理器弹窗 -->
-    <ProfileTemplateManager 
-      v-model:visible="templateManagerVisible"
-      @template-updated="getData"
-    />
+    <ProfileTemplateManager v-model:visible="templateManagerVisible" @template-updated="getData" />
   </div>
 </template>
 

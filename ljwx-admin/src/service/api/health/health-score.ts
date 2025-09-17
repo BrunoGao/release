@@ -9,7 +9,7 @@ export function fetchGetHealthScoreList(params?: Api.Health.HealthScoreSearchPar
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.HealthScoreList>({
     url: '/t_health_score/page',
     method: 'GET',

@@ -120,12 +120,7 @@ watch(visible, () => {
         </NFormItem>
         <!-- 只有admin用户才能选择租户 -->
         <NFormItem v-if="isAdmin" label="租户" path="customerId">
-          <NInputNumber 
-            v-model:value="model.customerId" 
-            placeholder="留空为全局角色" 
-            :show-button="false"
-            clearable
-          />
+          <NInputNumber v-model:value="model.customerId" placeholder="留空为全局角色" :show-button="false" clearable />
         </NFormItem>
         <NFormItem :label="$t('page.manage.role.isAdmin')" path="isAdmin">
           <NRadioGroup v-model:value="model.isAdmin">

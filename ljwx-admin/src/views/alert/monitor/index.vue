@@ -1,16 +1,31 @@
 <script setup lang="tsx">
-import { NCard, NGrid, NGi, NStatistic, NTag, NDataTable, NButton, NSpace, NSelect, NDatePicker, NInput, NProgress, NTooltip, NBadge } from 'naive-ui';
-import { computed, h, onMounted, ref, reactive } from 'vue';
+import {
+  NBadge,
+  NButton,
+  NCard,
+  NDataTable,
+  NDatePicker,
+  NGi,
+  NGrid,
+  NInput,
+  NProgress,
+  NSelect,
+  NSpace,
+  NStatistic,
+  NTag,
+  NTooltip
+} from 'naive-ui';
+import { computed, h, onMounted, reactive, ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { convertToBeijingTime } from '@/utils/date';
 import { useAuth } from '@/hooks/business/auth';
 import { useAuthStore } from '@/store/modules/auth';
 import { $t } from '@/locales';
-import { 
-  fetchGetAlertProcessingStats, 
+import {
+  fetchGetAlertProcessingStats,
+  fetchGetAlertProcessingSummary,
   fetchGetAutoProcessingLogs,
-  fetchGetProcessingTrends,
-  fetchGetAlertProcessingSummary
+  fetchGetProcessingTrends
 } from '@/service/api/health/alert-monitor';
 import { useTable } from '@/hooks/common/table';
 
@@ -134,10 +149,15 @@ const logsColumns = computed(() => [
     title: '处理状态',
     width: 100,
     align: 'center',
-    render: (row: any) => h(NBadge, { 
-      dot: true, 
-      type: getStatusColor(row.processStatus) as any 
-    }, () => getStatusText(row.processStatus))
+    render: (row: any) =>
+      h(
+        NBadge,
+        {
+          dot: true,
+          type: getStatusColor(row.processStatus) as any
+        },
+        () => getStatusText(row.processStatus)
+      )
   },
   {
     key: 'processTime',
@@ -176,10 +196,10 @@ const logsColumns = computed(() => [
 // 获取严重程度颜色
 function getSeverityColor(severity: string) {
   const colors = {
-    'critical': 'error',
-    'major': 'warning',
-    'minor': 'info',
-    'info': 'default'
+    critical: 'error',
+    major: 'warning',
+    minor: 'info',
+    info: 'default'
   };
   return colors[severity as keyof typeof colors] || 'default';
 }
@@ -187,10 +207,10 @@ function getSeverityColor(severity: string) {
 // 获取处理动作颜色
 function getActionColor(action: string) {
   const colors = {
-    'AUTO_RESOLVE': 'success',
-    'AUTO_ACKNOWLEDGE': 'info',
-    'AUTO_ESCALATE': 'warning',
-    'AUTO_SUPPRESS': 'error'
+    AUTO_RESOLVE: 'success',
+    AUTO_ACKNOWLEDGE: 'info',
+    AUTO_ESCALATE: 'warning',
+    AUTO_SUPPRESS: 'error'
   };
   return colors[action as keyof typeof colors] || 'default';
 }
@@ -198,10 +218,10 @@ function getActionColor(action: string) {
 // 获取处理动作文本
 function getActionText(action: string) {
   const texts = {
-    'AUTO_RESOLVE': '自动解决',
-    'AUTO_ACKNOWLEDGE': '自动确认',
-    'AUTO_ESCALATE': '自动升级',
-    'AUTO_SUPPRESS': '自动抑制'
+    AUTO_RESOLVE: '自动解决',
+    AUTO_ACKNOWLEDGE: '自动确认',
+    AUTO_ESCALATE: '自动升级',
+    AUTO_SUPPRESS: '自动抑制'
   };
   return texts[action as keyof typeof texts] || action;
 }
@@ -209,11 +229,11 @@ function getActionText(action: string) {
 // 获取状态颜色
 function getStatusColor(status: string) {
   const colors = {
-    'PENDING': 'default',
-    'PROCESSING': 'info',
-    'COMPLETED': 'success',
-    'FAILED': 'error',
-    'IGNORED': 'warning'
+    PENDING: 'default',
+    PROCESSING: 'info',
+    COMPLETED: 'success',
+    FAILED: 'error',
+    IGNORED: 'warning'
   };
   return colors[status as keyof typeof colors] || 'default';
 }
@@ -221,11 +241,11 @@ function getStatusColor(status: string) {
 // 获取状态文本
 function getStatusText(status: string) {
   const texts = {
-    'PENDING': '待处理',
-    'PROCESSING': '处理中',
-    'COMPLETED': '已完成',
-    'FAILED': '失败',
-    'IGNORED': '已忽略'
+    PENDING: '待处理',
+    PROCESSING: '处理中',
+    COMPLETED: '已完成',
+    FAILED: '失败',
+    IGNORED: '已忽略'
   };
   return texts[status as keyof typeof texts] || status;
 }
@@ -234,7 +254,7 @@ function getStatusText(status: string) {
 function handleTimeRangeSelect(value: string) {
   const now = new Date();
   let startTime = new Date();
-  
+
   switch (value) {
     case 'hour':
       startTime = new Date(now.getTime() - 60 * 60 * 1000);
@@ -252,10 +272,10 @@ function handleTimeRangeSelect(value: string) {
       startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       break;
   }
-  
+
   searchParams.startTime = startTime.toISOString().slice(0, 19);
   searchParams.endTime = now.toISOString().slice(0, 19);
-  
+
   // 刷新数据
   loadAllData();
 }
@@ -290,7 +310,7 @@ function viewDetails(row: any) {
 
 // 加载统计数据
 async function loadStats() {
-  const { data } = await fetchGetAlertProcessingStats({ 
+  const { data } = await fetchGetAlertProcessingStats({
     customerId,
     startTime: searchParams.startTime,
     endTime: searchParams.endTime
@@ -328,12 +348,7 @@ async function loadSummary() {
 async function loadAllData() {
   loading.value = true;
   try {
-    await Promise.all([
-      loadStats(),
-      loadTrends(),
-      loadSummary(),
-      getLogsData()
-    ]);
+    await Promise.all([loadStats(), loadTrends(), loadSummary(), getLogsData()]);
   } finally {
     loading.value = false;
   }
@@ -348,7 +363,7 @@ function autoRefresh() {
 onMounted(() => {
   // 默认加载最近24小时数据
   handleTimeRangeSelect('day');
-  
+
   // 设置自动刷新（每30秒）
   setInterval(autoRefresh, 30000);
 });
@@ -356,51 +371,25 @@ onMounted(() => {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
-    
     <!-- 快捷时间选择 -->
     <NCard :bordered="false" class="card-wrapper">
-      <div class="flex items-center gap-4 mb-4">
+      <div class="mb-4 flex items-center gap-4">
         <span class="text-sm font-medium">时间范围:</span>
         <NSpace>
-          <NButton
-            v-for="option in timeRangeOptions"
-            :key="option.value"
-            size="small"
-            @click="handleTimeRangeSelect(option.value)"
-          >
+          <NButton v-for="option in timeRangeOptions" :key="option.value" size="small" @click="handleTimeRangeSelect(option.value)">
             {{ option.label }}
           </NButton>
         </NSpace>
         <div class="flex-1"></div>
         <NButton :loading="loading" @click="loadAllData">刷新数据</NButton>
       </div>
-      
+
       <!-- 自定义时间和筛选条件 -->
-      <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <NDatePicker
-          v-model:formatted-value="searchParams.startTime"
-          type="datetime"
-          placeholder="开始时间"
-          format="yyyy-MM-dd HH:mm:ss"
-        />
-        <NDatePicker
-          v-model:formatted-value="searchParams.endTime"
-          type="datetime"
-          placeholder="结束时间"
-          format="yyyy-MM-dd HH:mm:ss"
-        />
-        <NSelect
-          v-model:value="searchParams.severityLevel"
-          :options="severityOptions"
-          placeholder="严重程度"
-          clearable
-        />
-        <NSelect
-          v-model:value="searchParams.processStatus"
-          :options="processStatusOptions"
-          placeholder="处理状态"
-          clearable
-        />
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-6">
+        <NDatePicker v-model:formatted-value="searchParams.startTime" type="datetime" placeholder="开始时间" format="yyyy-MM-dd HH:mm:ss" />
+        <NDatePicker v-model:formatted-value="searchParams.endTime" type="datetime" placeholder="结束时间" format="yyyy-MM-dd HH:mm:ss" />
+        <NSelect v-model:value="searchParams.severityLevel" :options="severityOptions" placeholder="严重程度" clearable />
+        <NSelect v-model:value="searchParams.processStatus" :options="processStatusOptions" placeholder="处理状态" clearable />
         <NSelect
           v-model:value="searchParams.autoProcessed"
           :options="[
@@ -418,7 +407,7 @@ onMounted(() => {
     </NCard>
 
     <!-- 统计概览 -->
-    <div v-if="statsData" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div v-if="statsData" class="grid grid-cols-1 gap-4 lg:grid-cols-4 md:grid-cols-2">
       <NCard size="small">
         <NStatistic label="总告警数" :value="statsData.totalAlerts">
           <template #suffix>
@@ -426,7 +415,7 @@ onMounted(() => {
           </template>
         </NStatistic>
       </NCard>
-      
+
       <NCard size="small">
         <NStatistic label="自动处理数" :value="statsData.autoProcessedAlerts">
           <template #suffix>
@@ -442,7 +431,7 @@ onMounted(() => {
           </template>
         </NStatistic>
       </NCard>
-      
+
       <NCard size="small">
         <NStatistic label="平均处理时间" :value="statsData.avgProcessingTime">
           <template #suffix>
@@ -450,41 +439,35 @@ onMounted(() => {
           </template>
         </NStatistic>
       </NCard>
-      
+
       <NCard size="small">
         <NStatistic label="处理成功率" :value="statsData.successRate.toFixed(1)">
           <template #suffix>
             <span class="text-xs text-gray-500">%</span>
-            <NProgress
-              :percentage="statsData.successRate"
-              type="line"
-              :height="4"
-              :show-indicator="false"
-              class="mt-2"
-            />
+            <NProgress :percentage="statsData.successRate" type="line" :height="4" :show-indicator="false" class="mt-2" />
           </template>
         </NStatistic>
       </NCard>
     </div>
 
     <!-- 今日汇总 -->
-    <div v-if="summaryData" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div v-if="summaryData" class="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <NCard title="今日处理汇总" size="small">
         <div class="grid grid-cols-2 gap-4">
           <div class="text-center">
-            <div class="text-2xl font-bold text-blue-500">{{ summaryData.todayTotal }}</div>
+            <div class="text-2xl text-blue-500 font-bold">{{ summaryData.todayTotal }}</div>
             <div class="text-sm text-gray-500">今日告警总数</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl font-bold text-green-500">{{ summaryData.todayAutoProcessed }}</div>
+            <div class="text-2xl text-green-500 font-bold">{{ summaryData.todayAutoProcessed }}</div>
             <div class="text-sm text-gray-500">自动处理数量</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl font-bold text-orange-500">{{ summaryData.todayManualProcessed }}</div>
+            <div class="text-2xl text-orange-500 font-bold">{{ summaryData.todayManualProcessed }}</div>
             <div class="text-sm text-gray-500">人工处理数量</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl font-bold text-red-500">{{ summaryData.todayPending }}</div>
+            <div class="text-2xl text-red-500 font-bold">{{ summaryData.todayPending }}</div>
             <div class="text-sm text-gray-500">待处理数量</div>
           </div>
         </div>
@@ -492,18 +475,18 @@ onMounted(() => {
 
       <NCard title="处理效率对比" size="small">
         <div class="space-y-3">
-          <div class="flex justify-between items-center">
+          <div class="flex items-center justify-between">
             <span>自动处理平均时间</span>
-            <span class="font-bold text-green-500">{{ summaryData.autoAvgTime }}s</span>
+            <span class="text-green-500 font-bold">{{ summaryData.autoAvgTime }}s</span>
           </div>
-          <div class="flex justify-between items-center">
+          <div class="flex items-center justify-between">
             <span>人工处理平均时间</span>
-            <span class="font-bold text-orange-500">{{ summaryData.manualAvgTime }}s</span>
+            <span class="text-orange-500 font-bold">{{ summaryData.manualAvgTime }}s</span>
           </div>
-          <div class="flex justify-between items-center">
+          <div class="flex items-center justify-between">
             <span>效率提升</span>
-            <span class="font-bold text-blue-500">
-              {{ ((summaryData.manualAvgTime - summaryData.autoAvgTime) / summaryData.manualAvgTime * 100).toFixed(1) }}%
+            <span class="text-blue-500 font-bold">
+              {{ (((summaryData.manualAvgTime - summaryData.autoAvgTime) / summaryData.manualAvgTime) * 100).toFixed(1) }}%
             </span>
           </div>
         </div>
@@ -522,7 +505,6 @@ onMounted(() => {
         :scroll-x="1400"
       />
     </NCard>
-
   </div>
 </template>
 

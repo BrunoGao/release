@@ -9,14 +9,13 @@ export function fetchGetUserHealthDataList(params?: Api.Health.UserHealthDataSea
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.UserHealthDataList>({
     url: '/t_user_health_data/page',
     method: 'GET',
     params: filteredParams
   });
 }
-
 
 export function fetchGetUserHealthDataById(id: string) {
   return request<Api.Health.UserHealthDataList>({

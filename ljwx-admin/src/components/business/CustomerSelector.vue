@@ -1,25 +1,5 @@
-<template>
-  <div class="customer-selector">
-    <NSelect
-      v-model:value="selectedCustomerId"
-      :options="customerOptions"
-      :loading="loading"
-      placeholder="请选择客户"
-      filterable
-      clearable
-      @update:value="handleCustomerChange"
-    >
-      <template #empty>
-        <div class="text-center py-4 text-gray-500">
-          {{ loading ? '加载中...' : '暂无客户数据' }}
-        </div>
-      </template>
-    </NSelect>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import { NSelect } from 'naive-ui';
 import { fetchGetAllAvailableCustomers } from '@/service/api/customer/customer';
@@ -57,7 +37,7 @@ const loadCustomers = async () => {
       customerId: item.customerId.toString(),
       customerName: item.customerName
     }));
-    
+
     // 如果当前用户有 customerId，设置为默认选中
     if (authStore.userInfo.customerId && authStore.userInfo.customerId !== 0) {
       selectedCustomerId.value = authStore.userInfo.customerId.toString();
@@ -74,12 +54,12 @@ const loadCustomers = async () => {
 const handleCustomerChange = (customerId: string | null) => {
   const selectedCustomer = customers.value.find(c => c.customerId === customerId);
   const customerName = selectedCustomer?.customerName || null;
-  
+
   console.log('客户切换:', { customerId, customerName });
-  
+
   // 发送事件给父组件
   emit('change', customerId, customerName);
-  
+
   // 这里可以设置全局的 customerId
   // 例如保存到 localStorage 或者 store 中
   if (customerId) {
@@ -113,6 +93,26 @@ onMounted(() => {
   loadCustomers();
 });
 </script>
+
+<template>
+  <div class="customer-selector">
+    <NSelect
+      v-model:value="selectedCustomerId"
+      :options="customerOptions"
+      :loading="loading"
+      placeholder="请选择客户"
+      filterable
+      clearable
+      @update:value="handleCustomerChange"
+    >
+      <template #empty>
+        <div class="py-4 text-center text-gray-500">
+          {{ loading ? '加载中...' : '暂无客户数据' }}
+        </div>
+      </template>
+    </NSelect>
+  </div>
+</template>
 
 <style scoped>
 .customer-selector {

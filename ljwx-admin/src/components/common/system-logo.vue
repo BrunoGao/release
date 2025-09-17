@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { request } from '@/service/request';
 
@@ -16,11 +16,11 @@ function checkDeploymentCustomLogo() {
     const logoConfig = (window as any).CUSTOM_LOGO_CONFIG;
     if (logoConfig && logoConfig.enabled && logoConfig.logoUrl) {
       console.log('检测到部署时的自定义logo配置:', logoConfig);
-      
+
       // 验证logo文件是否可访问
       const img = new Image();
       img.onload = () => {
-        customLogoUrl.value = logoConfig.logoUrl + '?t=' + (logoConfig.timestamp || Date.now());
+        customLogoUrl.value = `${logoConfig.logoUrl}?t=${logoConfig.timestamp || Date.now()}`;
         useCustomLogo.value = true;
         console.log('部署自定义logo加载成功:', customLogoUrl.value);
       };
@@ -28,7 +28,7 @@ function checkDeploymentCustomLogo() {
         console.warn('部署自定义logo文件无法访问，尝试其他方式');
         fetchCustomLogoFromAPI();
       };
-      img.src = logoConfig.logoUrl + '?t=' + (logoConfig.timestamp || Date.now());
+      img.src = `${logoConfig.logoUrl}?t=${logoConfig.timestamp || Date.now()}`;
       return true;
     }
   } catch (error) {
@@ -41,11 +41,11 @@ function checkDeploymentCustomLogo() {
 async function fetchCustomLogoFromAPI() {
   try {
     const customerId = authStore.userInfo?.customerId;
-    
+
     if (customerId !== undefined && customerId !== null) {
       // 直接尝试加载logo图片
       const logoImageUrl = `/t_customer_config/logo/${customerId}?t=${Date.now()}`;
-      
+
       // 先尝试加载图片，如果成功就使用，失败就用默认
       const img = new Image();
       img.onload = () => {
@@ -56,7 +56,6 @@ async function fetchCustomLogoFromAPI() {
         useCustomLogo.value = false;
       };
       img.src = logoImageUrl;
-      
     } else {
       useCustomLogo.value = false;
     }
@@ -77,7 +76,7 @@ async function fetchCustomLogo() {
 
 onMounted(() => {
   fetchCustomLogo();
-  
+
   // 监听logo配置更新事件（支持动态更新）
   window.addEventListener('customLogoConfigUpdated', () => {
     console.log('收到logo配置更新事件');
@@ -89,11 +88,11 @@ onMounted(() => {
 <template>
   <!-- 如果有自定义logo就显示图片，否则显示默认图标 -->
   <div v-if="useCustomLogo" class="flex items-center justify-center">
-    <img 
-      :src="customLogoUrl" 
-      alt="系统Logo" 
-      class="max-w-full max-h-full object-contain"
-      style="width: 1em; height: 1em;"
+    <img
+      :src="customLogoUrl"
+      alt="系统Logo"
+      class="max-h-full max-w-full object-contain"
+      style="width: 1em; height: 1em"
       @error="useCustomLogo = false"
     />
   </div>

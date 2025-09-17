@@ -74,13 +74,17 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       minWidth: 100
     },
     // 只有admin用户才显示租户列
-    ...(isAdmin.value ? [{
-      key: 'customerId',
-      title: '租户ID',
-      align: 'center',
-      width: 100,
-      render: row => row.customerId || '全局'
-    }] : []),
+    ...(isAdmin.value
+      ? [
+          {
+            key: 'customerId',
+            title: '租户ID',
+            align: 'center',
+            width: 100,
+            render: row => row.customerId || '全局'
+          }
+        ]
+      : []),
     {
       key: 'weight',
       title: $t('page.manage.position.weight'),

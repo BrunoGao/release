@@ -60,7 +60,6 @@ export async function handleBindDevice(customerId: number): Promise<number> {
 
     if (!error && Array.isArray(result)) {
       const options = [
-  
         ...result.map(device => ({
           label: String(device || ''),
           value: String(device || '')
@@ -93,7 +92,6 @@ export async function handleBindUsers(departmentId: number): Promise<{ label: st
 
     if (result && typeof result === 'object' && result !== null) {
       const options = [
-     
         ...Object.entries(result).map(([id, name]) => ({
           label: String(name || ''),
           value: String(id || '')

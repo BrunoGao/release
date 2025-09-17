@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NButton, NForm, NFormItem, NGi, NGrid, NInput, NSelect, NDatePicker } from 'naive-ui';
+import { NButton, NDatePicker, NForm, NFormItem, NGi, NGrid, NInput, NSelect } from 'naive-ui';
 import { computed } from 'vue';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
@@ -22,7 +22,7 @@ const model = defineModel<Api.Health.AlertAutoProcessSearchParams>('model', { re
 // 严重程度选项
 const severityOptions = [
   { label: 'Critical', value: 'critical' },
-  { label: 'Major', value: 'major' }, 
+  { label: 'Major', value: 'major' },
   { label: 'Minor', value: 'minor' },
   { label: 'Info', value: 'info' }
 ];
@@ -79,10 +79,7 @@ async function search() {
 const timeRange = computed({
   get() {
     if (model.value.createTimeStart && model.value.createTimeEnd) {
-      return [
-        new Date(model.value.createTimeStart).getTime(),
-        new Date(model.value.createTimeEnd).getTime()
-      ];
+      return [new Date(model.value.createTimeStart).getTime(), new Date(model.value.createTimeEnd).getTime()];
     }
     return null;
   },
@@ -104,85 +101,49 @@ const timeRange = computed({
       <!-- 规则名称 -->
       <NGi>
         <NFormItem label="规则名称" path="ruleName">
-          <NInput 
-            v-model:value="model.ruleName" 
-            placeholder="请输入规则名称"
-            clearable
-          />
+          <NInput v-model:value="model.ruleName" placeholder="请输入规则名称" clearable />
         </NFormItem>
       </NGi>
 
       <!-- 告警类型 -->
       <NGi>
         <NFormItem label="告警类型" path="alertType">
-          <NSelect
-            v-model:value="model.alertType"
-            :options="alertTypeOptions"
-            placeholder="请选择告警类型"
-            clearable
-            filterable
-          />
+          <NSelect v-model:value="model.alertType" :options="alertTypeOptions" placeholder="请选择告警类型" clearable filterable />
         </NFormItem>
       </NGi>
 
       <!-- 生理指标 -->
       <NGi>
         <NFormItem label="生理指标" path="physicalSign">
-          <NSelect
-            v-model:value="model.physicalSign"
-            :options="physicalSignOptions"
-            placeholder="请选择生理指标"
-            clearable
-            filterable
-          />
+          <NSelect v-model:value="model.physicalSign" :options="physicalSignOptions" placeholder="请选择生理指标" clearable filterable />
         </NFormItem>
       </NGi>
 
       <!-- 严重程度 -->
       <NGi>
         <NFormItem label="严重程度" path="severityLevel">
-          <NSelect
-            v-model:value="model.severityLevel"
-            :options="severityOptions"
-            placeholder="请选择严重程度"
-            clearable
-          />
+          <NSelect v-model:value="model.severityLevel" :options="severityOptions" placeholder="请选择严重程度" clearable />
         </NFormItem>
       </NGi>
 
       <!-- 规则状态 -->
       <NGi>
         <NFormItem label="规则状态" path="isEnabled">
-          <NSelect
-            v-model:value="model.isEnabled"
-            :options="enabledOptions"
-            placeholder="请选择规则状态"
-            clearable
-          />
+          <NSelect v-model:value="model.isEnabled" :options="enabledOptions" placeholder="请选择规则状态" clearable />
         </NFormItem>
       </NGi>
 
       <!-- 自动处理启用 -->
       <NGi>
         <NFormItem label="自动处理" path="autoProcessEnabled">
-          <NSelect
-            v-model:value="model.autoProcessEnabled"
-            :options="enabledOptions"
-            placeholder="请选择自动处理状态"
-            clearable
-          />
+          <NSelect v-model:value="model.autoProcessEnabled" :options="enabledOptions" placeholder="请选择自动处理状态" clearable />
         </NFormItem>
       </NGi>
 
       <!-- 自动处理动作 -->
       <NGi>
         <NFormItem label="处理动作" path="autoProcessAction">
-          <NSelect
-            v-model:value="model.autoProcessAction"
-            :options="autoProcessActionOptions"
-            placeholder="请选择处理动作"
-            clearable
-          />
+          <NSelect v-model:value="model.autoProcessAction" :options="autoProcessActionOptions" placeholder="请选择处理动作" clearable />
         </NFormItem>
       </NGi>
 

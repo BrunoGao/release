@@ -14,12 +14,12 @@ export function fetchGetOrgUnitsPageList(params?: Api.SystemManage.OrgUnitsSearc
 /** get org page list using optimized API */
 export function fetchGetOrgUnitsPageListOptimized(params?: Api.SystemManage.OrgUnitsSearchParams) {
   const { customerId, parentId, ...otherParams } = params || {};
-  
+
   if (!customerId) {
     console.warn('customerId is required for optimized org API');
     return fetchGetOrgUnitsPageList(params);
   }
-  
+
   if (parentId === null || parentId === undefined) {
     return request<Api.SystemManage.OrgUnitsPageList>({
       url: `/system/org-optimized/tenants/${customerId}/top-level`,
@@ -36,23 +36,22 @@ export function fetchGetOrgUnitsPageListOptimized(params?: Api.SystemManage.OrgU
         }
       };
     });
-  } else {
-    return request<Api.SystemManage.OrgUnitsPageList>({
-      url: `/system/org-optimized/orgs/${parentId}/children`,
-      method: 'GET',
-      params: { customerId, ...otherParams }
-    }).then(response => {
-      return {
-        ...response,
-        data: {
-          records: response.data || [],
-          page: 1,
-          pageSize: response.data?.length || 0,
-          total: response.data?.length || 0
-        }
-      };
-    });
   }
+  return request<Api.SystemManage.OrgUnitsPageList>({
+    url: `/system/org-optimized/orgs/${parentId}/children`,
+    method: 'GET',
+    params: { customerId, ...otherParams }
+  }).then(response => {
+    return {
+      ...response,
+      data: {
+        records: response.data || [],
+        page: 1,
+        pageSize: response.data?.length || 0,
+        total: response.data?.length || 0
+      }
+    };
+  });
 }
 
 /** add org info */
@@ -106,19 +105,18 @@ export function fetchGetOrgUnitsTreeOptimized(customerId: number, orgId?: number
     console.warn('customerId is required for optimized org tree API');
     return fetchGetOrgUnitsTree(orgId || 0);
   }
-  
+
   if (!orgId) {
     return request<Api.SystemManage.OrgUnitsTree[]>({
       url: `/system/org-optimized/tenants/${customerId}/top-level`,
       method: 'GET'
     });
-  } else {
-    return request<Api.SystemManage.OrgUnitsTree[]>({
-      url: `/system/org-optimized/orgs/${orgId}/descendants`,
-      method: 'GET',
-      params: { customerId }
-    });
   }
+  return request<Api.SystemManage.OrgUnitsTree[]>({
+    url: `/system/org-optimized/orgs/${orgId}/descendants`,
+    method: 'GET',
+    params: { customerId }
+  });
 }
 
 /** get org depth using optimized API */
@@ -146,6 +144,24 @@ export function fetchBatchOrgDescendants(orgIds: number[], customerId: number) {
     method: 'POST',
     data: orgIds,
     params: { customerId }
+  });
+}
+
+/** delete precheck for org units - analyze impact */
+export function fetchOrgUnitsDeletePrecheck(data: Api.Common.DeleteParams) {
+  return request<Api.SystemManage.DepartmentDeletePreCheck>({
+    url: '/sys_org_units/delete-precheck',
+    method: 'POST',
+    data
+  });
+}
+
+/** cascade delete org units - including users and devices */
+export function fetchOrgUnitsCascadeDelete(data: Api.Common.DeleteParams) {
+  return request<boolean>({
+    url: '/sys_org_units/cascade-delete',
+    method: 'DELETE',
+    data
   });
 }
 

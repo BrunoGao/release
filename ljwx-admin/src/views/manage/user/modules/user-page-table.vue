@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { NButton, NCard, NDataTable, NIcon, NModal, NP, NSpin, NTag, NText, NUpload, NUploadDragger, useModal } from 'naive-ui';
-import SvgIcon from '@/components/custom/svg-icon.vue';
 import { computed, h, reactive, ref, watch } from 'vue';
+import SvgIcon from '@/components/custom/svg-icon.vue';
 import {
   fetchBatchImportUsers,
   fetchBatchImportUsersDirect,
@@ -232,19 +232,17 @@ const getDynamicColumns = (mode: Api.SystemManage.ViewMode) => {
               {$t('common.edit')}
             </NButton>
           )}
-          <NButton 
-            type="success" 
+          <NButton
+            type="success"
             secondary
-            size="small" 
+            size="small"
             class="permission-btn health-permission-btn"
             onClick={() => handleDeviceSubmitted(row.deviceSn)}
             renderIcon={() => <SvgIcon icon="material-symbols:health-and-safety" class="text-14px" />}
           >
             {$t('route.health_profile')}
           </NButton>
-          <div class="operation-more-btn">
-            {renderDropdown(row)}
-          </div>
+          <div class="operation-more-btn">{renderDropdown(row)}</div>
         </div>
       )
     }
@@ -730,7 +728,6 @@ watch(viewMode, () => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-
 :deep(.health-permission-btn) {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: 1px solid #10b981;
@@ -801,7 +798,7 @@ watch(viewMode, () => {
     padding: 2px 6px;
     font-size: 12px;
   }
-  
+
   .flex-center > * + * {
     margin-left: 4px;
   }

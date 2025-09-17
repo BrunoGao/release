@@ -9,7 +9,7 @@ export function fetchGetDeviceMessageV2List(params?: Api.Health.DeviceMessageV2S
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.DeviceMessageV2List>({
     url: '/api/v2/messages',
     method: 'GET',
@@ -181,12 +181,7 @@ export function fetchGetUnreadCount(targetId: string, targetType: string) {
 // =============== 统计分析API ===============
 
 /** 获取消息统计信息 */
-export function fetchGetMessageStatistics(params?: {
-  customerId?: number;
-  orgId?: number;
-  startTime?: string;
-  endTime?: string;
-}) {
+export function fetchGetMessageStatistics(params?: { customerId?: number; orgId?: number; startTime?: string; endTime?: string }) {
   return request<Api.Health.MessageStatisticsV2>({
     url: '/api/v2/messages/statistics',
     method: 'GET',
@@ -203,11 +198,7 @@ export function fetchGetMessageSummary(messageId: number) {
 }
 
 /** 获取渠道分发统计 */
-export function fetchGetChannelStatistics(params?: {
-  customerId?: number;
-  startTime?: string;
-  endTime?: string;
-}) {
+export function fetchGetChannelStatistics(params?: { customerId?: number; startTime?: string; endTime?: string }) {
   return request<Api.Common.ResponseResult<any>>({
     url: '/api/v2/messages/channel-statistics',
     method: 'GET',
@@ -216,12 +207,7 @@ export function fetchGetChannelStatistics(params?: {
 }
 
 /** 获取响应时间统计 */
-export function fetchGetResponseTimeStatistics(params?: {
-  customerId?: number;
-  messageType?: string;
-  startTime?: string;
-  endTime?: string;
-}) {
+export function fetchGetResponseTimeStatistics(params?: { customerId?: number; messageType?: string; startTime?: string; endTime?: string }) {
   return request<Api.Common.ResponseResult<any>>({
     url: '/api/v2/messages/response-time-statistics',
     method: 'GET',
@@ -230,11 +216,7 @@ export function fetchGetResponseTimeStatistics(params?: {
 }
 
 /** 获取消息类型分布 */
-export function fetchGetMessageTypeDistribution(params?: {
-  customerId?: number;
-  startTime?: string;
-  endTime?: string;
-}) {
+export function fetchGetMessageTypeDistribution(params?: { customerId?: number; startTime?: string; endTime?: string }) {
   return request<Record<string, number>>({
     url: '/api/v2/messages/type-distribution',
     method: 'GET',
@@ -298,7 +280,7 @@ export function fetchGetDeviceMessageV1Compatible(params?: Api.Health.DeviceMess
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.DeviceMessageList>({
     url: '/t_device_message/page',
     method: 'GET',
@@ -307,10 +289,7 @@ export function fetchGetDeviceMessageV1Compatible(params?: Api.Health.DeviceMess
 }
 
 /** V1兼容性获取统计 */
-export function fetchGetV1CompatibleStatistics(params?: {
-  deviceSn?: string;
-  userId?: string;
-}) {
+export function fetchGetV1CompatibleStatistics(params?: { deviceSn?: string; userId?: string }) {
   return request<Api.Common.ResponseResult<any>>({
     url: '/t_device_message/statistics',
     method: 'GET',

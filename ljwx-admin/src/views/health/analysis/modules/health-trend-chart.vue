@@ -53,7 +53,7 @@ function updateChart() {
       textStyle: {
         color: '#374151'
       },
-      formatter: function(params: any) {
+      formatter(params: any) {
         const point = params[0];
         return `
           <div style="padding: 8px;">
@@ -143,11 +143,11 @@ function updateChart() {
             colorStops: [
               {
                 offset: 0,
-                color: props.color + '40'
+                color: `${props.color}40`
               },
               {
                 offset: 1,
-                color: props.color + '10'
+                color: `${props.color}10`
               }
             ]
           }
@@ -158,7 +158,7 @@ function updateChart() {
             borderColor: '#ffffff',
             borderWidth: 3,
             shadowBlur: 10,
-            shadowColor: props.color + '60'
+            shadowColor: `${props.color}60`
           }
         }
       }
@@ -167,7 +167,7 @@ function updateChart() {
     animationDuration: 1000,
     animationEasing: 'cubicOut'
   };
-  
+
   updateOptions(option);
 }
 
@@ -179,7 +179,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="chartRef" class="w-full h-full min-h-80" />
+  <div ref="chartRef" class="h-full min-h-80 w-full" />
 </template>
 
 <style scoped>

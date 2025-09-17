@@ -17,25 +17,14 @@ const showPrompt = computed(() => {
 
 <template>
   <div v-if="showPrompt" class="customer-selection-prompt">
-    <NAlert
-      type="info"
-      :bordered="false"
-      :show-icon="true"
-      class="mb-4"
-    >
-      <template #header>
-        请选择要管理的客户
-      </template>
-      
+    <NAlert type="info" :bordered="false" :show-icon="true" class="mb-4">
+      <template #header>请选择要管理的客户</template>
+
       <div>
-        <p class="mb-3">
-          您当前以超级管理员身份登录，请先选择要管理的客户，然后开始使用系统功能。
-        </p>
-        
+        <p class="mb-3">您当前以超级管理员身份登录，请先选择要管理的客户，然后开始使用系统功能。</p>
+
         <NSpace>
-          <div class="text-sm text-gray-500">
-            💡 提示：您可以在页面右上角的客户切换器中选择客户
-          </div>
+          <div class="text-sm text-gray-500">💡 提示：您可以在页面右上角的客户切换器中选择客户</div>
         </NSpace>
       </div>
     </NAlert>

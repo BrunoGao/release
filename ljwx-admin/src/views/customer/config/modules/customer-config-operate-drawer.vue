@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, reactive, watch, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
+import { NPopconfirm, NUpload, type UploadFileInfo } from 'naive-ui';
 import { useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 import { fetchAddCustomerConfig, fetchUpdateCustomerConfigInfo } from '@/service/api';
 import { useDict } from '@/hooks/business/dict';
 import { request } from '@/service/request';
-import { NUpload, NPopconfirm, type UploadFileInfo } from 'naive-ui';
 
 defineOptions({
   name: 'TCustomerConfigOperateDrawer'
@@ -131,7 +131,7 @@ const yesNoOptions = [
 const logoSrc = computed(() => {
   const customerId = props.customerId ?? props.rowData?.id ?? (model as any).id;
   if (customerId === undefined || customerId === null) return '';
-  
+
   // 添加时间戳防止缓存
   const timestamp = new Date().getTime();
   const baseUrl = `/t_customer_config/logo/${customerId}`;
@@ -171,14 +171,14 @@ async function handleLogoUpload(file: File) {
     window.$message?.error('请先保存客户配置后再上传Logo');
     return false;
   }
-  
+
   // 验证文件类型
   const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
   if (!allowedTypes.includes(file.type)) {
     window.$message?.error('不支持的文件格式，请选择 PNG, JPG, JPEG, SVG 或 WEBP 格式');
     return false;
   }
-  
+
   // 验证文件大小（2MB）
   if (file.size > 2 * 1024 * 1024) {
     window.$message?.error('文件大小不能超过2MB');
@@ -186,13 +186,13 @@ async function handleLogoUpload(file: File) {
   }
 
   logoUploading.value = true;
-  
+
   try {
     // 上传文件
     const formData = new FormData();
     formData.append('file', file);
     formData.append('customerId', customerId.toString());
-    
+
     console.log('开始上传文件...');
     const response = await request({
       url: '/t_customer_config/logo/upload',
@@ -202,25 +202,24 @@ async function handleLogoUpload(file: File) {
         'Content-Type': 'multipart/form-data'
       }
     });
-    
+
     if (response.data) {
       console.log('上传成功:', response.data);
       window.$message?.success('Logo上传成功');
-      
+
       // 更新模型数据
       Object.assign(model, {
         logoUrl: response.data.logoUrl,
         logoFileName: response.data.fileName,
         logoUploadTime: response.data.uploadTime
       });
-      
+
       // 触发提交事件让父组件刷新数据
       emit('submitted');
-      
+
       return true;
-    } else {
-      throw new Error('服务器未返回数据');
     }
+    throw new Error('服务器未返回数据');
   } catch (error: any) {
     console.error('Logo上传失败:', error);
     const errorMsg = error?.response?.data?.message || error?.message || 'Logo上传失败';
@@ -237,23 +236,23 @@ async function handleLogoDelete() {
   if (customerId === undefined || customerId === null) {
     return;
   }
-  
+
   try {
     const response = await request({
       url: `/t_customer_config/logo/${customerId}`,
       method: 'DELETE'
     });
-    
+
     if (response.data) {
       window.$message?.success('Logo已重置为默认');
-      
+
       // 清除模型中的logo数据
       Object.assign(model, {
         logoUrl: null,
         logoFileName: null,
         logoUploadTime: null
       });
-      
+
       // 触发提交事件让父组件刷新数据
       emit('submitted');
     }
@@ -267,7 +266,7 @@ async function handleLogoDelete() {
 function beforeUpload(data: { file: UploadFileInfo; fileList: UploadFileInfo[] }) {
   const file = data.file.file;
   if (!file) return false;
-  
+
   return handleLogoUpload(file);
 }
 </script>
@@ -315,7 +314,7 @@ function beforeUpload(data: { file: UploadFileInfo; fileList: UploadFileInfo[] }
         <NFormItem :label="$t('page.customer.config.cacheMaxCount')" path="cacheMaxCount">
           <NInputNumber v-model:value="model.cacheMaxCount" :placeholder="$t('page.customer.config.form.cacheMaxCount')" />
         </NFormItem>
-        
+
         <!-- Logo管理功能 - 临时隐藏 -->
         <!-- 
         <NDivider title-placement="left">Logo管理</NDivider>

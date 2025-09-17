@@ -54,12 +54,7 @@ export function fetchGetCustomerStatistics(customerId: number) {
 // =============== Customer Switch History ===============
 
 /** 获取客户切换历史 */
-export function fetchGetCustomerSwitchHistory(params?: {
-  page?: number;
-  pageSize?: number;
-  startDate?: string;
-  endDate?: string;
-}) {
+export function fetchGetCustomerSwitchHistory(params?: { page?: number; pageSize?: number; startDate?: string; endDate?: string }) {
   return request<Api.Customer.CustomerSwitchHistoryList>({
     url: '/sys/customer/switch-history',
     method: 'GET',
@@ -68,11 +63,7 @@ export function fetchGetCustomerSwitchHistory(params?: {
 }
 
 /** 记录客户切换操作 */
-export function fetchRecordCustomerSwitch(data: {
-  fromCustomerId?: number;
-  toCustomerId: number;
-  reason?: string;
-}) {
+export function fetchRecordCustomerSwitch(data: { fromCustomerId?: number; toCustomerId: number; reason?: string }) {
   return request<boolean>({
     url: '/sys/customer/switch-history',
     method: 'POST',

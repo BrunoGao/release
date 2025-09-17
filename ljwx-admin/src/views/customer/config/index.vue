@@ -1,17 +1,35 @@
 <script setup lang="ts">
-import { NButton, NPopconfirm, NUpload, NModal, NCard, NTag, NDescriptions, NDescriptionsItem, NAlert, NCollapse, NCollapseItem, NList, NListItem, NIcon, NSpace, type UploadFileInfo } from 'naive-ui';
+import {
+  NAlert,
+  NButton,
+  NCard,
+  NCollapse,
+  NCollapseItem,
+  NDescriptions,
+  NDescriptionsItem,
+  NIcon,
+  NList,
+  NListItem,
+  NModal,
+  NPopconfirm,
+  NSpace,
+  NTag,
+  NUpload,
+  type UploadFileInfo
+} from 'naive-ui';
 import type { Ref } from 'vue';
-import { ref, h, computed } from 'vue';
+import { computed, h, ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAuth } from '@/hooks/business/auth';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import { transDeleteParams } from '@/utils/common';
-import { fetchDeleteCustomerConfig, fetchGetCustomerConfigList, fetchGetOrgUnitsTree } from '@/service/api';
+import { fetchDeleteCustomerConfig, fetchGetCustomerConfigList, fetchGetOrgUnitsTree, fetchTenantDeletePrecheck, fetchTenantCascadeDelete } from '@/service/api';
 import { request } from '@/service/request';
 import { useDict } from '@/hooks/business/dict';
 import CustomerConfigOperateDrawer from './modules/customer-config-operate-drawer.vue';
+import DeleteConfirmDialog from '@/components/business/DeleteConfirmDialog.vue';
 
 defineOptions({
   name: 'TCustomerConfigPage'
@@ -32,6 +50,12 @@ const isAdmin = computed(() => {
 const { dictTag } = useDict();
 
 const editingData: Ref<Api.Customer.CustomerConfig | null> = ref(null);
+
+// 删除确认对话框相关状态
+const deleteConfirmVisible = ref(false);
+const deletePreCheckData = ref<Api.SystemManage.DepartmentDeletePreCheck | null>(null);
+const deletePreCheckLoading = ref(false);
+const pendingDeleteIds = ref<string[]>([]);
 
 const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams } = useTable({
   apiFn: fetchGetCustomerConfigList,
@@ -83,11 +107,16 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       title: '支持许可证',
       align: 'center',
       minWidth: 100,
-      render: row => h('div', { class: 'flex items-center justify-center gap-2' }, [
-        h('span', { 
-          class: row.supportLicense ? 'text-green-600' : 'text-gray-400' 
-        }, row.supportLicense ? '✓ 是' : '✗ 否')
-      ])
+      render: row =>
+        h('div', { class: 'flex items-center justify-center gap-2' }, [
+          h(
+            'span',
+            {
+              class: row.supportLicense ? 'text-green-600' : 'text-gray-400'
+            },
+            row.supportLicense ? '✓ 是' : '✗ 否'
+          )
+        ])
     },
     {
       key: 'enableResume',
@@ -117,55 +146,76 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       minWidth: 280,
       render: row => {
         const buttons = [];
-        
+
         // 编辑按钮 - 只有admin可见
         if (hasAuth('t:customer:config:update') && isAdmin.value) {
           buttons.push(
-            h(NButton, {
-              type: 'primary',
-              quaternary: true,
-              size: 'small',
-              onClick: () => edit(row)
-            }, () => $t('common.edit'))
+            h(
+              NButton,
+              {
+                type: 'primary',
+                quaternary: true,
+                size: 'small',
+                onClick: () => edit(row)
+              },
+              () => $t('common.edit')
+            )
           );
         }
-        
+
         // 许可证按钮 - 只有admin可见
         if (hasAuth('t:customer:config:license:status') && isAdmin.value) {
           buttons.push(
-            h(NButton, {
-              type: 'info',
-              quaternary: true,
-              size: 'small',
-              onClick: () => viewLicense(row)
-            }, () => '许可证')
+            h(
+              NButton,
+              {
+                type: 'info',
+                quaternary: true,
+                size: 'small',
+                onClick: () => viewLicense(row)
+              },
+              () => '许可证'
+            )
           );
         }
-        
+
         // 如果不是admin，显示提示信息
         if (!isAdmin.value && buttons.length === 0) {
           buttons.push(
-            h('span', { 
-              class: 'text-gray-400 text-xs px-2 py-1' 
-            }, '仅管理员可操作')
+            h(
+              'span',
+              {
+                class: 'text-gray-400 text-xs px-2 py-1'
+              },
+              '仅管理员可操作'
+            )
           );
         }
-        
+
         if (hasAuth('t:customer:config:delete') && isAdmin.value) {
           buttons.push(
-            h(NPopconfirm, {
-              onPositiveClick: () => handleDelete(row.id)
-            }, {
-              default: () => $t('common.confirmDelete'),
-              trigger: () => h(NButton, {
-                type: 'error',
-                quaternary: true,
-                size: 'small'
-              }, () => $t('common.delete'))
-            })
+            h(
+              NPopconfirm,
+              {
+                onPositiveClick: () => handleDelete(row.id)
+              },
+              {
+                default: () => $t('common.confirmDelete'),
+                trigger: () =>
+                  h(
+                    NButton,
+                    {
+                      type: 'error',
+                      quaternary: true,
+                      size: 'small'
+                    },
+                    () => $t('common.delete')
+                  )
+              }
+            )
           );
         }
-        
+
         return h('div', { class: 'flex-center gap-4px flex-wrap' }, buttons);
       }
     }
@@ -198,11 +248,7 @@ async function handleDelete(id: string) {
     window.$message?.warning('只有管理员才能删除租户配置');
     return;
   }
-  // request
-  const { error, data: result } = await fetchDeleteCustomerConfig(transDeleteParams([id]));
-  if (!error && result) {
-    await onDeleted();
-  }
+  await handleDeleteWithPrecheck([id]);
 }
 
 async function handleBatchDelete() {
@@ -210,14 +256,87 @@ async function handleBatchDelete() {
     window.$message?.warning('只有管理员才能批量删除租户配置');
     return;
   }
-  // request
-  const { error, data: result } = await fetchDeleteCustomerConfig(transDeleteParams(checkedRowKeys.value));
-  if (!error && result) {
-    await onBatchDeleted();
+  await handleDeleteWithPrecheck(checkedRowKeys.value);
+}
+
+async function handleDeleteWithPrecheck(ids: string[]) {
+  try {
+    // 设置待删除的ID列表
+    pendingDeleteIds.value = ids;
+    
+    // 显示对话框并开始预检查
+    deleteConfirmVisible.value = true;
+    deletePreCheckLoading.value = true;
+    deletePreCheckData.value = null;
+    
+    // 执行删除预检查
+    const { error, data } = await fetchTenantDeletePrecheck(transDeleteParams(ids));
+    
+    if (!error && data) {
+      deletePreCheckData.value = data;
+    } else {
+      window.$message?.error('租户删除预检查失败，请稍后重试');
+      deleteConfirmVisible.value = false;
+    }
+  } catch (err) {
+    console.error('租户删除预检查异常:', err);
+    window.$message?.error('租户删除预检查异常');
+    deleteConfirmVisible.value = false;
+  } finally {
+    deletePreCheckLoading.value = false;
   }
 }
 
+async function handleDeleteConfirm() {
+  try {
+    const ids = pendingDeleteIds.value;
+    if (ids.length === 0) return;
+    
+    // 根据预检查结果决定使用哪种删除方式
+    let deleteResult;
+    if (deletePreCheckData.value?.canSafeDelete) {
+      // 安全删除：使用常规删除API
+      const { error, data: result } = await fetchDeleteCustomerConfig(transDeleteParams(ids));
+      deleteResult = { error, result };
+    } else {
+      // 级联删除：使用级联删除API
+      const { error, data: result } = await fetchTenantCascadeDelete(transDeleteParams(ids));
+      deleteResult = { error, result };
+    }
+    
+    if (!deleteResult.error && deleteResult.result) {
+      window.$message?.success(
+        deletePreCheckData.value?.canSafeDelete 
+          ? '租户删除成功' 
+          : '租户级联删除成功，相关部门、用户和设备已被处理'
+      );
+      
+      // 根据删除类型调用相应的刷新函数
+      if (ids.length === 1) {
+        await onDeleted();
+      } else {
+        await onBatchDeleted();
+      }
+    } else {
+      window.$message?.error('租户删除失败，请稍后重试');
+    }
+  } catch (err) {
+    console.error('租户删除操作异常:', err);
+    window.$message?.error('租户删除操作异常');
+  } finally {
+    // 重置状态
+    deleteConfirmVisible.value = false;
+    deletePreCheckData.value = null;
+    pendingDeleteIds.value = [];
+  }
+}
 
+function handleDeleteCancel() {
+  // 重置状态
+  deleteConfirmVisible.value = false;
+  deletePreCheckData.value = null;
+  pendingDeleteIds.value = [];
+}
 
 // 许可证管理功能
 const licenseModalVisible = ref(false);
@@ -236,7 +355,7 @@ async function viewLicense(customer: Api.Customer.CustomerConfig) {
       url: `/t_customer_config/license/status/${customer.id}`,
       method: 'GET'
     });
-    
+
     if (!error && data) {
       licenseData.value = data;
       licenseModalVisible.value = true;
@@ -253,13 +372,13 @@ async function uploadLicense(options: { file: UploadFileInfo }) {
     window.$message?.warning('只有管理员才能上传许可证');
     return false;
   }
-  
+
   licenseUploading.value = true;
-  
+
   try {
     const formData = new FormData();
     formData.append('file', options.file.file as File);
-    
+
     const { error, data } = await request<any>({
       url: '/api/license/upload',
       method: 'POST',
@@ -268,7 +387,7 @@ async function uploadLicense(options: { file: UploadFileInfo }) {
         'Content-Type': 'multipart/form-data'
       }
     });
-    
+
     if (!error && data) {
       window.$message?.success('许可证上传成功');
       // 重新获取许可证信息
@@ -286,31 +405,44 @@ async function uploadLicense(options: { file: UploadFileInfo }) {
   } finally {
     licenseUploading.value = false;
   }
-  
+
   return false; // 阻止默认上传行为
 }
 
 // 辅助函数
 function getLicenseAlertType(status: string): 'success' | 'info' | 'warning' | 'error' {
   switch (status) {
-    case 'VALID': return 'success';
-    case 'WARNING': return 'warning';
-    case 'EXPIRED': return 'error';
-    case 'INVALID': return 'error';
-    case 'DISABLED': return 'info';
-    default: return 'error';
+    case 'VALID':
+      return 'success';
+    case 'WARNING':
+      return 'warning';
+    case 'EXPIRED':
+      return 'error';
+    case 'INVALID':
+      return 'error';
+    case 'DISABLED':
+      return 'info';
+    default:
+      return 'error';
   }
 }
 
 function getLicenseStatusText(status: string): string {
   switch (status) {
-    case 'VALID': return '有效';
-    case 'WARNING': return '即将过期';
-    case 'EXPIRED': return '已过期';
-    case 'INVALID': return '无效';
-    case 'DISABLED': return '未启用';
-    case 'ERROR': return '错误';
-    default: return '未知';
+    case 'VALID':
+      return '有效';
+    case 'WARNING':
+      return '即将过期';
+    case 'EXPIRED':
+      return '已过期';
+    case 'INVALID':
+      return '无效';
+    case 'DISABLED':
+      return '未启用';
+    case 'ERROR':
+      return '错误';
+    default:
+      return '未知';
   }
 }
 
@@ -330,14 +462,19 @@ function formatDateTime(dateTime: string | null): string {
     <NCard :bordered="false" size="small" class="operation-manual">
       <NCollapse v-model:expanded-names="manualExpanded">
         <NCollapseItem name="manual" title="📋 租户配置操作手册">
-          <div class="space-y-4 text-sm max-h-400px overflow-y-auto">
+          <div class="max-h-400px overflow-y-auto text-sm space-y-4">
             <!-- 配置项说明 -->
             <NCard title="🏢 租户配置说明" size="small">
               <NList>
                 <NListItem>
                   <NSpace>
                     <NIcon size="16" color="#2080f0">
-                      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                      <svg viewBox="0 0 24 24">
+                        <path
+                          fill="currentColor"
+                          d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                        />
+                      </svg>
                     </NIcon>
                     <div>
                       <div class="font-medium">租户ID</div>
@@ -348,7 +485,9 @@ function formatDateTime(dateTime: string | null): string {
                 <NListItem>
                   <NSpace>
                     <NIcon size="16" color="#18a058">
-                      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      <svg viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
                     </NIcon>
                     <div>
                       <div class="font-medium">租户名称</div>
@@ -359,7 +498,9 @@ function formatDateTime(dateTime: string | null): string {
                 <NListItem>
                   <NSpace>
                     <NIcon size="16" color="#f0a020">
-                      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7v2H5V4h3.5l1-1h5l1 1H19z"/></svg>
+                      <svg viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7v2H5V4h3.5l1-1h5l1 1H19z" />
+                      </svg>
                     </NIcon>
                     <div>
                       <div class="font-medium">上传方法</div>
@@ -370,7 +511,12 @@ function formatDateTime(dateTime: string | null): string {
                 <NListItem>
                   <NSpace>
                     <NIcon size="16" color="#d03050">
-                      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                      <svg viewBox="0 0 24 24">
+                        <path
+                          fill="currentColor"
+                          d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+                        />
+                      </svg>
                     </NIcon>
                     <div>
                       <div class="font-medium">许可证管理</div>
@@ -386,32 +532,32 @@ function formatDateTime(dateTime: string | null): string {
               <NList>
                 <NListItem>
                   <div>
-                    <div class="font-medium text-orange-600">🔄 上传重试次数</div>
-                    <div class="text-gray-600 mt-1">• 影响：数据上传失败时的重试频率</div>
+                    <div class="text-orange-600 font-medium">🔄 上传重试次数</div>
+                    <div class="mt-1 text-gray-600">• 影响：数据上传失败时的重试频率</div>
                     <div class="text-gray-600">• 建议：网络稳定环境设置3-5次，不稳定环境可增加到10次</div>
                     <div class="text-gray-600">• 风险：过高会增加服务器负载，过低可能导致数据丢失</div>
                   </div>
                 </NListItem>
                 <NListItem>
                   <div>
-                    <div class="font-medium text-blue-600">💾 缓存最大数量</div>
-                    <div class="text-gray-600 mt-1">• 影响：本地缓存的最大数据条数</div>
+                    <div class="text-blue-600 font-medium">💾 缓存最大数量</div>
+                    <div class="mt-1 text-gray-600">• 影响：本地缓存的最大数据条数</div>
                     <div class="text-gray-600">• 建议：根据服务器内存设置，一般1000-10000条</div>
                     <div class="text-gray-600">• 风险：过高占用内存，过低影响查询性能</div>
                   </div>
                 </NListItem>
                 <NListItem>
                   <div>
-                    <div class="font-medium text-green-600">📤 启用续传功能</div>
-                    <div class="text-gray-600 mt-1">• 影响：大文件上传中断后可继续传输</div>
+                    <div class="text-green-600 font-medium">📤 启用续传功能</div>
+                    <div class="mt-1 text-gray-600">• 影响：大文件上传中断后可继续传输</div>
                     <div class="text-gray-600">• 建议：大文件传输场景建议启用</div>
                     <div class="text-gray-600">• 风险：增加服务器存储开销</div>
                   </div>
                 </NListItem>
                 <NListItem>
                   <div>
-                    <div class="font-medium text-purple-600">🔐 许可证支持</div>
-                    <div class="text-gray-600 mt-1">• 影响：控制租户可使用的系统功能模块</div>
+                    <div class="text-purple-600 font-medium">🔐 许可证支持</div>
+                    <div class="mt-1 text-gray-600">• 影响：控制租户可使用的系统功能模块</div>
                     <div class="text-gray-600">• 建议：根据客户付费等级设置对应权限</div>
                     <div class="text-gray-600">• 风险：关闭后相关功能将不可用</div>
                   </div>
@@ -425,25 +571,25 @@ function formatDateTime(dateTime: string | null): string {
                 <NListItem>
                   <div>
                     <div class="font-medium">1. 新增租户配置</div>
-                    <div class="text-gray-600 mt-1">点击"新增"按钮 → 填写租户基本信息 → 设置上传参数 → 配置许可证支持 → 保存</div>
+                    <div class="mt-1 text-gray-600">点击"新增"按钮 → 填写租户基本信息 → 设置上传参数 → 配置许可证支持 → 保存</div>
                   </div>
                 </NListItem>
                 <NListItem>
                   <div>
                     <div class="font-medium">2. 编辑租户配置</div>
-                    <div class="text-gray-600 mt-1">点击"编辑"按钮 → 修改相关配置项 → 注意许可证变更影响 → 保存更改</div>
+                    <div class="mt-1 text-gray-600">点击"编辑"按钮 → 修改相关配置项 → 注意许可证变更影响 → 保存更改</div>
                   </div>
                 </NListItem>
                 <NListItem>
                   <div>
                     <div class="font-medium">3. 许可证管理</div>
-                    <div class="text-gray-600 mt-1">点击"许可证"按钮 → 查看当前状态 → 上传新许可证文件 → 验证生效</div>
+                    <div class="mt-1 text-gray-600">点击"许可证"按钮 → 查看当前状态 → 上传新许可证文件 → 验证生效</div>
                   </div>
                 </NListItem>
                 <NListItem>
                   <div>
                     <div class="font-medium">4. 配置删除</div>
-                    <div class="text-gray-600 mt-1">谨慎操作：删除租户配置将影响该租户所有用户的系统访问</div>
+                    <div class="mt-1 text-gray-600">谨慎操作：删除租户配置将影响该租户所有用户的系统访问</div>
                   </div>
                 </NListItem>
               </NList>
@@ -468,7 +614,7 @@ function formatDateTime(dateTime: string | null): string {
         v-model:columns="columnChecks"
         :checked-row-keys="checkedRowKeys"
         :loading="loading"
-:add-auth="isAdmin ? 't:customer:config:add' : ''"
+        :add-auth="isAdmin ? 't:customer:config:add' : ''"
         :delete-auth="isAdmin ? 't:customer:config:delete' : ''"
         @add="handleAdd"
         @delete="handleBatchDelete"
@@ -489,23 +635,29 @@ function formatDateTime(dateTime: string | null): string {
         :row-key="row => row.id"
         :pagination="mobilePagination"
       />
-      <CustomerConfigOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" :customer-id="customerId" @submitted="getDataByPage" />
+      <CustomerConfigOperateDrawer
+        v-model:visible="drawerVisible"
+        :operate-type="operateType"
+        :row-data="editingData"
+        :customer-id="customerId"
+        @submitted="getDataByPage"
+      />
     </NCard>
-    
+
+    <!-- 删除确认对话框 -->
+    <DeleteConfirmDialog
+      v-model:visible="deleteConfirmVisible"
+      :pre-check-data="deletePreCheckData"
+      :loading="deletePreCheckLoading"
+      @confirm="handleDeleteConfirm"
+      @cancel="handleDeleteCancel"
+    />
+
     <!-- 许可证管理模态框 -->
-    <NModal
-      v-model:show="licenseModalVisible"
-      preset="card"
-      title="许可证管理"
-      class="w-800px max-w-90vw"
-    >
+    <NModal v-model:show="licenseModalVisible" preset="card" title="许可证管理" class="max-w-90vw w-800px">
       <div v-if="licenseData" class="space-y-4">
         <!-- 许可证状态概览 -->
-        <NAlert
-          :type="getLicenseAlertType(licenseData.status)"
-          :title="`许可证状态: ${getLicenseStatusText(licenseData.status)}`"
-          :show-icon="true"
-        >
+        <NAlert :type="getLicenseAlertType(licenseData.status)" :title="`许可证状态: ${getLicenseStatusText(licenseData.status)}`" :show-icon="true">
           <div class="mt-2">
             <p v-if="licenseData.message">{{ licenseData.message }}</p>
             <p v-if="licenseData.daysLeft !== undefined">
@@ -514,7 +666,7 @@ function formatDateTime(dateTime: string | null): string {
             </p>
           </div>
         </NAlert>
-        
+
         <!-- 客户许可证配置 -->
         <NCard title="客户许可证配置" size="small">
           <NDescriptions :column="2" size="small">
@@ -536,7 +688,7 @@ function formatDateTime(dateTime: string | null): string {
             </NDescriptionsItem>
           </NDescriptions>
         </NCard>
-        
+
         <!-- 许可证详细信息 -->
         <NCard v-if="licenseData.licenseInfo" title="许可证详细信息" size="small">
           <NDescriptions :column="2" size="small">
@@ -547,7 +699,7 @@ function formatDateTime(dateTime: string | null): string {
             <NDescriptionsItem label="签发时间">{{ formatDateTime(licenseData.licenseInfo.issueDate) }}</NDescriptionsItem>
             <NDescriptionsItem label="到期时间">{{ formatDateTime(licenseData.licenseInfo.expirationDate) }}</NDescriptionsItem>
             <NDescriptionsItem label="授权功能" :span="2">
-              <div class="flex gap-2 flex-wrap">
+              <div class="flex flex-wrap gap-2">
                 <NTag v-for="feature in licenseData.licenseInfo.features" :key="feature" size="small">
                   {{ feature }}
                 </NTag>
@@ -555,19 +707,13 @@ function formatDateTime(dateTime: string | null): string {
             </NDescriptionsItem>
           </NDescriptions>
         </NCard>
-        
+
         <!-- 许可证文件上传 -->
         <NCard title="上传新许可证" size="small">
           <div class="space-y-4">
-            <NUpload
-              :custom-request="uploadLicense"
-              :show-file-list="true"
-              accept=".lic"
-              :max="1"
-              :disabled="licenseUploading || !isAdmin"
-            >
+            <NUpload :custom-request="uploadLicense" :show-file-list="true" accept=".lic" :max="1" :disabled="licenseUploading || !isAdmin">
               <NButton :loading="licenseUploading" :disabled="!isAdmin" type="primary" size="small">
-                {{ licenseUploading ? '上传中...' : (isAdmin ? '选择许可证文件' : '仅管理员可操作') }}
+                {{ licenseUploading ? '上传中...' : isAdmin ? '选择许可证文件' : '仅管理员可操作' }}
               </NButton>
             </NUpload>
             <div class="text-sm text-gray-500">
@@ -582,4 +728,3 @@ function formatDateTime(dateTime: string | null): string {
     </NModal>
   </div>
 </template>
-

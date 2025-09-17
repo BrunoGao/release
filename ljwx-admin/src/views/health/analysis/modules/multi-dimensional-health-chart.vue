@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 
 interface HealthDimension {
@@ -33,7 +33,7 @@ const { domRef, updateOptions } = useEcharts(chartRef, {
 
 const healthColors = {
   excellent: '#52c41a',
-  good: '#1890ff', 
+  good: '#1890ff',
   average: '#faad14',
   poor: '#ff4d4f',
   current: '#667eea',
@@ -44,25 +44,25 @@ const healthColors = {
 
 const processedData = computed(() => {
   if (!props.data || props.data.length === 0) return null;
-  
+
   const indicators = props.data.map(item => ({
     name: item.name,
     max: 100,
     min: 0
   }));
-  
+
   const currentData = props.data.map(item => item.current);
   const baselineData = props.data.map(item => item.baseline);
   const targetData = props.data.map(item => item.target);
-  
+
   // 计算综合评分
-  const weightedScore = props.data.reduce((sum, item) => sum + (item.current * item.weight), 0);
+  const weightedScore = props.data.reduce((sum, item) => sum + item.current * item.weight, 0);
   const averageScore = Math.round(currentData.reduce((sum, score) => sum + score, 0) / currentData.length);
-  
+
   return {
     indicators,
     currentData,
-    baselineData, 
+    baselineData,
     targetData,
     weightedScore: Math.round(weightedScore),
     averageScore,
@@ -72,7 +72,7 @@ const processedData = computed(() => {
 
 watch(
   () => props.data,
-  (newData) => {
+  newData => {
     if (newData && newData.length > 0) {
       updateChart();
     }
@@ -104,7 +104,7 @@ function updateChart() {
       textStyle: {
         color: '#374151'
       },
-      formatter: function(params: any) {
+      formatter(params: any) {
         if (params.componentType === 'radar') {
           const dimension = props.data[params.dataIndex];
           return `
@@ -156,7 +156,7 @@ function updateChart() {
       splitNumber: 4,
       shape: 'polygon',
       name: {
-        formatter: function(name: string) {
+        formatter(name: string) {
           return name;
         },
         textStyle: {
@@ -272,7 +272,7 @@ function updateChart() {
               borderColor: '#ffffff',
               borderWidth: 3,
               shadowBlur: 8,
-              shadowColor: healthColors.current + '40'
+              shadowColor: `${healthColors.current}40`
             },
             lineStyle: {
               color: healthColors.current,
@@ -285,8 +285,8 @@ function updateChart() {
                 y: 0.5,
                 r: 0.5,
                 colorStops: [
-                  { offset: 0, color: healthColors.current + '40' },
-                  { offset: 1, color: healthColors.current + '10' }
+                  { offset: 0, color: `${healthColors.current}40` },
+                  { offset: 1, color: `${healthColors.current}10` }
                 ]
               }
             },
@@ -310,7 +310,7 @@ function updateChart() {
             width: 6,
             color: [
               [0.2, healthColors.poor],
-              [0.4, healthColors.average], 
+              [0.4, healthColors.average],
               [0.6, healthColors.good],
               [1, healthColors.excellent]
             ]
@@ -330,7 +330,7 @@ function updateChart() {
         },
         detail: {
           valueAnimation: true,
-          formatter: function(value: number) {
+          formatter(value: number) {
             return `{value|${Math.round(value)}}{unit|分}`;
           },
           rich: {
@@ -373,7 +373,7 @@ function updateChart() {
     animationDuration: 2000,
     animationEasing: 'elasticOut'
   };
-  
+
   updateOptions(option);
 }
 
@@ -383,13 +383,13 @@ function getStatusColor(status: string) {
 
 function getStatusBgColor(status: string) {
   const color = getStatusColor(status);
-  return color + '20';
+  return `${color}20`;
 }
 
 function getStatusText(status: string) {
   const statusMap = {
     excellent: '优秀',
-    good: '良好', 
+    good: '良好',
     average: '一般',
     poor: '较差'
   };
@@ -398,19 +398,27 @@ function getStatusText(status: string) {
 
 function getTrendColor(trend: string) {
   switch (trend) {
-    case 'up': return '#52c41a';
-    case 'down': return '#ff4d4f';
-    case 'stable': return '#6b7280';
-    default: return '#6b7280';
+    case 'up':
+      return '#52c41a';
+    case 'down':
+      return '#ff4d4f';
+    case 'stable':
+      return '#6b7280';
+    default:
+      return '#6b7280';
   }
 }
 
 function getTrendText(trend: string) {
   switch (trend) {
-    case 'up': return '↗ 上升';
-    case 'down': return '↘ 下降'; 
-    case 'stable': return '→ 稳定';
-    default: return '- 未知';
+    case 'up':
+      return '↗ 上升';
+    case 'down':
+      return '↘ 下降';
+    case 'stable':
+      return '→ 稳定';
+    default:
+      return '- 未知';
   }
 }
 
@@ -429,7 +437,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="chartRef" class="w-full h-full min-h-80" />
+  <div ref="chartRef" class="h-full min-h-80 w-full" />
 </template>
 
 <style scoped>

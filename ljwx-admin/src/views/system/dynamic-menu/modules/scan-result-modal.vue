@@ -1,100 +1,3 @@
-<template>
-  <NModal
-    v-model:show="modalVisible"
-    :mask-closable="false"
-    preset="card"
-    title="路由扫描结果"
-    class="w-800px max-h-600px"
-  >
-    <div class="h-full flex-col gap-16px">
-      <!-- 扫描统计 -->
-      <div class="grid grid-cols-4 gap-12px">
-        <NCard size="small" embedded class="text-center">
-          <div class="text-2xl font-bold text-primary">{{ scanStats.totalFiles }}</div>
-          <div class="text-sm text-gray-500">总文件数</div>
-        </NCard>
-        <NCard size="small" embedded class="text-center">
-          <div class="text-2xl font-bold text-success">{{ scanStats.newRoutes }}</div>
-          <div class="text-sm text-gray-500">新路由</div>
-        </NCard>
-        <NCard size="small" embedded class="text-center">
-          <div class="text-2xl font-bold text-warning">{{ scanStats.changedFiles }}</div>
-          <div class="text-sm text-gray-500">变更文件</div>
-        </NCard>
-        <NCard size="small" embedded class="text-center">
-          <div class="text-2xl font-bold text-info">{{ scanStats.existingRoutes }}</div>
-          <div class="text-sm text-gray-500">已存在路由</div>
-        </NCard>
-      </div>
-
-      <!-- 扫描信息 -->
-      <div class="flex-y-center justify-between">
-        <div class="flex-y-center gap-12px">
-          <span class="text-sm text-gray-500">扫描时间: {{ scanResult?.scanTime }}</span>
-          <span class="text-sm text-gray-500">耗时: {{ scanStats.scanDuration }}ms</span>
-        </div>
-        <div class="flex-y-center gap-8px">
-          <NButton size="small" @click="handleToggleDetails">
-            {{ showDetails ? '隐藏详情' : '显示详情' }}
-          </NButton>
-          <NButton size="small" type="primary" @click="handleSelectAll">
-            {{ allSelected ? '取消全选' : '全选新路由' }}
-          </NButton>
-        </div>
-      </div>
-
-      <!-- 新路由列表 -->
-      <div class="flex-1-hidden">
-        <div v-if="newRoutes.length === 0" class="flex-center h-200px text-gray-500">
-          <NEmpty description="未发现新路由" />
-        </div>
-        <div v-else class="h-full">
-          <NDataTable
-            :data="newRoutes"
-            :columns="routeColumns"
-            :max-height="300"
-            size="small"
-            striped
-            :row-key="(row: RouteInfo) => row.path"
-            :checked-row-keys="selectedRoutes"
-            @update:checked-row-keys="handleRouteSelection"
-          />
-        </div>
-      </div>
-
-      <!-- 错误和警告信息 -->
-      <div v-if="hasMessages" class="space-y-8px">
-        <div v-if="scanResult?.errors?.length" class="p-12px bg-red-50 rounded-8px border border-red-200">
-          <div class="text-sm font-medium text-red-700 mb-4px">错误信息</div>
-          <div v-for="error in scanResult.errors" :key="error" class="text-sm text-red-600">
-            {{ error }}
-          </div>
-        </div>
-        <div v-if="scanResult?.warnings?.length" class="p-12px bg-orange-50 rounded-8px border border-orange-200">
-          <div class="text-sm font-medium text-orange-700 mb-4px">警告信息</div>
-          <div v-for="warning in scanResult.warnings" :key="warning" class="text-sm text-orange-600">
-            {{ warning }}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <template #footer>
-      <div class="flex-y-center justify-between">
-        <div class="text-sm text-gray-500">
-          已选择 {{ selectedRoutes.length }} / {{ newRoutes.length }} 个新路由
-        </div>
-        <div class="flex gap-12px">
-          <NButton @click="modalVisible = false">取消</NButton>
-          <NButton type="primary" :disabled="selectedRoutes.length === 0" @click="handleSyncConfirm">
-            同步选中的路由
-          </NButton>
-        </div>
-      </div>
-    </template>
-  </NModal>
-</template>
-
 <script setup lang="ts">
 import { computed, h, ref, watch } from 'vue';
 import type { DataTableColumn } from 'naive-ui';
@@ -161,7 +64,7 @@ const emit = defineEmits<Emits>();
 // 响应式数据
 const modalVisible = computed({
   get: () => props.visible,
-  set: (value) => emit('update:visible', value)
+  set: value => emit('update:visible', value)
 });
 
 const showDetails = ref(false);
@@ -169,23 +72,25 @@ const selectedRoutes = ref<string[]>([]);
 
 // 计算属性
 const newRoutes = computed(() => props.scanResult?.newRoutes || []);
-const scanStats = computed(() => props.scanResult?.scanStats || {
-  totalFiles: 0,
-  vueFiles: 0,
-  tsFiles: 0,
-  jsFiles: 0,
-  changedFiles: 0,
-  newRoutes: 0,
-  existingRoutes: 0,
-  scanDuration: 0,
-  processedDirectories: 0,
-  skippedFiles: 0,
-  errorFiles: 0
-});
+const scanStats = computed(
+  () =>
+    props.scanResult?.scanStats || {
+      totalFiles: 0,
+      vueFiles: 0,
+      tsFiles: 0,
+      jsFiles: 0,
+      changedFiles: 0,
+      newRoutes: 0,
+      existingRoutes: 0,
+      scanDuration: 0,
+      processedDirectories: 0,
+      skippedFiles: 0,
+      errorFiles: 0
+    }
+);
 
 const hasMessages = computed(() => {
-  return (props.scanResult?.errors?.length || 0) > 0 ||
-         (props.scanResult?.warnings?.length || 0) > 0;
+  return (props.scanResult?.errors?.length || 0) > 0 || (props.scanResult?.warnings?.length || 0) > 0;
 });
 
 const allSelected = computed(() => {
@@ -269,7 +174,7 @@ const routeColumns: DataTableColumn<RouteInfo>[] = [
 ];
 
 // 如果显示详情，添加更多列
-watch(showDetails, (show) => {
+watch(showDetails, show => {
   if (show) {
     // TODO: 添加更多详情列
   }
@@ -293,9 +198,7 @@ function handleRouteSelection(keys: string[]) {
 }
 
 function handleSyncConfirm() {
-  const selectedRouteData = newRoutes.value.filter(route => 
-    selectedRoutes.value.includes(route.path)
-  );
+  const selectedRouteData = newRoutes.value.filter(route => selectedRoutes.value.includes(route.path));
   emit('sync-menus', selectedRouteData);
 }
 
@@ -304,23 +207,113 @@ function formatFileSize(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB'];
   let size = bytes;
   let unitIndex = 0;
-  
+
   while (size >= 1024 && unitIndex < units.length - 1) {
     size /= 1024;
     unitIndex++;
   }
-  
+
   return `${size.toFixed(1)}${units[unitIndex]}`;
 }
 
 // 监听visible变化，重置状态
-watch(() => props.visible, (visible) => {
-  if (visible) {
-    selectedRoutes.value = [];
-    showDetails.value = false;
+watch(
+  () => props.visible,
+  visible => {
+    if (visible) {
+      selectedRoutes.value = [];
+      showDetails.value = false;
+    }
   }
-});
+);
 </script>
+
+<template>
+  <NModal v-model:show="modalVisible" :mask-closable="false" preset="card" title="路由扫描结果" class="max-h-600px w-800px">
+    <div class="h-full flex-col gap-16px">
+      <!-- 扫描统计 -->
+      <div class="grid grid-cols-4 gap-12px">
+        <NCard size="small" embedded class="text-center">
+          <div class="text-2xl text-primary font-bold">{{ scanStats.totalFiles }}</div>
+          <div class="text-sm text-gray-500">总文件数</div>
+        </NCard>
+        <NCard size="small" embedded class="text-center">
+          <div class="text-2xl text-success font-bold">{{ scanStats.newRoutes }}</div>
+          <div class="text-sm text-gray-500">新路由</div>
+        </NCard>
+        <NCard size="small" embedded class="text-center">
+          <div class="text-2xl text-warning font-bold">{{ scanStats.changedFiles }}</div>
+          <div class="text-sm text-gray-500">变更文件</div>
+        </NCard>
+        <NCard size="small" embedded class="text-center">
+          <div class="text-2xl text-info font-bold">{{ scanStats.existingRoutes }}</div>
+          <div class="text-sm text-gray-500">已存在路由</div>
+        </NCard>
+      </div>
+
+      <!-- 扫描信息 -->
+      <div class="flex-y-center justify-between">
+        <div class="flex-y-center gap-12px">
+          <span class="text-sm text-gray-500">扫描时间: {{ scanResult?.scanTime }}</span>
+          <span class="text-sm text-gray-500">耗时: {{ scanStats.scanDuration }}ms</span>
+        </div>
+        <div class="flex-y-center gap-8px">
+          <NButton size="small" @click="handleToggleDetails">
+            {{ showDetails ? '隐藏详情' : '显示详情' }}
+          </NButton>
+          <NButton size="small" type="primary" @click="handleSelectAll">
+            {{ allSelected ? '取消全选' : '全选新路由' }}
+          </NButton>
+        </div>
+      </div>
+
+      <!-- 新路由列表 -->
+      <div class="flex-1-hidden">
+        <div v-if="newRoutes.length === 0" class="h-200px flex-center text-gray-500">
+          <NEmpty description="未发现新路由" />
+        </div>
+        <div v-else class="h-full">
+          <NDataTable
+            :data="newRoutes"
+            :columns="routeColumns"
+            :max-height="300"
+            size="small"
+            striped
+            :row-key="(row: RouteInfo) => row.path"
+            :checked-row-keys="selectedRoutes"
+            @update:checked-row-keys="handleRouteSelection"
+          />
+        </div>
+      </div>
+
+      <!-- 错误和警告信息 -->
+      <div v-if="hasMessages" class="space-y-8px">
+        <div v-if="scanResult?.errors?.length" class="border border-red-200 rounded-8px bg-red-50 p-12px">
+          <div class="mb-4px text-sm text-red-700 font-medium">错误信息</div>
+          <div v-for="error in scanResult.errors" :key="error" class="text-sm text-red-600">
+            {{ error }}
+          </div>
+        </div>
+        <div v-if="scanResult?.warnings?.length" class="border border-orange-200 rounded-8px bg-orange-50 p-12px">
+          <div class="mb-4px text-sm text-orange-700 font-medium">警告信息</div>
+          <div v-for="warning in scanResult.warnings" :key="warning" class="text-sm text-orange-600">
+            {{ warning }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <div class="flex-y-center justify-between">
+        <div class="text-sm text-gray-500">已选择 {{ selectedRoutes.length }} / {{ newRoutes.length }} 个新路由</div>
+        <div class="flex gap-12px">
+          <NButton @click="modalVisible = false">取消</NButton>
+          <NButton type="primary" :disabled="selectedRoutes.length === 0" @click="handleSyncConfirm">同步选中的路由</NButton>
+        </div>
+      </div>
+    </template>
+  </NModal>
+</template>
 
 <style scoped>
 :deep(.n-data-table-th) {

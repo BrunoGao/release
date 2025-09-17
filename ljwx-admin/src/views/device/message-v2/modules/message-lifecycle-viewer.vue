@@ -1,14 +1,33 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { 
-  NTimeline, NTimelineItem, NTag, NProgress, NSpin, NEmpty, NSpace, 
-  NButton, NIcon, NCard, NDescriptions, NDescriptionsItem, NTime,
-  NAlert, NStatistic, NGrid, NGridItem
+import { computed, onMounted, ref } from 'vue';
+import {
+  NAlert,
+  NButton,
+  NCard,
+  NDescriptions,
+  NDescriptionsItem,
+  NEmpty,
+  NGrid,
+  NGridItem,
+  NIcon,
+  NProgress,
+  NSpace,
+  NSpin,
+  NStatistic,
+  NTag,
+  NTime,
+  NTimeline,
+  NTimelineItem
 } from 'naive-ui';
-import { 
-  CheckmarkCircleOutline, CloseCircleOutline, HourglassOutline, 
-  SendOutline, PlayCircleOutline, StopCircleOutline, TimeOutline,
-  InformationCircleOutline
+import {
+  CheckmarkCircleOutline,
+  CloseCircleOutline,
+  HourglassOutline,
+  InformationCircleOutline,
+  PlayCircleOutline,
+  SendOutline,
+  StopCircleOutline,
+  TimeOutline
 } from '@vicons/ionicons5';
 import { fetchGetDeviceMessageV2Detail, fetchGetMessageSummary } from '@/service/api/health/device-message-v2';
 
@@ -31,21 +50,21 @@ const lifecycleTrace = ref<Api.Health.MessageLifecycleTrace | null>(null);
 // 计算生命周期阶段
 const lifecycleStages = computed(() => {
   if (!messageDetail.value) return [];
-  
+
   const stages: Api.Health.MessageLifecycleStage[] = [];
   const message = messageDetail.value;
-  
+
   // 创建阶段
   stages.push({
     stage: 'CREATED',
     timestamp: message.createTime || new Date().toISOString(),
-    details: { 
+    details: {
       title: message.title,
       messageType: message.messageType,
       urgency: message.urgency
     }
   });
-  
+
   // 发送阶段
   if (message.sentTime) {
     const createTime = new Date(message.createTime || '').getTime();
@@ -60,7 +79,7 @@ const lifecycleStages = computed(() => {
       }
     });
   }
-  
+
   // 送达阶段
   if (message.deliveredCount > 0) {
     const firstDelivered = message.details?.find(d => d.deliveredTime);
@@ -78,7 +97,7 @@ const lifecycleStages = computed(() => {
       });
     }
   }
-  
+
   // 确认阶段
   if (message.acknowledgedCount > 0) {
     const firstAcknowledged = message.details?.find(d => d.acknowledgedTime);
@@ -96,7 +115,7 @@ const lifecycleStages = computed(() => {
       });
     }
   }
-  
+
   // 失败阶段
   if (message.failedCount > 0) {
     stages.push({
@@ -104,19 +123,22 @@ const lifecycleStages = computed(() => {
       timestamp: new Date().toISOString(), // 实际应该从详情中获取
       details: {
         failedCount: message.failedCount,
-        reasons: message.details?.filter(d => d.deliveryStatus === 'FAILED')
-          .map(d => d.failureReason).filter(Boolean) || []
+        reasons:
+          message.details
+            ?.filter(d => d.deliveryStatus === 'FAILED')
+            .map(d => d.failureReason)
+            .filter(Boolean) || []
       }
     });
   }
-  
+
   return stages;
 });
 
 // 当前状态
 const currentStage = computed(() => {
   if (!messageDetail.value) return 'CREATED';
-  
+
   const message = messageDetail.value;
   if (message.failedCount > 0 && message.failedCount === message.totalTargets) return 'FAILED';
   if (message.acknowledgedCount === message.totalTargets) return 'ACKNOWLEDGED';
@@ -129,9 +151,7 @@ const currentStage = computed(() => {
 const isCompleted = computed(() => {
   if (!messageDetail.value) return false;
   const message = messageDetail.value;
-  return message.acknowledgedCount === message.totalTargets || 
-         message.failedCount === message.totalTargets ||
-         message.messageStatus === 'EXPIRED';
+  return message.acknowledgedCount === message.totalTargets || message.failedCount === message.totalTargets || message.messageStatus === 'EXPIRED';
 });
 
 // 成功状态
@@ -144,27 +164,35 @@ const isSuccess = computed(() => {
 // 总耗时
 const totalDuration = computed(() => {
   if (!messageDetail.value || !messageDetail.value.sentTime) return 0;
-  
+
   const createTime = new Date(messageDetail.value.createTime || '').getTime();
-  const lastTime = messageDetail.value.acknowledgedCount > 0 
-    ? new Date(messageDetail.value.details?.find(d => d.acknowledgedTime)?.acknowledgedTime || '').getTime()
-    : messageDetail.value.deliveredCount > 0
-    ? new Date(messageDetail.value.details?.find(d => d.deliveredTime)?.deliveredTime || '').getTime()
-    : new Date(messageDetail.value.sentTime).getTime();
-    
+  const lastTime =
+    messageDetail.value.acknowledgedCount > 0
+      ? new Date(messageDetail.value.details?.find(d => d.acknowledgedTime)?.acknowledgedTime || '').getTime()
+      : messageDetail.value.deliveredCount > 0
+        ? new Date(messageDetail.value.details?.find(d => d.deliveredTime)?.deliveredTime || '').getTime()
+        : new Date(messageDetail.value.sentTime).getTime();
+
   return lastTime - createTime;
 });
 
 // 获取阶段图标和颜色
 function getStageIcon(stage: Api.Health.MessageLifecycleStage['stage']) {
   switch (stage) {
-    case 'CREATED': return { icon: PlayCircleOutline, color: 'default' };
-    case 'SENT': return { icon: SendOutline, color: 'info' };
-    case 'DELIVERED': return { icon: CheckmarkCircleOutline, color: 'success' };
-    case 'ACKNOWLEDGED': return { icon: CheckmarkCircleOutline, color: 'success' };
-    case 'FAILED': return { icon: CloseCircleOutline, color: 'error' };
-    case 'EXPIRED': return { icon: StopCircleOutline, color: 'warning' };
-    default: return { icon: HourglassOutline, color: 'default' };
+    case 'CREATED':
+      return { icon: PlayCircleOutline, color: 'default' };
+    case 'SENT':
+      return { icon: SendOutline, color: 'info' };
+    case 'DELIVERED':
+      return { icon: CheckmarkCircleOutline, color: 'success' };
+    case 'ACKNOWLEDGED':
+      return { icon: CheckmarkCircleOutline, color: 'success' };
+    case 'FAILED':
+      return { icon: CloseCircleOutline, color: 'error' };
+    case 'EXPIRED':
+      return { icon: StopCircleOutline, color: 'warning' };
+    default:
+      return { icon: HourglassOutline, color: 'default' };
   }
 }
 
@@ -199,10 +227,10 @@ function getStageDescription(stage: Api.Health.MessageLifecycleStage) {
 // 获取分发详情统计
 const distributionStats = computed(() => {
   if (!messageSummary.value) return null;
-  
+
   const summary = messageSummary.value;
   const total = summary.totalTargets;
-  
+
   return {
     total,
     pending: summary.distributionDetails.pending,
@@ -221,20 +249,20 @@ const distributionStats = computed(() => {
 // 加载数据
 async function loadData() {
   loading.value = true;
-  
+
   try {
     // 加载消息详情
     const { error: detailError, data: detail } = await fetchGetDeviceMessageV2Detail(props.messageId);
     if (!detailError && detail) {
       messageDetail.value = detail;
     }
-    
+
     // 加载消息汇总
     const { error: summaryError, data: summary } = await fetchGetMessageSummary(props.messageId);
     if (!summaryError && summary) {
       messageSummary.value = summary;
     }
-    
+
     // 构建生命周期追踪数据
     if (messageDetail.value) {
       lifecycleTrace.value = {
@@ -266,7 +294,7 @@ onMounted(() => {
         <NCard title="消息基本信息" size="small">
           <NDescriptions :columns="3" label-placement="left">
             <NDescriptionsItem label="消息ID">
-              <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ messageDetail.messageId }}</code>
+              <code class="rounded bg-gray-100 px-2 py-1 text-sm">{{ messageDetail.messageId }}</code>
             </NDescriptionsItem>
             <NDescriptionsItem label="消息标题">{{ messageDetail.title }}</NDescriptionsItem>
             <NDescriptionsItem label="消息类型">
@@ -275,11 +303,7 @@ onMounted(() => {
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem label="紧急程度">
-              <NTag 
-                :type="messageDetail.urgency === 'CRITICAL' ? 'error' : 
-                       messageDetail.urgency === 'HIGH' ? 'warning' : 'default'" 
-                size="small"
-              >
+              <NTag :type="messageDetail.urgency === 'CRITICAL' ? 'error' : messageDetail.urgency === 'HIGH' ? 'warning' : 'default'" size="small">
                 {{ messageDetail.urgency }}
               </NTag>
             </NDescriptionsItem>
@@ -298,41 +322,28 @@ onMounted(() => {
         <NCard v-if="distributionStats" title="分发统计" size="small">
           <NGrid :cols="4" :x-gap="16" :y-gap="16" class="mb-16px">
             <NGridItem>
-              <NStatistic 
-                label="总目标数" 
-                :value="distributionStats.total"
-                :value-style="{ color: '#1890ff' }"
-              />
+              <NStatistic label="总目标数" :value="distributionStats.total" :value-style="{ color: '#1890ff' }" />
             </NGridItem>
             <NGridItem>
-              <NStatistic 
-                label="已送达" 
-                :value="distributionStats.delivered"
-                :value-style="{ color: '#52c41a' }"
-              />
+              <NStatistic label="已送达" :value="distributionStats.delivered" :value-style="{ color: '#52c41a' }" />
             </NGridItem>
             <NGridItem>
-              <NStatistic 
-                label="已确认" 
-                :value="distributionStats.acknowledged"
-                :value-style="{ color: '#52c41a' }"
-              />
+              <NStatistic label="已确认" :value="distributionStats.acknowledged" :value-style="{ color: '#52c41a' }" />
             </NGridItem>
             <NGridItem>
-              <NStatistic 
-                label="成功率" 
+              <NStatistic
+                label="成功率"
                 :value="distributionStats.successRate"
                 suffix="%"
                 :precision="1"
-                :value-style="{ 
-                  color: distributionStats.successRate >= 90 ? '#52c41a' : 
-                         distributionStats.successRate >= 70 ? '#faad14' : '#ff4d4f' 
+                :value-style="{
+                  color: distributionStats.successRate >= 90 ? '#52c41a' : distributionStats.successRate >= 70 ? '#faad14' : '#ff4d4f'
                 }"
               />
             </NGridItem>
           </NGrid>
-          
-          <NProgress 
+
+          <NProgress
             type="multiple"
             :percentage="[
               { percentage: (distributionStats.delivered / distributionStats.total) * 100, color: '#52c41a' },
@@ -341,11 +352,20 @@ onMounted(() => {
             ]"
             :show-indicator="true"
           />
-          
-          <div class="flex justify-center gap-24px mt-16px text-sm">
-            <span><span class="w-8px h-8px bg-green-500 inline-block mr-4px rounded-full"></span>成功: {{ distributionStats.delivered }}</span>
-            <span><span class="w-8px h-8px bg-red-500 inline-block mr-4px rounded-full"></span>失败: {{ distributionStats.failed }}</span>
-            <span><span class="w-8px h-8px bg-yellow-500 inline-block mr-4px rounded-full"></span>待处理: {{ distributionStats.pending }}</span>
+
+          <div class="mt-16px flex justify-center gap-24px text-sm">
+            <span>
+              <span class="mr-4px inline-block h-8px w-8px rounded-full bg-green-500"></span>
+              成功: {{ distributionStats.delivered }}
+            </span>
+            <span>
+              <span class="mr-4px inline-block h-8px w-8px rounded-full bg-red-500"></span>
+              失败: {{ distributionStats.failed }}
+            </span>
+            <span>
+              <span class="mr-4px inline-block h-8px w-8px rounded-full bg-yellow-500"></span>
+              待处理: {{ distributionStats.pending }}
+            </span>
           </div>
         </NCard>
 
@@ -357,18 +377,13 @@ onMounted(() => {
             </template>
             消息仍在处理中，状态会实时更新
           </NAlert>
-          
+
           <NTimeline>
-            <NTimelineItem
-              v-for="(stage, index) in lifecycleStages"
-              :key="index"
-              :type="getStageIcon(stage.stage).color"
-              :time="stage.timestamp"
-            >
+            <NTimelineItem v-for="(stage, index) in lifecycleStages" :key="index" :type="getStageIcon(stage.stage).color" :time="stage.timestamp">
               <template #icon>
                 <NIcon :component="getStageIcon(stage.stage).icon" />
               </template>
-              
+
               <template #header>
                 <div class="flex items-center gap-8px">
                   <span class="font-medium">{{ stage.stage }}</span>
@@ -377,38 +392,32 @@ onMounted(() => {
                   </NTag>
                 </div>
               </template>
-              
+
               <div class="space-y-8px">
                 <div>{{ getStageDescription(stage) }}</div>
                 <NTime :time="new Date(stage.timestamp)" />
-                
+
                 <!-- 详细信息 -->
                 <div v-if="stage.details" class="text-sm text-gray-500 space-y-4px">
                   <div v-if="stage.details.channels" class="flex gap-4px">
-                    渠道: 
+                    渠道:
                     <NTag v-for="channel in stage.details.channels" :key="channel" size="tiny">
                       {{ channel }}
                     </NTag>
                   </div>
                   <div v-if="stage.details.reasons?.length" class="space-y-2px">
                     失败原因:
-                    <div v-for="reason in stage.details.reasons" :key="reason" class="text-red-500 text-xs">
-                      • {{ reason }}
-                    </div>
+                    <div v-for="reason in stage.details.reasons" :key="reason" class="text-xs text-red-500">• {{ reason }}</div>
                   </div>
                 </div>
               </div>
             </NTimelineItem>
           </NTimeline>
-          
+
           <!-- 如果消息已完成，显示总结 -->
-          <div v-if="isCompleted" class="mt-16px p-16px bg-gray-50 rounded-lg">
-            <div class="flex items-center gap-8px mb-8px">
-              <NIcon 
-                size="20" 
-                :component="isSuccess ? CheckmarkCircleOutline : CloseCircleOutline"
-                :color="isSuccess ? '#52c41a' : '#ff4d4f'"
-              />
+          <div v-if="isCompleted" class="mt-16px rounded-lg bg-gray-50 p-16px">
+            <div class="mb-8px flex items-center gap-8px">
+              <NIcon size="20" :component="isSuccess ? CheckmarkCircleOutline : CloseCircleOutline" :color="isSuccess ? '#52c41a' : '#ff4d4f'" />
               <span class="font-medium">
                 {{ isSuccess ? '消息处理完成' : '消息处理结束' }}
               </span>
@@ -424,10 +433,10 @@ onMounted(() => {
         <!-- 目标详情 -->
         <NCard v-if="messageDetail.details?.length" title="分发目标详情" size="small">
           <div class="space-y-8px">
-            <div 
-              v-for="detail in messageDetail.details" 
+            <div
+              v-for="detail in messageDetail.details"
               :key="`${detail.targetId}-${detail.channel}`"
-              class="flex items-center justify-between p-12px border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              class="flex items-center justify-between border border-gray-200 rounded-lg p-12px transition-colors hover:bg-gray-50"
             >
               <div class="flex items-center gap-12px">
                 <NTag :type="detail.targetType === 'DEVICE' ? 'info' : 'warning'" size="small">
@@ -436,17 +445,23 @@ onMounted(() => {
                 <code class="text-sm">{{ detail.targetId }}</code>
                 <NTag size="tiny" type="default">{{ detail.channel }}</NTag>
               </div>
-              
+
               <div class="flex items-center gap-8px">
-                <NTag 
-                  :type="detail.deliveryStatus === 'ACKNOWLEDGED' ? 'success' : 
-                         detail.deliveryStatus === 'DELIVERED' ? 'info' :
-                         detail.deliveryStatus === 'FAILED' ? 'error' : 'warning'" 
+                <NTag
+                  :type="
+                    detail.deliveryStatus === 'ACKNOWLEDGED'
+                      ? 'success'
+                      : detail.deliveryStatus === 'DELIVERED'
+                        ? 'info'
+                        : detail.deliveryStatus === 'FAILED'
+                          ? 'error'
+                          : 'warning'
+                  "
                   size="small"
                 >
                   {{ detail.deliveryStatus }}
                 </NTag>
-                
+
                 <div v-if="detail.deliveredTime" class="text-xs text-gray-500">
                   <NTime :time="new Date(detail.deliveredTime)" format="MM-dd HH:mm:ss" />
                 </div>
@@ -455,10 +470,10 @@ onMounted(() => {
           </div>
         </NCard>
       </div>
-      
+
       <NEmpty v-else-if="!loading" description="无法加载消息详情" />
     </NSpin>
-    
+
     <!-- 操作按钮 -->
     <div class="flex justify-end gap-8px">
       <NButton @click="loadData">刷新数据</NButton>

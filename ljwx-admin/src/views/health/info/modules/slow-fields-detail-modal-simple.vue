@@ -1,21 +1,77 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { NButton, NCard, NEmpty, NModal, NSpace, NTag } from 'naive-ui';
+import { convertToBeijingTime } from '@/utils/date';
+
+interface Props {
+  visible: boolean;
+  rowData: any;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  visible: false,
+  rowData: null
+});
+
+const emit = defineEmits<{
+  'update:visible': [visible: boolean];
+}>();
+
+const modalVisible = computed({
+  get: () => props.visible,
+  set: (visible: boolean) => emit('update:visible', visible)
+});
+
+const hasAnyData = computed(() => {
+  if (!props.rowData) return false;
+
+  return Boolean(
+    (props.rowData.sleepData && Object.keys(props.rowData.sleepData).length > 0) ||
+      (props.rowData.workoutData && Object.keys(props.rowData.workoutData).length > 0) ||
+      (props.rowData.exerciseDailyData && Object.keys(props.rowData.exerciseDailyData).length > 0) ||
+      (props.rowData.exerciseWeekData && Object.keys(props.rowData.exerciseWeekData).length > 0)
+  );
+});
+
+// 导出数据
+function exportData() {
+  const exportData = {
+    userInfo: {
+      userId: props.rowData.userId,
+      userName: props.rowData.userName,
+      orgName: props.rowData.orgName,
+      timestamp: props.rowData.timestamp
+    },
+    sleepData: props.rowData.sleepData,
+    workoutData: props.rowData.workoutData,
+    exerciseDailyData: props.rowData.exerciseDailyData,
+    exerciseWeekData: props.rowData.exerciseWeekData
+  };
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `健康数据详情_${props.rowData.userName}_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
 <template>
-  <NModal v-model:show="modalVisible" :mask-closable="false" preset="card" class="w-90% max-w-4xl">
+  <NModal v-model:show="modalVisible" :mask-closable="false" preset="card" class="max-w-4xl w-90%">
     <template #header>
       <div class="flex items-center space-x-2">
         <span class="text-lg font-semibold">健康数据详情</span>
-        <NTag v-if="props.rowData" type="info" size="small">
-          {{ props.rowData.userName }} - {{ props.rowData.orgName }}
-        </NTag>
+        <NTag v-if="props.rowData" type="info" size="small">{{ props.rowData.userName }} - {{ props.rowData.orgName }}</NTag>
       </div>
     </template>
 
     <div v-if="props.rowData" class="space-y-6">
       <!-- 基本信息 -->
       <NCard size="small" :bordered="false" class="bg-gray-50">
-        <template #header>
-          基本信息
-        </template>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <template #header>基本信息</template>
+        <div class="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
           <div>
             <span class="text-gray-600">用户：</span>
             <span class="font-medium">{{ props.rowData.userName }}</span>
@@ -44,11 +100,11 @@
               <NTag type="warning" size="small">Sleep Data</NTag>
             </div>
           </template>
-          
+
           <div class="space-y-4">
-            <div class="bg-purple-50 p-4 rounded">
-              <h4 class="font-semibold text-purple-800 mb-2">睡眠详情</h4>
-              <pre class="text-sm text-purple-700 whitespace-pre-wrap">{{ JSON.stringify(props.rowData.sleepData, null, 2) }}</pre>
+            <div class="rounded bg-purple-50 p-4">
+              <h4 class="mb-2 text-purple-800 font-semibold">睡眠详情</h4>
+              <pre class="whitespace-pre-wrap text-sm text-purple-700">{{ JSON.stringify(props.rowData.sleepData, null, 2) }}</pre>
             </div>
           </div>
         </NCard>
@@ -63,11 +119,11 @@
               <NTag type="success" size="small">Workout Data</NTag>
             </div>
           </template>
-          
+
           <div class="space-y-4">
-            <div class="bg-orange-50 p-4 rounded">
-              <h4 class="font-semibold text-orange-800 mb-2">运动详情</h4>
-              <pre class="text-sm text-orange-700 whitespace-pre-wrap">{{ JSON.stringify(props.rowData.workoutData, null, 2) }}</pre>
+            <div class="rounded bg-orange-50 p-4">
+              <h4 class="mb-2 text-orange-800 font-semibold">运动详情</h4>
+              <pre class="whitespace-pre-wrap text-sm text-orange-700">{{ JSON.stringify(props.rowData.workoutData, null, 2) }}</pre>
             </div>
           </div>
         </NCard>
@@ -82,11 +138,11 @@
               <NTag type="info" size="small">Daily Exercise</NTag>
             </div>
           </template>
-          
+
           <div class="space-y-4">
-            <div class="bg-cyan-50 p-4 rounded">
-              <h4 class="font-semibold text-cyan-800 mb-2">每日运动详情</h4>
-              <pre class="text-sm text-cyan-700 whitespace-pre-wrap">{{ JSON.stringify(props.rowData.exerciseDailyData, null, 2) }}</pre>
+            <div class="rounded bg-cyan-50 p-4">
+              <h4 class="mb-2 text-cyan-800 font-semibold">每日运动详情</h4>
+              <pre class="whitespace-pre-wrap text-sm text-cyan-700">{{ JSON.stringify(props.rowData.exerciseDailyData, null, 2) }}</pre>
             </div>
           </div>
         </NCard>
@@ -101,11 +157,11 @@
               <NTag type="error" size="small">Weekly Exercise</NTag>
             </div>
           </template>
-          
+
           <div class="space-y-4">
-            <div class="bg-pink-50 p-4 rounded">
-              <h4 class="font-semibold text-pink-800 mb-2">每周运动详情</h4>
-              <pre class="text-sm text-pink-700 whitespace-pre-wrap">{{ JSON.stringify(props.rowData.exerciseWeekData, null, 2) }}</pre>
+            <div class="rounded bg-pink-50 p-4">
+              <h4 class="mb-2 text-pink-800 font-semibold">每周运动详情</h4>
+              <pre class="whitespace-pre-wrap text-sm text-pink-700">{{ JSON.stringify(props.rowData.exerciseWeekData, null, 2) }}</pre>
             </div>
           </div>
         </NCard>
@@ -118,80 +174,11 @@
     <template #action>
       <NSpace justify="end">
         <NButton @click="modalVisible = false">关闭</NButton>
-        <NButton type="primary" @click="exportData">
-          导出数据
-        </NButton>
+        <NButton type="primary" @click="exportData">导出数据</NButton>
       </NSpace>
     </template>
   </NModal>
 </template>
-
-<script setup lang="ts">
-import { computed } from 'vue';
-import { convertToBeijingTime } from '@/utils/date';
-import { 
-  NModal, 
-  NCard, 
-  NSpace, 
-  NTag, 
-  NButton,
-  NEmpty
-} from 'naive-ui';
-
-interface Props {
-  visible: boolean;
-  rowData: any;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  visible: false,
-  rowData: null
-});
-
-const emit = defineEmits<{
-  'update:visible': [visible: boolean];
-}>();
-
-const modalVisible = computed({
-  get: () => props.visible,
-  set: (visible: boolean) => emit('update:visible', visible)
-});
-
-const hasAnyData = computed(() => {
-  if (!props.rowData) return false;
-  
-  return !!(
-    (props.rowData.sleepData && Object.keys(props.rowData.sleepData).length > 0) ||
-    (props.rowData.workoutData && Object.keys(props.rowData.workoutData).length > 0) ||
-    (props.rowData.exerciseDailyData && Object.keys(props.rowData.exerciseDailyData).length > 0) ||
-    (props.rowData.exerciseWeekData && Object.keys(props.rowData.exerciseWeekData).length > 0)
-  );
-});
-
-// 导出数据
-function exportData() {
-  const exportData = {
-    userInfo: {
-      userId: props.rowData.userId,
-      userName: props.rowData.userName,
-      orgName: props.rowData.orgName,
-      timestamp: props.rowData.timestamp
-    },
-    sleepData: props.rowData.sleepData,
-    workoutData: props.rowData.workoutData,
-    exerciseDailyData: props.rowData.exerciseDailyData,
-    exerciseWeekData: props.rowData.exerciseWeekData
-  };
-  
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `健康数据详情_${props.rowData.userName}_${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-</script>
 
 <style scoped>
 .space-y-6 > * + * {

@@ -1,260 +1,8 @@
-<template>
-  <NModal v-model:show="modalVisible" :mask-closable="false" preset="card" class="w-95% max-w-7xl">
-    <template #header>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <span class="text-blue-600 font-bold text-lg">📊</span>
-          </div>
-          <div>
-            <h3 class="text-xl font-bold text-gray-800">健康数据分析</h3>
-            <p class="text-sm text-gray-500" v-if="props.rowData">
-              {{ props.rowData.userName }} · {{ props.rowData.orgName }} · {{ formatTime(props.rowData.timestamp) }}
-            </p>
-          </div>
-        </div>
-        <NTag type="info" size="large" round>
-          数据详情
-        </NTag>
-      </div>
-    </template>
-
-    <div v-if="props.rowData" class="space-y-8">
-      <!-- 数据概览卡片 -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <!-- 基础生命体征统计卡片 -->
-        <div v-if="vitalsStats" class="bg-red-50 rounded-lg p-4 border-l-4 border-red-400">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-red-600 font-medium">平均心率</p>
-              <p class="text-2xl font-bold text-red-800">{{ vitalsStats.avgHeartRate }}</p>
-              <p class="text-xs text-red-500">{{ vitalsStats.dataPoints }}次测量</p>
-            </div>
-            <span class="text-3xl">❤️</span>
-          </div>
-        </div>
-
-        <div v-if="vitalsStats" class="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-400">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-blue-600 font-medium">平均血氧</p>
-              <p class="text-2xl font-bold text-blue-800">{{ vitalsStats.avgBloodOxygen }}%</p>
-              <p class="text-xs text-blue-500">血压: {{ vitalsStats.avgPressure }}</p>
-            </div>
-            <span class="text-3xl">🫁</span>
-          </div>
-        </div>
-
-        <!-- 运动时序统计卡片 -->
-        <div v-if="exerciseTimeSeriesStats" class="bg-green-50 rounded-lg p-4 border-l-4 border-green-400">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-green-600 font-medium">总步数</p>
-              <p class="text-2xl font-bold text-green-800">{{ exerciseTimeSeriesStats.totalSteps.toLocaleString() }}</p>
-              <p class="text-xs text-green-500">{{ exerciseTimeSeriesStats.activeDays }}活跃天</p>
-            </div>
-            <span class="text-3xl">👟</span>
-          </div>
-        </div>
-
-        <div v-if="exerciseTimeSeriesStats" class="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-400">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-orange-600 font-medium">总卡路里</p>
-              <p class="text-2xl font-bold text-orange-800">{{ exerciseTimeSeriesStats.totalCalories }}</p>
-              <p class="text-xs text-orange-500">{{ exerciseTimeSeriesStats.totalDistance }}km</p>
-            </div>
-            <span class="text-3xl">🔥</span>
-          </div>
-        </div>
-
-        <div v-if="sleepStats" class="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-400">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-purple-600 font-medium">睡眠质量</p>
-              <p class="text-2xl font-bold text-purple-800">{{ sleepStats.totalHours }}h</p>
-              <p class="text-xs text-purple-500">{{ sleepStats.sessions }}次记录</p>
-            </div>
-            <span class="text-3xl">😴</span>
-          </div>
-        </div>
-
-        <div v-if="workoutStats" class="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-400">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-orange-600 font-medium">运动强度</p>
-              <p class="text-2xl font-bold text-orange-800">{{ workoutStats.totalCalories }}</p>
-              <p class="text-xs text-orange-500">{{ workoutStats.sessions }}次运动</p>
-            </div>
-            <span class="text-3xl">🏃</span>
-          </div>
-        </div>
-
-        <div v-if="dailyStats" class="bg-cyan-50 rounded-lg p-4 border-l-4 border-cyan-400">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-cyan-600 font-medium">日均步数</p>
-              <p class="text-2xl font-bold text-cyan-800">{{ dailyStats.avgSteps }}</p>
-              <p class="text-xs text-cyan-500">{{ dailyStats.activeDays }}活跃天</p>
-            </div>
-            <span class="text-3xl">🚶</span>
-          </div>
-        </div>
-
-        <div v-if="weeklyStats" class="bg-pink-50 rounded-lg p-4 border-l-4 border-pink-400">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-pink-600 font-medium">周运动量</p>
-              <p class="text-2xl font-bold text-pink-800">{{ weeklyStats.avgTime }}min</p>
-              <p class="text-xs text-pink-500">{{ weeklyStats.activeWeeks }}活跃周</p>
-            </div>
-            <span class="text-3xl">📅</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 基础生命体征图表 -->
-      <div v-if="vitalsChartData.length > 0" class="bg-white rounded-xl shadow-sm border p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-              <span class="text-red-600">❤️</span>
-            </div>
-            <div>
-              <h4 class="text-lg font-bold text-gray-800">基础生命体征</h4>
-              <p class="text-sm text-gray-500">心率·血氧·血压·体温·压力时序分析</p>
-            </div>
-          </div>
-          <NTag type="error" size="small">多指标图表</NTag>
-        </div>
-        <div ref="vitalsChartRef" class="h-80 w-full"></div>
-      </div>
-
-      <!-- 运动健康数据图表 -->
-      <div v-if="exerciseTimeSeriesData.length > 0" class="bg-white rounded-xl shadow-sm border p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-              <span class="text-green-600">🏃</span>
-            </div>
-            <div>
-              <h4 class="text-lg font-bold text-gray-800">运动健康数据</h4>
-              <p class="text-sm text-gray-500">步数·卡路里·距离时序分析</p>
-            </div>
-          </div>
-          <NTag type="success" size="small">运动趋势</NTag>
-        </div>
-        <div ref="exerciseTimeSeriesChartRef" class="h-80 w-full"></div>
-      </div>
-
-      <!-- 睡眠数据图表 -->
-      <div v-if="sleepChartData.length > 0" class="bg-white rounded-xl shadow-sm border p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-              <span class="text-purple-600">🌙</span>
-            </div>
-            <div>
-              <h4 class="text-lg font-bold text-gray-800">睡眠分析</h4>
-              <p class="text-sm text-gray-500">深度睡眠 vs 浅度睡眠时长对比</p>
-            </div>
-          </div>
-          <NTag type="warning" size="small">时序图表</NTag>
-        </div>
-        <div ref="sleepChartRef" class="h-80 w-full"></div>
-      </div>
-
-      <!-- 运动数据图表 -->
-      <div v-if="workoutChartData.length > 0" class="bg-white rounded-xl shadow-sm border p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-              <span class="text-orange-600">💪</span>
-            </div>
-            <div>
-              <h4 class="text-lg font-bold text-gray-800">运动表现</h4>
-              <p class="text-sm text-gray-500">卡路里消耗 & 运动距离趋势</p>
-            </div>
-          </div>
-          <NTag type="success" size="small">双轴图表</NTag>
-        </div>
-        <div ref="workoutChartRef" class="h-80 w-full"></div>
-      </div>
-
-      <!-- 每日运动数据图表 -->
-      <div v-if="dailyChartData.length > 0" class="bg-white rounded-xl shadow-sm border p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-cyan-100 rounded-full flex items-center justify-center">
-              <span class="text-cyan-600">📈</span>
-            </div>
-            <div>
-              <h4 class="text-lg font-bold text-gray-800">每日活动</h4>
-              <p class="text-sm text-gray-500">步数 & 运动时长日度分析</p>
-            </div>
-          </div>
-          <NTag type="info" size="small">柱状图</NTag>
-        </div>
-        <div ref="dailyChartRef" class="h-80 w-full"></div>
-      </div>
-
-      <!-- 每周运动数据图表 -->
-      <div v-if="weeklyChartData.length > 0" class="bg-white rounded-xl shadow-sm border p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center">
-              <span class="text-pink-600">🎯</span>
-            </div>
-            <div>
-              <h4 class="text-lg font-bold text-gray-800">周度表现</h4>
-              <p class="text-sm text-gray-500">多维度运动指标雷达分析</p>
-            </div>
-          </div>
-          <NTag type="error" size="small">雷达图</NTag>
-        </div>
-        <div ref="weeklyChartRef" class="h-80 w-full"></div>
-      </div>
-
-      <!-- 空数据提示 -->
-      <div v-if="!hasAnyData" class="text-center py-16">
-        <div class="text-6xl mb-4">📊</div>
-        <h3 class="text-xl font-semibold text-gray-600 mb-2">暂无详细数据</h3>
-        <p class="text-gray-400">该用户在此时间段内暂无慢字段健康数据记录</p>
-      </div>
-    </div>
-
-    <template #action>
-      <NSpace justify="end" size="large">
-        <NButton @click="modalVisible = false" size="large">
-          关闭
-        </NButton>
-        <NButton type="primary" @click="exportChartImages" size="large">
-          <template #icon>
-            <span class="text-base">📸</span>
-          </template>
-          导出图表
-        </NButton>
-        <NButton type="info" @click="exportRawData" size="large">
-          <template #icon>
-            <span class="text-base">📊</span>
-          </template>
-          导出数据
-        </NButton>
-      </NSpace>
-    </template>
-  </NModal>
-</template>
-
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, onUnmounted } from 'vue';
-import { convertToBeijingTime } from '@/utils/date';
-import { 
-  NModal, 
-  NSpace, 
-  NTag, 
-  NButton
-} from 'naive-ui';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { NButton, NModal, NSpace, NTag } from 'naive-ui';
 import * as echarts from 'echarts';
+import { convertToBeijingTime } from '@/utils/date';
 
 interface Props {
   visible: boolean;
@@ -301,7 +49,11 @@ const sleepChartData = computed(() => {
   if (!props.rowData?.sleepData) return [];
   let data = props.rowData.sleepData;
   if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch (e) { return []; }
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      return [];
+    }
   }
   return Array.isArray(data.data) ? data.data : [];
 });
@@ -322,7 +74,11 @@ const workoutChartData = computed(() => {
   if (!props.rowData?.workoutData) return [];
   let data = props.rowData.workoutData;
   if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch (e) { return []; }
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      return [];
+    }
   }
   return Array.isArray(data.data) ? data.data : [];
 });
@@ -331,7 +87,11 @@ const dailyChartData = computed(() => {
   if (!props.rowData?.exerciseDailyData) return [];
   let data = props.rowData.exerciseDailyData;
   if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch (e) { return []; }
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      return [];
+    }
   }
   return Array.isArray(data.data) ? data.data.filter((item: any) => item.timeStamps > 0) : [];
 });
@@ -340,7 +100,11 @@ const weeklyChartData = computed(() => {
   if (!props.rowData?.exerciseWeekData) return [];
   let data = props.rowData.exerciseWeekData;
   if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch (e) { return []; }
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      return [];
+    }
   }
   return Array.isArray(data.data) ? data.data.filter((item: any) => item.timeStamps > 0) : [];
 });
@@ -348,10 +112,9 @@ const weeklyChartData = computed(() => {
 // 统计数据
 const sleepStats = computed(() => {
   if (sleepChartData.value.length === 0) return null;
-  const totalMinutes = sleepChartData.value.reduce((sum: number, item: any) => 
-    sum + (item.deepSleep || 0) + (item.lightSleep || 0), 0);
+  const totalMinutes = sleepChartData.value.reduce((sum: number, item: any) => sum + (item.deepSleep || 0) + (item.lightSleep || 0), 0);
   return {
-    totalHours: Math.round(totalMinutes / 60 * 10) / 10,
+    totalHours: Math.round((totalMinutes / 60) * 10) / 10,
     sessions: sleepChartData.value.length
   };
 });
@@ -363,9 +126,10 @@ const vitalsStats = computed(() => {
   return {
     avgHeartRate: Math.round(data.reduce((sum: number, item: any) => sum + (item.heartRate || 0), 0) / data.length),
     avgBloodOxygen: Math.round(data.reduce((sum: number, item: any) => sum + (item.bloodOxygen || 0), 0) / data.length),
-    avgTemperature: Math.round(data.reduce((sum: number, item: any) => sum + (item.temperature || 0), 0) / data.length * 10) / 10,
-    avgPressure: Math.round(data.reduce((sum: number, item: any) => sum + (item.pressureHigh || 0), 0) / data.length) + '/' + 
-                Math.round(data.reduce((sum: number, item: any) => sum + (item.pressureLow || 0), 0) / data.length),
+    avgTemperature: Math.round((data.reduce((sum: number, item: any) => sum + (item.temperature || 0), 0) / data.length) * 10) / 10,
+    avgPressure: `${Math.round(data.reduce((sum: number, item: any) => sum + (item.pressureHigh || 0), 0) / data.length)}/${Math.round(
+      data.reduce((sum: number, item: any) => sum + (item.pressureLow || 0), 0) / data.length
+    )}`,
     dataPoints: data.length
   };
 });
@@ -394,9 +158,7 @@ const dailyStats = computed(() => {
   if (dailyChartData.value.length === 0) return null;
   const validData = dailyChartData.value.filter((item: any) => item.totalSteps > 0);
   return {
-    avgSteps: validData.length > 0 ? Math.round(
-      validData.reduce((sum: number, item: any) => sum + (item.totalSteps || 0), 0) / validData.length
-    ) : 0,
+    avgSteps: validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalSteps || 0), 0) / validData.length) : 0,
     activeDays: validData.length
   };
 });
@@ -405,28 +167,28 @@ const weeklyStats = computed(() => {
   if (weeklyChartData.value.length === 0) return null;
   const validData = weeklyChartData.value.filter((item: any) => item.totalTime > 0);
   return {
-    avgTime: validData.length > 0 ? Math.round(
-      validData.reduce((sum: number, item: any) => sum + (item.totalTime || 0), 0) / validData.length
-    ) : 0,
+    avgTime: validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalTime || 0), 0) / validData.length) : 0,
     activeWeeks: validData.length
   };
 });
 
 const hasAnyData = computed(() => {
-  return sleepChartData.value.length > 0 || 
-         workoutChartData.value.length > 0 || 
-         dailyChartData.value.length > 0 || 
-         weeklyChartData.value.length > 0 ||
-         vitalsChartData.value.length > 0 ||
-         exerciseTimeSeriesData.value.length > 0;
+  return (
+    sleepChartData.value.length > 0 ||
+    workoutChartData.value.length > 0 ||
+    dailyChartData.value.length > 0 ||
+    weeklyChartData.value.length > 0 ||
+    vitalsChartData.value.length > 0 ||
+    exerciseTimeSeriesData.value.length > 0
+  );
 });
 
 // 创建基础生命体征图表
 function createVitalsChart() {
   if (!vitalsChartRef.value || vitalsChartData.value.length === 0) return;
-  
+
   vitalsChart = echarts.init(vitalsChartRef.value);
-  
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -437,13 +199,20 @@ function createVitalsChart() {
         params.forEach((param: any) => {
           result += `<div style="margin: 4px 0">
             <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${param.color}; margin-right: 8px"></span>
-            ${param.seriesName}: ${param.value}${param.seriesName.includes('心率') ? ' BPM' : 
-                                                 param.seriesName.includes('血氧') ? '%' : 
-                                                 param.seriesName.includes('体温') ? '°C' : 
-                                                 param.seriesName.includes('压力') ? '' : ''}
+            ${param.seriesName}: ${param.value}${
+              param.seriesName.includes('心率')
+                ? ' BPM'
+                : param.seriesName.includes('血氧')
+                  ? '%'
+                  : param.seriesName.includes('体温')
+                    ? '°C'
+                    : param.seriesName.includes('压力')
+                      ? ''
+                      : ''
+            }
           </div>`;
         });
-        return result + '</div>';
+        return `${result}</div>`;
       }
     },
     legend: {
@@ -451,16 +220,23 @@ function createVitalsChart() {
       top: 10
     },
     grid: {
-      left: '3%', right: '4%', bottom: '3%', containLabel: true
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
       data: vitalsChartData.value.map((item: any) => item.timestamp),
       axisLabel: {
-        formatter: (value: number) => new Date(value).toLocaleDateString('zh-CN', {
-          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        })
+        formatter: (value: number) =>
+          new Date(value).toLocaleDateString('zh-CN', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
       }
     },
     yAxis: [
@@ -522,16 +298,16 @@ function createVitalsChart() {
       }
     ]
   };
-  
+
   vitalsChart.setOption(option);
 }
 
 // 创建运动时序图表
 function createExerciseTimeSeriesChart() {
   if (!exerciseTimeSeriesChartRef.value || exerciseTimeSeriesData.value.length === 0) return;
-  
+
   exerciseTimeSeriesChart = echarts.init(exerciseTimeSeriesChartRef.value);
-  
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -542,16 +318,21 @@ function createExerciseTimeSeriesChart() {
       top: 10
     },
     grid: {
-      left: '3%', right: '4%', bottom: '3%', containLabel: true
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
       data: exerciseTimeSeriesData.value.map((item: any) => item.timestamp),
       axisLabel: {
-        formatter: (value: number) => new Date(value).toLocaleDateString('zh-CN', {
-          month: 'short', day: 'numeric'
-        })
+        formatter: (value: number) =>
+          new Date(value).toLocaleDateString('zh-CN', {
+            month: 'short',
+            day: 'numeric'
+          })
       }
     },
     yAxis: [
@@ -607,16 +388,16 @@ function createExerciseTimeSeriesChart() {
       }
     ]
   };
-  
+
   exerciseTimeSeriesChart.setOption(option);
 }
 
 // 创建睡眠图表
 function createSleepChart() {
   if (!sleepChartRef.value || sleepChartData.value.length === 0) return;
-  
+
   sleepChart = echarts.init(sleepChartRef.value);
-  
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -630,7 +411,7 @@ function createSleepChart() {
             ${param.seriesName}: ${param.value} 分钟
           </div>`;
         });
-        return result + '</div>';
+        return `${result}</div>`;
       }
     },
     legend: {
@@ -638,18 +419,21 @@ function createSleepChart() {
       top: 10
     },
     grid: {
-      left: '3%', right: '4%', bottom: '3%', containLabel: true
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: sleepChartData.value.map((item: any) => 
-        item.startTimeStamp || item.timeStamps
-      ),
+      data: sleepChartData.value.map((item: any) => item.startTimeStamp || item.timeStamps),
       axisLabel: {
-        formatter: (value: number) => new Date(value).toLocaleDateString('zh-CN', {
-          month: 'short', day: 'numeric'
-        })
+        formatter: (value: number) =>
+          new Date(value).toLocaleDateString('zh-CN', {
+            month: 'short',
+            day: 'numeric'
+          })
       }
     },
     yAxis: {
@@ -686,16 +470,16 @@ function createSleepChart() {
       }
     ]
   };
-  
+
   sleepChart.setOption(option);
 }
 
 // 创建运动图表
 function createWorkoutChart() {
   if (!workoutChartRef.value || workoutChartData.value.length === 0) return;
-  
+
   workoutChart = echarts.init(workoutChartRef.value);
-  
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -706,18 +490,21 @@ function createWorkoutChart() {
       top: 10
     },
     grid: {
-      left: '3%', right: '4%', bottom: '3%', containLabel: true
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: workoutChartData.value.map((item: any) => 
-        item.startTimeStamp || item.timeStamps
-      ),
+      data: workoutChartData.value.map((item: any) => item.startTimeStamp || item.timeStamps),
       axisLabel: {
-        formatter: (value: number) => new Date(value).toLocaleDateString('zh-CN', {
-          month: 'short', day: 'numeric'
-        })
+        formatter: (value: number) =>
+          new Date(value).toLocaleDateString('zh-CN', {
+            month: 'short',
+            day: 'numeric'
+          })
       }
     },
     yAxis: [
@@ -761,16 +548,16 @@ function createWorkoutChart() {
       }
     ]
   };
-  
+
   workoutChart.setOption(option);
 }
 
 // 创建每日运动图表
 function createDailyChart() {
   if (!dailyChartRef.value || dailyChartData.value.length === 0) return;
-  
+
   dailyChart = echarts.init(dailyChartRef.value);
-  
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -781,13 +568,14 @@ function createDailyChart() {
       top: 10
     },
     grid: {
-      left: '3%', right: '4%', bottom: '3%', containLabel: true
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
     },
     xAxis: {
       type: 'category',
-      data: dailyChartData.value.map((item: any, index: number) => 
-        `第${index + 1}天`
-      )
+      data: dailyChartData.value.map((item: any, index: number) => `第${index + 1}天`)
     },
     yAxis: [
       {
@@ -828,22 +616,25 @@ function createDailyChart() {
       }
     ]
   };
-  
+
   dailyChart.setOption(option);
 }
 
 // 创建每周运动图表
 function createWeeklyChart() {
   if (!weeklyChartRef.value || weeklyChartData.value.length === 0) return;
-  
+
   weeklyChart = echarts.init(weeklyChartRef.value);
-  
-  const maxValues = weeklyChartData.value.reduce((max: any, item: any) => ({
-    steps: Math.max(max.steps, item.totalSteps || 0),
-    strength: Math.max(max.strength, item.strengthTimes || 0),
-    time: Math.max(max.time, item.totalTime || 0)
-  }), { steps: 0, strength: 0, time: 0 });
-  
+
+  const maxValues = weeklyChartData.value.reduce(
+    (max: any, item: any) => ({
+      steps: Math.max(max.steps, item.totalSteps || 0),
+      strength: Math.max(max.strength, item.strengthTimes || 0),
+      time: Math.max(max.time, item.totalTime || 0)
+    }),
+    { steps: 0, strength: 0, time: 0 }
+  );
+
   const option = {
     tooltip: {
       trigger: 'item'
@@ -861,49 +652,50 @@ function createWeeklyChart() {
       center: ['50%', '55%'],
       radius: 120
     },
-    series: [{
-      type: 'radar',
-      data: weeklyChartData.value.map((item: any, index: number) => ({
-        value: [
-          item.totalSteps || 0,
-          item.strengthTimes || 0,
-          item.totalTime || 0
-        ],
-        name: `第${index + 1}周`,
-        itemStyle: {
-          color: `hsl(${index * 60}, 70%, 50%)`
-        },
-        areaStyle: {
-          color: `hsla(${index * 60}, 70%, 50%, 0.2)`
-        }
-      }))
-    }]
+    series: [
+      {
+        type: 'radar',
+        data: weeklyChartData.value.map((item: any, index: number) => ({
+          value: [item.totalSteps || 0, item.strengthTimes || 0, item.totalTime || 0],
+          name: `第${index + 1}周`,
+          itemStyle: {
+            color: `hsl(${index * 60}, 70%, 50%)`
+          },
+          areaStyle: {
+            color: `hsla(${index * 60}, 70%, 50%, 0.2)`
+          }
+        }))
+      }
+    ]
   };
-  
+
   weeklyChart.setOption(option);
 }
 
 // 监听模态框显示状态
-watch(() => props.visible, async (visible) => {
-  if (visible && props.rowData) {
-    await nextTick();
-    
-    // 销毁现有图表
-    [vitalsChart, exerciseTimeSeriesChart, sleepChart, workoutChart, dailyChart, weeklyChart].forEach(chart => {
-      if (chart) chart.dispose();
-    });
-    
-    // 延迟创建新图表，确保DOM已渲染
-    setTimeout(() => {
-      createVitalsChart();
-      createExerciseTimeSeriesChart();
-      createSleepChart();
-      createWorkoutChart();
-      createDailyChart();
-      createWeeklyChart();
-    }, 200);
+watch(
+  () => props.visible,
+  async visible => {
+    if (visible && props.rowData) {
+      await nextTick();
+
+      // 销毁现有图表
+      [vitalsChart, exerciseTimeSeriesChart, sleepChart, workoutChart, dailyChart, weeklyChart].forEach(chart => {
+        if (chart) chart.dispose();
+      });
+
+      // 延迟创建新图表，确保DOM已渲染
+      setTimeout(() => {
+        createVitalsChart();
+        createExerciseTimeSeriesChart();
+        createSleepChart();
+        createWorkoutChart();
+        createDailyChart();
+        createWeeklyChart();
+      }, 200);
+    }
   }
-});
+);
 
 // 组件卸载时清理图表
 onUnmounted(() => {
@@ -922,7 +714,7 @@ function exportChartImages() {
     { chart: dailyChart, name: '每日活动' },
     { chart: weeklyChart, name: '周度表现' }
   ];
-  
+
   charts.forEach(({ chart, name }, index) => {
     if (chart) {
       const canvas = chart.getCanvasPaintAble();
@@ -961,7 +753,7 @@ function exportRawData() {
       exerciseWeekData: weeklyChartData.value
     }
   };
-  
+
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -971,6 +763,249 @@ function exportRawData() {
   URL.revokeObjectURL(url);
 }
 </script>
+
+<template>
+  <NModal v-model:show="modalVisible" :mask-closable="false" preset="card" class="max-w-7xl w-95%">
+    <template #header>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="h-10 w-10 flex items-center justify-center rounded-full bg-blue-100">
+            <span class="text-lg text-blue-600 font-bold">📊</span>
+          </div>
+          <div>
+            <h3 class="text-xl text-gray-800 font-bold">健康数据分析</h3>
+            <p v-if="props.rowData" class="text-sm text-gray-500">
+              {{ props.rowData.userName }} · {{ props.rowData.orgName }} · {{ formatTime(props.rowData.timestamp) }}
+            </p>
+          </div>
+        </div>
+        <NTag type="info" size="large" round>数据详情</NTag>
+      </div>
+    </template>
+
+    <div v-if="props.rowData" class="space-y-8">
+      <!-- 数据概览卡片 -->
+      <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <!-- 基础生命体征统计卡片 -->
+        <div v-if="vitalsStats" class="border-l-4 border-red-400 rounded-lg bg-red-50 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-red-600 font-medium">平均心率</p>
+              <p class="text-2xl text-red-800 font-bold">{{ vitalsStats.avgHeartRate }}</p>
+              <p class="text-xs text-red-500">{{ vitalsStats.dataPoints }}次测量</p>
+            </div>
+            <span class="text-3xl">❤️</span>
+          </div>
+        </div>
+
+        <div v-if="vitalsStats" class="border-l-4 border-blue-400 rounded-lg bg-blue-50 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-blue-600 font-medium">平均血氧</p>
+              <p class="text-2xl text-blue-800 font-bold">{{ vitalsStats.avgBloodOxygen }}%</p>
+              <p class="text-xs text-blue-500">血压: {{ vitalsStats.avgPressure }}</p>
+            </div>
+            <span class="text-3xl">🫁</span>
+          </div>
+        </div>
+
+        <!-- 运动时序统计卡片 -->
+        <div v-if="exerciseTimeSeriesStats" class="border-l-4 border-green-400 rounded-lg bg-green-50 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-green-600 font-medium">总步数</p>
+              <p class="text-2xl text-green-800 font-bold">{{ exerciseTimeSeriesStats.totalSteps.toLocaleString() }}</p>
+              <p class="text-xs text-green-500">{{ exerciseTimeSeriesStats.activeDays }}活跃天</p>
+            </div>
+            <span class="text-3xl">👟</span>
+          </div>
+        </div>
+
+        <div v-if="exerciseTimeSeriesStats" class="border-l-4 border-orange-400 rounded-lg bg-orange-50 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-orange-600 font-medium">总卡路里</p>
+              <p class="text-2xl text-orange-800 font-bold">{{ exerciseTimeSeriesStats.totalCalories }}</p>
+              <p class="text-xs text-orange-500">{{ exerciseTimeSeriesStats.totalDistance }}km</p>
+            </div>
+            <span class="text-3xl">🔥</span>
+          </div>
+        </div>
+
+        <div v-if="sleepStats" class="border-l-4 border-purple-400 rounded-lg bg-purple-50 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-purple-600 font-medium">睡眠质量</p>
+              <p class="text-2xl text-purple-800 font-bold">{{ sleepStats.totalHours }}h</p>
+              <p class="text-xs text-purple-500">{{ sleepStats.sessions }}次记录</p>
+            </div>
+            <span class="text-3xl">😴</span>
+          </div>
+        </div>
+
+        <div v-if="workoutStats" class="border-l-4 border-orange-400 rounded-lg bg-orange-50 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-orange-600 font-medium">运动强度</p>
+              <p class="text-2xl text-orange-800 font-bold">{{ workoutStats.totalCalories }}</p>
+              <p class="text-xs text-orange-500">{{ workoutStats.sessions }}次运动</p>
+            </div>
+            <span class="text-3xl">🏃</span>
+          </div>
+        </div>
+
+        <div v-if="dailyStats" class="border-l-4 border-cyan-400 rounded-lg bg-cyan-50 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-cyan-600 font-medium">日均步数</p>
+              <p class="text-2xl text-cyan-800 font-bold">{{ dailyStats.avgSteps }}</p>
+              <p class="text-xs text-cyan-500">{{ dailyStats.activeDays }}活跃天</p>
+            </div>
+            <span class="text-3xl">🚶</span>
+          </div>
+        </div>
+
+        <div v-if="weeklyStats" class="border-l-4 border-pink-400 rounded-lg bg-pink-50 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-pink-600 font-medium">周运动量</p>
+              <p class="text-2xl text-pink-800 font-bold">{{ weeklyStats.avgTime }}min</p>
+              <p class="text-xs text-pink-500">{{ weeklyStats.activeWeeks }}活跃周</p>
+            </div>
+            <span class="text-3xl">📅</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 基础生命体征图表 -->
+      <div v-if="vitalsChartData.length > 0" class="border rounded-xl bg-white p-6 shadow-sm">
+        <div class="mb-6 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="h-8 w-8 flex items-center justify-center rounded-full bg-red-100">
+              <span class="text-red-600">❤️</span>
+            </div>
+            <div>
+              <h4 class="text-lg text-gray-800 font-bold">基础生命体征</h4>
+              <p class="text-sm text-gray-500">心率·血氧·血压·体温·压力时序分析</p>
+            </div>
+          </div>
+          <NTag type="error" size="small">多指标图表</NTag>
+        </div>
+        <div ref="vitalsChartRef" class="h-80 w-full"></div>
+      </div>
+
+      <!-- 运动健康数据图表 -->
+      <div v-if="exerciseTimeSeriesData.length > 0" class="border rounded-xl bg-white p-6 shadow-sm">
+        <div class="mb-6 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="h-8 w-8 flex items-center justify-center rounded-full bg-green-100">
+              <span class="text-green-600">🏃</span>
+            </div>
+            <div>
+              <h4 class="text-lg text-gray-800 font-bold">运动健康数据</h4>
+              <p class="text-sm text-gray-500">步数·卡路里·距离时序分析</p>
+            </div>
+          </div>
+          <NTag type="success" size="small">运动趋势</NTag>
+        </div>
+        <div ref="exerciseTimeSeriesChartRef" class="h-80 w-full"></div>
+      </div>
+
+      <!-- 睡眠数据图表 -->
+      <div v-if="sleepChartData.length > 0" class="border rounded-xl bg-white p-6 shadow-sm">
+        <div class="mb-6 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="h-8 w-8 flex items-center justify-center rounded-full bg-purple-100">
+              <span class="text-purple-600">🌙</span>
+            </div>
+            <div>
+              <h4 class="text-lg text-gray-800 font-bold">睡眠分析</h4>
+              <p class="text-sm text-gray-500">深度睡眠 vs 浅度睡眠时长对比</p>
+            </div>
+          </div>
+          <NTag type="warning" size="small">时序图表</NTag>
+        </div>
+        <div ref="sleepChartRef" class="h-80 w-full"></div>
+      </div>
+
+      <!-- 运动数据图表 -->
+      <div v-if="workoutChartData.length > 0" class="border rounded-xl bg-white p-6 shadow-sm">
+        <div class="mb-6 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="h-8 w-8 flex items-center justify-center rounded-full bg-orange-100">
+              <span class="text-orange-600">💪</span>
+            </div>
+            <div>
+              <h4 class="text-lg text-gray-800 font-bold">运动表现</h4>
+              <p class="text-sm text-gray-500">卡路里消耗 & 运动距离趋势</p>
+            </div>
+          </div>
+          <NTag type="success" size="small">双轴图表</NTag>
+        </div>
+        <div ref="workoutChartRef" class="h-80 w-full"></div>
+      </div>
+
+      <!-- 每日运动数据图表 -->
+      <div v-if="dailyChartData.length > 0" class="border rounded-xl bg-white p-6 shadow-sm">
+        <div class="mb-6 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="h-8 w-8 flex items-center justify-center rounded-full bg-cyan-100">
+              <span class="text-cyan-600">📈</span>
+            </div>
+            <div>
+              <h4 class="text-lg text-gray-800 font-bold">每日活动</h4>
+              <p class="text-sm text-gray-500">步数 & 运动时长日度分析</p>
+            </div>
+          </div>
+          <NTag type="info" size="small">柱状图</NTag>
+        </div>
+        <div ref="dailyChartRef" class="h-80 w-full"></div>
+      </div>
+
+      <!-- 每周运动数据图表 -->
+      <div v-if="weeklyChartData.length > 0" class="border rounded-xl bg-white p-6 shadow-sm">
+        <div class="mb-6 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="h-8 w-8 flex items-center justify-center rounded-full bg-pink-100">
+              <span class="text-pink-600">🎯</span>
+            </div>
+            <div>
+              <h4 class="text-lg text-gray-800 font-bold">周度表现</h4>
+              <p class="text-sm text-gray-500">多维度运动指标雷达分析</p>
+            </div>
+          </div>
+          <NTag type="error" size="small">雷达图</NTag>
+        </div>
+        <div ref="weeklyChartRef" class="h-80 w-full"></div>
+      </div>
+
+      <!-- 空数据提示 -->
+      <div v-if="!hasAnyData" class="py-16 text-center">
+        <div class="mb-4 text-6xl">📊</div>
+        <h3 class="mb-2 text-xl text-gray-600 font-semibold">暂无详细数据</h3>
+        <p class="text-gray-400">该用户在此时间段内暂无慢字段健康数据记录</p>
+      </div>
+    </div>
+
+    <template #action>
+      <NSpace justify="end" size="large">
+        <NButton size="large" @click="modalVisible = false">关闭</NButton>
+        <NButton type="primary" size="large" @click="exportChartImages">
+          <template #icon>
+            <span class="text-base">📸</span>
+          </template>
+          导出图表
+        </NButton>
+        <NButton type="info" size="large" @click="exportRawData">
+          <template #icon>
+            <span class="text-base">📊</span>
+          </template>
+          导出数据
+        </NButton>
+      </NSpace>
+    </template>
+  </NModal>
+</template>
 
 <style scoped>
 .space-y-8 > * + * {

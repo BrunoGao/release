@@ -1,6 +1,23 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
-import { NDrawer, NDrawerContent, NForm, NFormItem, NInput, NSelect, NInputNumber, NSwitch, NButton, NSpace, NDivider, NAlert, NCard, NDescriptions, NDescriptionsItem, NTag } from 'naive-ui';
+import {
+  NAlert,
+  NButton,
+  NCard,
+  NDescriptions,
+  NDescriptionsItem,
+  NDivider,
+  NDrawer,
+  NDrawerContent,
+  NForm,
+  NFormItem,
+  NInput,
+  NInputNumber,
+  NSelect,
+  NSpace,
+  NSwitch,
+  NTag
+} from 'naive-ui';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 // Using createRequiredRule from useFormRules hook instead
 import { $t } from '@/locales';
@@ -125,10 +142,10 @@ const autoProcessActionOptions = [
 // 获取严重程度标签颜色
 function getSeverityColor(severity: string) {
   const colors = {
-    'critical': 'error',
-    'major': 'warning',
-    'minor': 'info',
-    'info': 'default'
+    critical: 'error',
+    major: 'warning',
+    minor: 'info',
+    info: 'default'
   };
   return colors[severity as keyof typeof colors] || 'default';
 }
@@ -136,10 +153,10 @@ function getSeverityColor(severity: string) {
 // 获取动作标签颜色
 function getActionColor(action: string) {
   const colors = {
-    'AUTO_RESOLVE': 'success',
-    'AUTO_ACKNOWLEDGE': 'info',
-    'AUTO_ESCALATE': 'warning',
-    'AUTO_SUPPRESS': 'error'
+    AUTO_RESOLVE: 'success',
+    AUTO_ACKNOWLEDGE: 'info',
+    AUTO_ESCALATE: 'warning',
+    AUTO_SUPPRESS: 'error'
   };
   return colors[action as keyof typeof colors] || 'default';
 }
@@ -158,7 +175,7 @@ watch(
 // 初始化表单数据
 function handleInitModel() {
   Object.assign(model, createDefaultModel());
-  
+
   if (props.operateType === 'edit' && props.rowData) {
     Object.assign(model, {
       id: props.rowData.id,
@@ -189,14 +206,14 @@ function closeDrawer() {
 // 提交表单
 async function handleSubmit() {
   await validate();
-  
+
   let result;
   if (props.operateType === 'add') {
     result = await fetchAddAlertAutoProcess(model);
   } else {
     result = await fetchUpdateAlertAutoProcess(model);
   }
-  
+
   if (!result.error) {
     window.$message?.success(props.operateType === 'add' ? '新增成功' : '更新成功');
     closeDrawer();
@@ -222,7 +239,6 @@ function getActionText(action: string) {
 <template>
   <NDrawer v-model:show="visible" :width="600" :mask-closable="false">
     <NDrawerContent :title="title" :native-scrollbar="false" closable>
-      
       <!-- 查看模式 -->
       <template v-if="isView">
         <NCard>
@@ -243,12 +259,8 @@ function getActionText(action: string) {
               <template v-if="props.rowData?.thresholdMin !== null && props.rowData?.thresholdMax !== null">
                 {{ props.rowData.thresholdMin }} - {{ props.rowData.thresholdMax }}
               </template>
-              <template v-else-if="props.rowData?.thresholdMin !== null">
-                ≥ {{ props.rowData.thresholdMin }}
-              </template>
-              <template v-else-if="props.rowData?.thresholdMax !== null">
-                ≤ {{ props.rowData.thresholdMax }}
-              </template>
+              <template v-else-if="props.rowData?.thresholdMin !== null">≥ {{ props.rowData.thresholdMin }}</template>
+              <template v-else-if="props.rowData?.thresholdMax !== null">≤ {{ props.rowData.thresholdMax }}</template>
               <template v-else>-</template>
             </NDescriptionsItem>
             <NDescriptionsItem label="规则状态">
@@ -288,60 +300,30 @@ function getActionText(action: string) {
       <!-- 编辑模式 -->
       <template v-else>
         <NForm ref="formRef" :model="model" :rules="rules" label-placement="left" :label-width="120">
-          
           <!-- 基础配置 -->
-          <NCard title="基础配置" style="margin-bottom: 16px;">
+          <NCard title="基础配置" style="margin-bottom: 16px">
             <NFormItem label="生理指标" path="physicalSign">
-              <NSelect
-                v-model:value="model.physicalSign"
-                :options="physicalSignOptions"
-                placeholder="请选择生理指标"
-                filterable
-              />
+              <NSelect v-model:value="model.physicalSign" :options="physicalSignOptions" placeholder="请选择生理指标" filterable />
             </NFormItem>
 
             <NFormItem label="告警类型" path="eventType">
-              <NSelect
-                v-model:value="model.eventType"
-                :options="alertTypeOptions"
-                placeholder="请选择告警类型"
-                filterable
-              />
+              <NSelect v-model:value="model.eventType" :options="alertTypeOptions" placeholder="请选择告警类型" filterable />
             </NFormItem>
 
             <NFormItem label="严重程度" path="level">
-              <NSelect
-                v-model:value="model.level"
-                :options="severityOptions"
-                placeholder="请选择严重程度"
-              />
+              <NSelect v-model:value="model.level" :options="severityOptions" placeholder="请选择严重程度" />
             </NFormItem>
 
             <NFormItem label="阈值最小值" path="thresholdMin">
-              <NInputNumber
-                v-model:value="model.thresholdMin"
-                placeholder="请输入阈值最小值"
-                :min="0"
-                :precision="2"
-              />
+              <NInputNumber v-model:value="model.thresholdMin" placeholder="请输入阈值最小值" :min="0" :precision="2" />
             </NFormItem>
 
             <NFormItem label="阈值最大值" path="thresholdMax">
-              <NInputNumber
-                v-model:value="model.thresholdMax"
-                placeholder="请输入阈值最大值"
-                :min="0"
-                :precision="2"
-              />
+              <NInputNumber v-model:value="model.thresholdMax" placeholder="请输入阈值最大值" :min="0" :precision="2" />
             </NFormItem>
 
             <NFormItem label="告警描述" path="alertDesc">
-              <NInput
-                v-model:value="model.alertDesc"
-                type="textarea"
-                placeholder="请输入告警描述"
-                :rows="2"
-              />
+              <NInput v-model:value="model.alertDesc" type="textarea" placeholder="请输入告警描述" :rows="2" />
             </NFormItem>
 
             <NFormItem label="规则状态" path="isEnabled">
@@ -355,82 +337,40 @@ function getActionText(action: string) {
           <!-- 自动处理配置 -->
           <NCard title="自动处理配置">
             <NFormItem label="启用自动处理" path="autoProcessEnabled">
-              <NSwitch 
-                v-model:value="model.autoProcessEnabled"
-                @update:value="handleAutoProcessChange"
-              >
+              <NSwitch v-model:value="model.autoProcessEnabled" @update:value="handleAutoProcessChange">
                 <template #checked>启用</template>
                 <template #unchecked>禁用</template>
               </NSwitch>
             </NFormItem>
 
             <template v-if="model.autoProcessEnabled">
-              <NAlert type="info" style="margin-bottom: 16px;">
-                启用自动处理后，系统将根据配置的动作自动处理告警，请谨慎配置。
-              </NAlert>
+              <NAlert type="info" style="margin-bottom: 16px">启用自动处理后，系统将根据配置的动作自动处理告警，请谨慎配置。</NAlert>
 
               <NFormItem label="处理动作" path="autoProcessAction">
-                <NSelect
-                  v-model:value="model.autoProcessAction"
-                  :options="autoProcessActionOptions"
-                  placeholder="请选择自动处理动作"
-                />
+                <NSelect v-model:value="model.autoProcessAction" :options="autoProcessActionOptions" placeholder="请选择自动处理动作" />
               </NFormItem>
 
               <NFormItem label="延迟时间(秒)" path="autoProcessDelaySeconds">
-                <NInputNumber
-                  v-model:value="model.autoProcessDelaySeconds"
-                  placeholder="延迟执行时间"
-                  :min="0"
-                  :max="86400"
-                />
+                <NInputNumber v-model:value="model.autoProcessDelaySeconds" placeholder="延迟执行时间" :min="0" :max="86400" />
               </NFormItem>
 
-              <NFormItem 
-                v-if="model.autoProcessAction === 'AUTO_RESOLVE'"
-                label="自动解决阈值" 
-                path="autoResolveThresholdCount"
-              >
-                <NInputNumber
-                  v-model:value="model.autoResolveThresholdCount"
-                  placeholder="24小时内自动解决次数上限"
-                  :min="1"
-                  :max="100"
-                />
+              <NFormItem v-if="model.autoProcessAction === 'AUTO_RESOLVE'" label="自动解决阈值" path="autoResolveThresholdCount">
+                <NInputNumber v-model:value="model.autoResolveThresholdCount" placeholder="24小时内自动解决次数上限" :min="1" :max="100" />
               </NFormItem>
 
-              <NFormItem 
-                v-if="model.autoProcessAction === 'AUTO_SUPPRESS'"
-                label="抑制时长(分钟)" 
-                path="suppressDurationMinutes"
-              >
-                <NInputNumber
-                  v-model:value="model.suppressDurationMinutes"
-                  placeholder="抑制持续时间"
-                  :min="1"
-                  :max="1440"
-                />
+              <NFormItem v-if="model.autoProcessAction === 'AUTO_SUPPRESS'" label="抑制时长(分钟)" path="suppressDurationMinutes">
+                <NInputNumber v-model:value="model.suppressDurationMinutes" placeholder="抑制持续时间" :min="1" :max="1440" />
               </NFormItem>
 
               <NFormItem label="时间窗口(秒)" path="timeWindowSeconds">
-                <NInputNumber
-                  v-model:value="model.timeWindowSeconds"
-                  placeholder="规则生效时间窗口"
-                  :min="60"
-                />
+                <NInputNumber v-model:value="model.timeWindowSeconds" placeholder="规则生效时间窗口" :min="60" />
               </NFormItem>
             </template>
 
             <NFormItem label="备注" path="remark">
-              <NInput
-                v-model:value="model.remark"
-                type="textarea"
-                placeholder="请输入备注信息"
-                :rows="2"
-              />
+              <NInput v-model:value="model.remark" type="textarea" placeholder="请输入备注信息" :rows="2" />
             </NFormItem>
           </NCard>
-
         </NForm>
       </template>
 

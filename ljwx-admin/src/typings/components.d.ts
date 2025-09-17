@@ -15,6 +15,7 @@ declare module 'vue' {
     CustomerSelector: typeof import('./../components/business/CustomerSelector.vue')['default']
     CustomerSwitcher: typeof import('./../components/common/CustomerSwitcher.vue')['default']
     DarkModeContainer: typeof import('./../components/common/dark-mode-container.vue')['default']
+    DeleteConfirmDialog: typeof import('./../components/business/DeleteConfirmDialog.vue')['default']
     ExceptionBase: typeof import('./../components/common/exception-base.vue')['default']
     FullScreen: typeof import('./../components/common/full-screen.vue')['default']
     IconAntDesignEnterOutlined: typeof import('~icons/ant-design/enter-outlined')['default']

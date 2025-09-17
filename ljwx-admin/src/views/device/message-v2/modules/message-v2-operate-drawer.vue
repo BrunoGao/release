@@ -1,7 +1,23 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import type { FormInst, FormRules, SelectOption } from 'naive-ui';
-import { NDrawer, NDrawerContent, NSpace, NButton, NForm, NFormItem, NInput, NSelect, NDatePicker, NSwitch, NCard, NGrid, NGridItem, NDynamicTags, NAlert } from 'naive-ui';
+import {
+  NAlert,
+  NButton,
+  NCard,
+  NDatePicker,
+  NDrawer,
+  NDrawerContent,
+  NDynamicTags,
+  NForm,
+  NFormItem,
+  NGrid,
+  NGridItem,
+  NInput,
+  NSelect,
+  NSpace,
+  NSwitch
+} from 'naive-ui';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 import { fetchCreateDeviceMessageV2, fetchUpdateDeviceMessageV2 } from '@/service/api/health/device-message-v2';
@@ -47,18 +63,9 @@ const title = computed(() => {
   return titles[props.operateType];
 });
 
-type Model = Pick<Api.Health.DeviceMessageV2Create, 
-  | 'title' 
-  | 'message' 
-  | 'messageType' 
-  | 'senderType' 
-  | 'receiverType' 
-  | 'urgency' 
-  | 'customerId' 
-  | 'orgId' 
-  | 'userId' 
-  | 'deviceSn'
-  | 'expiresAt'
+type Model = Pick<
+  Api.Health.DeviceMessageV2Create,
+  'title' | 'message' | 'messageType' | 'senderType' | 'receiverType' | 'urgency' | 'customerId' | 'orgId' | 'userId' | 'deviceSn' | 'expiresAt'
 > & {
   targets: Array<{
     targetId: string;
@@ -220,12 +227,13 @@ function handleUpdateModelByModalType() {
           userId: props.rowData.userId,
           deviceSn: props.rowData.deviceSn,
           expiresAt: props.rowData.expiresAt,
-          targets: props.rowData.details?.map(detail => ({
-            targetId: detail.targetId,
-            targetType: detail.targetType,
-            channel: detail.channel
-          })) || [],
-          enableExpiration: !!props.rowData.expiresAt
+          targets:
+            props.rowData.details?.map(detail => ({
+              targetId: detail.targetId,
+              targetType: detail.targetType,
+              channel: detail.channel
+            })) || [],
+          enableExpiration: Boolean(props.rowData.expiresAt)
         });
       }
     }
@@ -236,7 +244,7 @@ function handleUpdateModelByModalType() {
 // 提交表单
 async function handleSubmit() {
   await validate();
-  
+
   const submitData: Api.Health.DeviceMessageV2Create = {
     title: model.title,
     message: model.message,
@@ -251,7 +259,7 @@ async function handleSubmit() {
     expiresAt: model.enableExpiration ? model.expiresAt : undefined,
     targets: model.targets.length > 0 ? model.targets : undefined
   };
-  
+
   const handlers: Record<NaiveUI.TableOperateType, () => Promise<void>> = {
     add: async () => {
       const { error } = await fetchCreateDeviceMessageV2(submitData);
@@ -268,7 +276,7 @@ async function handleSubmit() {
       }
     }
   };
-  
+
   try {
     await handlers[props.operateType]();
     emit('submitted');
@@ -286,11 +294,14 @@ watch(visible, () => {
 });
 
 // 监听过期时间开关
-watch(() => model.enableExpiration, (enabled) => {
-  if (!enabled) {
-    model.expiresAt = null;
+watch(
+  () => model.enableExpiration,
+  enabled => {
+    if (!enabled) {
+      model.expiresAt = null;
+    }
   }
-});
+);
 </script>
 
 <template>
@@ -303,55 +314,31 @@ watch(() => model.enableExpiration, (enabled) => {
             <NGrid :cols="2" :x-gap="16" :y-gap="16">
               <NGridItem>
                 <NFormItem label="消息标题" path="title">
-                  <NInput 
-                    v-model:value="model.title"
-                    placeholder="请输入消息标题"
-                    maxlength="255"
-                    show-count
-                  />
+                  <NInput v-model:value="model.title" placeholder="请输入消息标题" maxlength="255" show-count />
                 </NFormItem>
               </NGridItem>
-              
+
               <NGridItem>
                 <NFormItem label="消息类型" path="messageType">
-                  <NSelect
-                    v-model:value="model.messageType"
-                    :options="messageTypeOptions"
-                    placeholder="请选择消息类型"
-                  />
+                  <NSelect v-model:value="model.messageType" :options="messageTypeOptions" placeholder="请选择消息类型" />
                 </NFormItem>
               </NGridItem>
-              
+
               <NGridItem>
                 <NFormItem label="紧急程度" path="urgency">
-                  <NSelect
-                    v-model:value="model.urgency"
-                    :options="urgencyOptions"
-                    placeholder="请选择紧急程度"
-                  />
+                  <NSelect v-model:value="model.urgency" :options="urgencyOptions" placeholder="请选择紧急程度" />
                 </NFormItem>
               </NGridItem>
-              
+
               <NGridItem>
                 <NFormItem label="发送者类型" path="senderType">
-                  <NSelect
-                    v-model:value="model.senderType"
-                    :options="senderTypeOptions"
-                    placeholder="请选择发送者类型"
-                  />
+                  <NSelect v-model:value="model.senderType" :options="senderTypeOptions" placeholder="请选择发送者类型" />
                 </NFormItem>
               </NGridItem>
-              
+
               <NGridItem :span="2">
                 <NFormItem label="消息内容" path="message">
-                  <NInput
-                    type="textarea"
-                    v-model:value="model.message"
-                    placeholder="请输入消息内容"
-                    :rows="4"
-                    maxlength="2000"
-                    show-count
-                  />
+                  <NInput v-model:value="model.message" type="textarea" placeholder="请输入消息内容" :rows="4" maxlength="2000" show-count />
                 </NFormItem>
               </NGridItem>
             </NGrid>
@@ -362,44 +349,25 @@ watch(() => model.enableExpiration, (enabled) => {
             <NGrid :cols="2" :x-gap="16" :y-gap="16">
               <NGridItem>
                 <NFormItem label="接收者类型">
-                  <NSelect
-                    v-model:value="model.receiverType"
-                    :options="receiverTypeOptions"
-                    placeholder="请选择接收者类型"
-                  />
+                  <NSelect v-model:value="model.receiverType" :options="receiverTypeOptions" placeholder="请选择接收者类型" />
                 </NFormItem>
               </NGridItem>
-              
+
               <NGridItem>
                 <NFormItem label="所属部门">
-                  <NSelect
-                    v-model:value="model.orgId"
-                    :options="orgOptions"
-                    placeholder="请选择部门"
-                    filterable
-                    clearable
-                  />
+                  <NSelect v-model:value="model.orgId" :options="orgOptions" placeholder="请选择部门" filterable clearable />
                 </NFormItem>
               </NGridItem>
-              
+
               <NGridItem v-if="model.receiverType === 'USER'">
                 <NFormItem label="目标用户">
-                  <NSelect
-                    v-model:value="model.userId"
-                    :options="allUserOptions"
-                    placeholder="请选择用户"
-                    filterable
-                    clearable
-                  />
+                  <NSelect v-model:value="model.userId" :options="allUserOptions" placeholder="请选择用户" filterable clearable />
                 </NFormItem>
               </NGridItem>
-              
+
               <NGridItem v-if="model.receiverType === 'DEVICE'">
                 <NFormItem label="设备序列号">
-                  <NInput
-                    v-model:value="model.deviceSn"
-                    placeholder="请输入设备序列号"
-                  />
+                  <NInput v-model:value="model.deviceSn" placeholder="请输入设备序列号" />
                 </NFormItem>
               </NGridItem>
             </NGrid>
@@ -408,45 +376,23 @@ watch(() => model.enableExpiration, (enabled) => {
           <!-- 分发目标 -->
           <NCard title="分发目标" size="small">
             <template #header-extra>
-              <NButton type="primary" dashed size="small" @click="addTarget">
-                添加目标
-              </NButton>
+              <NButton type="primary" dashed size="small" @click="addTarget">添加目标</NButton>
             </template>
-            
-            <div v-if="model.targets.length === 0" class="text-center py-20 text-gray-400">
+
+            <div v-if="model.targets.length === 0" class="py-20 text-center text-gray-400">
               <div>暂未添加分发目标</div>
-              <div class="text-xs mt-4">系统将根据接收者类型自动分发</div>
+              <div class="mt-4 text-xs">系统将根据接收者类型自动分发</div>
             </div>
-            
+
             <div v-else class="space-y-12px">
-              <div 
-                v-for="(target, index) in model.targets" 
-                :key="index"
-                class="flex items-center gap-12px p-12px border border-gray-200 rounded-lg"
-              >
-                <NSelect
-                  v-model:value="target.targetType"
-                  :options="targetTypeOptions"
-                  placeholder="目标类型"
-                  style="width: 100px"
-                />
-                
-                <NInput
-                  v-model:value="target.targetId"
-                  placeholder="目标ID（设备SN、用户ID等）"
-                  style="flex: 1"
-                />
-                
-                <NSelect
-                  v-model:value="target.channel"
-                  :options="channelOptions"
-                  placeholder="分发渠道"
-                  style="width: 100px"
-                />
-                
-                <NButton type="error" quaternary size="small" @click="removeTarget(index)">
-                  移除
-                </NButton>
+              <div v-for="(target, index) in model.targets" :key="index" class="flex items-center gap-12px border border-gray-200 rounded-lg p-12px">
+                <NSelect v-model:value="target.targetType" :options="targetTypeOptions" placeholder="目标类型" style="width: 100px" />
+
+                <NInput v-model:value="target.targetId" placeholder="目标ID（设备SN、用户ID等）" style="flex: 1" />
+
+                <NSelect v-model:value="target.channel" :options="channelOptions" placeholder="分发渠道" style="width: 100px" />
+
+                <NButton type="error" quaternary size="small" @click="removeTarget(index)">移除</NButton>
               </div>
             </div>
           </NCard>
@@ -459,7 +405,7 @@ watch(() => model.enableExpiration, (enabled) => {
                   <NSwitch v-model:value="model.enableExpiration" />
                 </NFormItem>
               </NGridItem>
-              
+
               <NGridItem v-if="model.enableExpiration">
                 <NFormItem label="过期时间">
                   <NDatePicker
@@ -472,7 +418,7 @@ watch(() => model.enableExpiration, (enabled) => {
                 </NFormItem>
               </NGridItem>
             </NGrid>
-            
+
             <NAlert type="info" show-icon class="mt-16px">
               <div class="text-sm space-y-4px">
                 <div>• 如果未设置分发目标，系统会根据接收者类型自动确定分发范围</div>
@@ -483,7 +429,7 @@ watch(() => model.enableExpiration, (enabled) => {
           </NCard>
         </div>
       </NForm>
-      
+
       <template #footer>
         <div class="flex justify-end gap-8px">
           <NButton @click="closeDrawer">取消</NButton>

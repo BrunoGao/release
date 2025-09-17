@@ -1,6 +1,6 @@
 <script setup lang="tsx">
-import { NButton, NPopconfirm, NTag, NProgress, NSpace } from 'naive-ui';
-import { type Ref, onMounted, ref, shallowRef, watch, computed, h } from 'vue';
+import { NButton, NPopconfirm, NProgress, NSpace, NTag } from 'naive-ui';
+import { type Ref, computed, h, onMounted, ref, shallowRef, watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
 import { useAuthStore } from '@/store/modules/auth';
@@ -34,7 +34,7 @@ const selectedTaskResult = ref(null);
 const fetchGetPredictionTaskList = async (params: any) => {
   // 模拟延迟
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
+
   // 模拟数据
   const mockTasks = [
     {
@@ -202,22 +202,12 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       render: row => (
         <NSpace size="small">
           {row.status === 'completed' && (
-            <NButton 
-              type="info" 
-              quaternary 
-              size="small" 
-              onClick={() => viewResults(row)}
-            >
+            <NButton type="info" quaternary size="small" onClick={() => viewResults(row)}>
               查看结果
             </NButton>
           )}
           {hasAuth('health:prediction:edit') && (
-            <NButton 
-              type="primary" 
-              quaternary 
-              size="small" 
-              onClick={() => edit(row)}
-            >
+            <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
               {$t('common.edit')}
             </NButton>
           )}
@@ -322,10 +312,10 @@ const taskStats = computed(() => {
     failed: 0,
     avgAccuracy: 0
   };
-  
+
   let totalAccuracy = 0;
   let completedCount = 0;
-  
+
   data.value.forEach(task => {
     if (task.status === 'completed') {
       stats.completed++;
@@ -339,7 +329,7 @@ const taskStats = computed(() => {
       stats.failed++;
     }
   });
-  
+
   stats.avgAccuracy = completedCount > 0 ? totalAccuracy / completedCount : 0;
   return stats;
 });
@@ -348,42 +338,42 @@ const taskStats = computed(() => {
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
     <!-- 统计卡片 -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <div class="grid grid-cols-1 mb-4 gap-4 lg:grid-cols-4 sm:grid-cols-2">
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">总任务数</div>
-            <div class="text-2xl font-bold text-primary">{{ taskStats.total }}</div>
+            <div class="text-2xl text-primary font-bold">{{ taskStats.total }}</div>
           </div>
           <div class="text-3xl text-primary opacity-20">📊</div>
         </div>
       </NCard>
-      
+
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">已完成</div>
-            <div class="text-2xl font-bold text-success">{{ taskStats.completed }}</div>
+            <div class="text-2xl text-success font-bold">{{ taskStats.completed }}</div>
           </div>
           <div class="text-3xl text-success opacity-20">✅</div>
         </div>
       </NCard>
-      
+
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">执行中</div>
-            <div class="text-2xl font-bold text-info">{{ taskStats.running }}</div>
+            <div class="text-2xl text-info font-bold">{{ taskStats.running }}</div>
           </div>
           <div class="text-3xl text-info opacity-20">⚡</div>
         </div>
       </NCard>
-      
+
       <NCard size="small">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-gray-600">平均准确率</div>
-            <div class="text-2xl font-bold text-warning">{{ (taskStats.avgAccuracy * 100).toFixed(1) }}%</div>
+            <div class="text-2xl text-warning font-bold">{{ (taskStats.avgAccuracy * 100).toFixed(1) }}%</div>
           </div>
           <div class="text-3xl text-warning opacity-20">🎯</div>
         </div>
@@ -399,7 +389,7 @@ const taskStats = computed(() => {
       @reset="resetSearchParams"
       @search="getDataByPage"
     />
-    
+
     <!-- 主要内容区域 -->
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <template #header>
@@ -415,7 +405,7 @@ const taskStats = computed(() => {
           </NSpace>
         </div>
       </template>
-      
+
       <TableHeaderOperation
         v-model:columns="columnChecks"
         :checked-row-keys="checkedRowKeys"
@@ -435,7 +425,7 @@ const taskStats = computed(() => {
           </NButton>
         </template>
       </TableHeaderOperation>
-      
+
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
         remote
@@ -454,26 +444,20 @@ const taskStats = computed(() => {
     </NCard>
 
     <!-- 操作抽屉 -->
-    <HealthPredictionOperateDrawer 
-      v-model:visible="drawerVisible" 
-      :operate-type="operateType" 
-      :row-data="editingData" 
+    <HealthPredictionOperateDrawer
+      v-model:visible="drawerVisible"
+      :operate-type="operateType"
+      :row-data="editingData"
       :org-units-tree="orgUnitsTree"
       :user-options="userOptions"
-      @submitted="getDataByPage" 
+      @submitted="getDataByPage"
     />
 
     <!-- 模型管理器弹窗 -->
-    <PredictionModelManager 
-      v-model:visible="modelManagerVisible"
-      @model-updated="getData"
-    />
+    <PredictionModelManager v-model:visible="modelManagerVisible" @model-updated="getData" />
 
     <!-- 预测结果查看器 -->
-    <PredictionResultViewer 
-      v-model:visible="resultViewerVisible"
-      :task-data="selectedTaskResult"
-    />
+    <PredictionResultViewer v-model:visible="resultViewerVisible" :task-data="selectedTaskResult" />
   </div>
 </template>
 

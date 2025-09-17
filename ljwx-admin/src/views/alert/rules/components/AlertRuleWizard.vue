@@ -1,532 +1,5 @@
-<template>
-  <NModal v-model:show="visible" preset="dialog" class="alert-rule-wizard">
-    <template #header>
-      <div class="flex items-center gap-3">
-        <NIcon size="24" color="#3b82f6">
-          <i class="i-material-symbols:auto-awesome"></i>
-        </NIcon>
-        <span class="text-xl font-bold">告警规则配置向导</span>
-      </div>
-    </template>
-    
-    <div class="wizard-content">
-      <!-- 步骤指示器 -->
-      <NSteps :current="currentStep" :status="currentStepStatus" size="small" class="mb-6">
-        <NStep title="规则类型">
-          <template #icon>
-            <NIcon><i class="i-material-symbols:category"></i></NIcon>
-          </template>
-        </NStep>
-        <NStep title="基础配置">
-          <template #icon>
-            <NIcon><i class="i-material-symbols:settings"></i></NIcon>
-          </template>
-        </NStep>
-        <NStep title="条件设置">
-          <template #icon>
-            <NIcon><i class="i-material-symbols:rule"></i></NIcon>
-          </template>
-        </NStep>
-        <NStep title="通知配置">
-          <template #icon>
-            <NIcon><i class="i-material-symbols:notifications"></i></NIcon>
-          </template>
-        </NStep>
-        <NStep title="确认创建">
-          <template #icon>
-            <NIcon><i class="i-material-symbols:check-circle"></i></NIcon>
-          </template>
-        </NStep>
-      </NSteps>
-
-      <!-- 步骤内容 -->
-      <div class="step-content">
-        <!-- 步骤1: 选择规则类型 -->
-        <div v-show="currentStep === 1" class="step-panel">
-          <div class="step-title">
-            <h3>选择告警规则类型</h3>
-            <p class="text-gray-500 text-sm">不同类型的规则适用于不同的监控场景</p>
-          </div>
-          
-          <div class="rule-type-cards">
-            <div 
-              v-for="type in ruleTypes" 
-              :key="type.value"
-              class="rule-type-card"
-              :class="{ 'active': form.ruleCategory === type.value }"
-              @click="selectRuleType(type.value)"
-            >
-              <div class="card-header">
-                <NIcon :size="28" :color="type.color">
-                  <i :class="type.icon"></i>
-                </NIcon>
-                <h4>{{ type.label }}</h4>
-                <NTag :type="type.tagType" size="small">{{ type.badge }}</NTag>
-              </div>
-              <div class="card-content">
-                <p class="description">{{ type.description }}</p>
-                <div class="features">
-                  <div v-for="feature in type.features" :key="feature" class="feature-item">
-                    <NIcon size="14" color="#10b981">
-                      <i class="i-material-symbols:check"></i>
-                    </NIcon>
-                    <span>{{ feature }}</span>
-                  </div>
-                </div>
-                <div class="use-cases">
-                  <strong>适用场景：</strong>
-                  <span class="text-sm text-gray-600">{{ type.useCase }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 步骤2: 基础配置 -->
-        <div v-show="currentStep === 2" class="step-panel">
-          <div class="step-title">
-            <h3>基础信息配置</h3>
-            <p class="text-gray-500 text-sm">设置规则的基本属性和参数</p>
-          </div>
-          
-          <NForm ref="basicFormRef" :model="form" :rules="basicRules" class="basic-config-form">
-            <div class="form-grid">
-              <NFormItem label="规则名称" path="ruleName" class="form-item">
-                <NInput 
-                  v-model:value="form.ruleName" 
-                  placeholder="请输入规则名称"
-                  maxlength="50"
-                  show-count
-                />
-              </NFormItem>
-              
-              <NFormItem label="优先级" path="priorityLevel" class="form-item">
-                <NSelect
-                  v-model:value="form.priorityLevel"
-                  :options="priorityOptions"
-                  placeholder="选择优先级"
-                />
-              </NFormItem>
-              
-              <NFormItem label="严重级别" path="level" class="form-item">
-                <NSelect
-                  v-model:value="form.level"
-                  :options="severityOptions"
-                  placeholder="选择严重级别"
-                />
-              </NFormItem>
-              
-              <NFormItem label="时间窗口" path="timeWindowSeconds" class="form-item">
-                <NInputNumber
-                  v-model:value="form.timeWindowSeconds"
-                  :min="60"
-                  :max="3600"
-                  placeholder="检测时间窗口(秒)"
-                  style="width: 100%"
-                />
-              </NFormItem>
-              
-              <NFormItem label="冷却期" path="cooldownSeconds" class="form-item">
-                <NInputNumber
-                  v-model:value="form.cooldownSeconds"
-                  :min="300"
-                  :max="86400"
-                  placeholder="告警冷却期(秒)"
-                  style="width: 100%"
-                />
-              </NFormItem>
-              
-              <NFormItem label="生效时间" path="effectiveTime" class="form-item-full">
-                <NSpace>
-                  <NTimePicker
-                    v-model:value="form.effectiveTimeStart"
-                    placeholder="开始时间"
-                    format="HH:mm:ss"
-                  />
-                  <span>至</span>
-                  <NTimePicker
-                    v-model:value="form.effectiveTimeEnd"
-                    placeholder="结束时间"
-                    format="HH:mm:ss"
-                  />
-                </NSpace>
-              </NFormItem>
-              
-              <NFormItem label="生效星期" path="effectiveDays" class="form-item-full">
-                <NCheckboxGroup v-model:value="form.effectiveDays">
-                  <NSpace>
-                    <NCheckbox value="1" label="周一" />
-                    <NCheckbox value="2" label="周二" />
-                    <NCheckbox value="3" label="周三" />
-                    <NCheckbox value="4" label="周四" />
-                    <NCheckbox value="5" label="周五" />
-                    <NCheckbox value="6" label="周六" />
-                    <NCheckbox value="7" label="周日" />
-                  </NSpace>
-                </NCheckboxGroup>
-              </NFormItem>
-            </div>
-          </NForm>
-        </div>
-
-        <!-- 步骤3: 条件设置 -->
-        <div v-show="currentStep === 3" class="step-panel">
-          <div class="step-title">
-            <h3>告警条件设置</h3>
-            <p class="text-gray-500 text-sm">根据规则类型配置触发条件</p>
-          </div>
-          
-          <!-- 单体征规则配置 -->
-          <div v-if="form.ruleCategory === 'SINGLE'" class="condition-config">
-            <NForm ref="conditionFormRef" :model="form" :rules="conditionRules">
-              <div class="form-grid">
-                <NFormItem label="监控指标" path="physicalSign" class="form-item">
-                  <NSelect
-                    v-model:value="form.physicalSign"
-                    :options="healthDataOptions"
-                    placeholder="选择监控的健康指标"
-                  />
-                </NFormItem>
-                
-                <NFormItem label="阈值类型" path="thresholdType" class="form-item">
-                  <NRadioGroup v-model:value="form.thresholdType">
-                    <NSpace>
-                      <NRadio value="range" label="范围检测" />
-                      <NRadio value="min" label="最小值" />
-                      <NRadio value="max" label="最大值" />
-                    </NSpace>
-                  </NRadioGroup>
-                </NFormItem>
-                
-                <NFormItem 
-                  v-if="form.thresholdType === 'range' || form.thresholdType === 'min'"
-                  label="最小值" 
-                  path="thresholdMin" 
-                  class="form-item"
-                >
-                  <NInputNumber
-                    v-model:value="form.thresholdMin"
-                    placeholder="最小阈值"
-                    style="width: 100%"
-                  />
-                </NFormItem>
-                
-                <NFormItem 
-                  v-if="form.thresholdType === 'range' || form.thresholdType === 'max'"
-                  label="最大值" 
-                  path="thresholdMax" 
-                  class="form-item"
-                >
-                  <NInputNumber
-                    v-model:value="form.thresholdMax"
-                    placeholder="最大阈值"
-                    style="width: 100%"
-                  />
-                </NFormItem>
-                
-                <NFormItem label="持续时长" path="trendDuration" class="form-item">
-                  <NInputNumber
-                    v-model:value="form.trendDuration"
-                    :min="1"
-                    :max="60"
-                    placeholder="异常持续分钟数"
-                    style="width: 100%"
-                  />
-                </NFormItem>
-              </div>
-            </NForm>
-          </div>
-          
-          <!-- 复合规则配置 -->
-          <div v-if="form.ruleCategory === 'COMPOSITE'" class="condition-config">
-            <div class="composite-conditions">
-              <div class="conditions-header">
-                <h4>复合条件设置</h4>
-                <NButton type="primary" size="small" @click="addCondition">
-                  <template #icon>
-                    <NIcon><i class="i-material-symbols:add"></i></NIcon>
-                  </template>
-                  添加条件
-                </NButton>
-              </div>
-              
-              <div v-for="(condition, index) in form.conditions" :key="index" class="condition-item">
-                <NCard size="small" class="condition-card">
-                  <template #header>
-                    <div class="flex justify-between items-center">
-                      <span>条件 {{ index + 1 }}</span>
-                      <NButton 
-                        v-if="form.conditions.length > 1"
-                        type="error" 
-                        text 
-                        size="small" 
-                        @click="removeCondition(index)"
-                      >
-                        <template #icon>
-                          <NIcon><i class="i-material-symbols:delete"></i></NIcon>
-                        </template>
-                      </NButton>
-                    </div>
-                  </template>
-                  
-                  <div class="condition-form">
-                    <NFormItem label="监控指标">
-                      <NSelect
-                        v-model:value="condition.physicalSign"
-                        :options="healthDataOptions"
-                        placeholder="选择监控指标"
-                      />
-                    </NFormItem>
-                    
-                    <NFormItem label="操作符">
-                      <NSelect
-                        v-model:value="condition.operator"
-                        :options="operatorOptions"
-                        placeholder="选择比较操作符"
-                      />
-                    </NFormItem>
-                    
-                    <NFormItem label="阈值">
-                      <NInputNumber
-                        v-model:value="condition.threshold"
-                        placeholder="设置阈值"
-                        style="width: 100%"
-                      />
-                    </NFormItem>
-                    
-                    <NFormItem label="持续时长">
-                      <NInputNumber
-                        v-model:value="condition.durationSeconds"
-                        :min="60"
-                        :max="3600"
-                        placeholder="持续时长(秒)"
-                        style="width: 100%"
-                      />
-                    </NFormItem>
-                  </div>
-                </NCard>
-                
-                <!-- 逻辑连接符 -->
-                <div v-if="index < form.conditions.length - 1" class="logical-operator">
-                  <NRadioGroup v-model:value="form.logicalOperator">
-                    <NSpace>
-                      <NRadio value="AND" label="并且(AND)" />
-                      <NRadio value="OR" label="或者(OR)" />
-                    </NSpace>
-                  </NRadioGroup>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 复杂规则配置 -->
-          <div v-if="form.ruleCategory === 'COMPLEX'" class="condition-config">
-            <NAlert type="info" class="mb-4">
-              <template #icon>
-                <NIcon><i class="i-material-symbols:info"></i></NIcon>
-              </template>
-              复杂规则功能正在开发中，敬请期待！
-            </NAlert>
-          </div>
-        </div>
-
-        <!-- 步骤4: 通知配置 -->
-        <div v-show="currentStep === 4" class="step-panel">
-          <div class="step-title">
-            <h3>通知渠道配置</h3>
-            <p class="text-gray-500 text-sm">设置告警的通知方式和消息内容</p>
-          </div>
-          
-          <NForm ref="notificationFormRef" :model="form" :rules="notificationRules">
-            <div class="notification-config">
-              <NFormItem label="通知渠道" path="enabledChannels">
-                <NCheckboxGroup v-model:value="form.enabledChannels">
-                  <NSpace vertical>
-                    <NCheckbox value="message" label="内部消息">
-                      <template #default>
-                        <div class="channel-item">
-                          <NIcon size="18" color="#1890ff">
-                            <i class="i-material-symbols:message"></i>
-                          </NIcon>
-                          <span>内部消息</span>
-                          <NTag size="small" type="info">实时</NTag>
-                        </div>
-                      </template>
-                    </NCheckbox>
-                    
-                    <NCheckbox value="wechat" label="微信通知">
-                      <template #default>
-                        <div class="channel-item">
-                          <NIcon size="18" color="#10b981">
-                            <i class="i-material-symbols:chat"></i>
-                          </NIcon>
-                          <span>微信通知</span>
-                          <NTag size="small" type="success">推荐</NTag>
-                        </div>
-                      </template>
-                    </NCheckbox>
-                    
-                    <NCheckbox value="sms" label="短信通知">
-                      <template #default>
-                        <div class="channel-item">
-                          <NIcon size="18" color="#fa8c16">
-                            <i class="i-material-symbols:sms"></i>
-                          </NIcon>
-                          <span>短信通知</span>
-                          <NTag size="small" type="warning">收费</NTag>
-                        </div>
-                      </template>
-                    </NCheckbox>
-                    
-                    <NCheckbox value="email" label="邮件通知">
-                      <template #default>
-                        <div class="channel-item">
-                          <NIcon size="18" color="#722ed1">
-                            <i class="i-material-symbols:email"></i>
-                          </NIcon>
-                          <span>邮件通知</span>
-                          <NTag size="small" type="default">延时</NTag>
-                        </div>
-                      </template>
-                    </NCheckbox>
-                  </NSpace>
-                </NCheckboxGroup>
-              </NFormItem>
-              
-              <NFormItem label="告警消息模板" path="alertMessage">
-                <NInput
-                  v-model:value="form.alertMessage"
-                  type="textarea"
-                  :rows="4"
-                  placeholder="请输入告警消息模板，支持变量：{device_sn}, {value}, {timestamp} 等"
-                  maxlength="200"
-                  show-count
-                />
-              </NFormItem>
-              
-              <NFormItem label="消息预览">
-                <div class="message-preview">
-                  <h5>预览效果：</h5>
-                  <div class="preview-content">
-                    {{ generateMessagePreview() }}
-                  </div>
-                </div>
-              </NFormItem>
-            </div>
-          </NForm>
-        </div>
-
-        <!-- 步骤5: 确认创建 -->
-        <div v-show="currentStep === 5" class="step-panel">
-          <div class="step-title">
-            <h3>确认配置信息</h3>
-            <p class="text-gray-500 text-sm">请确认以下配置信息无误后创建规则</p>
-          </div>
-          
-          <div class="confirmation-content">
-            <NCard class="config-summary">
-              <template #header>
-                <div class="flex items-center gap-2">
-                  <NIcon color="#3b82f6"><i class="i-material-symbols:summarize"></i></NIcon>
-                  <span>配置摘要</span>
-                </div>
-              </template>
-              
-              <div class="summary-sections">
-                <!-- 基础信息 -->
-                <div class="summary-section">
-                  <h4>基础信息</h4>
-                  <div class="summary-items">
-                    <div class="summary-item">
-                      <span class="label">规则类型：</span>
-                      <span class="value">{{ getRuleTypeLabel(form.ruleCategory) }}</span>
-                    </div>
-                    <div class="summary-item">
-                      <span class="label">规则名称：</span>
-                      <span class="value">{{ form.ruleName || '未设置' }}</span>
-                    </div>
-                    <div class="summary-item">
-                      <span class="label">优先级：</span>
-                      <span class="value">{{ getPriorityLabel(form.priorityLevel) }}</span>
-                    </div>
-                    <div class="summary-item">
-                      <span class="label">严重级别：</span>
-                      <span class="value">{{ getSeverityLabel(form.level) }}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- 条件设置 -->
-                <div class="summary-section">
-                  <h4>条件设置</h4>
-                  <div class="summary-items">
-                    <div v-if="form.ruleCategory === 'SINGLE'" class="summary-item">
-                      <span class="label">监控指标：</span>
-                      <span class="value">{{ getHealthDataLabel(form.physicalSign) }}</span>
-                    </div>
-                    <div v-if="form.ruleCategory === 'SINGLE'" class="summary-item">
-                      <span class="label">阈值范围：</span>
-                      <span class="value">{{ getThresholdLabel() }}</span>
-                    </div>
-                    <div v-if="form.ruleCategory === 'COMPOSITE'" class="summary-item">
-                      <span class="label">复合条件：</span>
-                      <span class="value">{{ form.conditions.length }} 个条件，{{ form.logicalOperator }} 逻辑</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- 通知配置 -->
-                <div class="summary-section">
-                  <h4>通知配置</h4>
-                  <div class="summary-items">
-                    <div class="summary-item">
-                      <span class="label">通知渠道：</span>
-                      <span class="value">{{ getChannelsLabel() }}</span>
-                    </div>
-                    <div class="summary-item">
-                      <span class="label">消息模板：</span>
-                      <span class="value">{{ form.alertMessage || '使用默认模板' }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </NCard>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <template #action>
-      <div class="wizard-actions">
-        <NButton v-if="currentStep > 1" @click="prevStep">
-          <template #icon>
-            <NIcon><i class="i-material-symbols:arrow-back"></i></NIcon>
-          </template>
-          上一步
-        </NButton>
-        
-        <NButton v-if="currentStep < 5" type="primary" @click="nextStep" :loading="validating">
-          下一步
-          <template #icon>
-            <NIcon><i class="i-material-symbols:arrow-forward"></i></NIcon>
-          </template>
-        </NButton>
-        
-        <NButton v-if="currentStep === 5" type="primary" @click="createRule" :loading="creating">
-          <template #icon>
-            <NIcon><i class="i-material-symbols:check"></i></NIcon>
-          </template>
-          创建规则
-        </NButton>
-        
-        <NButton @click="closeWizard">取消</NButton>
-      </div>
-    </template>
-  </NModal>
-</template>
-
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import { useDict } from '@/hooks/business/dict';
 import { fetchAddAlertRules } from '@/service/api';
@@ -550,7 +23,7 @@ const authStore = useAuthStore();
 
 const visible = computed({
   get: () => props.visible,
-  set: (value) => emit('update:visible', value)
+  set: value => emit('update:visible', value)
 });
 
 // 表单引用
@@ -664,30 +137,22 @@ const basicRules = {
     { required: true, message: '请输入规则名称', trigger: 'blur' },
     { min: 2, max: 50, message: '规则名称长度为2-50个字符', trigger: 'blur' }
   ],
-  priorityLevel: [
-    { required: true, type: 'number', message: '请选择优先级', trigger: 'change' }
-  ],
-  level: [
-    { required: true, message: '请选择严重级别', trigger: 'change' }
-  ]
+  priorityLevel: [{ required: true, type: 'number', message: '请选择优先级', trigger: 'change' }],
+  level: [{ required: true, message: '请选择严重级别', trigger: 'change' }]
 };
 
 const conditionRules = {
-  physicalSign: [
-    { required: true, message: '请选择监控指标', trigger: 'change' }
-  ]
+  physicalSign: [{ required: true, message: '请选择监控指标', trigger: 'change' }]
 };
 
 const notificationRules = {
-  enabledChannels: [
-    { required: true, type: 'array', min: 1, message: '请至少选择一个通知渠道', trigger: 'change' }
-  ]
+  enabledChannels: [{ required: true, type: 'array', min: 1, message: '请至少选择一个通知渠道', trigger: 'change' }]
 };
 
 // 方法定义
 function selectRuleType(type: string) {
   form.ruleCategory = type;
-  
+
   // 重置相关字段
   if (type === 'SINGLE') {
     form.conditions = [];
@@ -718,9 +183,9 @@ function removeCondition(index: number) {
 async function nextStep() {
   // 验证当前步骤
   let valid = true;
-  
+
   validating.value = true;
-  
+
   try {
     switch (currentStep.value) {
       case 1:
@@ -729,13 +194,13 @@ async function nextStep() {
           valid = false;
         }
         break;
-        
+
       case 2:
         if (basicFormRef.value) {
           await basicFormRef.value.validate();
         }
         break;
-        
+
       case 3:
         if (conditionFormRef.value) {
           await conditionFormRef.value.validate();
@@ -757,14 +222,14 @@ async function nextStep() {
           }
         }
         break;
-        
+
       case 4:
         if (notificationFormRef.value) {
           await notificationFormRef.value.validate();
         }
         break;
     }
-    
+
     if (valid) {
       currentStep.value++;
     }
@@ -783,16 +248,19 @@ function prevStep() {
 
 async function createRule() {
   creating.value = true;
-  
+
   try {
     // 构建提交数据
     const submitData = {
       ...form,
       // 处理复合规则的条件表达式
-      conditionExpression: form.ruleCategory === 'COMPOSITE' ? JSON.stringify({
-        conditions: form.conditions,
-        logical_operator: form.logicalOperator
-      }) : null,
+      conditionExpression:
+        form.ruleCategory === 'COMPOSITE'
+          ? JSON.stringify({
+              conditions: form.conditions,
+              logical_operator: form.logicalOperator
+            })
+          : null,
       // 处理生效时间
       effectiveTimeStart: form.effectiveTimeStart ? new Date(form.effectiveTimeStart) : null,
       effectiveTimeEnd: form.effectiveTimeEnd ? new Date(form.effectiveTimeEnd) : null,
@@ -801,9 +269,9 @@ async function createRule() {
       enabledChannels: JSON.stringify(form.enabledChannels),
       isEnabled: true
     };
-    
+
     const { error } = await fetchAddAlertRules(submitData);
-    
+
     if (!error) {
       message.success('告警规则创建成功！');
       emit('success');
@@ -885,16 +353,16 @@ function getThresholdLabel() {
 
 function getChannelsLabel() {
   const channelMap = {
-    'message': '内部消息',
-    'wechat': '微信',
-    'sms': '短信',
-    'email': '邮件'
+    message: '内部消息',
+    wechat: '微信',
+    sms: '短信',
+    email: '邮件'
   };
   return form.enabledChannels.map(ch => channelMap[ch] || ch).join('、');
 }
 
 // 监听步骤变化
-watch(currentStep, (newStep) => {
+watch(currentStep, newStep => {
   if (newStep === 5) {
     currentStepStatus.value = 'finish';
   } else {
@@ -902,6 +370,448 @@ watch(currentStep, (newStep) => {
   }
 });
 </script>
+
+<template>
+  <NModal v-model:show="visible" preset="dialog" class="alert-rule-wizard">
+    <template #header>
+      <div class="flex items-center gap-3">
+        <NIcon size="24" color="#3b82f6">
+          <i class="i-material-symbols:auto-awesome"></i>
+        </NIcon>
+        <span class="text-xl font-bold">告警规则配置向导</span>
+      </div>
+    </template>
+
+    <div class="wizard-content">
+      <!-- 步骤指示器 -->
+      <NSteps :current="currentStep" :status="currentStepStatus" size="small" class="mb-6">
+        <NStep title="规则类型">
+          <template #icon>
+            <NIcon><i class="i-material-symbols:category"></i></NIcon>
+          </template>
+        </NStep>
+        <NStep title="基础配置">
+          <template #icon>
+            <NIcon><i class="i-material-symbols:settings"></i></NIcon>
+          </template>
+        </NStep>
+        <NStep title="条件设置">
+          <template #icon>
+            <NIcon><i class="i-material-symbols:rule"></i></NIcon>
+          </template>
+        </NStep>
+        <NStep title="通知配置">
+          <template #icon>
+            <NIcon><i class="i-material-symbols:notifications"></i></NIcon>
+          </template>
+        </NStep>
+        <NStep title="确认创建">
+          <template #icon>
+            <NIcon><i class="i-material-symbols:check-circle"></i></NIcon>
+          </template>
+        </NStep>
+      </NSteps>
+
+      <!-- 步骤内容 -->
+      <div class="step-content">
+        <!-- 步骤1: 选择规则类型 -->
+        <div v-show="currentStep === 1" class="step-panel">
+          <div class="step-title">
+            <h3>选择告警规则类型</h3>
+            <p class="text-sm text-gray-500">不同类型的规则适用于不同的监控场景</p>
+          </div>
+
+          <div class="rule-type-cards">
+            <div
+              v-for="type in ruleTypes"
+              :key="type.value"
+              class="rule-type-card"
+              :class="{ active: form.ruleCategory === type.value }"
+              @click="selectRuleType(type.value)"
+            >
+              <div class="card-header">
+                <NIcon :size="28" :color="type.color">
+                  <i :class="type.icon"></i>
+                </NIcon>
+                <h4>{{ type.label }}</h4>
+                <NTag :type="type.tagType" size="small">{{ type.badge }}</NTag>
+              </div>
+              <div class="card-content">
+                <p class="description">{{ type.description }}</p>
+                <div class="features">
+                  <div v-for="feature in type.features" :key="feature" class="feature-item">
+                    <NIcon size="14" color="#10b981">
+                      <i class="i-material-symbols:check"></i>
+                    </NIcon>
+                    <span>{{ feature }}</span>
+                  </div>
+                </div>
+                <div class="use-cases">
+                  <strong>适用场景：</strong>
+                  <span class="text-sm text-gray-600">{{ type.useCase }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 步骤2: 基础配置 -->
+        <div v-show="currentStep === 2" class="step-panel">
+          <div class="step-title">
+            <h3>基础信息配置</h3>
+            <p class="text-sm text-gray-500">设置规则的基本属性和参数</p>
+          </div>
+
+          <NForm ref="basicFormRef" :model="form" :rules="basicRules" class="basic-config-form">
+            <div class="form-grid">
+              <NFormItem label="规则名称" path="ruleName" class="form-item">
+                <NInput v-model:value="form.ruleName" placeholder="请输入规则名称" maxlength="50" show-count />
+              </NFormItem>
+
+              <NFormItem label="优先级" path="priorityLevel" class="form-item">
+                <NSelect v-model:value="form.priorityLevel" :options="priorityOptions" placeholder="选择优先级" />
+              </NFormItem>
+
+              <NFormItem label="严重级别" path="level" class="form-item">
+                <NSelect v-model:value="form.level" :options="severityOptions" placeholder="选择严重级别" />
+              </NFormItem>
+
+              <NFormItem label="时间窗口" path="timeWindowSeconds" class="form-item">
+                <NInputNumber v-model:value="form.timeWindowSeconds" :min="60" :max="3600" placeholder="检测时间窗口(秒)" style="width: 100%" />
+              </NFormItem>
+
+              <NFormItem label="冷却期" path="cooldownSeconds" class="form-item">
+                <NInputNumber v-model:value="form.cooldownSeconds" :min="300" :max="86400" placeholder="告警冷却期(秒)" style="width: 100%" />
+              </NFormItem>
+
+              <NFormItem label="生效时间" path="effectiveTime" class="form-item-full">
+                <NSpace>
+                  <NTimePicker v-model:value="form.effectiveTimeStart" placeholder="开始时间" format="HH:mm:ss" />
+                  <span>至</span>
+                  <NTimePicker v-model:value="form.effectiveTimeEnd" placeholder="结束时间" format="HH:mm:ss" />
+                </NSpace>
+              </NFormItem>
+
+              <NFormItem label="生效星期" path="effectiveDays" class="form-item-full">
+                <NCheckboxGroup v-model:value="form.effectiveDays">
+                  <NSpace>
+                    <NCheckbox value="1" label="周一" />
+                    <NCheckbox value="2" label="周二" />
+                    <NCheckbox value="3" label="周三" />
+                    <NCheckbox value="4" label="周四" />
+                    <NCheckbox value="5" label="周五" />
+                    <NCheckbox value="6" label="周六" />
+                    <NCheckbox value="7" label="周日" />
+                  </NSpace>
+                </NCheckboxGroup>
+              </NFormItem>
+            </div>
+          </NForm>
+        </div>
+
+        <!-- 步骤3: 条件设置 -->
+        <div v-show="currentStep === 3" class="step-panel">
+          <div class="step-title">
+            <h3>告警条件设置</h3>
+            <p class="text-sm text-gray-500">根据规则类型配置触发条件</p>
+          </div>
+
+          <!-- 单体征规则配置 -->
+          <div v-if="form.ruleCategory === 'SINGLE'" class="condition-config">
+            <NForm ref="conditionFormRef" :model="form" :rules="conditionRules">
+              <div class="form-grid">
+                <NFormItem label="监控指标" path="physicalSign" class="form-item">
+                  <NSelect v-model:value="form.physicalSign" :options="healthDataOptions" placeholder="选择监控的健康指标" />
+                </NFormItem>
+
+                <NFormItem label="阈值类型" path="thresholdType" class="form-item">
+                  <NRadioGroup v-model:value="form.thresholdType">
+                    <NSpace>
+                      <NRadio value="range" label="范围检测" />
+                      <NRadio value="min" label="最小值" />
+                      <NRadio value="max" label="最大值" />
+                    </NSpace>
+                  </NRadioGroup>
+                </NFormItem>
+
+                <NFormItem v-if="form.thresholdType === 'range' || form.thresholdType === 'min'" label="最小值" path="thresholdMin" class="form-item">
+                  <NInputNumber v-model:value="form.thresholdMin" placeholder="最小阈值" style="width: 100%" />
+                </NFormItem>
+
+                <NFormItem v-if="form.thresholdType === 'range' || form.thresholdType === 'max'" label="最大值" path="thresholdMax" class="form-item">
+                  <NInputNumber v-model:value="form.thresholdMax" placeholder="最大阈值" style="width: 100%" />
+                </NFormItem>
+
+                <NFormItem label="持续时长" path="trendDuration" class="form-item">
+                  <NInputNumber v-model:value="form.trendDuration" :min="1" :max="60" placeholder="异常持续分钟数" style="width: 100%" />
+                </NFormItem>
+              </div>
+            </NForm>
+          </div>
+
+          <!-- 复合规则配置 -->
+          <div v-if="form.ruleCategory === 'COMPOSITE'" class="condition-config">
+            <div class="composite-conditions">
+              <div class="conditions-header">
+                <h4>复合条件设置</h4>
+                <NButton type="primary" size="small" @click="addCondition">
+                  <template #icon>
+                    <NIcon><i class="i-material-symbols:add"></i></NIcon>
+                  </template>
+                  添加条件
+                </NButton>
+              </div>
+
+              <div v-for="(condition, index) in form.conditions" :key="index" class="condition-item">
+                <NCard size="small" class="condition-card">
+                  <template #header>
+                    <div class="flex items-center justify-between">
+                      <span>条件 {{ index + 1 }}</span>
+                      <NButton v-if="form.conditions.length > 1" type="error" text size="small" @click="removeCondition(index)">
+                        <template #icon>
+                          <NIcon><i class="i-material-symbols:delete"></i></NIcon>
+                        </template>
+                      </NButton>
+                    </div>
+                  </template>
+
+                  <div class="condition-form">
+                    <NFormItem label="监控指标">
+                      <NSelect v-model:value="condition.physicalSign" :options="healthDataOptions" placeholder="选择监控指标" />
+                    </NFormItem>
+
+                    <NFormItem label="操作符">
+                      <NSelect v-model:value="condition.operator" :options="operatorOptions" placeholder="选择比较操作符" />
+                    </NFormItem>
+
+                    <NFormItem label="阈值">
+                      <NInputNumber v-model:value="condition.threshold" placeholder="设置阈值" style="width: 100%" />
+                    </NFormItem>
+
+                    <NFormItem label="持续时长">
+                      <NInputNumber v-model:value="condition.durationSeconds" :min="60" :max="3600" placeholder="持续时长(秒)" style="width: 100%" />
+                    </NFormItem>
+                  </div>
+                </NCard>
+
+                <!-- 逻辑连接符 -->
+                <div v-if="index < form.conditions.length - 1" class="logical-operator">
+                  <NRadioGroup v-model:value="form.logicalOperator">
+                    <NSpace>
+                      <NRadio value="AND" label="并且(AND)" />
+                      <NRadio value="OR" label="或者(OR)" />
+                    </NSpace>
+                  </NRadioGroup>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 复杂规则配置 -->
+          <div v-if="form.ruleCategory === 'COMPLEX'" class="condition-config">
+            <NAlert type="info" class="mb-4">
+              <template #icon>
+                <NIcon><i class="i-material-symbols:info"></i></NIcon>
+              </template>
+              复杂规则功能正在开发中，敬请期待！
+            </NAlert>
+          </div>
+        </div>
+
+        <!-- 步骤4: 通知配置 -->
+        <div v-show="currentStep === 4" class="step-panel">
+          <div class="step-title">
+            <h3>通知渠道配置</h3>
+            <p class="text-sm text-gray-500">设置告警的通知方式和消息内容</p>
+          </div>
+
+          <NForm ref="notificationFormRef" :model="form" :rules="notificationRules">
+            <div class="notification-config">
+              <NFormItem label="通知渠道" path="enabledChannels">
+                <NCheckboxGroup v-model:value="form.enabledChannels">
+                  <NSpace vertical>
+                    <NCheckbox value="message" label="内部消息">
+                      <template #default>
+                        <div class="channel-item">
+                          <NIcon size="18" color="#1890ff">
+                            <i class="i-material-symbols:message"></i>
+                          </NIcon>
+                          <span>内部消息</span>
+                          <NTag size="small" type="info">实时</NTag>
+                        </div>
+                      </template>
+                    </NCheckbox>
+
+                    <NCheckbox value="wechat" label="微信通知">
+                      <template #default>
+                        <div class="channel-item">
+                          <NIcon size="18" color="#10b981">
+                            <i class="i-material-symbols:chat"></i>
+                          </NIcon>
+                          <span>微信通知</span>
+                          <NTag size="small" type="success">推荐</NTag>
+                        </div>
+                      </template>
+                    </NCheckbox>
+
+                    <NCheckbox value="sms" label="短信通知">
+                      <template #default>
+                        <div class="channel-item">
+                          <NIcon size="18" color="#fa8c16">
+                            <i class="i-material-symbols:sms"></i>
+                          </NIcon>
+                          <span>短信通知</span>
+                          <NTag size="small" type="warning">收费</NTag>
+                        </div>
+                      </template>
+                    </NCheckbox>
+
+                    <NCheckbox value="email" label="邮件通知">
+                      <template #default>
+                        <div class="channel-item">
+                          <NIcon size="18" color="#722ed1">
+                            <i class="i-material-symbols:email"></i>
+                          </NIcon>
+                          <span>邮件通知</span>
+                          <NTag size="small" type="default">延时</NTag>
+                        </div>
+                      </template>
+                    </NCheckbox>
+                  </NSpace>
+                </NCheckboxGroup>
+              </NFormItem>
+
+              <NFormItem label="告警消息模板" path="alertMessage">
+                <NInput
+                  v-model:value="form.alertMessage"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="请输入告警消息模板，支持变量：{device_sn}, {value}, {timestamp} 等"
+                  maxlength="200"
+                  show-count
+                />
+              </NFormItem>
+
+              <NFormItem label="消息预览">
+                <div class="message-preview">
+                  <h5>预览效果：</h5>
+                  <div class="preview-content">
+                    {{ generateMessagePreview() }}
+                  </div>
+                </div>
+              </NFormItem>
+            </div>
+          </NForm>
+        </div>
+
+        <!-- 步骤5: 确认创建 -->
+        <div v-show="currentStep === 5" class="step-panel">
+          <div class="step-title">
+            <h3>确认配置信息</h3>
+            <p class="text-sm text-gray-500">请确认以下配置信息无误后创建规则</p>
+          </div>
+
+          <div class="confirmation-content">
+            <NCard class="config-summary">
+              <template #header>
+                <div class="flex items-center gap-2">
+                  <NIcon color="#3b82f6"><i class="i-material-symbols:summarize"></i></NIcon>
+                  <span>配置摘要</span>
+                </div>
+              </template>
+
+              <div class="summary-sections">
+                <!-- 基础信息 -->
+                <div class="summary-section">
+                  <h4>基础信息</h4>
+                  <div class="summary-items">
+                    <div class="summary-item">
+                      <span class="label">规则类型：</span>
+                      <span class="value">{{ getRuleTypeLabel(form.ruleCategory) }}</span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="label">规则名称：</span>
+                      <span class="value">{{ form.ruleName || '未设置' }}</span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="label">优先级：</span>
+                      <span class="value">{{ getPriorityLabel(form.priorityLevel) }}</span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="label">严重级别：</span>
+                      <span class="value">{{ getSeverityLabel(form.level) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 条件设置 -->
+                <div class="summary-section">
+                  <h4>条件设置</h4>
+                  <div class="summary-items">
+                    <div v-if="form.ruleCategory === 'SINGLE'" class="summary-item">
+                      <span class="label">监控指标：</span>
+                      <span class="value">{{ getHealthDataLabel(form.physicalSign) }}</span>
+                    </div>
+                    <div v-if="form.ruleCategory === 'SINGLE'" class="summary-item">
+                      <span class="label">阈值范围：</span>
+                      <span class="value">{{ getThresholdLabel() }}</span>
+                    </div>
+                    <div v-if="form.ruleCategory === 'COMPOSITE'" class="summary-item">
+                      <span class="label">复合条件：</span>
+                      <span class="value">{{ form.conditions.length }} 个条件，{{ form.logicalOperator }} 逻辑</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 通知配置 -->
+                <div class="summary-section">
+                  <h4>通知配置</h4>
+                  <div class="summary-items">
+                    <div class="summary-item">
+                      <span class="label">通知渠道：</span>
+                      <span class="value">{{ getChannelsLabel() }}</span>
+                    </div>
+                    <div class="summary-item">
+                      <span class="label">消息模板：</span>
+                      <span class="value">{{ form.alertMessage || '使用默认模板' }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </NCard>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <template #action>
+      <div class="wizard-actions">
+        <NButton v-if="currentStep > 1" @click="prevStep">
+          <template #icon>
+            <NIcon><i class="i-material-symbols:arrow-back"></i></NIcon>
+          </template>
+          上一步
+        </NButton>
+
+        <NButton v-if="currentStep < 5" type="primary" :loading="validating" @click="nextStep">
+          下一步
+          <template #icon>
+            <NIcon><i class="i-material-symbols:arrow-forward"></i></NIcon>
+          </template>
+        </NButton>
+
+        <NButton v-if="currentStep === 5" type="primary" :loading="creating" @click="createRule">
+          <template #icon>
+            <NIcon><i class="i-material-symbols:check"></i></NIcon>
+          </template>
+          创建规则
+        </NButton>
+
+        <NButton @click="closeWizard">取消</NButton>
+      </div>
+    </template>
+  </NModal>
+</template>
 
 <style scoped>
 .alert-rule-wizard :deep(.n-dialog) {
@@ -924,8 +834,14 @@ watch(currentStep, (newStep) => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .step-title {
@@ -1172,15 +1088,15 @@ watch(currentStep, (newStep) => {
   .rule-type-cards {
     grid-template-columns: 1fr;
   }
-  
+
   .form-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .condition-form {
     grid-template-columns: 1fr;
   }
-  
+
   .wizard-actions {
     justify-content: center;
     flex-wrap: wrap;

@@ -10,12 +10,12 @@ import type { RequestInstanceState } from './type';
 
 // 不需要自动添加customerId的API白名单
 const EXCLUDE_CUSTOMER_ID_URLS = [
-  '/auth/',           // 认证相关
-  '/login',           // 登录
-  '/refresh',         // 刷新token
-  '/sys/dict',        // 字典数据(全局)
-  '/captcha',         // 验证码
-  '/logout'           // 登出
+  '/auth/', // 认证相关
+  '/login', // 登录
+  '/refresh', // 刷新token
+  '/sys/dict', // 字典数据(全局)
+  '/captcha', // 验证码
+  '/logout' // 登出
 ];
 
 // 修复：在生产环境中也应该使用代理前缀（如果配置了VITE_HTTP_PROXY=Y）
@@ -35,15 +35,14 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
 
       // 确定要使用的customerId
       let customerId = authStore.userInfo.customerId;
-      
+
       // 如果是admin用户且已选择客户，使用选中的客户ID
       if (authStore.userInfo?.userName === 'admin' && customerStore.currentCustomerId) {
         customerId = customerStore.currentCustomerId;
       }
 
       // 自动添加customerId (排除白名单URL)
-      const shouldAddCustomerId = customerId !== undefined && 
-        !EXCLUDE_CUSTOMER_ID_URLS.some(excludeUrl => config.url?.includes(excludeUrl));
+      const shouldAddCustomerId = customerId !== undefined && !EXCLUDE_CUSTOMER_ID_URLS.some(excludeUrl => config.url?.includes(excludeUrl));
       // 调试信息
       if (import.meta.env.DEV) {
         console.log('[Request] customerId injection:', {
@@ -56,9 +55,8 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
           shouldAdd: shouldAddCustomerId
         });
       }
-        
+
       if (shouldAddCustomerId) {
-        
         if (config.method?.toLowerCase() === 'get') {
           // GET请求：添加到查询参数
           config.params = config.params || {};

@@ -126,12 +126,7 @@ watch(visible, () => {
         </NFormItem>
         <!-- 只有admin用户才能选择租户 -->
         <NFormItem v-if="isAdmin" label="租户ID" path="customerId">
-          <NInputNumber 
-            v-model:value="model.customerId" 
-            placeholder="留空为全局岗位" 
-            :show-button="false"
-            clearable
-          />
+          <NInputNumber v-model:value="model.customerId" placeholder="留空为全局岗位" :show-button="false" clearable />
         </NFormItem>
         <NFormItem :label="$t('page.manage.position.sort')" path="sort">
           <NInputNumber v-model:value="model.sort" :placeholder="$t('page.manage.position.form.sort')" />

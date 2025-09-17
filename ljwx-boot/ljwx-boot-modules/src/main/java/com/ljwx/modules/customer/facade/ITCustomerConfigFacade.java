@@ -26,6 +26,7 @@ import com.ljwx.modules.customer.domain.dto.config.TCustomerConfigDeleteDTO;
 import com.ljwx.modules.customer.domain.dto.config.TCustomerConfigSearchDTO;
 import com.ljwx.modules.customer.domain.dto.config.TCustomerConfigUpdateDTO;
 import com.ljwx.modules.customer.domain.vo.TCustomerConfigVO;
+import com.ljwx.modules.system.domain.dto.org.units.DepartmentDeletePreCheckDTO;
 
 /**
  *  门面接口层
@@ -88,5 +89,25 @@ public interface ITCustomerConfigFacade {
      * @CreateTime 2024-12-29 - 15:33:30
      */
     boolean batchDelete(TCustomerConfigDeleteDTO tCustomerConfigDeleteDTO);
+
+    /**
+     * 删除租户前置检查 - 分析影响的部门、用户和设备
+     *
+     * @param tCustomerConfigDeleteDTO 删除 DTO 对象
+     * @return {@link DepartmentDeletePreCheckDTO} 前置检查结果
+     * @author bruno.gao
+     * @CreateTime 2025-01-17 - 16:35:30
+     */
+    DepartmentDeletePreCheckDTO tenantDeletePreCheck(TCustomerConfigDeleteDTO tCustomerConfigDeleteDTO);
+
+    /**
+     * 级联删除租户 - 包含部门、用户和设备
+     *
+     * @param tCustomerConfigDeleteDTO 删除 DTO 对象
+     * @return {@link Boolean} 结果
+     * @author bruno.gao
+     * @CreateTime 2025-01-17 - 16:35:30
+     */
+    boolean tenantCascadeDelete(TCustomerConfigDeleteDTO tCustomerConfigDeleteDTO);
 
 }

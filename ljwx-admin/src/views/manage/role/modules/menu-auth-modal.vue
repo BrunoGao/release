@@ -108,7 +108,7 @@ watch(visible, val => {
 </script>
 
 <template>
-  <NModal v-model:show="visible" :title="title" preset="card" class="w-600px enhanced-menu-modal">
+  <NModal v-model:show="visible" :title="title" preset="card" class="enhanced-menu-modal w-600px">
     <div class="menu-auth-header">
       <NAlert type="info" :show-icon="false">
         <template #header>
@@ -120,32 +120,17 @@ watch(visible, val => {
         为该角色分配菜单访问权限，支持层级权限继承
       </NAlert>
     </div>
-    
+
     <div class="tree-controls">
       <NSpace>
-        <NButton size="small" type="info" quaternary @click="selectAll">
-          全选
-        </NButton>
-        <NButton size="small" type="warning" quaternary @click="checks = []">
-          清空
-        </NButton>
+        <NButton size="small" type="info" quaternary @click="selectAll">全选</NButton>
+        <NButton size="small" type="warning" quaternary @click="checks = []">清空</NButton>
       </NSpace>
-      <NTag v-if="checks.length > 0" type="success">
-        已选择 {{ checks.length }} 项
-      </NTag>
+      <NTag v-if="checks.length > 0" type="success">已选择 {{ checks.length }} 项</NTag>
     </div>
-    
-    <NTree 
-      v-model:checked-keys="checks" 
-      :data="tree" 
-      block-line 
-      expand-on-click 
-      checkable 
-      cascade 
-      virtual-scroll 
-      class="enhanced-tree" 
-    />
-    
+
+    <NTree v-model:checked-keys="checks" :data="tree" block-line expand-on-click checkable cascade virtual-scroll class="enhanced-tree" />
+
     <template #footer>
       <NSpace justify="end">
         <NButton quaternary @click="closeModal">
@@ -158,7 +143,6 @@ watch(visible, val => {
     </template>
   </NModal>
 </template>
-
 
 <style scoped>
 .enhanced-menu-modal {

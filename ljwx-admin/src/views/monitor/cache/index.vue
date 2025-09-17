@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onActivated, ref, watch, computed } from 'vue';
+import { computed, onActivated, ref, watch } from 'vue';
 import { $t } from '@/locales';
-import { fetchGetCacheRedisInfo, fetchClearAllCache, fetchClearCacheByPattern } from '@/service/api';
+import { fetchClearAllCache, fetchClearCacheByPattern, fetchGetCacheRedisInfo } from '@/service/api';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useAppStore } from '@/store/modules/app';
 import { useNaiveForm } from '@/hooks/common/form';
@@ -164,7 +164,7 @@ onActivated(() => {
           </NButton>
         </NSpace>
       </template>
-      
+
       <NDescriptions label-placement="left" bordered :column="2">
         <NDescriptionsItem :label="$t('page.monitor.cache.redis.version')">
           {{ redisInfo?.version }}
@@ -188,28 +188,28 @@ onActivated(() => {
         </NDescriptionsItem>
       </NDescriptions>
     </NCard>
-    
+
     <NCard class="h-full">
       <div ref="domRef" class="h-full overflow-hidden" />
     </NCard>
 
     <!-- 按模式清理缓存的模态框 -->
     <NModal v-model:show="showClearModal" :mask-closable="false">
-      <NCard style="width: 500px;" :title="$t('page.monitor.cache.redis.clearCacheByPattern')" size="huge" role="dialog" aria-modal="true">
-        <NForm ref="formRef" :model="{pattern: clearPattern}" label-placement="top">
-          <NFormItem :label="$t('page.monitor.cache.redis.clearCacheByPattern')" path="pattern" :rule="{ required: true, message: $t('page.monitor.cache.redis.patternRequired') }">
-            <NInput 
-              v-model:value="clearPattern" 
-              :placeholder="$t('page.monitor.cache.redis.patternPlaceholder')"
-              clearable
-            />
+      <NCard style="width: 500px" :title="$t('page.monitor.cache.redis.clearCacheByPattern')" size="huge" role="dialog" aria-modal="true">
+        <NForm ref="formRef" :model="{ pattern: clearPattern }" label-placement="top">
+          <NFormItem
+            :label="$t('page.monitor.cache.redis.clearCacheByPattern')"
+            path="pattern"
+            :rule="{ required: true, message: $t('page.monitor.cache.redis.patternRequired') }"
+          >
+            <NInput v-model:value="clearPattern" :placeholder="$t('page.monitor.cache.redis.patternPlaceholder')" clearable />
           </NFormItem>
         </NForm>
-        
+
         <template #footer>
           <NSpace justify="end">
             <NButton @click="showClearModal = false">{{ $t('common.cancel') }}</NButton>
-            <NButton type="warning" @click="clearCacheByPattern" :loading="loading">
+            <NButton type="warning" :loading="loading" @click="clearCacheByPattern">
               {{ $t('common.confirm') }}
             </NButton>
           </NSpace>

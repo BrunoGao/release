@@ -9,7 +9,7 @@ export function fetchGetAlertInfoList(params?: Api.Health.AlertInfoSearchParams)
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.AlertInfoList>({
     url: '/t_alert_info/page',
     method: 'GET',

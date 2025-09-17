@@ -19,7 +19,7 @@ export function createViteProxy(env: Env.ImportMeta, enable: boolean) {
   // 添加静态文件代理支持
   proxy['/uploads'] = {
     target: baseURL,
-    changeOrigin: true,
+    changeOrigin: true
     // 不重写路径，直接转发 /uploads/** 到后端
   };
 

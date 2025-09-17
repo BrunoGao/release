@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 import { fetchAddAlertRules, fetchUpdateAlertRulesInfo } from '@/service/api';
@@ -137,13 +137,11 @@ const healthDataOptions = [
 
 // 表单验证规则
 const formRules = {
-  ruleCategory: [
-    { required: true, message: '请选择规则类型', trigger: 'change' }
-  ],
+  ruleCategory: [{ required: true, message: '请选择规则类型', trigger: 'change' }],
   physicalSign: [
-    { 
-      required: true, 
-      message: '请选择监控指标', 
+    {
+      required: true,
+      message: '请选择监控指标',
       trigger: 'change',
       validator: () => {
         if (model.ruleCategory === 'SINGLE' && !model.physicalSign) {
@@ -153,15 +151,9 @@ const formRules = {
       }
     }
   ],
-  priorityLevel: [
-    { required: true, type: 'number', message: '请选择优先级', trigger: 'change' }
-  ],
-  level: [
-    { required: true, message: '请选择严重级别', trigger: 'change' }
-  ],
-  enabledChannels: [
-    { required: true, type: 'array', min: 1, message: '请至少选择一个通知渠道', trigger: 'change' }
-  ]
+  priorityLevel: [{ required: true, type: 'number', message: '请选择优先级', trigger: 'change' }],
+  level: [{ required: true, message: '请选择严重级别', trigger: 'change' }],
+  enabledChannels: [{ required: true, type: 'array', min: 1, message: '请至少选择一个通知渠道', trigger: 'change' }]
 };
 
 // 开关样式
@@ -179,10 +171,10 @@ const switchRailStyle = ({ focused, checked }: { focused: boolean; checked: bool
 // 更新提交处理
 async function handleSubmit() {
   submitLoading.value = true;
-  
+
   try {
     await validate();
-    
+
     // 处理数据格式
     const submitData = {
       ...model,
@@ -190,10 +182,10 @@ async function handleSubmit() {
       effectiveDays: Array.isArray(model.effectiveDays) ? model.effectiveDays.join(',') : model.effectiveDays,
       conditionExpression: model.conditionExpression ? JSON.stringify(model.conditionExpression) : null
     };
-    
+
     const func = isAdd.value ? fetchAddAlertRules : fetchUpdateAlertRulesInfo;
     const { error, data } = await func(submitData);
-    
+
     if (!error && data) {
       window.$message?.success(isAdd.value ? '规则创建成功' : '规则更新成功');
       closeDrawer();
@@ -237,7 +229,11 @@ watch(visible, () => {
             </div>
           </template>
           <div class="text-sm">
-            <p>推荐使用 <strong>配置向导</strong> 创建规则，提供分步引导和智能配置建议。</p>
+            <p>
+              推荐使用
+              <strong>配置向导</strong>
+              创建规则，提供分步引导和智能配置建议。
+            </p>
             <p>此表单适合快速编辑现有规则。</p>
           </div>
         </NAlert>
@@ -252,45 +248,25 @@ watch(visible, () => {
               <span>基础信息</span>
             </div>
           </NDivider>
-          
+
           <NFormItem label="规则类型" path="ruleCategory">
-            <NSelect
-              v-model:value="model.ruleCategory"
-              :options="ruleCategoryOptions"
-              placeholder="选择规则类型"
-              :disabled="!isAdd"
-            />
+            <NSelect v-model:value="model.ruleCategory" :options="ruleCategoryOptions" placeholder="选择规则类型" :disabled="!isAdd" />
           </NFormItem>
-          
+
           <NFormItem v-if="model.ruleCategory === 'SINGLE'" label="监控指标" path="physicalSign">
-            <NSelect
-              v-model:value="model.physicalSign"
-              :options="healthDataOptions"
-              placeholder="选择监控的健康指标"
-            />
+            <NSelect v-model:value="model.physicalSign" :options="healthDataOptions" placeholder="选择监控的健康指标" />
           </NFormItem>
-          
+
           <NFormItem label="优先级" path="priorityLevel">
-            <NSelect
-              v-model:value="model.priorityLevel"
-              :options="priorityOptions"
-              placeholder="选择优先级"
-            />
+            <NSelect v-model:value="model.priorityLevel" :options="priorityOptions" placeholder="选择优先级" />
           </NFormItem>
-          
+
           <NFormItem label="严重级别" path="level">
-            <NSelect
-              v-model:value="model.level"
-              :options="severityOptions"
-              placeholder="选择严重级别"
-            />
+            <NSelect v-model:value="model.level" :options="severityOptions" placeholder="选择严重级别" />
           </NFormItem>
-          
+
           <NFormItem label="规则状态" path="isEnabled">
-            <NSwitch
-              v-model:value="model.isEnabled"
-              :rail-style="switchRailStyle"
-            >
+            <NSwitch v-model:value="model.isEnabled" :rail-style="switchRailStyle">
               <template #checked>启用</template>
               <template #unchecked>禁用</template>
             </NSwitch>
@@ -306,33 +282,17 @@ watch(visible, () => {
                 <span>阈值设置</span>
               </div>
             </NDivider>
-            
+
             <NFormItem label="最小值" path="thresholdMin">
-              <NInputNumber
-                v-model:value="model.thresholdMin"
-                placeholder="最小阈值"
-                style="width: 100%"
-                :min="0"
-              />
+              <NInputNumber v-model:value="model.thresholdMin" placeholder="最小阈值" style="width: 100%" :min="0" />
             </NFormItem>
-            
+
             <NFormItem label="最大值" path="thresholdMax">
-              <NInputNumber
-                v-model:value="model.thresholdMax"
-                placeholder="最大阈值"
-                style="width: 100%"
-                :min="0"
-              />
+              <NInputNumber v-model:value="model.thresholdMax" placeholder="最大阈值" style="width: 100%" :min="0" />
             </NFormItem>
-            
+
             <NFormItem label="持续时长" path="trendDuration">
-              <NInputNumber
-                v-model:value="model.trendDuration"
-                placeholder="异常持续分钟数"
-                style="width: 100%"
-                :min="1"
-                :max="60"
-              />
+              <NInputNumber v-model:value="model.trendDuration" placeholder="异常持续分钟数" style="width: 100%" :min="1" :max="60" />
               <template #feedback>
                 <span class="text-xs text-gray-500">监控指标异常需持续的分钟数</span>
               </template>
@@ -348,46 +308,26 @@ watch(visible, () => {
               <span>时间配置</span>
             </div>
           </NDivider>
-          
+
           <NFormItem label="时间窗口" path="timeWindowSeconds">
-            <NInputNumber
-              v-model:value="model.timeWindowSeconds"
-              placeholder="检测时间窗口"
-              style="width: 100%"
-              :min="60"
-              :max="3600"
-            />
+            <NInputNumber v-model:value="model.timeWindowSeconds" placeholder="检测时间窗口" style="width: 100%" :min="60" :max="3600" />
             <template #feedback>
               <span class="text-xs text-gray-500">数据检测的时间窗口，单位：秒</span>
             </template>
           </NFormItem>
-          
+
           <NFormItem label="冷却期" path="cooldownSeconds">
-            <NInputNumber
-              v-model:value="model.cooldownSeconds"
-              placeholder="告警冷却期"
-              style="width: 100%"
-              :min="300"
-              :max="86400"
-            />
+            <NInputNumber v-model:value="model.cooldownSeconds" placeholder="告警冷却期" style="width: 100%" :min="300" :max="86400" />
             <template #feedback>
               <span class="text-xs text-gray-500">告警触发后的静默时间，单位：秒</span>
             </template>
           </NFormItem>
-          
+
           <NFormItem label="生效时间">
             <NSpace>
-              <NTimePicker
-                v-model:value="model.effectiveTimeStart"
-                placeholder="开始时间"
-                format="HH:mm:ss"
-              />
+              <NTimePicker v-model:value="model.effectiveTimeStart" placeholder="开始时间" format="HH:mm:ss" />
               <span>至</span>
-              <NTimePicker
-                v-model:value="model.effectiveTimeEnd"
-                placeholder="结束时间"
-                format="HH:mm:ss"
-              />
+              <NTimePicker v-model:value="model.effectiveTimeEnd" placeholder="结束时间" format="HH:mm:ss" />
             </NSpace>
             <template #feedback>
               <span class="text-xs text-gray-500">留空表示全天生效</span>
@@ -403,7 +343,7 @@ watch(visible, () => {
               <span>通知配置</span>
             </div>
           </NDivider>
-          
+
           <NFormItem label="通知渠道" path="enabledChannels">
             <NCheckboxGroup v-model:value="model.enabledChannels">
               <NSpace vertical>
@@ -414,7 +354,7 @@ watch(visible, () => {
               </NSpace>
             </NCheckboxGroup>
           </NFormItem>
-          
+
           <NFormItem label="告警消息" path="alertMessage">
             <NInput
               v-model:value="model.alertMessage"
@@ -435,33 +375,24 @@ watch(visible, () => {
               <span>高级配置</span>
             </div>
           </NDivider>
-          
+
           <NFormItem v-if="model.ruleCategory === 'COMPOSITE'" label="条件表达式" path="conditionExpression">
-            <NInput
-              v-model:value="model.conditionExpression"
-              type="textarea"
-              :rows="4"
-              placeholder="复合规则的条件表达式 (JSON格式)"
-              disabled
-            />
+            <NInput v-model:value="model.conditionExpression" type="textarea" :rows="4" placeholder="复合规则的条件表达式 (JSON格式)" disabled />
             <template #feedback>
               <span class="text-xs text-gray-500">复合规则需要使用配置向导创建</span>
             </template>
           </NFormItem>
-          
+
           <NFormItem label="规则标签" path="ruleTags">
-            <NInput
-              v-model:value="model.ruleTags"
-              placeholder="规则标签 (可选)"
-            />
+            <NInput v-model:value="model.ruleTags" placeholder="规则标签 (可选)" />
           </NFormItem>
         </NForm>
       </div>
-      
+
       <template #footer>
         <NSpace class="w-full justify-end">
           <NButton quaternary @click="closeDrawer">取消</NButton>
-          <NButton type="primary" @click="handleSubmit" :loading="submitLoading">
+          <NButton type="primary" :loading="submitLoading" @click="handleSubmit">
             {{ isAdd ? '创建' : '更新' }}
           </NButton>
         </NSpace>

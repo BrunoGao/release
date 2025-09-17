@@ -1,25 +1,25 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
-import { 
-  NButton, 
-  NDrawer, 
-  NDrawerContent, 
-  NForm, 
-  NFormItem, 
-  NInput, 
-  NSelect, 
-  NTreeSelect, 
-  NCheckboxGroup, 
-  NCheckbox, 
-  NRadioGroup, 
-  NRadio,
-  NSpace,
-  NCard,
+import {
   NAlert,
-  NTag,
+  NButton,
+  NCard,
+  NCheckbox,
+  NCheckboxGroup,
   NDatePicker,
+  NDrawer,
+  NDrawerContent,
+  NForm,
+  NFormItem,
+  NInput,
+  NRadio,
+  NRadioGroup,
+  NSelect,
+  NSpace,
   NSwitch,
-  useMessage 
+  NTag,
+  NTreeSelect,
+  useMessage
 } from 'naive-ui';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 
@@ -107,7 +107,7 @@ const templateOptions = [
 ];
 
 // 组织树选项
-const orgOptions = computed(() => 
+const orgOptions = computed(() =>
   props.orgUnitsTree.map(item => ({
     key: item.id,
     label: item.name,
@@ -120,9 +120,7 @@ const orgOptions = computed(() =>
   }))
 );
 
-type FormModel = Pick<Api.Health.RecommendationTask, 
-  'title' | 'content' | 'recommendationType' | 'priority'
-> & {
+type FormModel = Pick<Api.Health.RecommendationTask, 'title' | 'content' | 'recommendationType' | 'priority'> & {
   targetUserType: 'selected' | 'department' | 'filtered';
   targetUsers: string[];
   targetDepartments: string[];
@@ -300,13 +298,9 @@ function applyTemplate() {
 async function handleSubmit() {
   // 模拟API调用
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  message.success(
-    props.operateType === 'add' 
-      ? '健康建议创建成功' 
-      : '健康建议更新成功'
-  );
-  
+
+  message.success(props.operateType === 'add' ? '健康建议创建成功' : '健康建议更新成功');
+
   closeDrawer();
 }
 
@@ -349,42 +343,24 @@ watch(visible, () => {
         <div class="grid grid-cols-1 gap-4">
           <!-- 基本信息 -->
           <NCard title="基本信息" size="small">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <NFormItem label="建议标题" path="title">
-                <NInput 
-                  v-model:value="formModel.title" 
-                  placeholder="请输入建议标题"
-                  maxlength="100"
-                  show-count
-                />
+                <NInput v-model:value="formModel.title" placeholder="请输入建议标题" maxlength="100" show-count />
               </NFormItem>
 
               <NFormItem label="建议类型" path="recommendationType">
-                <NSelect 
-                  v-model:value="formModel.recommendationType" 
-                  :options="typeOptions" 
-                  placeholder="请选择建议类型" 
-                />
+                <NSelect v-model:value="formModel.recommendationType" :options="typeOptions" placeholder="请选择建议类型" />
               </NFormItem>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <NFormItem label="优先级" path="priority">
-                <NSelect 
-                  v-model:value="formModel.priority" 
-                  :options="priorityOptions" 
-                  placeholder="请选择优先级" 
-                />
+                <NSelect v-model:value="formModel.priority" :options="priorityOptions" placeholder="请选择优先级" />
               </NFormItem>
 
               <NFormItem label="建议模板" path="templateId">
                 <div class="flex gap-2">
-                  <NSelect 
-                    v-model:value="formModel.templateId" 
-                    :options="templateOptions" 
-                    placeholder="请选择模板（可选）" 
-                    class="flex-1"
-                  />
+                  <NSelect v-model:value="formModel.templateId" :options="templateOptions" placeholder="请选择模板（可选）" class="flex-1" />
                   <NButton type="primary" @click="applyTemplate">应用</NButton>
                 </div>
               </NFormItem>
@@ -392,8 +368,8 @@ watch(visible, () => {
 
             <NFormItem label="建议内容" path="content">
               <NInput
+                v-model:value="formModel.content"
                 type="textarea"
-                v-model:value="formModel.content" 
                 placeholder="请输入详细的健康建议内容"
                 :rows="4"
                 maxlength="1000"
@@ -404,7 +380,7 @@ watch(visible, () => {
             <div v-if="selectedType" class="mb-4">
               <NAlert type="info" :show-icon="false">
                 <div class="text-sm">
-                  <div class="font-medium mb-1">{{ selectedType.label }}</div>
+                  <div class="mb-1 font-medium">{{ selectedType.label }}</div>
                   <div class="text-gray-600">{{ selectedType.description }}</div>
                 </div>
               </NAlert>
@@ -416,22 +392,14 @@ watch(visible, () => {
             <NFormItem label="用户范围" path="targetUserType">
               <NRadioGroup v-model:value="formModel.targetUserType">
                 <div class="flex flex-col gap-2">
-                  <NRadio 
-                    v-for="type in targetUserTypes" 
-                    :key="type.value" 
-                    :value="type.value"
-                  >
+                  <NRadio v-for="type in targetUserTypes" :key="type.value" :value="type.value">
                     {{ type.label }}
                   </NRadio>
                 </div>
               </NRadioGroup>
             </NFormItem>
 
-            <NFormItem 
-              v-if="formModel.targetUserType === 'selected'" 
-              label="选择用户" 
-              path="targetUsers"
-            >
+            <NFormItem v-if="formModel.targetUserType === 'selected'" label="选择用户" path="targetUsers">
               <NSelect
                 v-model:value="formModel.targetUsers"
                 :options="userOptions"
@@ -442,11 +410,7 @@ watch(visible, () => {
               />
             </NFormItem>
 
-            <NFormItem 
-              v-if="formModel.targetUserType === 'department'" 
-              label="选择部门" 
-              path="targetDepartments"
-            >
+            <NFormItem v-if="formModel.targetUserType === 'department'" label="选择部门" path="targetDepartments">
               <NTreeSelect
                 v-model:value="formModel.targetDepartments"
                 :options="orgOptions"
@@ -459,19 +423,10 @@ watch(visible, () => {
               />
             </NFormItem>
 
-            <NFormItem 
-              v-if="formModel.targetUserType === 'filtered'" 
-              label="筛选条件" 
-              path="filterConditions"
-            >
+            <NFormItem v-if="formModel.targetUserType === 'filtered'" label="筛选条件" path="filterConditions">
               <NCheckboxGroup v-model:value="formModel.filterConditions">
                 <div class="grid grid-cols-2 gap-2">
-                  <NCheckbox 
-                    v-for="condition in filterConditions" 
-                    :key="condition.value" 
-                    :value="condition.value"
-                    :label="condition.label"
-                  />
+                  <NCheckbox v-for="condition in filterConditions" :key="condition.value" :value="condition.value" :label="condition.label" />
                 </div>
               </NCheckboxGroup>
             </NFormItem>
@@ -490,12 +445,8 @@ watch(visible, () => {
           <NCard title="发送设置" size="small">
             <NFormItem label="发送方式" path="deliveryMethods">
               <NCheckboxGroup v-model:value="formModel.deliveryMethods">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <NCheckbox 
-                    v-for="method in deliveryMethods" 
-                    :key="method.value" 
-                    :value="method.value"
-                  >
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <NCheckbox v-for="method in deliveryMethods" :key="method.value" :value="method.value">
                     <div>
                       <div class="font-medium">{{ method.label }}</div>
                       <div class="text-xs text-gray-500">{{ method.description }}</div>
@@ -505,7 +456,7 @@ watch(visible, () => {
               </NCheckboxGroup>
             </NFormItem>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <NFormItem label="定时发送">
                 <NDatePicker
                   v-model:value="formModel.scheduledAt"
@@ -523,7 +474,7 @@ watch(visible, () => {
                     <span class="text-sm">启用用户反馈</span>
                     <NSwitch v-model:value="formModel.enableFeedback" />
                   </div>
-                  
+
                   <div class="flex items-center justify-between">
                     <span class="text-sm">启用提醒</span>
                     <NSwitch v-model:value="formModel.reminderEnabled" />
@@ -536,8 +487,8 @@ watch(visible, () => {
           <!-- 预览信息 -->
           <NAlert type="info" class="mb-4">
             <div class="text-sm">
-              <div class="font-medium mb-2">建议预览信息</div>
-              <div class="space-y-1 text-gray-600">
+              <div class="mb-2 font-medium">建议预览信息</div>
+              <div class="text-gray-600 space-y-1">
                 <div>• 建议类型：{{ selectedType?.label || '未选择' }}</div>
                 <div>• 优先级：{{ selectedPriority?.label || '未选择' }}</div>
                 <div>• 目标用户：约 {{ targetUserCount }} 人</div>

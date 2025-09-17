@@ -22,7 +22,7 @@ export function fetchGetHealthDataBasicList(params?: Api.Health.BasicHealthDataS
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.BasicHealthDataList>({
     url: '/t_user_health_data/page',
     method: 'GET',
@@ -37,7 +37,7 @@ export function fetchGetHealthAnalytics(params?: Api.Health.HealthAnalyticsSearc
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.HealthAnalyticsResult>({
     url: '/t_user_health_data/analytics/aggregated',
     method: 'GET',
@@ -52,7 +52,7 @@ export function fetchGetSleepAnalytics(params?: Api.Health.HealthAnalyticsSearch
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.SleepAnalyticsResult>({
     url: '/t_user_health_data/analytics/sleep',
     method: 'GET',
@@ -67,7 +67,7 @@ export function fetchGetExerciseAnalytics(params?: Api.Health.HealthAnalyticsSea
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.ExerciseAnalyticsResult>({
     url: '/t_user_health_data/analytics/exercise',
     method: 'GET',

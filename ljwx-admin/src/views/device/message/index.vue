@@ -1,6 +1,6 @@
 <script setup lang="tsx">
-import { NButton, NPopconfirm, NTooltip, NCard, NTabs, NTabPane, NStatistic } from 'naive-ui';
-import { type Ref, h, onMounted, ref, shallowRef, watch, computed } from 'vue';
+import { NButton, NCard, NPopconfirm, NStatistic, NTabPane, NTabs, NTooltip } from 'naive-ui';
+import { type Ref, computed, h, onMounted, ref, shallowRef, watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAuth } from '@/hooks/business/auth';
@@ -29,46 +29,46 @@ const { dictTag } = useDict();
 
 // 消息类型中英文映射和样式
 const messageTypeMap = {
-  'NOTIFICATION': '通知',
-  'ALERT': '告警', 
-  'WARNING': '警告',
-  'INFO': '信息',
-  'EMERGENCY': '紧急',
-  'JOB': '作业指引',
-  'TASK': '任务管理'
+  NOTIFICATION: '通知',
+  ALERT: '告警',
+  WARNING: '警告',
+  INFO: '信息',
+  EMERGENCY: '紧急',
+  JOB: '作业指引',
+  TASK: '任务管理'
 };
 
 // 发送者类型中英文映射
 const senderTypeMap = {
-  'SYSTEM': '系统',
-  'ADMIN': '管理员',
-  'USER': '用户',
-  'DEVICE': '设备',
-  'SERVICE': '服务',
-  'AUTO': '自动'
+  SYSTEM: '系统',
+  ADMIN: '管理员',
+  USER: '用户',
+  DEVICE: '设备',
+  SERVICE: '服务',
+  AUTO: '自动'
 };
 
 // 消息状态中英文映射
 const messageStatusMap = {
-  'DRAFT': '草稿',
-  'PENDING': '待发送', 
-  'SENT': '已发送',
-  'DELIVERED': '已送达',
-  'ACKNOWLEDGED': '已确认',
-  'FAILED': '发送失败',
-  'EXPIRED': '已过期'
+  DRAFT: '草稿',
+  PENDING: '待发送',
+  SENT: '已发送',
+  DELIVERED: '已送达',
+  ACKNOWLEDGED: '已确认',
+  FAILED: '发送失败',
+  EXPIRED: '已过期'
 };
 
 // 获取消息类型标签颜色
 const getMessageTypeColor = (type: string) => {
   const colorMap: Record<string, string> = {
-    'NOTIFICATION': '#1890ff',
-    'ALERT': '#ff4d4f', 
-    'WARNING': '#faad14',
-    'INFO': '#52c41a',
-    'EMERGENCY': '#f5222d',
-    'JOB': '#13c2c2',
-    'TASK': '#722ed1'
+    NOTIFICATION: '#1890ff',
+    ALERT: '#ff4d4f',
+    WARNING: '#faad14',
+    INFO: '#52c41a',
+    EMERGENCY: '#f5222d',
+    JOB: '#13c2c2',
+    TASK: '#722ed1'
   };
   return colorMap[type] || '#666';
 };
@@ -76,12 +76,12 @@ const getMessageTypeColor = (type: string) => {
 // 获取发送者类型标签颜色
 const getSenderTypeColor = (type: string) => {
   const colorMap: Record<string, string> = {
-    'SYSTEM': '#1890ff',
-    'ADMIN': '#722ed1',
-    'USER': '#52c41a',
-    'DEVICE': '#13c2c2',
-    'SERVICE': '#faad14',
-    'AUTO': '#666'
+    SYSTEM: '#1890ff',
+    ADMIN: '#722ed1',
+    USER: '#52c41a',
+    DEVICE: '#13c2c2',
+    SERVICE: '#faad14',
+    AUTO: '#666'
   };
   return colorMap[type] || '#666';
 };
@@ -89,13 +89,13 @@ const getSenderTypeColor = (type: string) => {
 // 获取消息状态标签颜色
 const getMessageStatusColor = (status: string) => {
   const colorMap: Record<string, string> = {
-    'DRAFT': '#666',
-    'PENDING': '#faad14',
-    'SENT': '#1890ff',
-    'DELIVERED': '#52c41a',
-    'ACKNOWLEDGED': '#52c41a',
-    'FAILED': '#ff4d4f',
-    'EXPIRED': '#666'
+    DRAFT: '#666',
+    PENDING: '#faad14',
+    SENT: '#1890ff',
+    DELIVERED: '#52c41a',
+    ACKNOWLEDGED: '#52c41a',
+    FAILED: '#ff4d4f',
+    EXPIRED: '#666'
   };
   return colorMap[status] || '#666';
 };
@@ -186,7 +186,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       render: row => row.targetCount || 1
     },
     {
-      key: 'respondedNumber', 
+      key: 'respondedNumber',
       title: '响应数量',
       align: 'center',
       width: 80,
@@ -234,61 +234,89 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
         // 创建美化的悬浮提示内容
         const nonRespondedUsers = row.respondedDetail?.nonRespondedUsers || [];
         const hasUsers = nonRespondedUsers.length > 0;
-        
-        const tooltipContent = h('div', { 
-          class: 'max-w-80 p-3 bg-white shadow-lg rounded-lg border border-gray-100' 
-        }, [
-          // 标题
-          h('div', { 
-            class: 'flex items-center gap-2 mb-3 pb-2 border-b border-gray-100' 
-          }, [
-            h('div', { 
-              class: `w-2 h-2 rounded-full ${hasUsers ? 'bg-orange-400' : 'bg-green-400'}` 
-            }),
-            h('span', { 
-              class: 'font-semibold text-gray-800 text-sm' 
-            }, hasUsers ? '未响应用户列表' : '响应状态')
-          ]),
-          
-          // 内容区域
-          hasUsers ? 
-            h('div', { class: 'space-y-2 max-h-60 overflow-y-auto' }, [
-              ...nonRespondedUsers.map(user => 
-                h('div', { 
-                  class: 'flex items-center justify-between p-2 bg-orange-50 rounded-md border-l-3 border-orange-400' 
-                }, [
-                  h('div', { class: 'flex flex-col' }, [
-                    h('span', { class: 'text-sm font-medium text-gray-800' }, user.userName),
-                    h('span', { class: 'text-xs text-gray-500' }, user.departmentName)
-                  ]),
-                  h('div', { 
-                    class: 'w-2 h-2 rounded-full bg-orange-400' 
-                  })
+
+        const tooltipContent = h(
+          'div',
+          {
+            class: 'max-w-80 p-3 bg-white shadow-lg rounded-lg border border-gray-100'
+          },
+          [
+            // 标题
+            h(
+              'div',
+              {
+                class: 'flex items-center gap-2 mb-3 pb-2 border-b border-gray-100'
+              },
+              [
+                h('div', {
+                  class: `w-2 h-2 rounded-full ${hasUsers ? 'bg-orange-400' : 'bg-green-400'}`
+                }),
+                h(
+                  'span',
+                  {
+                    class: 'font-semibold text-gray-800 text-sm'
+                  },
+                  hasUsers ? '未响应用户列表' : '响应状态'
+                )
+              ]
+            ),
+
+            // 内容区域
+            hasUsers
+              ? h('div', { class: 'space-y-2 max-h-60 overflow-y-auto' }, [
+                  ...nonRespondedUsers.map(user =>
+                    h(
+                      'div',
+                      {
+                        class: 'flex items-center justify-between p-2 bg-orange-50 rounded-md border-l-3 border-orange-400'
+                      },
+                      [
+                        h('div', { class: 'flex flex-col' }, [
+                          h('span', { class: 'text-sm font-medium text-gray-800' }, user.userName),
+                          h('span', { class: 'text-xs text-gray-500' }, user.departmentName)
+                        ]),
+                        h('div', {
+                          class: 'w-2 h-2 rounded-full bg-orange-400'
+                        })
+                      ]
+                    )
+                  ),
+                  // 如果用户太多，显示查看更多提示
+                  nonRespondedUsers.length > 5 &&
+                    h(
+                      'div',
+                      {
+                        class: 'text-xs text-gray-400 text-center pt-2 border-t border-gray-100'
+                      },
+                      '向上滚动查看更多用户'
+                    )
                 ])
-              ),
-              // 如果用户太多，显示查看更多提示
-              nonRespondedUsers.length > 5 && h('div', { 
-                class: 'text-xs text-gray-400 text-center pt-2 border-t border-gray-100' 
-              }, '向上滚动查看更多用户')
-            ])
-            :
-            h('div', { 
-              class: 'flex items-center gap-2 p-2 bg-green-50 rounded-md border-l-3 border-green-400' 
-            }, [
-              h('svg', { 
-                class: 'w-4 h-4 text-green-500',
-                fill: 'currentColor',
-                viewBox: '0 0 20 20'
-              }, [
-                h('path', { 
-                  'fill-rule': 'evenodd',
-                  d: 'M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z',
-                  'clip-rule': 'evenodd'
-                })
-              ]),
-              h('span', { class: 'text-sm text-green-700' }, '所有用户均已响应')
-            ])
-        ]);
+              : h(
+                  'div',
+                  {
+                    class: 'flex items-center gap-2 p-2 bg-green-50 rounded-md border-l-3 border-green-400'
+                  },
+                  [
+                    h(
+                      'svg',
+                      {
+                        class: 'w-4 h-4 text-green-500',
+                        fill: 'currentColor',
+                        viewBox: '0 0 20 20'
+                      },
+                      [
+                        h('path', {
+                          'fill-rule': 'evenodd',
+                          d: 'M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z',
+                          'clip-rule': 'evenodd'
+                        })
+                      ]
+                    ),
+                    h('span', { class: 'text-sm text-green-700' }, '所有用户均已响应')
+                  ]
+                )
+          ]
+        );
 
         return h(
           NTooltip,
@@ -297,17 +325,22 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
             placement: 'top',
             showArrow: false,
             style: { maxWidth: 'none' },
-            contentStyle: { 
-              padding: '0', 
+            contentStyle: {
+              padding: '0',
               background: 'transparent',
               border: 'none',
-              boxShadow: 'none' 
+              boxShadow: 'none'
             }
           },
           {
-            trigger: () => h('div', { 
-              class: 'cursor-pointer flex items-center gap-2'
-            }, [statusTag, h('span', { class: 'text-xs text-gray-500' }, statusCount)]),
+            trigger: () =>
+              h(
+                'div',
+                {
+                  class: 'cursor-pointer flex items-center gap-2'
+                },
+                [statusTag, h('span', { class: 'text-xs text-gray-500' }, statusCount)]
+              ),
             default: () => tooltipContent
           }
         );
@@ -459,14 +492,14 @@ const statistics = computed(() => {
     // 按类型统计（翻译为中文）
     const rawType = item.messageTypeName || item.messageType || 'UNKNOWN';
     const typeMap = {
-      'NOTIFICATION': '通知消息',
-      'ALERT': '警报消息',
-      'WARNING': '警告消息', 
-      'INFO': '信息消息',
-      'EMERGENCY': '紧急消息',
-      'JOB': '任务消息',
-      'TASK': '工作消息',
-      'UNKNOWN': '未知类型'
+      NOTIFICATION: '通知消息',
+      ALERT: '警报消息',
+      WARNING: '警告消息',
+      INFO: '信息消息',
+      EMERGENCY: '紧急消息',
+      JOB: '任务消息',
+      TASK: '工作消息',
+      UNKNOWN: '未知类型'
     };
     const type = typeMap[rawType] || rawType;
     stats.byType[type] = (stats.byType[type] || 0) + 1;
@@ -474,14 +507,14 @@ const statistics = computed(() => {
     // 按状态统计（翻译为中文）
     const rawStatus = item.messageStatusName || item.messageStatus || 'UNKNOWN';
     const statusMap = {
-      'DRAFT': '草稿',
-      'PENDING': '待发送',
-      'SENT': '已发送', 
-      'DELIVERED': '已送达',
-      'ACKNOWLEDGED': '已确认',
-      'FAILED': '发送失败',
-      'EXPIRED': '已过期',
-      'UNKNOWN': '未知状态'
+      DRAFT: '草稿',
+      PENDING: '待发送',
+      SENT: '已发送',
+      DELIVERED: '已送达',
+      ACKNOWLEDGED: '已确认',
+      FAILED: '发送失败',
+      EXPIRED: '已过期',
+      UNKNOWN: '未知状态'
     };
     const status = statusMap[rawStatus] || rawStatus;
     stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
@@ -489,11 +522,11 @@ const statistics = computed(() => {
     // 按紧急程度统计（翻译为中文）
     const rawUrgency = item.urgencyName || item.urgency || 'MEDIUM';
     const urgencyMap = {
-      'CRITICAL': '非常紧急',
-      'HIGH': '高级',
-      'MEDIUM': '中级',
-      'LOW': '低级',
-      'UNKNOWN': '未知级别'
+      CRITICAL: '非常紧急',
+      HIGH: '高级',
+      MEDIUM: '中级',
+      LOW: '低级',
+      UNKNOWN: '未知级别'
     };
     const urgency = urgencyMap[rawUrgency] || rawUrgency;
     stats.byUrgency[urgency] = (stats.byUrgency[urgency] || 0) + 1;
@@ -514,35 +547,33 @@ const statistics = computed(() => {
   stats.responseRate = Math.round(((acknowledgedCount + deliveredCount) / stats.total) * 100);
 
   // 计算平均响应时间（分钟）
-  stats.averageResponseTime = responseCount > 0 
-    ? Math.round(totalResponseTime / responseCount / 60000) 
-    : 0;
+  stats.averageResponseTime = responseCount > 0 ? Math.round(totalResponseTime / responseCount / 60000) : 0;
 
   return stats;
 });
 
 // 消息类型颜色映射（使用中文名称）
 const typeColors = {
-  '通知消息': 'rgba(24, 144, 255, 0.8)',    // 蓝色
-  '警报消息': 'rgba(245, 34, 45, 0.8)',           // 红色
-  '警告消息': 'rgba(250, 173, 20, 0.8)',        // 橙色
-  '信息消息': 'rgba(82, 196, 26, 0.8)',            // 绿色
-  '紧急消息': 'rgba(114, 46, 209, 0.8)',      // 紫色
-  '任务消息': 'rgba(19, 194, 194, 0.8)',            // 青色
-  '工作消息': 'rgba(135, 208, 104, 0.8)',           // 浅绿色
-  '未知类型': 'rgba(140, 140, 140, 0.8)'           // 灰色
+  通知消息: 'rgba(24, 144, 255, 0.8)', // 蓝色
+  警报消息: 'rgba(245, 34, 45, 0.8)', // 红色
+  警告消息: 'rgba(250, 173, 20, 0.8)', // 橙色
+  信息消息: 'rgba(82, 196, 26, 0.8)', // 绿色
+  紧急消息: 'rgba(114, 46, 209, 0.8)', // 紫色
+  任务消息: 'rgba(19, 194, 194, 0.8)', // 青色
+  工作消息: 'rgba(135, 208, 104, 0.8)', // 浅绿色
+  未知类型: 'rgba(140, 140, 140, 0.8)' // 灰色
 };
 
 // 状态颜色映射（使用中文名称）
 const statusColors = {
-  '草稿': 'rgba(217, 217, 217, 0.8)',        // 灰色
-  '待发送': 'rgba(250, 173, 20, 0.8)',        // 橙色
-  '已发送': 'rgba(24, 144, 255, 0.8)',           // 蓝色
-  '已送达': 'rgba(82, 196, 26, 0.8)',       // 绿色
-  '已确认': 'rgba(82, 196, 26, 0.8)',    // 绿色
-  '发送失败': 'rgba(245, 34, 45, 0.8)',          // 红色
-  '已过期': 'rgba(140, 140, 140, 0.8)',        // 灰色
-  '未知状态': 'rgba(140, 140, 140, 0.8)'        // 灰色
+  草稿: 'rgba(217, 217, 217, 0.8)', // 灰色
+  待发送: 'rgba(250, 173, 20, 0.8)', // 橙色
+  已发送: 'rgba(24, 144, 255, 0.8)', // 蓝色
+  已送达: 'rgba(82, 196, 26, 0.8)', // 绿色
+  已确认: 'rgba(82, 196, 26, 0.8)', // 绿色
+  发送失败: 'rgba(245, 34, 45, 0.8)', // 红色
+  已过期: 'rgba(140, 140, 140, 0.8)', // 灰色
+  未知状态: 'rgba(140, 140, 140, 0.8)' // 灰色
 };
 
 onMounted(() => {
@@ -561,7 +592,7 @@ onMounted(() => {
       @reset="resetSearchParams"
       @search="getDataByPage"
     />
-    
+
     <!-- 统计概览卡片 -->
     <NCard :bordered="false" class="card-wrapper">
       <template #header>
@@ -570,94 +601,99 @@ onMounted(() => {
           <span class="font-medium">消息统计概览</span>
         </div>
       </template>
-      
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+      <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
         <!-- 总消息数 -->
-        <div class="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
-          <div class="text-2xl font-bold text-blue-600">{{ statistics.total }}</div>
-          <div class="text-sm text-blue-500 mt-1">总消息数</div>
+        <div class="border border-blue-200 rounded-lg from-blue-50 to-blue-100 bg-gradient-to-br p-4 text-center">
+          <div class="text-2xl text-blue-600 font-bold">{{ statistics.total }}</div>
+          <div class="mt-1 text-sm text-blue-500">总消息数</div>
         </div>
-        
+
         <!-- 响应率 -->
-        <div class="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
-          <div class="text-2xl font-bold text-green-600">{{ statistics.responseRate }}%</div>
-          <div class="text-sm text-green-500 mt-1">响应率</div>
+        <div class="border border-green-200 rounded-lg from-green-50 to-green-100 bg-gradient-to-br p-4 text-center">
+          <div class="text-2xl text-green-600 font-bold">{{ statistics.responseRate }}%</div>
+          <div class="mt-1 text-sm text-green-500">响应率</div>
         </div>
-        
+
         <!-- 平均响应时间 -->
-        <div class="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
-          <div class="text-2xl font-bold text-orange-600">{{ statistics.averageResponseTime }}</div>
-          <div class="text-sm text-orange-500 mt-1">平均响应时间(分钟)</div>
+        <div class="border border-orange-200 rounded-lg from-orange-50 to-orange-100 bg-gradient-to-br p-4 text-center">
+          <div class="text-2xl text-orange-600 font-bold">{{ statistics.averageResponseTime }}</div>
+          <div class="mt-1 text-sm text-orange-500">平均响应时间(分钟)</div>
         </div>
-        
+
         <!-- 待处理消息 -->
-        <div class="text-center p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg border border-red-200">
-          <div class="text-2xl font-bold text-red-600">{{ statistics.byStatus['待发送'] || 0 }}</div>
-          <div class="text-sm text-red-500 mt-1">待发送消息</div>
+        <div class="border border-red-200 rounded-lg from-red-50 to-red-100 bg-gradient-to-br p-4 text-center">
+          <div class="text-2xl text-red-600 font-bold">{{ statistics.byStatus['待发送'] || 0 }}</div>
+          <div class="mt-1 text-sm text-red-500">待发送消息</div>
         </div>
       </div>
-      
+
       <!-- 详细统计 -->
-      <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 mt-6 gap-6 md:grid-cols-3">
         <!-- 消息类型分布 -->
-        <div class="p-4 border border-gray-200 rounded-lg">
-          <h4 class="font-medium text-gray-700 mb-3 flex items-center gap-2">
+        <div class="border border-gray-200 rounded-lg p-4">
+          <h4 class="mb-3 flex items-center gap-2 text-gray-700 font-medium">
             <icon-mdi:message-outline class="text-blue-500" />
             消息类型分布
           </h4>
           <div class="space-y-2">
-            <div v-for="(count, type) in statistics.byType" :key="type" class="flex justify-between items-center">
+            <div v-for="(count, type) in statistics.byType" :key="type" class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: typeColors[type] || '#ccc' }"></div>
+                <div class="h-3 w-3 rounded-full" :style="{ backgroundColor: typeColors[type] || '#ccc' }"></div>
                 <span class="text-sm text-gray-600">{{ type }}</span>
               </div>
-              <span class="text-sm font-medium text-gray-800">{{ count }}</span>
+              <span class="text-sm text-gray-800 font-medium">{{ count }}</span>
             </div>
           </div>
         </div>
-        
+
         <!-- 消息状态分布 -->
-        <div class="p-4 border border-gray-200 rounded-lg">
-          <h4 class="font-medium text-gray-700 mb-3 flex items-center gap-2">
+        <div class="border border-gray-200 rounded-lg p-4">
+          <h4 class="mb-3 flex items-center gap-2 text-gray-700 font-medium">
             <icon-mdi:progress-check class="text-green-500" />
             消息状态分布
           </h4>
           <div class="space-y-2">
-            <div v-for="(count, status) in statistics.byStatus" :key="status" class="flex justify-between items-center">
+            <div v-for="(count, status) in statistics.byStatus" :key="status" class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: statusColors[status] || '#ccc' }"></div>
+                <div class="h-3 w-3 rounded-full" :style="{ backgroundColor: statusColors[status] || '#ccc' }"></div>
                 <span class="text-sm text-gray-600">{{ status }}</span>
               </div>
-              <span class="text-sm font-medium text-gray-800">{{ count }}</span>
+              <span class="text-sm text-gray-800 font-medium">{{ count }}</span>
             </div>
           </div>
         </div>
-        
+
         <!-- 紧急程度分布 -->
-        <div class="p-4 border border-gray-200 rounded-lg">
-          <h4 class="font-medium text-gray-700 mb-3 flex items-center gap-2">
+        <div class="border border-gray-200 rounded-lg p-4">
+          <h4 class="mb-3 flex items-center gap-2 text-gray-700 font-medium">
             <icon-mdi:alert-circle-outline class="text-orange-500" />
             紧急程度分布
           </h4>
           <div class="space-y-2">
-            <div v-for="(count, urgency) in statistics.byUrgency" :key="urgency" class="flex justify-between items-center">
+            <div v-for="(count, urgency) in statistics.byUrgency" :key="urgency" class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-full" :style="{ 
+                <div
+                  class="h-3 w-3 rounded-full"
+                  :style="{ 
                   backgroundColor: urgency === '非常紧急' ? '#f5222d' : 
                                   urgency === '高级' ? '#fa8c16' : 
-                                  urgency === '中级' ? '#52c41a' : 
-                                  urgency === '低级' ? '#91d5ff' :
-                                  '#d9d9d9' 
-                }"></div>
+                          : urgency === '中级'
+                            ? '#52c41a'
+                            : urgency === '低级'
+                              ? '#91d5ff'
+                              : '#d9d9d9'
+                  }"
+                ></div>
                 <span class="text-sm text-gray-600">{{ urgency }}</span>
               </div>
-              <span class="text-sm font-medium text-gray-800">{{ count }}</span>
+              <span class="text-sm text-gray-800 font-medium">{{ count }}</span>
             </div>
           </div>
         </div>
       </div>
     </NCard>
-    
+
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <TableHeaderOperation
         v-model:columns="columnChecks"
@@ -727,7 +763,8 @@ onMounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

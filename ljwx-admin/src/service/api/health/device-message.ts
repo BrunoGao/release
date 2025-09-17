@@ -9,7 +9,7 @@ export function fetchGetDeviceMessageList(params?: Api.Health.DeviceMessageSearc
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   const urlParams = new URLSearchParams();
   Object.entries(filteredParams || {}).forEach(([key, value]) => {
     if (value !== null && value !== undefined) {

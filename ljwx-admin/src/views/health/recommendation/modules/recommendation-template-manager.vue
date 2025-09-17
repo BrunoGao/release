@@ -1,19 +1,19 @@
 <script setup lang="tsx">
-import { ref, computed, h } from 'vue';
-import { 
-  NModal, 
-  NCard, 
-  NDataTable, 
-  NButton, 
-  NTag, 
-  NSpace,
-  NPopconfirm,
+import { computed, h, ref } from 'vue';
+import {
   NAlert,
+  NButton,
+  NCard,
+  NDataTable,
+  NDivider,
   NForm,
   NFormItem,
   NInput,
+  NModal,
+  NPopconfirm,
   NSelect,
-  NDivider,
+  NSpace,
+  NTag,
   useMessage
 } from 'naive-ui';
 
@@ -36,7 +36,8 @@ const templates = ref([
     type: 'lifestyle',
     category: '生活方式',
     title: '改善睡眠质量建议',
-    content: '建议您调整作息时间，每天保证7-8小时的睡眠，睡前1小时避免使用电子设备，创造安静舒适的睡眠环境。可以尝试睡前进行轻松的伸展运动或冥想练习。',
+    content:
+      '建议您调整作息时间，每天保证7-8小时的睡眠，睡前1小时避免使用电子设备，创造安静舒适的睡眠环境。可以尝试睡前进行轻松的伸展运动或冥想练习。',
     tags: ['睡眠', '作息', '生活习惯'],
     usageCount: 156,
     effectiveness: 4.2,
@@ -50,7 +51,8 @@ const templates = ref([
     type: 'exercise',
     category: '运动健身',
     title: '个人有氧运动计划建议',
-    content: '建议每周进行3-4次中等强度有氧运动，如快走、游泳或骑行，每次30-45分钟。运动前进行5-10分钟热身，运动后进行拉伸放松。根据个人体质逐步增加运动强度。',
+    content:
+      '建议每周进行3-4次中等强度有氧运动，如快走、游泳或骑行，每次30-45分钟。运动前进行5-10分钟热身，运动后进行拉伸放松。根据个人体质逐步增加运动强度。',
     tags: ['有氧运动', '运动计划', '健身'],
     usageCount: 203,
     effectiveness: 4.5,
@@ -78,7 +80,8 @@ const templates = ref([
     type: 'mental',
     category: '心理健康',
     title: '压力管理与心理调适建议',
-    content: '建议学习和练习放松技巧，如深呼吸、渐进式肌肉放松或正念冥想。保持工作与生活的平衡，适当参与社交活动。如压力持续严重，建议寻求专业心理咨询。',
+    content:
+      '建议学习和练习放松技巧，如深呼吸、渐进式肌肉放松或正念冥想。保持工作与生活的平衡，适当参与社交活动。如压力持续严重，建议寻求专业心理咨询。',
     tags: ['压力管理', '心理健康', '放松技巧'],
     usageCount: 134,
     effectiveness: 4.3,
@@ -140,7 +143,9 @@ const columns = [
     title: '类别',
     width: 100,
     render: (row: any) => (
-      <NTag type="info" size="small">{row.category}</NTag>
+      <NTag type="info" size="small">
+        {row.category}
+      </NTag>
     )
   },
   {
@@ -158,10 +163,14 @@ const columns = [
     render: (row: any) => (
       <NSpace size="small">
         {row.tags.slice(0, 2).map((tag: string) => (
-          <NTag key={tag} type="default" size="small">{tag}</NTag>
+          <NTag key={tag} type="default" size="small">
+            {tag}
+          </NTag>
         ))}
         {row.tags.length > 2 && (
-          <NTag type="default" size="small">+{row.tags.length - 2}</NTag>
+          <NTag type="default" size="small">
+            +{row.tags.length - 2}
+          </NTag>
         )}
       </NSpace>
     )
@@ -205,28 +214,13 @@ const columns = [
     width: 200,
     render: (row: any) => (
       <NSpace size="small">
-        <NButton 
-          size="small" 
-          type="info" 
-          quaternary 
-          onClick={() => viewTemplate(row)}
-        >
+        <NButton size="small" type="info" quaternary onClick={() => viewTemplate(row)}>
           预览
         </NButton>
-        <NButton 
-          size="small" 
-          type="primary" 
-          quaternary 
-          onClick={() => editTemplate(row)}
-        >
+        <NButton size="small" type="primary" quaternary onClick={() => editTemplate(row)}>
           编辑
         </NButton>
-        <NButton 
-          size="small" 
-          type={row.status === 'active' ? 'warning' : 'success'}
-          quaternary 
-          onClick={() => toggleStatus(row)}
-        >
+        <NButton size="small" type={row.status === 'active' ? 'warning' : 'success'} quaternary onClick={() => toggleStatus(row)}>
           {row.status === 'active' ? '禁用' : '启用'}
         </NButton>
         <NPopconfirm onPositiveClick={() => deleteTemplate(row.id)}>
@@ -354,7 +348,7 @@ function cancelEdit() {
 </script>
 
 <template>
-  <NModal v-model:show="visible" preset="card" title="建议模板管理" class="w-full max-w-7xl">
+  <NModal v-model:show="visible" preset="card" title="建议模板管理" class="max-w-7xl w-full">
     <template #header-extra>
       <NButton type="primary" @click="createNewTemplate">
         <template #icon>
@@ -366,31 +360,31 @@ function cancelEdit() {
 
     <div class="space-y-4">
       <!-- 统计卡片 -->
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <NCard size="small">
           <div class="text-center">
-            <div class="text-2xl font-bold text-primary">{{ templateStats.total }}</div>
+            <div class="text-2xl text-primary font-bold">{{ templateStats.total }}</div>
             <div class="text-sm text-gray-600">总模板数</div>
           </div>
         </NCard>
-        
+
         <NCard size="small">
           <div class="text-center">
-            <div class="text-2xl font-bold text-success">{{ templateStats.active }}</div>
+            <div class="text-2xl text-success font-bold">{{ templateStats.active }}</div>
             <div class="text-sm text-gray-600">启用模板</div>
           </div>
         </NCard>
-        
+
         <NCard size="small">
           <div class="text-center">
-            <div class="text-2xl font-bold text-warning">{{ templateStats.draft }}</div>
+            <div class="text-2xl text-warning font-bold">{{ templateStats.draft }}</div>
             <div class="text-sm text-gray-600">草稿模板</div>
           </div>
         </NCard>
-        
+
         <NCard size="small">
           <div class="text-center">
-            <div class="text-2xl font-bold text-info">{{ templateStats.avgEffectiveness.toFixed(1) }}/5</div>
+            <div class="text-2xl text-info font-bold">{{ templateStats.avgEffectiveness.toFixed(1) }}/5</div>
             <div class="text-sm text-gray-600">平均有效性</div>
           </div>
         </NCard>
@@ -401,67 +395,45 @@ function cancelEdit() {
         <template #header>
           <span class="text-lg font-semibold">模板列表</span>
         </template>
-        
-        <NDataTable
-          :data="templates"
-          :columns="columns"
-          :row-key="(row: any) => row.id"
-          size="small"
-          striped
-        />
+
+        <NDataTable :data="templates" :columns="columns" :row-key="(row: any) => row.id" size="small" striped />
       </NCard>
 
       <!-- 编辑模板表单 -->
       <NCard v-if="isEditing" title="编辑模板">
         <NForm :model="editForm" label-placement="top">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <NFormItem label="模板名称" required>
-              <NInput 
-                v-model:value="editForm.name" 
-                placeholder="请输入模板名称"
-                maxlength="50"
-                show-count
-              />
+              <NInput v-model:value="editForm.name" placeholder="请输入模板名称" maxlength="50" show-count />
             </NFormItem>
 
             <NFormItem label="模板类型" required>
-              <NSelect 
-                v-model:value="editForm.type" 
-                :options="typeOptions" 
-                placeholder="请选择模板类型" 
-              />
+              <NSelect v-model:value="editForm.type" :options="typeOptions" placeholder="请选择模板类型" />
             </NFormItem>
           </div>
 
           <NFormItem label="建议标题" required>
-            <NInput 
-              v-model:value="editForm.title" 
-              placeholder="请输入建议标题"
-              maxlength="100"
-              show-count
-            />
+            <NInput v-model:value="editForm.title" placeholder="请输入建议标题" maxlength="100" show-count />
           </NFormItem>
 
           <NFormItem label="建议内容" required>
-            <NInput
-              type="textarea"
-              v-model:value="editForm.content" 
-              placeholder="请输入详细的建议内容"
-              :rows="4"
-              maxlength="1000"
-              show-count
-            />
+            <NInput v-model:value="editForm.content" type="textarea" placeholder="请输入详细的建议内容" :rows="4" maxlength="1000" show-count />
           </NFormItem>
 
           <NFormItem label="标签">
-            <NInput 
-              v-model:value="editForm.tags" 
+            <NInput
+              v-model:value="editForm.tags"
               placeholder="请输入标签，用逗号分隔"
-              @blur="() => {
-                if (typeof editForm.tags === 'string') {
-                  editForm.tags = editForm.tags.split(',').map(s => s.trim()).filter(s => s);
+              @blur="
+                () => {
+                  if (typeof editForm.tags === 'string') {
+                    editForm.tags = editForm.tags
+                      .split(',')
+                      .map(s => s.trim())
+                      .filter(s => s);
+                  }
                 }
-              }"
+              "
             />
           </NFormItem>
         </NForm>

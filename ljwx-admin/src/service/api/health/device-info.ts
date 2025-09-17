@@ -9,7 +9,7 @@ export function fetchGetDeviceInfoList(params?: Api.Health.DeviceInfoSearchParam
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.DeviceInfoList>({
     url: '/t_device_info/page',
     method: 'GET',

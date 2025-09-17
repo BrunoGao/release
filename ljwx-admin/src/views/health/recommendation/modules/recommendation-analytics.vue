@@ -1,20 +1,20 @@
 <script setup lang="tsx">
-import { ref, computed, watch, onMounted } from 'vue';
-import { 
-  NModal, 
-  NCard, 
-  NTabs, 
-  NTabPane, 
-  NDescriptions,
-  NDescriptionsItem,
-  NTag, 
-  NSpace,
-  NStatistic,
+import { computed, onMounted, ref, watch } from 'vue';
+import {
   NAlert,
   NButton,
+  NCard,
+  NDescriptions,
+  NDescriptionsItem,
+  NModal,
+  NRate,
+  NSpace,
+  NStatistic,
+  NTabPane,
+  NTabs,
+  NTag,
   NTimeline,
   NTimelineItem,
-  NRate,
   useMessage
 } from 'naive-ui';
 import * as echarts from 'echarts';
@@ -145,10 +145,10 @@ const analyticsData = ref({
 // 初始化用户互动图表
 function initEngagementChart() {
   if (!engagementChartRef.value) return;
-  
+
   const chart = echarts.init(engagementChartRef.value);
   const { engagement } = analyticsData.value;
-  
+
   const option = {
     title: {
       text: '用户互动分析',
@@ -201,9 +201,9 @@ function initEngagementChart() {
       }
     ]
   };
-  
+
   chart.setOption(option);
-  
+
   const resizeObserver = new ResizeObserver(() => {
     chart.resize();
   });
@@ -213,9 +213,9 @@ function initEngagementChart() {
 // 初始化有效性趋势图表
 function initEffectivenessChart() {
   if (!effectivenessChartRef.value) return;
-  
+
   const chart = echarts.init(effectivenessChartRef.value);
-  
+
   const option = {
     title: {
       text: '健康改善趋势',
@@ -267,9 +267,9 @@ function initEffectivenessChart() {
       }
     ]
   };
-  
+
   chart.setOption(option);
-  
+
   const resizeObserver = new ResizeObserver(() => {
     chart.resize();
   });
@@ -279,10 +279,10 @@ function initEffectivenessChart() {
 // 初始化时间轴图表
 function initTimelineChart() {
   if (!timelineChartRef.value) return;
-  
+
   const chart = echarts.init(timelineChartRef.value);
   const timeline = analyticsData.value.timeline;
-  
+
   const option = {
     title: {
       text: '建议执行时间轴',
@@ -297,7 +297,7 @@ function initTimelineChart() {
       axisPointer: {
         type: 'line'
       },
-      formatter: function(params: any) {
+      formatter(params: any) {
         const data = params[0];
         const item = timeline[data.dataIndex];
         return `
@@ -345,9 +345,9 @@ function initTimelineChart() {
       }
     ]
   };
-  
+
   chart.setOption(option);
-  
+
   const resizeObserver = new ResizeObserver(() => {
     chart.resize();
   });
@@ -355,7 +355,7 @@ function initTimelineChart() {
 }
 
 // 监听弹窗打开，初始化图表
-watch(visible, (newVisible) => {
+watch(visible, newVisible => {
   if (newVisible) {
     setTimeout(() => {
       initEngagementChart();
@@ -385,7 +385,7 @@ function createFollowUp() {
 </script>
 
 <template>
-  <NModal v-model:show="visible" preset="card" title="建议分析详情" class="w-full max-w-6xl">
+  <NModal v-model:show="visible" preset="card" title="建议分析详情" class="max-w-6xl w-full">
     <template #header-extra>
       <NSpace>
         <NButton type="primary" @click="createFollowUp">
@@ -436,14 +436,14 @@ function createFollowUp() {
         </NDescriptions>
 
         <div class="mt-4">
-          <h4 class="text-sm font-medium mb-2">建议内容：</h4>
-          <div class="bg-gray-50 p-3 rounded text-sm leading-relaxed">
+          <h4 class="mb-2 text-sm font-medium">建议内容：</h4>
+          <div class="rounded bg-gray-50 p-3 text-sm leading-relaxed">
             {{ recommendationData.content }}
           </div>
         </div>
 
         <div v-if="recommendationData.riskFactors?.length" class="mt-4">
-          <h4 class="text-sm font-medium mb-2">关键风险因素：</h4>
+          <h4 class="mb-2 text-sm font-medium">关键风险因素：</h4>
           <NSpace>
             <NTag v-for="factor in recommendationData.riskFactors" :key="factor" type="warning" size="small">
               {{ factor }}
@@ -453,19 +453,19 @@ function createFollowUp() {
       </NCard>
 
       <!-- 关键指标统计 -->
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <NCard size="small">
           <NStatistic label="打开率" :value="engagementStats.openRate" suffix="%" />
         </NCard>
-        
+
         <NCard size="small">
           <NStatistic label="点击率" :value="engagementStats.clickRate" suffix="%" />
         </NCard>
-        
+
         <NCard size="small">
           <NStatistic label="反馈率" :value="engagementStats.feedbackRate" suffix="%" />
         </NCard>
-        
+
         <NCard size="small">
           <NStatistic label="健康改善" value="+3" suffix="分" />
         </NCard>
@@ -475,7 +475,7 @@ function createFollowUp() {
       <NTabs type="line" animated>
         <!-- 用户画像 -->
         <NTabPane name="profile" tab="用户画像">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <!-- 基本信息 -->
             <NCard title="基本信息" size="small">
               <NDescriptions bordered :column="1" size="small">
@@ -503,7 +503,7 @@ function createFollowUp() {
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-600">执行率：</span>
-                  <span class="font-medium text-green-600">
+                  <span class="text-green-600 font-medium">
                     {{ ((analyticsData.userProfile.followedRecommendations / analyticsData.userProfile.previousRecommendations) * 100).toFixed(1) }}%
                   </span>
                 </div>
@@ -514,25 +514,25 @@ function createFollowUp() {
 
         <!-- 互动分析 -->
         <NTabPane name="engagement" tab="互动分析">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <!-- 互动漏斗图 -->
             <NCard title="用户互动漏斗" size="small">
-              <div ref="engagementChartRef" class="w-full h-80"></div>
+              <div ref="engagementChartRef" class="h-80 w-full"></div>
             </NCard>
-            
+
             <!-- 健康趋势图 -->
             <NCard title="健康改善趋势" size="small">
-              <div ref="effectivenessChartRef" class="w-full h-80"></div>
+              <div ref="effectivenessChartRef" class="h-80 w-full"></div>
             </NCard>
           </div>
         </NTabPane>
 
         <!-- 执行时间轴 -->
         <NTabPane name="timeline" tab="执行时间轴">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <!-- 时间轴图表 -->
             <NCard title="执行进度图" size="small">
-              <div ref="timelineChartRef" class="w-full h-80"></div>
+              <div ref="timelineChartRef" class="h-80 w-full"></div>
             </NCard>
 
             <!-- 详细时间轴 -->
@@ -556,15 +556,15 @@ function createFollowUp() {
           <NCard title="相似用户案例对比" size="small">
             <div class="space-y-4">
               <div v-for="case_item in analyticsData.similarCases" :key="case_item.id" class="border rounded-lg p-4">
-                <div class="flex items-center justify-between mb-2">
+                <div class="mb-2 flex items-center justify-between">
                   <div class="font-medium">{{ case_item.userName }} - {{ case_item.department }}</div>
                   <div class="flex items-center gap-2">
                     <span class="text-sm text-gray-600">相似度:</span>
                     <NTag type="info" size="small">{{ case_item.similarity }}%</NTag>
                   </div>
                 </div>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+
+                <div class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
                   <div>
                     <span class="text-gray-600">改善效果:</span>
                     <span class="ml-2 font-medium">{{ case_item.outcome }}</span>

@@ -82,7 +82,7 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NModal v-model:show="visible" :title="title" preset="card" :segmented="false" class="w-1080px enhanced-button-modal">
+  <NModal v-model:show="visible" :title="title" preset="card" :segmented="false" class="enhanced-button-modal w-1080px">
     <div class="button-auth-header">
       <NAlert type="info" :show-icon="false">
         <template #header>
@@ -94,21 +94,15 @@ watch(visible, () => {
         为该角色分配按钮操作权限，精确控制功能访问范围
       </NAlert>
     </div>
-    
+
     <div class="permission-stats">
       <NSpace>
-        <NTag type="primary" size="small">
-          已选择 {{ checks.length }} 项权限
-        </NTag>
-        <NButton size="small" type="info" quaternary @click="selectAll">
-          全选
-        </NButton>
-        <NButton size="small" type="warning" quaternary @click="clearAll">
-          清空
-        </NButton>
+        <NTag type="primary" size="small">已选择 {{ checks.length }} 项权限</NTag>
+        <NButton size="small" type="info" quaternary @click="selectAll">全选</NButton>
+        <NButton size="small" type="warning" quaternary @click="clearAll">清空</NButton>
       </NSpace>
     </div>
-    
+
     <NCheckboxGroup v-model:value="checks" class="permission-container">
       <NDescriptions label-placement="left" bordered :column="1" class="permission-descriptions">
         <NDescriptionsItem v-for="item in permissionData" :key="item.menuId" :label="$t(item.i18nKey)" class="menu-permission-item">
@@ -127,7 +121,7 @@ watch(visible, () => {
         </NDescriptionsItem>
       </NDescriptions>
     </NCheckboxGroup>
-    
+
     <template #footer>
       <NSpace justify="end" class="enhanced-footer">
         <NButton size="small" quaternary @click="closeModal">

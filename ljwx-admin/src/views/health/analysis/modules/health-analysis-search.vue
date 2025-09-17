@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NForm, NFormItem, NSelect, NDatePicker, NButton, NSpace } from 'naive-ui';
+import { NButton, NDatePicker, NForm, NFormItem, NSelect, NSpace } from 'naive-ui';
 import { computed, ref, watch } from 'vue';
 
 defineOptions({
@@ -44,46 +44,46 @@ const formModel = computed({
 const orgOptions = computed(() => {
   const convertTreeToOptions = (tree: Api.SystemManage.OrgUnitsTree[]): { label: string; value: number }[] => {
     const result: { label: string; value: number }[] = [];
-    
+
     const traverse = (nodes: Api.SystemManage.OrgUnitsTree[], prefix = '') => {
       nodes.forEach(node => {
         result.push({
           label: prefix + node.name,
           value: node.id
         });
-        
+
         if (node.children && node.children.length > 0) {
-          traverse(node.children, prefix + '└ ');
+          traverse(node.children, `${prefix}└ `);
         }
       });
     };
-    
+
     traverse(tree);
     return result;
   };
-  
+
   return convertTreeToOptions(props.orgUnitsTree);
 });
 
 // 时间范围快捷选项
 const timeRangeShortcuts = {
-  '今天': () => {
+  今天: () => {
     const today = new Date();
     return [today, today];
   },
-  '最近7天': () => {
+  最近7天: () => {
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - 6);
     return [start, end];
   },
-  '最近30天': () => {
+  最近30天: () => {
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - 29);
     return [start, end];
   },
-  '最近3个月': () => {
+  最近3个月: () => {
     const end = new Date();
     const start = new Date();
     start.setMonth(start.getMonth() - 3);
@@ -94,10 +94,7 @@ const timeRangeShortcuts = {
 // 日期范围值
 const dateRange = computed({
   get() {
-    return [
-      new Date(formModel.value.startDate).getTime(),
-      new Date(formModel.value.endDate).getTime()
-    ];
+    return [new Date(formModel.value.startDate).getTime(), new Date(formModel.value.endDate).getTime()];
   },
   set(value: [number, number] | null) {
     if (value) {
@@ -120,7 +117,7 @@ function handleReset() {
   const today = new Date();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(today.getDate() - 30);
-  
+
   formModel.value = {
     orgId: null,
     userId: null,
@@ -128,7 +125,7 @@ function handleReset() {
     endDate: today.toISOString().split('T')[0],
     customerId: props.model.customerId
   };
-  
+
   emit('reset');
   emit('search');
 }
@@ -150,26 +147,14 @@ watch(
         <span class="font-medium">筛选条件</span>
       </div>
     </template>
-    
-    <NForm
-      :model="formModel"
-      label-width="80px"
-      label-placement="left"
-      class="search-form"
-    >
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+    <NForm :model="formModel" label-width="80px" label-placement="left" class="search-form">
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-4 md:grid-cols-2">
         <!-- 组织选择 -->
         <NFormItem label="组织部门" class="search-item">
-          <NSelect
-            v-model:value="formModel.orgId"
-            :options="orgOptions"
-            placeholder="请选择组织部门"
-            clearable
-            filterable
-            class="search-select"
-          />
+          <NSelect v-model:value="formModel.orgId" :options="orgOptions" placeholder="请选择组织部门" clearable filterable class="search-select" />
         </NFormItem>
-        
+
         <!-- 用户选择 -->
         <NFormItem label="目标用户" class="search-item">
           <NSelect
@@ -182,7 +167,7 @@ watch(
             class="search-select"
           />
         </NFormItem>
-        
+
         <!-- 时间范围 -->
         <NFormItem label="分析时段" class="search-item md:col-span-2">
           <NDatePicker
@@ -195,9 +180,9 @@ watch(
           />
         </NFormItem>
       </div>
-      
+
       <!-- 操作按钮 -->
-      <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
+      <div class="mt-4 flex justify-end gap-3 border-t border-gray-100 pt-4">
         <NButton @click="handleReset">
           <template #icon>
             <div class="i-material-symbols:refresh"></div>
@@ -255,7 +240,7 @@ watch(
   .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 {
     grid-template-columns: 1fr;
   }
-  
+
   .md\\:col-span-2 {
     grid-column: span 1;
   }

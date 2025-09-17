@@ -12,7 +12,6 @@ const appStore = useAppStore();
 const authStore = useAuthStore();
 
 const gap = computed(() => (appStore.isMobile ? 0 : 16));
-
 </script>
 
 <template>

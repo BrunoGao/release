@@ -1,27 +1,27 @@
-<template>
-  <n-modal v-model:show="visible" preset="dialog" title="档案模板管理" style="width: 80%;">
-    <div class="text-center p-8">
-      <n-icon size="48" class="mb-4 text-primary">
-        <icon-ic:baseline-description />
-      </n-icon>
-      <h3 class="text-lg font-medium mb-2">功能开发中</h3>
-      <p class="text-gray-600">档案模板管理功能正在开发中</p>
-    </div>
-  </n-modal>
-</template>
-
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue'
+import { defineEmits, defineProps } from 'vue';
 
 defineProps<{
-  visible: boolean
-}>()
+  visible: boolean;
+}>();
 
 defineEmits<{
-  'update:visible': [value: boolean]
-  'template-selected': [template: any]
-}>()
+  'update:visible': [value: boolean];
+  'template-selected': [template: any];
+}>();
 </script>
+
+<template>
+  <NModal v-model:show="visible" preset="dialog" title="档案模板管理" style="width: 80%">
+    <div class="p-8 text-center">
+      <NIcon size="48" class="mb-4 text-primary">
+        <icon-ic:baseline-description />
+      </NIcon>
+      <h3 class="mb-2 text-lg font-medium">功能开发中</h3>
+      <p class="text-gray-600">档案模板管理功能正在开发中</p>
+    </div>
+  </NModal>
+</template>
 
 <style scoped>
 .text-primary {

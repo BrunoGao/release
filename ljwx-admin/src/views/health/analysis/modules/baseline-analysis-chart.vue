@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 
 interface BaselineData {
@@ -39,7 +39,7 @@ const chartColors = {
 
 const processedData = computed(() => {
   if (!props.data || props.data.length === 0) return null;
-  
+
   return {
     categories: props.data.map(item => item.feature),
     baseline: props.data.map(item => item.baseline),
@@ -51,7 +51,7 @@ const processedData = computed(() => {
 
 watch(
   () => props.data,
-  (newData) => {
+  newData => {
     if (newData && newData.length > 0) {
       updateChart();
     }
@@ -88,10 +88,10 @@ function updateChart() {
       textStyle: {
         color: '#374151'
       },
-      formatter: function(params: any) {
+      formatter(params: any) {
         let result = `<div style="padding: 8px;">`;
         result += `<div style="font-weight: 600; margin-bottom: 8px;">${params[0].name}</div>`;
-        
+
         params.forEach((param: any, index: number) => {
           const dataItem = props.data[param.dataIndex];
           if (param.value !== null && param.value !== undefined) {
@@ -103,7 +103,7 @@ function updateChart() {
             `;
           }
         });
-        
+
         const dataItem = props.data[params[0].dataIndex];
         result += `
           <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
@@ -115,7 +115,7 @@ function updateChart() {
             </div>
           </div>
         `;
-        
+
         result += `</div>`;
         return result;
       }
@@ -222,8 +222,8 @@ function updateChart() {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: chartColors.baseline + '40' },
-              { offset: 1, color: chartColors.baseline + '10' }
+              { offset: 0, color: `${chartColors.baseline}40` },
+              { offset: 1, color: `${chartColors.baseline}10` }
             ]
           }
         }
@@ -248,7 +248,7 @@ function updateChart() {
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
-            shadowColor: chartColors.current + '60'
+            shadowColor: `${chartColors.current}60`
           }
         }
       },
@@ -257,7 +257,7 @@ function updateChart() {
         type: 'bar',
         yAxisIndex: 1,
         data: deviation.map((value, index) => ({
-          value: value,
+          value,
           itemStyle: {
             color: getDeviationColor(status[index])
           }
@@ -274,34 +274,46 @@ function updateChart() {
     animationDuration: 1500,
     animationEasing: 'cubicOut'
   };
-  
+
   updateOptions(option);
 }
 
 function getStatusColor(status: string) {
   switch (status) {
-    case 'normal': return '#52c41a';
-    case 'warning': return '#faad14';
-    case 'danger': return '#ff4d4f';
-    default: return '#6b7280';
+    case 'normal':
+      return '#52c41a';
+    case 'warning':
+      return '#faad14';
+    case 'danger':
+      return '#ff4d4f';
+    default:
+      return '#6b7280';
   }
 }
 
 function getStatusText(status: string) {
   switch (status) {
-    case 'normal': return '正常';
-    case 'warning': return '警告';
-    case 'danger': return '异常';
-    default: return '未知';
+    case 'normal':
+      return '正常';
+    case 'warning':
+      return '警告';
+    case 'danger':
+      return '异常';
+    default:
+      return '未知';
   }
 }
 
 function getDeviationColor(status: string) {
   switch (status) {
-    case 'normal': return chartColors.baseline;
-    case 'warning': return chartColors.deviation;
-    case 'danger': return chartColors.danger;
-    default: return '#d9d9d9';
+    case 'normal':
+      return chartColors.baseline;
+    case 'warning':
+      return chartColors.deviation;
+    case 'danger':
+      return chartColors.danger;
+    default:
+      return '#d9d9d9';
   }
 }
 
@@ -313,7 +325,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="chartRef" class="w-full h-full min-h-80" />
+  <div ref="chartRef" class="h-full min-h-80 w-full" />
 </template>
 
 <style scoped>

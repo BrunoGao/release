@@ -1,20 +1,6 @@
 <script setup lang="tsx">
-import { ref, computed, h } from 'vue';
-import { 
-  NModal, 
-  NCard, 
-  NDataTable, 
-  NButton, 
-  NTag, 
-  NSpace,
-  NProgress,
-  NPopconfirm,
-  NAlert,
-  NTabs,
-  NTabPane,
-  NDivider,
-  useMessage
-} from 'naive-ui';
+import { computed, h, ref } from 'vue';
+import { NAlert, NButton, NCard, NDataTable, NDivider, NModal, NPopconfirm, NProgress, NSpace, NTabPane, NTabs, NTag, useMessage } from 'naive-ui';
 
 defineOptions({
   name: 'PredictionModelManager'
@@ -72,7 +58,7 @@ const models = ref([
     type: '综合预测',
     algorithm: 'XGBoost',
     accuracy: 0.91,
-    precision: 0.90,
+    precision: 0.9,
     recall: 0.92,
     f1Score: 0.91,
     status: 'training',
@@ -105,8 +91,8 @@ const models = ref([
 
 const selectedModel = ref(null);
 const showModelDetails = computed({
-  get: () => !!selectedModel.value,
-  set: (value) => {
+  get: () => Boolean(selectedModel.value),
+  set: value => {
     if (!value) {
       selectedModel.value = null;
     }
@@ -123,7 +109,9 @@ const columns = [
     render: (row: any) => (
       <div>
         <div class="font-medium">{row.name}</div>
-        <div class="text-xs text-gray-500">{row.version} • {row.algorithm}</div>
+        <div class="text-xs text-gray-500">
+          {row.version} • {row.algorithm}
+        </div>
       </div>
     )
   },
@@ -132,7 +120,9 @@ const columns = [
     title: '类型',
     width: 100,
     render: (row: any) => (
-      <NTag size="small" type="info">{row.type}</NTag>
+      <NTag size="small" type="info">
+        {row.type}
+      </NTag>
     )
   },
   {
@@ -156,7 +146,7 @@ const columns = [
     width: 100,
     render: (row: any) => {
       if (row.status === 'training') {
-        return h(NProgress, { 
+        return h(NProgress, {
           percentage: trainingProgress.value,
           status: 'info',
           showIndicator: false
@@ -188,41 +178,21 @@ const columns = [
     width: 200,
     render: (row: any) => (
       <NSpace size="small">
-        <NButton 
-          size="small" 
-          type="info" 
-          quaternary 
-          onClick={() => viewModelDetails(row)}
-        >
+        <NButton size="small" type="info" quaternary onClick={() => viewModelDetails(row)}>
           详情
         </NButton>
         {row.status === 'active' && (
-          <NButton 
-            size="small" 
-            type="warning" 
-            quaternary 
-            onClick={() => deactivateModel(row.id)}
-          >
+          <NButton size="small" type="warning" quaternary onClick={() => deactivateModel(row.id)}>
             停用
           </NButton>
         )}
         {row.status === 'inactive' && (
-          <NButton 
-            size="small" 
-            type="success" 
-            quaternary 
-            onClick={() => activateModel(row.id)}
-          >
+          <NButton size="small" type="success" quaternary onClick={() => activateModel(row.id)}>
             激活
           </NButton>
         )}
         {row.status !== 'training' && (
-          <NButton 
-            size="small" 
-            type="primary" 
-            quaternary 
-            onClick={() => retrainModel(row.id)}
-          >
+          <NButton size="small" type="primary" quaternary onClick={() => retrainModel(row.id)}>
             重训练
           </NButton>
         )}
@@ -278,7 +248,7 @@ function retrainModel(id: string) {
     model.status = 'training';
     trainingProgress.value = 0;
     isTraining.value = true;
-    
+
     // 模拟训练进度
     const interval = setInterval(() => {
       trainingProgress.value += Math.random() * 10;
@@ -295,7 +265,7 @@ function retrainModel(id: string) {
         }, 1000);
       }
     }, 200);
-    
+
     message.info('模型开始重新训练...');
   }
 }
@@ -315,7 +285,7 @@ function createNewModel() {
 </script>
 
 <template>
-  <NModal v-model:show="visible" preset="card" title="预测模型管理" class="w-full max-w-7xl">
+  <NModal v-model:show="visible" preset="card" title="预测模型管理" class="max-w-7xl w-full">
     <template #header-extra>
       <NButton type="primary" @click="createNewModel">
         <template #icon>
@@ -327,31 +297,31 @@ function createNewModel() {
 
     <div class="space-y-4">
       <!-- 统计卡片 -->
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <NCard size="small">
           <div class="text-center">
-            <div class="text-2xl font-bold text-primary">{{ modelStats.total }}</div>
+            <div class="text-2xl text-primary font-bold">{{ modelStats.total }}</div>
             <div class="text-sm text-gray-600">总模型数</div>
           </div>
         </NCard>
-        
+
         <NCard size="small">
           <div class="text-center">
-            <div class="text-2xl font-bold text-success">{{ modelStats.active }}</div>
+            <div class="text-2xl text-success font-bold">{{ modelStats.active }}</div>
             <div class="text-sm text-gray-600">活跃模型</div>
           </div>
         </NCard>
-        
+
         <NCard size="small">
           <div class="text-center">
-            <div class="text-2xl font-bold text-info">{{ modelStats.training }}</div>
+            <div class="text-2xl text-info font-bold">{{ modelStats.training }}</div>
             <div class="text-sm text-gray-600">训练中</div>
           </div>
         </NCard>
-        
+
         <NCard size="small">
           <div class="text-center">
-            <div class="text-2xl font-bold text-warning">{{ (modelStats.avgAccuracy * 100).toFixed(1) }}%</div>
+            <div class="text-2xl text-warning font-bold">{{ (modelStats.avgAccuracy * 100).toFixed(1) }}%</div>
             <div class="text-sm text-gray-600">平均准确率</div>
           </div>
         </NCard>
@@ -362,11 +332,7 @@ function createNewModel() {
         <NAlert type="info" show-icon>
           <div class="flex items-center justify-between">
             <span>正在训练模型，请稍候...</span>
-            <NProgress 
-              :percentage="trainingProgress" 
-              status="info"
-              class="w-32"
-            />
+            <NProgress :percentage="trainingProgress" status="info" class="w-32" />
           </div>
         </NAlert>
       </div>
@@ -376,20 +342,14 @@ function createNewModel() {
         <template #header>
           <span class="text-lg font-semibold">模型列表</span>
         </template>
-        
-        <NDataTable
-          :data="models"
-          :columns="columns"
-          :row-key="(row: any) => row.id"
-          size="small"
-          striped
-        />
+
+        <NDataTable :data="models" :columns="columns" :row-key="(row: any) => row.id" size="small" striped />
       </NCard>
 
       <!-- 模型详情 -->
-      <NModal v-model:show="showModelDetails" preset="card" title="模型详情" class="w-full max-w-4xl">
+      <NModal v-model:show="showModelDetails" preset="card" title="模型详情" class="max-w-4xl w-full">
         <div v-if="selectedModel" class="space-y-4">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <!-- 基本信息 -->
             <NCard title="基本信息" size="small">
               <div class="space-y-3">
@@ -411,10 +371,7 @@ function createNewModel() {
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-600">状态:</span>
-                  <NTag 
-                    :type="selectedModel.status === 'active' ? 'success' : 'warning'" 
-                    size="small"
-                  >
+                  <NTag :type="selectedModel.status === 'active' ? 'success' : 'warning'" size="small">
                     {{ selectedModel.status === 'active' ? '活跃' : '未激活' }}
                   </NTag>
                 </div>
@@ -450,9 +407,9 @@ function createNewModel() {
 
           <!-- 使用统计 -->
           <NCard title="使用统计" size="small">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div class="text-center">
-                <div class="text-2xl font-bold text-primary">{{ selectedModel.usageCount }}</div>
+                <div class="text-2xl text-primary font-bold">{{ selectedModel.usageCount }}</div>
                 <div class="text-sm text-gray-600">使用次数</div>
               </div>
               <div class="text-center">
@@ -469,12 +426,7 @@ function createNewModel() {
           <!-- 支持的特征 -->
           <NCard title="支持的健康特征" size="small">
             <div class="flex flex-wrap gap-2">
-              <NTag 
-                v-for="feature in selectedModel.features" 
-                :key="feature"
-                type="info"
-                size="small"
-              >
+              <NTag v-for="feature in selectedModel.features" :key="feature" type="info" size="small">
                 {{ feature }}
               </NTag>
             </div>

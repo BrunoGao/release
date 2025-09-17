@@ -1,19 +1,19 @@
 <script setup lang="tsx">
-import { ref, computed, watch, onMounted } from 'vue';
-import { 
-  NModal, 
-  NCard, 
-  NTabs, 
-  NTabPane, 
-  NDataTable, 
-  NTag, 
-  NSpace,
-  NStatistic,
-  NDivider,
+import { computed, onMounted, ref, watch } from 'vue';
+import {
   NAlert,
   NButton,
+  NCard,
+  NDataTable,
   NDescriptions,
   NDescriptionsItem,
+  NDivider,
+  NModal,
+  NSpace,
+  NStatistic,
+  NTabPane,
+  NTabs,
+  NTag,
   useMessage
 } from 'naive-ui';
 import * as echarts from 'echarts';
@@ -117,14 +117,18 @@ const riskUserColumns = [
         high: { type: 'error', text: '高风险' }
       } as const;
       const risk = riskMap[row.riskLevel as keyof typeof riskMap];
-      return <NTag type={risk.type} size="small">{risk.text}</NTag>;
+      return (
+        <NTag type={risk.type} size="small">
+          {risk.text}
+        </NTag>
+      );
     }
   },
   {
     key: 'riskScore',
     title: '风险评分',
     width: 100,
-    render: (row: any) => (row.riskScore * 100).toFixed(1) + '%'
+    render: (row: any) => `${(row.riskScore * 100).toFixed(1)}%`
   },
   {
     key: 'keyFactors',
@@ -132,10 +136,14 @@ const riskUserColumns = [
     render: (row: any) => (
       <NSpace size="small">
         {row.keyFactors.slice(0, 2).map((factor: string) => (
-          <NTag key={factor} type="info" size="small">{factor}</NTag>
+          <NTag key={factor} type="info" size="small">
+            {factor}
+          </NTag>
         ))}
         {row.keyFactors.length > 2 && (
-          <NTag type="default" size="small">+{row.keyFactors.length - 2}</NTag>
+          <NTag type="default" size="small">
+            +{row.keyFactors.length - 2}
+          </NTag>
         )}
       </NSpace>
     )
@@ -155,11 +163,8 @@ const featureColumns = [
     width: 120,
     render: (row: any) => (
       <div class="flex items-center gap-2">
-        <div class="w-20 bg-gray-200 rounded-full h-2">
-          <div 
-            class="bg-blue-500 h-2 rounded-full" 
-            style={{ width: `${row.importance * 100}%` }}
-          ></div>
+        <div class="h-2 w-20 rounded-full bg-gray-200">
+          <div class="h-2 rounded-full bg-blue-500" style={{ width: `${row.importance * 100}%` }}></div>
         </div>
         <span class="text-sm">{(row.importance * 100).toFixed(1)}%</span>
       </div>
@@ -175,7 +180,7 @@ const featureColumns = [
 // 初始化预测趋势图表
 function initPredictionChart() {
   if (!predictionChartRef.value) return;
-  
+
   const chart = echarts.init(predictionChartRef.value);
   const option = {
     title: {
@@ -252,9 +257,9 @@ function initPredictionChart() {
       }
     ]
   };
-  
+
   chart.setOption(option);
-  
+
   // 响应式调整
   const resizeObserver = new ResizeObserver(() => {
     chart.resize();
@@ -265,11 +270,11 @@ function initPredictionChart() {
 // 初始化风险分布图表
 function initRiskDistributionChart() {
   if (!riskDistributionChartRef.value) return;
-  
+
   const chart = echarts.init(riskDistributionChartRef.value);
   const { riskDistribution } = predictionResults.value;
   const total = riskDistribution.low + riskDistribution.medium + riskDistribution.high;
-  
+
   const option = {
     title: {
       text: '风险等级分布',
@@ -311,18 +316,18 @@ function initRiskDistributionChart() {
           }
         },
         data: [
-          { 
-            value: riskDistribution.low, 
+          {
+            value: riskDistribution.low,
             name: '低风险',
             itemStyle: { color: '#52c41a' }
           },
-          { 
-            value: riskDistribution.medium, 
+          {
+            value: riskDistribution.medium,
             name: '中风险',
             itemStyle: { color: '#faad14' }
           },
-          { 
-            value: riskDistribution.high, 
+          {
+            value: riskDistribution.high,
             name: '高风险',
             itemStyle: { color: '#ff4d4f' }
           }
@@ -330,9 +335,9 @@ function initRiskDistributionChart() {
       }
     ]
   };
-  
+
   chart.setOption(option);
-  
+
   const resizeObserver = new ResizeObserver(() => {
     chart.resize();
   });
@@ -342,20 +347,20 @@ function initRiskDistributionChart() {
 // 初始化准确率趋势图表
 function initAccuracyTrendChart() {
   if (!accuracyTrendChartRef.value) return;
-  
+
   const chart = echarts.init(accuracyTrendChartRef.value);
-  
+
   // 模拟准确率数据
   const accuracyData = [
     { date: '2024-01-15', accuracy: 0.83, confidence: 0.78 },
-    { date: '2024-01-16', accuracy: 0.85, confidence: 0.80 },
+    { date: '2024-01-16', accuracy: 0.85, confidence: 0.8 },
     { date: '2024-01-17', accuracy: 0.84, confidence: 0.79 },
     { date: '2024-01-18', accuracy: 0.86, confidence: 0.81 },
     { date: '2024-01-19', accuracy: 0.87, confidence: 0.82 },
     { date: '2024-01-20', accuracy: 0.88, confidence: 0.83 },
     { date: '2024-01-21', accuracy: 0.87, confidence: 0.82 }
   ];
-  
+
   const option = {
     title: {
       text: '模型性能趋势',
@@ -424,9 +429,9 @@ function initAccuracyTrendChart() {
       }
     ]
   };
-  
+
   chart.setOption(option);
-  
+
   const resizeObserver = new ResizeObserver(() => {
     chart.resize();
   });
@@ -439,7 +444,7 @@ function exportReport() {
 }
 
 // 监听弹窗打开，初始化图表
-watch(visible, (newVisible) => {
+watch(visible, newVisible => {
   if (newVisible) {
     // 延迟初始化图表，确保DOM已渲染
     setTimeout(() => {
@@ -462,7 +467,7 @@ const riskPercentages = computed(() => {
 </script>
 
 <template>
-  <NModal v-model:show="visible" preset="card" title="预测结果查看" class="w-full max-w-7xl">
+  <NModal v-model:show="visible" preset="card" title="预测结果查看" class="max-w-7xl w-full">
     <template #header-extra>
       <NButton type="primary" @click="exportReport">
         <template #icon>
@@ -486,7 +491,7 @@ const riskPercentages = computed(() => {
       </NCard>
 
       <!-- 关键统计指标 -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <NCard size="small">
           <NStatistic label="低风险用户" :value="predictionResults.riskDistribution.low">
             <template #suffix>
@@ -494,7 +499,7 @@ const riskPercentages = computed(() => {
             </template>
           </NStatistic>
         </NCard>
-        
+
         <NCard size="small">
           <NStatistic label="中风险用户" :value="predictionResults.riskDistribution.medium">
             <template #suffix>
@@ -502,7 +507,7 @@ const riskPercentages = computed(() => {
             </template>
           </NStatistic>
         </NCard>
-        
+
         <NCard size="small">
           <NStatistic label="高风险用户" :value="predictionResults.riskDistribution.high">
             <template #suffix>
@@ -524,21 +529,21 @@ const riskPercentages = computed(() => {
       <NTabs type="line" animated>
         <!-- 可视化分析 -->
         <NTabPane name="charts" tab="可视化分析">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <!-- 风险分布图 -->
             <NCard title="风险等级分布" size="small">
-              <div ref="riskDistributionChartRef" class="w-full h-80"></div>
+              <div ref="riskDistributionChartRef" class="h-80 w-full"></div>
             </NCard>
-            
+
             <!-- 预测趋势图 -->
             <NCard title="风险预测趋势" size="small">
-              <div ref="predictionChartRef" class="w-full h-80"></div>
+              <div ref="predictionChartRef" class="h-80 w-full"></div>
             </NCard>
           </div>
-          
+
           <!-- 模型性能 -->
           <NCard title="模型性能分析" size="small" class="mt-6">
-            <div ref="accuracyTrendChartRef" class="w-full h-80"></div>
+            <div ref="accuracyTrendChartRef" class="h-80 w-full"></div>
           </NCard>
         </NTabPane>
 
@@ -551,14 +556,8 @@ const riskPercentages = computed(() => {
                 <NTag type="error" size="small">{{ predictionResults.topRiskUsers.length }} 人</NTag>
               </div>
             </template>
-            
-            <NDataTable
-              :data="predictionResults.topRiskUsers"
-              :columns="riskUserColumns"
-              :row-key="(row: any) => row.id"
-              size="small"
-              striped
-            />
+
+            <NDataTable :data="predictionResults.topRiskUsers" :columns="riskUserColumns" :row-key="(row: any) => row.id" size="small" striped />
           </NCard>
 
           <!-- 风险用户详情 -->
@@ -573,19 +572,19 @@ const riskPercentages = computed(() => {
                     </NTag>
                   </div>
                 </template>
-                
+
                 <div class="space-y-3">
                   <div>
-                    <div class="text-sm text-gray-600 mb-2">关键风险因素：</div>
+                    <div class="mb-2 text-sm text-gray-600">关键风险因素：</div>
                     <NSpace>
                       <NTag v-for="factor in user.keyFactors" :key="factor" type="warning" size="small">
                         {{ factor }}
                       </NTag>
                     </NSpace>
                   </div>
-                  
+
                   <div>
-                    <div class="text-sm text-gray-600 mb-1">健康预测：</div>
+                    <div class="mb-1 text-sm text-gray-600">健康预测：</div>
                     <div class="text-sm">{{ user.prediction }}</div>
                   </div>
                 </div>
@@ -600,7 +599,7 @@ const riskPercentages = computed(() => {
             <template #header-extra>
               <span class="text-sm text-gray-500">基于当前预测模型的特征权重分析</span>
             </template>
-            
+
             <NDataTable
               :data="predictionResults.featureImportance"
               :columns="featureColumns"
@@ -613,12 +612,36 @@ const riskPercentages = computed(() => {
           <!-- 特征重要性说明 -->
           <NCard title="分析说明" size="small" class="mt-6">
             <div class="text-sm text-gray-700 space-y-2">
-              <p>• <strong>心率</strong>：作为最重要的生命体征指标，心率异常往往是健康问题的早期信号</p>
-              <p>• <strong>血氧</strong>：血氧饱和度反映呼吸系统和循环系统的功能状态</p>
-              <p>• <strong>血压</strong>：血压变化是心血管疾病的重要预警指标</p>
-              <p>• <strong>压力指数</strong>：心理压力会显著影响身体健康状况</p>
-              <p>• <strong>睡眠质量</strong>：良好的睡眠是身体恢复和免疫力维持的关键</p>
-              <p>• <strong>运动量</strong>：适量运动有助于维持整体健康水平</p>
+              <p>
+                •
+                <strong>心率</strong>
+                ：作为最重要的生命体征指标，心率异常往往是健康问题的早期信号
+              </p>
+              <p>
+                •
+                <strong>血氧</strong>
+                ：血氧饱和度反映呼吸系统和循环系统的功能状态
+              </p>
+              <p>
+                •
+                <strong>血压</strong>
+                ：血压变化是心血管疾病的重要预警指标
+              </p>
+              <p>
+                •
+                <strong>压力指数</strong>
+                ：心理压力会显著影响身体健康状况
+              </p>
+              <p>
+                •
+                <strong>睡眠质量</strong>
+                ：良好的睡眠是身体恢复和免疫力维持的关键
+              </p>
+              <p>
+                •
+                <strong>运动量</strong>
+                ：适量运动有助于维持整体健康水平
+              </p>
             </div>
           </NCard>
         </NTabPane>
@@ -628,25 +651,25 @@ const riskPercentages = computed(() => {
           <div class="space-y-4">
             <!-- 针对高风险用户的建议 -->
             <NCard title="高风险用户干预建议" size="small">
-              <div class="space-y-3 text-sm">
+              <div class="text-sm space-y-3">
                 <div class="flex items-start gap-3">
-                  <div class="text-red-500 mt-1">🚨</div>
+                  <div class="mt-1 text-red-500">🚨</div>
                   <div>
                     <div class="font-medium">立即关注</div>
                     <div class="text-gray-600">建议立即联系高风险用户，了解其当前健康状况，必要时安排医疗检查</div>
                   </div>
                 </div>
-                
+
                 <div class="flex items-start gap-3">
-                  <div class="text-orange-500 mt-1">📋</div>
+                  <div class="mt-1 text-orange-500">📋</div>
                   <div>
                     <div class="font-medium">健康计划制定</div>
                     <div class="text-gray-600">根据个人风险因素制定针对性的健康改善计划，包括运动、饮食、作息调整等</div>
                   </div>
                 </div>
-                
+
                 <div class="flex items-start gap-3">
-                  <div class="text-blue-500 mt-1">📊</div>
+                  <div class="mt-1 text-blue-500">📊</div>
                   <div>
                     <div class="font-medium">持续监控</div>
                     <div class="text-gray-600">增加健康数据监测频率，定期评估健康状况变化</div>
@@ -657,17 +680,17 @@ const riskPercentages = computed(() => {
 
             <!-- 针对中风险用户的建议 -->
             <NCard title="中风险用户关注建议" size="small">
-              <div class="space-y-3 text-sm">
+              <div class="text-sm space-y-3">
                 <div class="flex items-start gap-3">
-                  <div class="text-yellow-500 mt-1">⚠️</div>
+                  <div class="mt-1 text-yellow-500">⚠️</div>
                   <div>
                     <div class="font-medium">定期关注</div>
                     <div class="text-gray-600">建议每周关注一次，了解健康状况变化趋势</div>
                   </div>
                 </div>
-                
+
                 <div class="flex items-start gap-3">
-                  <div class="text-green-500 mt-1">💡</div>
+                  <div class="mt-1 text-green-500">💡</div>
                   <div>
                     <div class="font-medium">预防性干预</div>
                     <div class="text-gray-600">提供健康教育和生活方式指导，预防风险进一步升级</div>
@@ -678,17 +701,19 @@ const riskPercentages = computed(() => {
 
             <!-- 系统优化建议 -->
             <NCard title="预测系统优化建议" size="small">
-              <div class="space-y-3 text-sm">
+              <div class="text-sm space-y-3">
                 <div class="flex items-start gap-3">
-                  <div class="text-purple-500 mt-1">🔧</div>
+                  <div class="mt-1 text-purple-500">🔧</div>
                   <div>
                     <div class="font-medium">模型调优</div>
-                    <div class="text-gray-600">当前模型准确率为 {{ (predictionResults.modelAccuracy * 100).toFixed(1) }}%，建议收集更多训练数据以提高准确性</div>
+                    <div class="text-gray-600">
+                      当前模型准确率为 {{ (predictionResults.modelAccuracy * 100).toFixed(1) }}%，建议收集更多训练数据以提高准确性
+                    </div>
                   </div>
                 </div>
-                
+
                 <div class="flex items-start gap-3">
-                  <div class="text-indigo-500 mt-1">📈</div>
+                  <div class="mt-1 text-indigo-500">📈</div>
                   <div>
                     <div class="font-medium">数据质量</div>
                     <div class="text-gray-600">加强数据采集的完整性和准确性，特别关注高重要性特征的数据质量</div>

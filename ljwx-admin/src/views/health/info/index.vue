@@ -1,9 +1,14 @@
 <script setup lang="tsx">
-import { NCard, NSpace, NButton, NDataTable, NSkeleton, NTag, NTooltip, NProgress, NEmpty } from 'naive-ui';
-import { ref, onMounted, watch, computed, h } from 'vue';
-import { fetchGetHealthDataBasicList, fetchGetHealthAnalytics, fetchGetSleepAnalytics, fetchGetExerciseAnalytics } from '@/service/api';
+import { NButton, NCard, NDataTable, NEmpty, NProgress, NSkeleton, NSpace, NTag, NTooltip } from 'naive-ui';
+import { computed, h, onMounted, ref, watch } from 'vue';
+import {
+  fetchGetExerciseAnalytics,
+  fetchGetHealthAnalytics,
+  fetchGetHealthDataBasicList,
+  fetchGetOrgUnitsTree,
+  fetchGetSleepAnalytics
+} from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
-import { fetchGetOrgUnitsTree } from '@/service/api';
 import { handleBindUsersByOrgId } from '@/utils/deviceUtils';
 import { convertToBeijingTime } from '@/utils/date';
 
@@ -66,15 +71,15 @@ const pagination = ref({
 // 加载健康数据
 const loadHealthData = async () => {
   loading.value = true;
-  
+
   try {
     const response = await fetchGetHealthDataBasicList(searchParams.value);
-    
+
     if (response.data) {
       // 基础表格数据
       tableData.value = response.data.records || [];
       pagination.value.total = response.data.total || 0;
-      
+
       // 保存完整的健康分析数据（包含图表数据）
       healthAnalyticsData.value = {
         basicData: response.data.records || [],
@@ -86,7 +91,7 @@ const loadHealthData = async () => {
         records: response.data.records || [], // 基础数据记录，用于心血管和活动量图表
         supportedFields: response.data.supportedFields || {}
       };
-      
+
       console.log('加载健康数据成功:', {
         表格数据: tableData.value.length,
         睡眠数据: healthAnalyticsData.value.sleepData.length,
@@ -139,10 +144,14 @@ const columns = computed(() => [
     width: 120,
     render: (row: any) => {
       const name = row.userName || '未知员工';
-      return h(NTag, { 
-        size: 'small', 
-        type: name === '未知员工' ? 'warning' : 'success' 
-      }, { default: () => name });
+      return h(
+        NTag,
+        {
+          size: 'small',
+          type: name === '未知员工' ? 'warning' : 'success'
+        },
+        { default: () => name }
+      );
     }
   },
   {
@@ -152,14 +161,23 @@ const columns = computed(() => [
     width: 120,
     render: (row: any) => {
       if (!row.deviceSn) return '-';
-      return h(NTooltip, {
-        trigger: 'hover'
-      }, {
-        trigger: () => h('span', { 
-          class: 'cursor-pointer text-blue-600 font-mono text-sm' 
-        }, row.deviceSn.substring(0, 8) + '...'),
-        default: () => row.deviceSn
-      });
+      return h(
+        NTooltip,
+        {
+          trigger: 'hover'
+        },
+        {
+          trigger: () =>
+            h(
+              'span',
+              {
+                class: 'cursor-pointer text-blue-600 font-mono text-sm'
+              },
+              `${row.deviceSn.substring(0, 8)}...`
+            ),
+          default: () => row.deviceSn
+        }
+      );
     }
   },
   // 生理指标列
@@ -170,63 +188,79 @@ const columns = computed(() => [
     width: 300,
     render: (row: any) => {
       const indicators = [];
-      
+
       // 心率
       if (row.heartRate) {
         const color = getHeartRateColor(row.heartRate);
         indicators.push(
-          h(NTag, { 
-            size: 'small', 
-            color: { color, textColor: '#fff' },
-            class: 'mr-1 mb-1'
-          }, { 
-            default: () => `❤️ ${row.heartRate}bpm` 
-          })
+          h(
+            NTag,
+            {
+              size: 'small',
+              color: { color, textColor: '#fff' },
+              class: 'mr-1 mb-1'
+            },
+            {
+              default: () => `❤️ ${row.heartRate}bpm`
+            }
+          )
         );
       }
-      
+
       // 血氧
       if (row.bloodOxygen) {
         const color = getBloodOxygenColor(row.bloodOxygen);
         indicators.push(
-          h(NTag, { 
-            size: 'small', 
-            color: { color, textColor: '#fff' },
-            class: 'mr-1 mb-1'
-          }, { 
-            default: () => `🫁 ${row.bloodOxygen}%` 
-          })
+          h(
+            NTag,
+            {
+              size: 'small',
+              color: { color, textColor: '#fff' },
+              class: 'mr-1 mb-1'
+            },
+            {
+              default: () => `🫁 ${row.bloodOxygen}%`
+            }
+          )
         );
       }
-      
+
       // 血压
       if (row.pressureHigh && row.pressureLow) {
         const color = getBloodPressureColor(row.pressureHigh, row.pressureLow);
         indicators.push(
-          h(NTag, { 
-            size: 'small', 
-            color: { color, textColor: '#fff' },
-            class: 'mr-1 mb-1'
-          }, { 
-            default: () => `🩸 ${row.pressureHigh}/${row.pressureLow}` 
-          })
+          h(
+            NTag,
+            {
+              size: 'small',
+              color: { color, textColor: '#fff' },
+              class: 'mr-1 mb-1'
+            },
+            {
+              default: () => `🩸 ${row.pressureHigh}/${row.pressureLow}`
+            }
+          )
         );
       }
-      
+
       // 体温
       if (row.temperature) {
         const color = getTemperatureColor(row.temperature);
         indicators.push(
-          h(NTag, { 
-            size: 'small', 
-            color: { color, textColor: '#fff' },
-            class: 'mr-1 mb-1'
-          }, { 
-            default: () => `🌡️ ${row.temperature}°C` 
-          })
+          h(
+            NTag,
+            {
+              size: 'small',
+              color: { color, textColor: '#fff' },
+              class: 'mr-1 mb-1'
+            },
+            {
+              default: () => `🌡️ ${row.temperature}°C`
+            }
+          )
         );
       }
-      
+
       return h('div', { class: 'flex flex-wrap' }, indicators);
     }
   },
@@ -238,10 +272,10 @@ const columns = computed(() => [
     width: 250,
     render: (row: any) => {
       const metrics = [];
-      
+
       // 步数
       if (row.step) {
-        const progress = Math.min(row.step / 10000 * 100, 100);
+        const progress = Math.min((row.step / 10000) * 100, 100);
         metrics.push(
           h('div', { class: 'mb-2' }, [
             h('div', { class: 'flex items-center gap-2 mb-1' }, [
@@ -256,36 +290,44 @@ const columns = computed(() => [
           ])
         );
       }
-      
+
       // 卡路里和距离
       const secondRow = [];
       if (row.calorie) {
         secondRow.push(
-          h(NTag, { 
-            size: 'small', 
-            type: 'warning',
-            class: 'mr-1'
-          }, { 
-            default: () => `🔥 ${row.calorie}kcal` 
-          })
+          h(
+            NTag,
+            {
+              size: 'small',
+              type: 'warning',
+              class: 'mr-1'
+            },
+            {
+              default: () => `🔥 ${row.calorie}kcal`
+            }
+          )
         );
       }
       if (row.distance) {
         secondRow.push(
-          h(NTag, { 
-            size: 'small', 
-            type: 'info',
-            class: 'mr-1'
-          }, { 
-            default: () => `📏 ${row.distance}km` 
-          })
+          h(
+            NTag,
+            {
+              size: 'small',
+              type: 'info',
+              class: 'mr-1'
+            },
+            {
+              default: () => `📏 ${row.distance}km`
+            }
+          )
         );
       }
-      
+
       if (secondRow.length > 0) {
         metrics.push(h('div', { class: 'flex flex-wrap' }, secondRow));
       }
-      
+
       return h('div', { class: 'w-full' }, metrics);
     }
   },
@@ -297,20 +339,30 @@ const columns = computed(() => [
     width: 180,
     render: (row: any) => {
       if (!row.latitude || !row.longitude) return '-';
-      
+
       const coordStr = `${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}`;
-      return h(NTooltip, {
-        trigger: 'hover'
-      }, {
-        trigger: () => h('span', { 
-          class: 'cursor-pointer text-blue-600 font-mono text-xs' 
-        }, coordStr),
-        default: () => h('div', {}, [
-          h('div', {}, `纬度: ${row.latitude}`),
-          h('div', {}, `经度: ${row.longitude}`),
-          row.altitude ? h('div', {}, `海拔: ${row.altitude}m`) : null
-        ])
-      });
+      return h(
+        NTooltip,
+        {
+          trigger: 'hover'
+        },
+        {
+          trigger: () =>
+            h(
+              'span',
+              {
+                class: 'cursor-pointer text-blue-600 font-mono text-xs'
+              },
+              coordStr
+            ),
+          default: () =>
+            h('div', {}, [
+              h('div', {}, `纬度: ${row.latitude}`),
+              h('div', {}, `经度: ${row.longitude}`),
+              row.altitude ? h('div', {}, `海拔: ${row.altitude}m`) : null
+            ])
+        }
+      );
     }
   },
   // 时间戳列 - 移到最后
@@ -354,7 +406,7 @@ const getTemperatureColor = (temp: number) => {
 const handleRowSelection = (keys: string[], rows: any[]) => {
   selectedRows.value = rows;
   selectedUserIds.value = rows.map(row => row.userId).filter(Boolean);
-  
+
   console.log('选择的用户:', selectedUserIds.value);
 };
 
@@ -364,13 +416,13 @@ const getAnalyticsUserIds = () => {
   if (searchParams.value.userId) {
     return [searchParams.value.userId];
   }
-  
+
   // 否则使用当前表格中所有用户的ID
   const userIds = tableData.value
     .map(row => row.userId)
     .filter(Boolean)
     .filter((id, index, arr) => arr.indexOf(id) === index); // 去重
-    
+
   console.log('图表分析用户ID:', userIds);
   return userIds;
 };
@@ -388,26 +440,20 @@ const statistics = computed(() => {
       abnormalCount: 0
     };
   }
-  
+
   const records = tableData.value;
   const validHeartRates = records.filter(r => r.heartRate).map(r => r.heartRate);
   const validBloodOxygen = records.filter(r => r.bloodOxygen).map(r => r.bloodOxygen);
   const totalSteps = records.reduce((sum, r) => sum + (r.step || 0), 0);
   const totalCalories = records.reduce((sum, r) => sum + (r.calorie || 0), 0);
-  
+
   // 简单健康评估（心率60-100且血氧>=95为健康）
-  const healthyCount = records.filter(r => 
-    r.heartRate >= 60 && r.heartRate <= 100 && r.bloodOxygen >= 95
-  ).length;
-  
+  const healthyCount = records.filter(r => r.heartRate >= 60 && r.heartRate <= 100 && r.bloodOxygen >= 95).length;
+
   return {
     totalRecords: records.length,
-    avgHeartRate: validHeartRates.length > 0 
-      ? Math.round(validHeartRates.reduce((a, b) => a + b, 0) / validHeartRates.length) 
-      : 0,
-    avgBloodOxygen: validBloodOxygen.length > 0 
-      ? Math.round(validBloodOxygen.reduce((a, b) => a + b, 0) / validBloodOxygen.length) 
-      : 0,
+    avgHeartRate: validHeartRates.length > 0 ? Math.round(validHeartRates.reduce((a, b) => a + b, 0) / validHeartRates.length) : 0,
+    avgBloodOxygen: validBloodOxygen.length > 0 ? Math.round(validBloodOxygen.reduce((a, b) => a + b, 0) / validBloodOxygen.length) : 0,
     totalSteps,
     totalCalories: Math.round(totalCalories),
     healthyCount,
@@ -442,16 +488,29 @@ const exportHealthData = () => {
     window.$message?.warning('暂无数据可导出');
     return;
   }
-  
+
   try {
     // 构建CSV数据
     const headers = [
-      'ID', '部门名称', '员工名称', '设备序列号', 
-      '心率(bpm)', '血氧(%)', '体温(°C)', '收缩压', '舒张压', 
-      '压力', '步数', '卡路里', '距离(km)', 
-      '纬度', '经度', '海拔(m)', '时间戳'
+      'ID',
+      '部门名称',
+      '员工名称',
+      '设备序列号',
+      '心率(bpm)',
+      '血氧(%)',
+      '体温(°C)',
+      '收缩压',
+      '舒张压',
+      '压力',
+      '步数',
+      '卡路里',
+      '距离(km)',
+      '纬度',
+      '经度',
+      '海拔(m)',
+      '时间戳'
     ];
-    
+
     const csvData = tableData.value.map(row => [
       row.id || '',
       row.orgName || '',
@@ -471,23 +530,21 @@ const exportHealthData = () => {
       row.altitude || '',
       convertToBeijingTime(row.timestamp) || ''
     ]);
-    
+
     // 添加表头
     csvData.unshift(headers);
-    
+
     // 转换为CSV格式
-    const csvContent = csvData.map(row => 
-      row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
-    ).join('\n');
-    
+    const csvContent = csvData.map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')).join('\n');
+
     // 添加BOM以支持中文
-    const bom = '\ufeff';
+    const bom = '\uFEFF';
     const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
-    
+
     // 生成文件名
     const now = new Date();
     const fileName = `健康数据_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.csv`;
-    
+
     // 下载文件
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -496,10 +553,9 @@ const exportHealthData = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
-    
+
     window.$message?.success(`导出成功：${fileName}`);
     console.log('✅ 健康数据导出完成:', fileName, `${tableData.value.length}条记录`);
-    
   } catch (error) {
     console.error('❌ 健康数据导出失败:', error);
     window.$message?.error('导出失败，请重试');
@@ -553,91 +609,74 @@ onMounted(() => {
       @reset="resetSearchParams"
       @search="handleSearch"
     />
-    
+
     <!-- 统计概览卡片 -->
     <NCard :bordered="false" class="mb-4">
       <template #header>
         <div class="flex items-center gap-2">
           <span class="text-lg font-medium">📊 数据概览</span>
-          <NTag v-if="selectedRows.length > 0" type="primary" size="small">
-            已选择 {{ selectedRows.length }} 条记录
-          </NTag>
+          <NTag v-if="selectedRows.length > 0" type="primary" size="small">已选择 {{ selectedRows.length }} 条记录</NTag>
         </div>
       </template>
-      
-      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+
+      <div class="grid grid-cols-2 gap-4 lg:grid-cols-7 md:grid-cols-4">
         <!-- 记录总数 -->
-        <div class="text-center p-3 bg-blue-50 rounded-lg">
-          <div class="text-xl font-bold text-blue-600">{{ statistics.totalRecords }}</div>
-          <div class="text-xs text-blue-500 mt-1">总记录数</div>
+        <div class="rounded-lg bg-blue-50 p-3 text-center">
+          <div class="text-xl text-blue-600 font-bold">{{ statistics.totalRecords }}</div>
+          <div class="mt-1 text-xs text-blue-500">总记录数</div>
         </div>
-        
+
         <!-- 平均心率 -->
-        <div class="text-center p-3 bg-red-50 rounded-lg">
-          <div class="text-xl font-bold text-red-600">{{ statistics.avgHeartRate }}</div>
-          <div class="text-xs text-red-500 mt-1">平均心率(bpm)</div>
+        <div class="rounded-lg bg-red-50 p-3 text-center">
+          <div class="text-xl text-red-600 font-bold">{{ statistics.avgHeartRate }}</div>
+          <div class="mt-1 text-xs text-red-500">平均心率(bpm)</div>
         </div>
-        
+
         <!-- 平均血氧 -->
-        <div class="text-center p-3 bg-green-50 rounded-lg">
-          <div class="text-xl font-bold text-green-600">{{ statistics.avgBloodOxygen }}%</div>
-          <div class="text-xs text-green-500 mt-1">平均血氧</div>
+        <div class="rounded-lg bg-green-50 p-3 text-center">
+          <div class="text-xl text-green-600 font-bold">{{ statistics.avgBloodOxygen }}%</div>
+          <div class="mt-1 text-xs text-green-500">平均血氧</div>
         </div>
-        
+
         <!-- 总步数 -->
-        <div class="text-center p-3 bg-purple-50 rounded-lg">
-          <div class="text-xl font-bold text-purple-600">{{ statistics.totalSteps.toLocaleString() }}</div>
-          <div class="text-xs text-purple-500 mt-1">总步数</div>
+        <div class="rounded-lg bg-purple-50 p-3 text-center">
+          <div class="text-xl text-purple-600 font-bold">{{ statistics.totalSteps.toLocaleString() }}</div>
+          <div class="mt-1 text-xs text-purple-500">总步数</div>
         </div>
-        
+
         <!-- 总卡路里 -->
-        <div class="text-center p-3 bg-orange-50 rounded-lg">
-          <div class="text-xl font-bold text-orange-600">{{ statistics.totalCalories }}</div>
-          <div class="text-xs text-orange-500 mt-1">总卡路里</div>
+        <div class="rounded-lg bg-orange-50 p-3 text-center">
+          <div class="text-xl text-orange-600 font-bold">{{ statistics.totalCalories }}</div>
+          <div class="mt-1 text-xs text-orange-500">总卡路里</div>
         </div>
-        
+
         <!-- 健康记录 -->
-        <div class="text-center p-3 bg-green-50 rounded-lg">
-          <div class="text-xl font-bold text-green-600">{{ statistics.healthyCount }}</div>
-          <div class="text-xs text-green-500 mt-1">健康记录</div>
+        <div class="rounded-lg bg-green-50 p-3 text-center">
+          <div class="text-xl text-green-600 font-bold">{{ statistics.healthyCount }}</div>
+          <div class="mt-1 text-xs text-green-500">健康记录</div>
         </div>
-        
+
         <!-- 异常记录 -->
-        <div class="text-center p-3 bg-red-50 rounded-lg">
-          <div class="text-xl font-bold text-red-600">{{ statistics.abnormalCount }}</div>
-          <div class="text-xs text-red-500 mt-1">异常记录</div>
+        <div class="rounded-lg bg-red-50 p-3 text-center">
+          <div class="text-xl text-red-600 font-bold">{{ statistics.abnormalCount }}</div>
+          <div class="mt-1 text-xs text-red-500">异常记录</div>
         </div>
       </div>
     </NCard>
 
     <!-- 健康数据表格 -->
-    <NCard :bordered="false" class="card-wrapper mb-4">
+    <NCard :bordered="false" class="mb-4 card-wrapper">
       <template #header>
         <div class="flex items-center justify-between">
           <span class="font-medium">🏥 健康数据表格</span>
           <div class="flex items-center gap-2">
-            <NTag v-if="loading" type="warning" size="small">
-              加载中...
-            </NTag>
-            <NButton 
-              size="small" 
-              @click="loadHealthData()" 
-              :loading="loading"
-            >
-              刷新数据
-            </NButton>
-            <NButton 
-              size="small" 
-              type="primary"
-              @click="exportHealthData()"
-              :disabled="loading || tableData.length === 0"
-            >
-              导出数据
-            </NButton>
+            <NTag v-if="loading" type="warning" size="small">加载中...</NTag>
+            <NButton size="small" :loading="loading" @click="loadHealthData()">刷新数据</NButton>
+            <NButton size="small" type="primary" :disabled="loading || tableData.length === 0" @click="exportHealthData()">导出数据</NButton>
           </div>
         </div>
       </template>
-      
+
       <!-- 骨架屏加载状态 -->
       <div v-if="loading" class="space-y-4">
         <NSkeleton height="40px" :sharp="false" />
@@ -646,10 +685,10 @@ onMounted(() => {
         <NSkeleton height="40px" :sharp="false" />
         <NSkeleton height="40px" :sharp="false" />
       </div>
-      
+
       <!-- 空数据状态 -->
       <NEmpty v-else-if="tableData.length === 0" description="暂无健康数据" />
-      
+
       <!-- 数据表格 -->
       <NDataTable
         v-else
@@ -659,21 +698,18 @@ onMounted(() => {
         :loading="loading"
         :pagination="pagination"
         :row-key="(row: any) => row.id"
-        @update:checked-row-keys="handleRowSelection"
         class="health-data-table-content"
+        @update:checked-row-keys="handleRowSelection"
       />
     </NCard>
 
     <!-- 专业图表分析 -->
     <div v-if="healthAnalyticsData && tableData.length > 0">
-      <HealthAnalyticsCharts
-        :health-data="healthAnalyticsData"
-        :visible="true"
-      />
+      <HealthAnalyticsCharts :health-data="healthAnalyticsData" :visible="true" />
     </div>
-    
+
     <!-- 无数据提示 -->
-    <NCard v-else-if="!loading" :bordered="false" class="text-center py-8">
+    <NCard v-else-if="!loading" :bordered="false" class="py-8 text-center">
       <NEmpty description="暂无健康数据，无法生成图表分析" />
     </NCard>
   </div>
@@ -697,11 +733,11 @@ onMounted(() => {
     background-color: #f8fafc;
     font-weight: 600;
   }
-  
+
   :deep(.n-data-table-td) {
     border-bottom: 1px solid #f0f0f0;
   }
-  
+
   :deep(.n-data-table-tr:hover .n-data-table-td) {
     background-color: #f0f9ff;
   }
@@ -725,11 +761,11 @@ onMounted(() => {
   .health-info-container {
     padding: 8px;
   }
-  
+
   .grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .card-wrapper :deep(.n-card__content) {
     max-height: 400px;
   }
@@ -739,11 +775,11 @@ onMounted(() => {
   .health-info-container {
     padding: 4px;
   }
-  
+
   .grid {
     grid-template-columns: 1fr;
   }
-  
+
   .card-wrapper :deep(.n-card__content) {
     max-height: 300px;
   }

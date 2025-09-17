@@ -1,167 +1,8 @@
-<template>
-  <NModal v-model:show="modalVisible" :mask-closable="false" preset="card" class="w-90% max-w-5xl">
-    <template #header>
-      <NSpace align="center">
-        <span class="text-lg font-semibold">健康数据详情</span>
-        <NTag v-if="props.rowData" type="info" size="small">
-          {{ props.rowData.userName }} - {{ props.rowData.orgName }}
-        </NTag>
-      </NSpace>
-    </template>
-
-    <div v-if="props.rowData" class="space-y-6">
-      <!-- 基本信息 -->
-      <NCard size="small" :bordered="false" class="bg-gray-50">
-        <template #header>
-          基本信息
-        </template>
-        <NDescriptions :column="4" size="small" label-placement="left">
-          <NDescriptionsItem label="用户">{{ props.rowData.userName }}</NDescriptionsItem>
-          <NDescriptionsItem label="部门">{{ props.rowData.orgName }}</NDescriptionsItem>
-          <NDescriptionsItem label="记录时间">{{ convertToBeijingTime(props.rowData.timestamp) }}</NDescriptionsItem>
-          <NDescriptionsItem label="用户ID">{{ props.rowData.userId }}</NDescriptionsItem>
-        </NDescriptions>
-      </NCard>
-
-      <!-- 睡眠数据 -->
-      <div v-if="sleepChartData" class="space-y-4">
-        <NCard size="small" :bordered="false">
-          <template #header>
-            <NSpace align="center">
-              <span>睡眠数据</span>
-              <NTag type="warning" size="small">{{ sleepChartData.name }}</NTag>
-            </NSpace>
-          </template>
-          
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- 睡眠图表 -->
-            <div class="h-80">
-              <canvas ref="sleepChartRef"></canvas>
-            </div>
-            
-            <!-- 睡眠统计 -->
-            <div class="space-y-4">
-              <NStatistic label="总睡眠时长" :value="sleepStats.totalSleep" suffix="小时" />
-              <NStatistic label="深度睡眠" :value="sleepStats.deepSleep" suffix="小时" />
-              <NStatistic label="浅度睡眠" :value="sleepStats.lightSleep" suffix="小时" />
-              <NStatistic label="睡眠效率" :value="sleepStats.efficiency" suffix="%" />
-            </div>
-          </div>
-        </NCard>
-      </div>
-
-      <!-- 运动数据 -->
-      <div v-if="workoutChartData" class="space-y-4">
-        <NCard size="small" :bordered="false">
-          <template #header>
-            <NSpace align="center">
-              <span>运动数据</span>
-              <NTag type="success" size="small">{{ workoutChartData.name }}</NTag>
-            </NSpace>
-          </template>
-          
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- 运动图表 -->
-            <div class="h-80">
-              <canvas ref="workoutChartRef"></canvas>
-            </div>
-            
-            <!-- 运动统计 -->
-            <div class="space-y-4">
-              <NStatistic label="总运动时长" :value="workoutStats.totalTime" suffix="分钟" />
-              <NStatistic label="总消耗卡路里" :value="workoutStats.totalCalorie" suffix="卡" />
-              <NStatistic label="总距离" :value="workoutStats.totalDistance" suffix="米" />
-              <NStatistic label="运动次数" :value="workoutStats.workoutCount" suffix="次" />
-            </div>
-          </div>
-        </NCard>
-      </div>
-
-      <!-- 每日运动数据 -->
-      <div v-if="exerciseDailyChartData" class="space-y-4">
-        <NCard size="small" :bordered="false">
-          <template #header>
-            <NSpace align="center">
-              <span>每日运动数据</span>
-              <NTag type="info" size="small">{{ exerciseDailyChartData.name }}</NTag>
-            </NSpace>
-          </template>
-          
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- 每日运动图表 -->
-            <div class="h-80">
-              <canvas ref="exerciseDailyChartRef"></canvas>
-            </div>
-            
-            <!-- 每日运动统计 -->
-            <div class="space-y-4">
-              <NStatistic label="平均步数" :value="exerciseDailyStats.avgSteps" suffix="步" />
-              <NStatistic label="平均运动时长" :value="exerciseDailyStats.avgTime" suffix="分钟" />
-              <NStatistic label="活跃天数" :value="exerciseDailyStats.activeDays" suffix="天" />
-              <NStatistic label="数据覆盖天数" :value="exerciseDailyStats.totalDays" suffix="天" />
-            </div>
-          </div>
-        </NCard>
-      </div>
-
-      <!-- 每周运动数据 -->
-      <div v-if="exerciseWeekChartData" class="space-y-4">
-        <NCard size="small" :bordered="false">
-          <template #header>
-            <NSpace align="center">
-              <span>每周运动数据</span>
-              <NTag type="error" size="small">{{ exerciseWeekChartData.name }}</NTag>
-            </NSpace>
-          </template>
-          
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- 每周运动图表 -->
-            <div class="h-80">
-              <canvas ref="exerciseWeekChartRef"></canvas>
-            </div>
-            
-            <!-- 每周运动统计 -->
-            <div class="space-y-4">
-              <NStatistic label="周平均步数" :value="exerciseWeekStats.avgSteps" suffix="步" />
-              <NStatistic label="周平均强度时长" :value="exerciseWeekStats.avgStrengthTime" suffix="分钟" />
-              <NStatistic label="周平均总时长" :value="exerciseWeekStats.avgTotalTime" suffix="分钟" />
-              <NStatistic label="活跃周数" :value="exerciseWeekStats.activeWeeks" suffix="周" />
-            </div>
-          </div>
-        </NCard>
-      </div>
-
-      <!-- 空数据提示 -->
-      <NEmpty v-if="!hasAnyData" description="暂无详细数据" class="py-12" />
-    </div>
-
-    <template #action>
-      <NSpace justify="end">
-        <NButton @click="modalVisible = false">关闭</NButton>
-        <NButton type="primary" @click="exportData">
-          导出数据
-        </NButton>
-      </NSpace>
-    </template>
-  </NModal>
-</template>
-
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import { Chart, registerables } from 'chart.js';
+import { NButton, NCard, NDescriptions, NDescriptionsItem, NEmpty, NIcon, NModal, NSpace, NStatistic, NTag } from 'naive-ui';
 import { convertToBeijingTime } from '@/utils/date';
-import { 
-  NModal, 
-  NCard, 
-  NSpace, 
-  NIcon, 
-  NTag, 
-  NDescriptions, 
-  NDescriptionsItem, 
-  NStatistic,
-  NButton,
-  NEmpty
-} from 'naive-ui';
 
 // 注册 Chart.js 组件
 Chart.register(...registerables);
@@ -200,7 +41,7 @@ let exerciseWeekChart: Chart | null = null;
 // 处理数据格式，适配你提供的示例
 const sleepChartData = computed(() => {
   if (!props.rowData?.sleepData) return null;
-  
+
   let data = props.rowData.sleepData;
   if (typeof data === 'string') {
     try {
@@ -209,13 +50,13 @@ const sleepChartData = computed(() => {
       return null;
     }
   }
-  
+
   return data;
 });
 
 const workoutChartData = computed(() => {
   if (!props.rowData?.workoutData) return null;
-  
+
   let data = props.rowData.workoutData;
   if (typeof data === 'string') {
     try {
@@ -224,13 +65,13 @@ const workoutChartData = computed(() => {
       return null;
     }
   }
-  
+
   return data;
 });
 
 const exerciseDailyChartData = computed(() => {
   if (!props.rowData?.exerciseDailyData) return null;
-  
+
   let data = props.rowData.exerciseDailyData;
   if (typeof data === 'string') {
     try {
@@ -239,13 +80,13 @@ const exerciseDailyChartData = computed(() => {
       return null;
     }
   }
-  
+
   return data;
 });
 
 const exerciseWeekChartData = computed(() => {
   if (!props.rowData?.exerciseWeekData) return null;
-  
+
   let data = props.rowData.exerciseWeekData;
   if (typeof data === 'string') {
     try {
@@ -254,20 +95,20 @@ const exerciseWeekChartData = computed(() => {
       return null;
     }
   }
-  
+
   return data;
 });
 
 // 统计数据计算
 const sleepStats = computed(() => {
   if (!sleepChartData.value?.data) return { totalSleep: 0, deepSleep: 0, lightSleep: 0, efficiency: 0 };
-  
+
   const data = sleepChartData.value.data;
   const totalSleep = data.reduce((sum: number, item: any) => sum + (item.duration || 0), 0) / 60; // 转换为小时
   const deepSleep = data.reduce((sum: number, item: any) => sum + (item.deepSleep || 0), 0) / 60;
   const lightSleep = data.reduce((sum: number, item: any) => sum + (item.lightSleep || 0), 0) / 60;
   const efficiency = totalSleep > 0 ? Math.round((deepSleep / totalSleep) * 100) : 0;
-  
+
   return {
     totalSleep: Math.round(totalSleep * 10) / 10,
     deepSleep: Math.round(deepSleep * 10) / 10,
@@ -278,13 +119,13 @@ const sleepStats = computed(() => {
 
 const workoutStats = computed(() => {
   if (!workoutChartData.value?.data) return { totalTime: 0, totalCalorie: 0, totalDistance: 0, workoutCount: 0 };
-  
+
   const data = workoutChartData.value.data;
   const totalTime = data.reduce((sum: number, item: any) => sum + (item.duration || 0), 0);
   const totalCalorie = data.reduce((sum: number, item: any) => sum + (item.calorie || 0), 0);
   const totalDistance = data.reduce((sum: number, item: any) => sum + (item.distance || 0), 0);
   const workoutCount = data.filter((item: any) => item.duration > 0).length;
-  
+
   return {
     totalTime,
     totalCalorie,
@@ -295,14 +136,16 @@ const workoutStats = computed(() => {
 
 const exerciseDailyStats = computed(() => {
   if (!exerciseDailyChartData.value?.data) return { avgSteps: 0, avgTime: 0, activeDays: 0, totalDays: 0 };
-  
+
   const data = exerciseDailyChartData.value.data;
   const validData = data.filter((item: any) => item.timeStamps > 0);
   const activeData = validData.filter((item: any) => item.totalSteps > 0);
-  
-  const avgSteps = validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalSteps || 0), 0) / validData.length) : 0;
-  const avgTime = validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalTime || 0), 0) / validData.length) : 0;
-  
+
+  const avgSteps =
+    validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalSteps || 0), 0) / validData.length) : 0;
+  const avgTime =
+    validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalTime || 0), 0) / validData.length) : 0;
+
   return {
     avgSteps,
     avgTime,
@@ -313,15 +156,18 @@ const exerciseDailyStats = computed(() => {
 
 const exerciseWeekStats = computed(() => {
   if (!exerciseWeekChartData.value?.data) return { avgSteps: 0, avgStrengthTime: 0, avgTotalTime: 0, activeWeeks: 0 };
-  
+
   const data = exerciseWeekChartData.value.data;
   const validData = data.filter((item: any) => item.timeStamps > 0);
   const activeData = validData.filter((item: any) => item.totalSteps > 0);
-  
-  const avgSteps = validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalSteps || 0), 0) / validData.length) : 0;
-  const avgStrengthTime = validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.strengthTimes || 0), 0) / validData.length) : 0;
-  const avgTotalTime = validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalTime || 0), 0) / validData.length) : 0;
-  
+
+  const avgSteps =
+    validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalSteps || 0), 0) / validData.length) : 0;
+  const avgStrengthTime =
+    validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.strengthTimes || 0), 0) / validData.length) : 0;
+  const avgTotalTime =
+    validData.length > 0 ? Math.round(validData.reduce((sum: number, item: any) => sum + (item.totalTime || 0), 0) / validData.length) : 0;
+
   return {
     avgSteps,
     avgStrengthTime,
@@ -331,19 +177,19 @@ const exerciseWeekStats = computed(() => {
 });
 
 const hasAnyData = computed(() => {
-  return !!(sleepChartData.value || workoutChartData.value || exerciseDailyChartData.value || exerciseWeekChartData.value);
+  return Boolean(sleepChartData.value || workoutChartData.value || exerciseDailyChartData.value || exerciseWeekChartData.value);
 });
 
 // 创建图表
 function createSleepChart() {
   if (!sleepChartRef.value || !sleepChartData.value?.data) return;
-  
+
   const data = sleepChartData.value.data;
   const labels = data.map((item: any) => {
     const date = new Date(item.startTimeStamp || item.timeStamps);
     return date.toLocaleDateString('zh-CN');
   });
-  
+
   sleepChart = new Chart(sleepChartRef.value, {
     type: 'bar',
     data: {
@@ -389,13 +235,13 @@ function createSleepChart() {
 
 function createWorkoutChart() {
   if (!workoutChartRef.value || !workoutChartData.value?.data) return;
-  
+
   const data = workoutChartData.value.data;
   const labels = data.map((item: any) => {
     const date = new Date(item.startTimeStamp || item.timeStamps);
     return date.toLocaleDateString('zh-CN');
   });
-  
+
   workoutChart = new Chart(workoutChartRef.value, {
     type: 'line',
     data: {
@@ -457,13 +303,13 @@ function createWorkoutChart() {
 
 function createExerciseDailyChart() {
   if (!exerciseDailyChartRef.value || !exerciseDailyChartData.value?.data) return;
-  
+
   const data = exerciseDailyChartData.value.data.filter((item: any) => item.timeStamps > 0);
   const labels = data.map((item: any) => {
     const date = new Date(item.timeStamps);
     return date.toLocaleDateString('zh-CN');
   });
-  
+
   exerciseDailyChart = new Chart(exerciseDailyChartRef.value, {
     type: 'bar',
     data: {
@@ -525,10 +371,10 @@ function createExerciseDailyChart() {
 
 function createExerciseWeekChart() {
   if (!exerciseWeekChartRef.value || !exerciseWeekChartData.value?.data) return;
-  
+
   const data = exerciseWeekChartData.value.data.filter((item: any) => item.timeStamps > 0);
   const labels = data.map((item: any, index: number) => `第${index + 1}周`);
-  
+
   exerciseWeekChart = new Chart(exerciseWeekChartRef.value, {
     type: 'radar',
     data: {
@@ -568,25 +414,28 @@ function createExerciseWeekChart() {
 }
 
 // 监听模态框显示状态
-watch(() => props.visible, async (visible) => {
-  if (visible && props.rowData) {
-    await nextTick();
-    
-    // 销毁现有图表
-    sleepChart?.destroy();
-    workoutChart?.destroy();
-    exerciseDailyChart?.destroy();
-    exerciseWeekChart?.destroy();
-    
-    // 创建新图表
-    setTimeout(() => {
-      createSleepChart();
-      createWorkoutChart();
-      createExerciseDailyChart();
-      createExerciseWeekChart();
-    }, 100);
+watch(
+  () => props.visible,
+  async visible => {
+    if (visible && props.rowData) {
+      await nextTick();
+
+      // 销毁现有图表
+      sleepChart?.destroy();
+      workoutChart?.destroy();
+      exerciseDailyChart?.destroy();
+      exerciseWeekChart?.destroy();
+
+      // 创建新图表
+      setTimeout(() => {
+        createSleepChart();
+        createWorkoutChart();
+        createExerciseDailyChart();
+        createExerciseWeekChart();
+      }, 100);
+    }
   }
-});
+);
 
 // 导出数据
 function exportData() {
@@ -602,7 +451,7 @@ function exportData() {
     exerciseDailyData: exerciseDailyChartData.value,
     exerciseWeekData: exerciseWeekChartData.value
   };
-  
+
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -612,6 +461,148 @@ function exportData() {
   URL.revokeObjectURL(url);
 }
 </script>
+
+<template>
+  <NModal v-model:show="modalVisible" :mask-closable="false" preset="card" class="max-w-5xl w-90%">
+    <template #header>
+      <NSpace align="center">
+        <span class="text-lg font-semibold">健康数据详情</span>
+        <NTag v-if="props.rowData" type="info" size="small">{{ props.rowData.userName }} - {{ props.rowData.orgName }}</NTag>
+      </NSpace>
+    </template>
+
+    <div v-if="props.rowData" class="space-y-6">
+      <!-- 基本信息 -->
+      <NCard size="small" :bordered="false" class="bg-gray-50">
+        <template #header>基本信息</template>
+        <NDescriptions :column="4" size="small" label-placement="left">
+          <NDescriptionsItem label="用户">{{ props.rowData.userName }}</NDescriptionsItem>
+          <NDescriptionsItem label="部门">{{ props.rowData.orgName }}</NDescriptionsItem>
+          <NDescriptionsItem label="记录时间">{{ convertToBeijingTime(props.rowData.timestamp) }}</NDescriptionsItem>
+          <NDescriptionsItem label="用户ID">{{ props.rowData.userId }}</NDescriptionsItem>
+        </NDescriptions>
+      </NCard>
+
+      <!-- 睡眠数据 -->
+      <div v-if="sleepChartData" class="space-y-4">
+        <NCard size="small" :bordered="false">
+          <template #header>
+            <NSpace align="center">
+              <span>睡眠数据</span>
+              <NTag type="warning" size="small">{{ sleepChartData.name }}</NTag>
+            </NSpace>
+          </template>
+
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <!-- 睡眠图表 -->
+            <div class="h-80">
+              <canvas ref="sleepChartRef"></canvas>
+            </div>
+
+            <!-- 睡眠统计 -->
+            <div class="space-y-4">
+              <NStatistic label="总睡眠时长" :value="sleepStats.totalSleep" suffix="小时" />
+              <NStatistic label="深度睡眠" :value="sleepStats.deepSleep" suffix="小时" />
+              <NStatistic label="浅度睡眠" :value="sleepStats.lightSleep" suffix="小时" />
+              <NStatistic label="睡眠效率" :value="sleepStats.efficiency" suffix="%" />
+            </div>
+          </div>
+        </NCard>
+      </div>
+
+      <!-- 运动数据 -->
+      <div v-if="workoutChartData" class="space-y-4">
+        <NCard size="small" :bordered="false">
+          <template #header>
+            <NSpace align="center">
+              <span>运动数据</span>
+              <NTag type="success" size="small">{{ workoutChartData.name }}</NTag>
+            </NSpace>
+          </template>
+
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <!-- 运动图表 -->
+            <div class="h-80">
+              <canvas ref="workoutChartRef"></canvas>
+            </div>
+
+            <!-- 运动统计 -->
+            <div class="space-y-4">
+              <NStatistic label="总运动时长" :value="workoutStats.totalTime" suffix="分钟" />
+              <NStatistic label="总消耗卡路里" :value="workoutStats.totalCalorie" suffix="卡" />
+              <NStatistic label="总距离" :value="workoutStats.totalDistance" suffix="米" />
+              <NStatistic label="运动次数" :value="workoutStats.workoutCount" suffix="次" />
+            </div>
+          </div>
+        </NCard>
+      </div>
+
+      <!-- 每日运动数据 -->
+      <div v-if="exerciseDailyChartData" class="space-y-4">
+        <NCard size="small" :bordered="false">
+          <template #header>
+            <NSpace align="center">
+              <span>每日运动数据</span>
+              <NTag type="info" size="small">{{ exerciseDailyChartData.name }}</NTag>
+            </NSpace>
+          </template>
+
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <!-- 每日运动图表 -->
+            <div class="h-80">
+              <canvas ref="exerciseDailyChartRef"></canvas>
+            </div>
+
+            <!-- 每日运动统计 -->
+            <div class="space-y-4">
+              <NStatistic label="平均步数" :value="exerciseDailyStats.avgSteps" suffix="步" />
+              <NStatistic label="平均运动时长" :value="exerciseDailyStats.avgTime" suffix="分钟" />
+              <NStatistic label="活跃天数" :value="exerciseDailyStats.activeDays" suffix="天" />
+              <NStatistic label="数据覆盖天数" :value="exerciseDailyStats.totalDays" suffix="天" />
+            </div>
+          </div>
+        </NCard>
+      </div>
+
+      <!-- 每周运动数据 -->
+      <div v-if="exerciseWeekChartData" class="space-y-4">
+        <NCard size="small" :bordered="false">
+          <template #header>
+            <NSpace align="center">
+              <span>每周运动数据</span>
+              <NTag type="error" size="small">{{ exerciseWeekChartData.name }}</NTag>
+            </NSpace>
+          </template>
+
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <!-- 每周运动图表 -->
+            <div class="h-80">
+              <canvas ref="exerciseWeekChartRef"></canvas>
+            </div>
+
+            <!-- 每周运动统计 -->
+            <div class="space-y-4">
+              <NStatistic label="周平均步数" :value="exerciseWeekStats.avgSteps" suffix="步" />
+              <NStatistic label="周平均强度时长" :value="exerciseWeekStats.avgStrengthTime" suffix="分钟" />
+              <NStatistic label="周平均总时长" :value="exerciseWeekStats.avgTotalTime" suffix="分钟" />
+              <NStatistic label="活跃周数" :value="exerciseWeekStats.activeWeeks" suffix="周" />
+            </div>
+          </div>
+        </NCard>
+      </div>
+
+      <!-- 空数据提示 -->
+      <NEmpty v-if="!hasAnyData" description="暂无详细数据" class="py-12" />
+    </div>
+
+    <template #action>
+      <NSpace justify="end">
+        <NButton @click="modalVisible = false">关闭</NButton>
+        <NButton type="primary" @click="exportData">导出数据</NButton>
+      </NSpace>
+    </template>
+  </NModal>
+</template>
 
 <style scoped>
 .grid {

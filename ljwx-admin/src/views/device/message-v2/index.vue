@@ -1,12 +1,36 @@
 <script setup lang="tsx">
-import { type Ref, h, onMounted, onUnmounted, ref, shallowRef, computed, watch } from 'vue';
-import { 
-  NButton, NPopconfirm, NTooltip, NTag, NProgress, NModal, NCard, NStatistic, NGrid, NGridItem,
-  NTabs, NTabPane, NSpace, NIcon, NTime, NSpin, NEmpty, NAlert, NDrawer, NDrawerContent
+import { type Ref, computed, h, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import {
+  NAlert,
+  NButton,
+  NCard,
+  NDrawer,
+  NDrawerContent,
+  NEmpty,
+  NGrid,
+  NGridItem,
+  NIcon,
+  NModal,
+  NPopconfirm,
+  NProgress,
+  NSpace,
+  NSpin,
+  NStatistic,
+  NTabPane,
+  NTabs,
+  NTag,
+  NTime,
+  NTooltip
 } from 'naive-ui';
-import { 
-  ChatbubbleOutline, StatsChartOutline, TimeOutline, CheckmarkCircleOutline, 
-  CloseCircleOutline, HourglassOutline, SendOutline, NotificationsOutline
+import {
+  ChatbubbleOutline,
+  CheckmarkCircleOutline,
+  CloseCircleOutline,
+  HourglassOutline,
+  NotificationsOutline,
+  SendOutline,
+  StatsChartOutline,
+  TimeOutline
 } from '@vicons/ionicons5';
 import { useAppStore } from '@/store/modules/app';
 import { useAuthStore } from '@/store/modules/auth';
@@ -14,15 +38,15 @@ import { useAuth } from '@/hooks/business/auth';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import { transDeleteParams } from '@/utils/common';
-import { 
-  fetchGetDeviceMessageV2List, 
-  fetchDeleteDeviceMessageV2, 
+import {
+  fetchAcknowledgeMessage,
   fetchBatchDeleteDeviceMessageV2,
+  fetchDeleteDeviceMessageV2,
+  fetchGetChannelStatistics,
+  fetchGetDeviceMessageV2List,
   fetchGetMessageStatistics,
   fetchGetMessageSummary,
-  fetchGetChannelStatistics,
-  fetchRetryFailedMessage,
-  fetchAcknowledgeMessage
+  fetchRetryFailedMessage
 } from '@/service/api/health/device-message-v2';
 import { fetchGetOrgUnitsTree } from '@/service/api';
 import { useDict } from '@/hooks/business/dict';
@@ -58,17 +82,7 @@ const realTimeUpdates = ref(true);
 // 实时数据更新
 const updateInterval = ref<NodeJS.Timeout | null>(null);
 
-const { 
-  columns, 
-  columnChecks, 
-  data, 
-  loading, 
-  getData, 
-  getDataByPage, 
-  mobilePagination, 
-  searchParams, 
-  resetSearchParams 
-} = useTable({
+const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams } = useTable({
   apiFn: fetchGetDeviceMessageV2List,
   apiParams: {
     page: 1,
@@ -99,14 +113,24 @@ const {
       title: '消息标题',
       align: 'center',
       minWidth: 200,
-      render: row => h(NTooltip, {
-        trigger: 'hover'
-      }, {
-        trigger: () => h('span', { 
-          class: 'truncate block max-w-48 cursor-pointer text-blue-600 hover:text-blue-800' 
-        }, row.title),
-        default: () => row.message
-      })
+      render: row =>
+        h(
+          NTooltip,
+          {
+            trigger: 'hover'
+          },
+          {
+            trigger: () =>
+              h(
+                'span',
+                {
+                  class: 'truncate block max-w-48 cursor-pointer text-blue-600 hover:text-blue-800'
+                },
+                row.title
+              ),
+            default: () => row.message
+          }
+        )
     },
     {
       key: 'messageType',
@@ -115,16 +139,20 @@ const {
       width: 120,
       render: row => {
         const typeColors = {
-          'EMERGENCY': 'error',
-          'ALERT': 'warning', 
-          'WARNING': 'warning',
-          'NOTIFICATION': 'info',
-          'INFO': 'default'
+          EMERGENCY: 'error',
+          ALERT: 'warning',
+          WARNING: 'warning',
+          NOTIFICATION: 'info',
+          INFO: 'default'
         } as const;
-        return h(NTag, { 
-          type: typeColors[row.messageType] || 'default',
-          size: 'small'
-        }, () => row.messageType);
+        return h(
+          NTag,
+          {
+            type: typeColors[row.messageType] || 'default',
+            size: 'small'
+          },
+          () => row.messageType
+        );
       }
     },
     {
@@ -134,15 +162,19 @@ const {
       width: 100,
       render: row => {
         const urgencyColors = {
-          'CRITICAL': 'error',
-          'HIGH': 'warning',
-          'MEDIUM': 'info',
-          'LOW': 'success'
+          CRITICAL: 'error',
+          HIGH: 'warning',
+          MEDIUM: 'info',
+          LOW: 'success'
         } as const;
-        return h(NTag, { 
-          type: urgencyColors[row.urgency] || 'default',
-          size: 'small'
-        }, () => row.urgency);
+        return h(
+          NTag,
+          {
+            type: urgencyColors[row.urgency] || 'default',
+            size: 'small'
+          },
+          () => row.urgency
+        );
       }
     },
     {
@@ -152,18 +184,22 @@ const {
       width: 120,
       render: row => {
         const statusColors = {
-          'DRAFT': 'default',
-          'PENDING': 'warning',
-          'SENT': 'info',
-          'DELIVERED': 'success',
-          'ACKNOWLEDGED': 'success',
-          'FAILED': 'error',
-          'EXPIRED': 'error'
+          DRAFT: 'default',
+          PENDING: 'warning',
+          SENT: 'info',
+          DELIVERED: 'success',
+          ACKNOWLEDGED: 'success',
+          FAILED: 'error',
+          EXPIRED: 'error'
         } as const;
-        return h(NTag, { 
-          type: statusColors[row.messageStatus] || 'default',
-          size: 'small'
-        }, () => row.messageStatus);
+        return h(
+          NTag,
+          {
+            type: statusColors[row.messageStatus] || 'default',
+            size: 'small'
+          },
+          () => row.messageStatus
+        );
       }
     },
     {
@@ -177,10 +213,10 @@ const {
         const acknowledged = row.acknowledgedCount || 0;
         const failed = row.failedCount || 0;
         const pending = row.pendingCount || 0;
-        
+
         const successRate = total > 0 ? (delivered / total) * 100 : 0;
         const ackRate = total > 0 ? (acknowledged / total) * 100 : 0;
-        
+
         return h('div', { class: 'space-y-1' }, [
           h(NProgress, {
             type: 'line',
@@ -203,22 +239,27 @@ const {
       title: '发送时间',
       align: 'center',
       width: 160,
-      render: row => row.sentTime ? h(NTime, { time: new Date(row.sentTime) }) : '未发送'
+      render: row => (row.sentTime ? h(NTime, { time: new Date(row.sentTime) }) : '未发送')
     },
     {
       key: 'lifecycle',
       title: '生命周期',
       align: 'center',
       width: 120,
-      render: row => h(NButton, {
-        size: 'small',
-        quaternary: true,
-        type: 'info',
-        onClick: () => viewLifecycle(row.id)
-      }, {
-        default: () => '查看跟踪',
-        icon: () => h(NIcon, null, { default: () => h(TimeOutline) })
-      })
+      render: row =>
+        h(
+          NButton,
+          {
+            size: 'small',
+            quaternary: true,
+            type: 'info',
+            onClick: () => viewLifecycle(row.id)
+          },
+          {
+            default: () => '查看跟踪',
+            icon: () => h(NIcon, null, { default: () => h(TimeOutline) })
+          }
+        )
     },
     {
       key: 'operate',
@@ -266,7 +307,7 @@ const { drawerVisible, openDrawer, checkedRowKeys, onDeleted, onBatchDeleted } =
 // 统计数据计算
 const summaryStats = computed(() => {
   if (!messageStats.value) return null;
-  
+
   return {
     total: messageStats.value.totalMessages,
     sent: messageStats.value.sentMessages,
@@ -338,22 +379,22 @@ function showStatsDashboard() {
 // 数据加载
 async function loadStatistics() {
   if (!customerId) return;
-  
+
   try {
     const { error, data: stats } = await fetchGetMessageStatistics({
       customerId,
       orgId: searchParams.orgId || undefined
     });
-    
+
     if (!error && stats) {
       messageStats.value = stats;
     }
-    
+
     // 加载渠道统计
     const { error: channelError, data: channelData } = await fetchGetChannelStatistics({
       customerId
     });
-    
+
     if (!channelError && channelData) {
       channelStats.value = channelData;
     }
@@ -365,13 +406,10 @@ async function loadStatistics() {
 // 实时更新功能
 function startRealTimeUpdates() {
   if (updateInterval.value) return;
-  
+
   updateInterval.value = setInterval(async () => {
     if (realTimeUpdates.value) {
-      await Promise.all([
-        getDataByPage(),
-        loadStatistics()
-      ]);
+      await Promise.all([getDataByPage(), loadStatistics()]);
     }
   }, 30000); // 30秒更新一次
 }
@@ -448,95 +486,64 @@ onUnmounted(() => {
             <span class="text-lg font-semibold">消息统计概览</span>
           </div>
           <div class="flex items-center gap-8px">
-            <NButton 
-              type="info" 
-              quaternary 
-              size="small"
-              @click="showStatsDashboard"
-            >
+            <NButton type="info" quaternary size="small" @click="showStatsDashboard">
               <template #icon>
                 <NIcon :component="StatsChartOutline" />
               </template>
               详细统计
             </NButton>
-            <NButton 
-              :type="realTimeUpdates ? 'success' : 'default'"
-              quaternary 
-              size="small"
-              @click="realTimeUpdates = !realTimeUpdates"
-            >
+            <NButton :type="realTimeUpdates ? 'success' : 'default'" quaternary size="small" @click="realTimeUpdates = !realTimeUpdates">
               {{ realTimeUpdates ? '实时更新中' : '手动更新' }}
             </NButton>
           </div>
         </div>
       </template>
-      
+
       <NSpin :show="!summaryStats">
         <NGrid v-if="summaryStats" :cols="6" :x-gap="16" :y-gap="16">
           <NGridItem>
-            <NStatistic 
-              label="总消息数" 
-              :value="summaryStats.total"
-              :value-style="{ color: '#1890ff' }"
-            >
+            <NStatistic label="总消息数" :value="summaryStats.total" :value-style="{ color: '#1890ff' }">
               <template #prefix>
                 <NIcon :component="ChatbubbleOutline" />
               </template>
             </NStatistic>
           </NGridItem>
           <NGridItem>
-            <NStatistic 
-              label="已发送" 
-              :value="summaryStats.sent"
-              :value-style="{ color: '#52c41a' }"
-            >
+            <NStatistic label="已发送" :value="summaryStats.sent" :value-style="{ color: '#52c41a' }">
               <template #prefix>
                 <NIcon :component="SendOutline" />
               </template>
             </NStatistic>
           </NGridItem>
           <NGridItem>
-            <NStatistic 
-              label="已送达" 
-              :value="summaryStats.delivered"
-              :value-style="{ color: '#1890ff' }"
-            >
+            <NStatistic label="已送达" :value="summaryStats.delivered" :value-style="{ color: '#1890ff' }">
               <template #prefix>
                 <NIcon :component="CheckmarkCircleOutline" />
               </template>
             </NStatistic>
           </NGridItem>
           <NGridItem>
-            <NStatistic 
-              label="已确认" 
-              :value="summaryStats.acknowledged"
-              :value-style="{ color: '#52c41a' }"
-            >
+            <NStatistic label="已确认" :value="summaryStats.acknowledged" :value-style="{ color: '#52c41a' }">
               <template #prefix>
                 <NIcon :component="CheckmarkCircleOutline" />
               </template>
             </NStatistic>
           </NGridItem>
           <NGridItem>
-            <NStatistic 
-              label="失败" 
-              :value="summaryStats.failed"
-              :value-style="{ color: '#ff4d4f' }"
-            >
+            <NStatistic label="失败" :value="summaryStats.failed" :value-style="{ color: '#ff4d4f' }">
               <template #prefix>
                 <NIcon :component="CloseCircleOutline" />
               </template>
             </NStatistic>
           </NGridItem>
           <NGridItem>
-            <NStatistic 
-              label="成功率" 
+            <NStatistic
+              label="成功率"
               :value="summaryStats.successRate"
               suffix="%"
               :precision="1"
-              :value-style="{ 
-                color: summaryStats.successRate >= 90 ? '#52c41a' : 
-                       summaryStats.successRate >= 70 ? '#faad14' : '#ff4d4f' 
+              :value-style="{
+                color: summaryStats.successRate >= 90 ? '#52c41a' : summaryStats.successRate >= 70 ? '#faad14' : '#ff4d4f'
               }"
             >
               <template #prefix>
@@ -545,7 +552,7 @@ onUnmounted(() => {
             </NStatistic>
           </NGridItem>
         </NGrid>
-        
+
         <NEmpty v-else description="暂无统计数据" class="py-20" />
       </NSpin>
     </NCard>
@@ -560,7 +567,7 @@ onUnmounted(() => {
       @reset="resetSearchParams"
       @search="getDataByPage"
     />
-    
+
     <!-- 主表格区域 -->
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <TableHeaderOperation
@@ -575,18 +582,11 @@ onUnmounted(() => {
       >
         <template #suffix>
           <NSpace>
-            <NButton 
-              type="info" 
-              secondary
-              size="small"
-              @click="loadStatistics"
-            >
-              刷新统计
-            </NButton>
+            <NButton type="info" secondary size="small" @click="loadStatistics">刷新统计</NButton>
           </NSpace>
         </template>
       </TableHeaderOperation>
-      
+
       <NDataTable
         v-model:checked-row-keys="checkedRowKeys"
         remote
@@ -618,28 +618,14 @@ onUnmounted(() => {
     />
 
     <!-- 生命周期查看模态框 -->
-    <NModal
-      v-model:show="showLifecycleModal"
-      preset="card"
-      title="消息生命周期跟踪"
-      size="huge"
-      :auto-focus="false"
-    >
-      <MessageLifecycleViewer 
-        v-if="selectedMessageId" 
-        :message-id="selectedMessageId"
-        @close="showLifecycleModal = false"
-      />
+    <NModal v-model:show="showLifecycleModal" preset="card" title="消息生命周期跟踪" size="huge" :auto-focus="false">
+      <MessageLifecycleViewer v-if="selectedMessageId" :message-id="selectedMessageId" @close="showLifecycleModal = false" />
     </NModal>
 
     <!-- 统计分析抽屉 -->
-    <NDrawer
-      v-model:show="showStatsDrawer"
-      :width="800"
-      placement="right"
-    >
+    <NDrawer v-model:show="showStatsDrawer" :width="800" placement="right">
       <NDrawerContent title="消息统计分析" closable>
-        <MessageStatsDashboard 
+        <MessageStatsDashboard
           v-if="showStatsDrawer"
           :customer-id="customerId"
           :org-id="searchParams.orgId"

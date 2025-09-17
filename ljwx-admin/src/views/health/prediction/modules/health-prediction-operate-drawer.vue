@@ -1,24 +1,24 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
-import { 
-  NButton, 
-  NDrawer, 
-  NDrawerContent, 
-  NForm, 
-  NFormItem, 
-  NInput, 
-  NSelect, 
-  NTreeSelect, 
-  NInputNumber, 
-  NCheckboxGroup, 
-  NCheckbox, 
-  NRadioGroup, 
-  NRadio,
-  NSpace,
-  NCard,
+import {
   NAlert,
+  NButton,
+  NCard,
+  NCheckbox,
+  NCheckboxGroup,
+  NDrawer,
+  NDrawerContent,
+  NForm,
+  NFormItem,
+  NInput,
+  NInputNumber,
+  NRadio,
+  NRadioGroup,
+  NSelect,
+  NSpace,
   NTag,
-  useMessage 
+  NTreeSelect,
+  useMessage
 } from 'naive-ui';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 
@@ -94,7 +94,7 @@ const targetUserTypes = [
 ];
 
 // 组织树选项
-const orgOptions = computed(() => 
+const orgOptions = computed(() =>
   props.orgUnitsTree.map(item => ({
     key: item.id,
     label: item.name,
@@ -107,9 +107,7 @@ const orgOptions = computed(() =>
   }))
 );
 
-type FormModel = Pick<Api.Health.PredictionTask, 
-  'name' | 'modelId' | 'predictionHorizon' | 'features' | 'description'
-> & {
+type FormModel = Pick<Api.Health.PredictionTask, 'name' | 'modelId' | 'predictionHorizon' | 'features' | 'description'> & {
   targetUserType: 'all' | 'selected' | 'department';
   targetUsers: string[];
   targetDepartments: string[];
@@ -212,13 +210,9 @@ function updateFormModelByFormType() {
 async function handleSubmit() {
   // 模拟API调用
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  message.success(
-    props.operateType === 'add' 
-      ? '预测任务创建成功，正在后台执行...' 
-      : '预测任务更新成功'
-  );
-  
+
+  message.success(props.operateType === 'add' ? '预测任务创建成功，正在后台执行...' : '预测任务更新成功');
+
   closeDrawer();
 }
 
@@ -235,7 +229,7 @@ const estimatedDuration = computed(() => {
   const userMultiplier = formModel.targetUserType === 'all' ? 2 : 1;
   const featureMultiplier = formModel.features.length * 0.5;
   const horizonMultiplier = formModel.predictionHorizon / 7;
-  
+
   return Math.ceil(baseTime * userMultiplier * (1 + featureMultiplier) * horizonMultiplier);
 });
 
@@ -253,28 +247,19 @@ watch(visible, () => {
         <div class="grid grid-cols-1 gap-4">
           <!-- 基本信息 -->
           <NCard title="基本信息" size="small">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <NFormItem label="任务名称" path="name">
-                <NInput 
-                  v-model:value="formModel.name" 
-                  placeholder="请输入任务名称"
-                  maxlength="100"
-                  show-count
-                />
+                <NInput v-model:value="formModel.name" placeholder="请输入任务名称" maxlength="100" show-count />
               </NFormItem>
 
               <NFormItem label="预测时长" path="predictionHorizon">
-                <NSelect 
-                  v-model:value="formModel.predictionHorizon" 
-                  :options="horizonOptions" 
-                  placeholder="请选择预测时长" 
-                />
+                <NSelect v-model:value="formModel.predictionHorizon" :options="horizonOptions" placeholder="请选择预测时长" />
               </NFormItem>
             </div>
 
             <NFormItem label="任务描述" path="description">
-              <NInput 
-                v-model:value="formModel.description" 
+              <NInput
+                v-model:value="formModel.description"
                 type="textarea"
                 placeholder="请输入任务描述（可选）"
                 :autosize="{ minRows: 2, maxRows: 4 }"
@@ -287,17 +272,13 @@ watch(visible, () => {
           <!-- 预测模型 -->
           <NCard title="预测模型" size="small">
             <NFormItem label="选择模型" path="modelId">
-              <NSelect 
-                v-model:value="formModel.modelId" 
-                :options="modelOptions" 
-                placeholder="请选择预测模型"
-              />
+              <NSelect v-model:value="formModel.modelId" :options="modelOptions" placeholder="请选择预测模型" />
             </NFormItem>
 
             <div v-if="selectedModel" class="mt-3">
               <NAlert type="info" :show-icon="false">
                 <div class="text-sm">
-                  <div class="font-medium mb-1">{{ selectedModel.label }}</div>
+                  <div class="mb-1 font-medium">{{ selectedModel.label }}</div>
                   <div class="text-gray-600">{{ selectedModel.description }}</div>
                 </div>
               </NAlert>
@@ -308,26 +289,16 @@ watch(visible, () => {
           <NCard title="健康特征" size="small">
             <NFormItem label="选择特征" path="features">
               <NCheckboxGroup v-model:value="formModel.features">
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <NCheckbox 
-                    v-for="feature in featureOptions" 
-                    :key="feature.value" 
-                    :value="feature.value"
-                    :label="feature.label"
-                  />
+                <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <NCheckbox v-for="feature in featureOptions" :key="feature.value" :value="feature.value" :label="feature.label" />
                 </div>
               </NCheckboxGroup>
             </NFormItem>
 
             <div v-if="formModel.features.length > 0" class="mt-3">
-              <div class="text-sm text-gray-600 mb-2">已选择的特征：</div>
+              <div class="mb-2 text-sm text-gray-600">已选择的特征：</div>
               <NSpace>
-                <NTag 
-                  v-for="feature in formModel.features" 
-                  :key="feature"
-                  type="info"
-                  size="small"
-                >
+                <NTag v-for="feature in formModel.features" :key="feature" type="info" size="small">
                   {{ featureOptions.find(f => f.value === feature)?.label }}
                 </NTag>
               </NSpace>
@@ -339,22 +310,14 @@ watch(visible, () => {
             <NFormItem label="用户范围" path="targetUserType">
               <NRadioGroup v-model:value="formModel.targetUserType">
                 <div class="flex flex-col gap-2">
-                  <NRadio 
-                    v-for="type in targetUserTypes" 
-                    :key="type.value" 
-                    :value="type.value"
-                  >
+                  <NRadio v-for="type in targetUserTypes" :key="type.value" :value="type.value">
                     {{ type.label }}
                   </NRadio>
                 </div>
               </NRadioGroup>
             </NFormItem>
 
-            <NFormItem 
-              v-if="formModel.targetUserType === 'selected'" 
-              label="选择用户" 
-              path="targetUsers"
-            >
+            <NFormItem v-if="formModel.targetUserType === 'selected'" label="选择用户" path="targetUsers">
               <NSelect
                 v-model:value="formModel.targetUsers"
                 :options="userOptions"
@@ -365,11 +328,7 @@ watch(visible, () => {
               />
             </NFormItem>
 
-            <NFormItem 
-              v-if="formModel.targetUserType === 'department'" 
-              label="选择部门" 
-              path="targetDepartments"
-            >
+            <NFormItem v-if="formModel.targetUserType === 'department'" label="选择部门" path="targetDepartments">
               <NTreeSelect
                 v-model:value="formModel.targetDepartments"
                 :options="orgOptions"
@@ -385,7 +344,7 @@ watch(visible, () => {
 
           <!-- 高级设置 -->
           <NCard title="高级设置" size="small">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <NFormItem label="任务优先级" path="priority">
                 <NSelect
                   v-model:value="formModel.priority"
@@ -397,27 +356,18 @@ watch(visible, () => {
                 />
               </NFormItem>
 
-              <NFormItem label="最大重试次数" path="maxRetries" v-if="formModel.autoRetry">
-                <NInputNumber 
-                  v-model:value="formModel.maxRetries"
-                  :min="1"
-                  :max="10"
-                  placeholder="重试次数"
-                />
+              <NFormItem v-if="formModel.autoRetry" label="最大重试次数" path="maxRetries">
+                <NInputNumber v-model:value="formModel.maxRetries" :min="1" :max="10" placeholder="重试次数" />
               </NFormItem>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <NFormItem>
-                <NCheckbox v-model:checked="formModel.notifyOnComplete">
-                  完成后发送通知
-                </NCheckbox>
+                <NCheckbox v-model:checked="formModel.notifyOnComplete">完成后发送通知</NCheckbox>
               </NFormItem>
 
               <NFormItem>
-                <NCheckbox v-model:checked="formModel.autoRetry">
-                  失败时自动重试
-                </NCheckbox>
+                <NCheckbox v-model:checked="formModel.autoRetry">失败时自动重试</NCheckbox>
               </NFormItem>
             </div>
           </NCard>
@@ -425,14 +375,12 @@ watch(visible, () => {
           <!-- 预估信息 -->
           <NAlert type="info" class="mb-4">
             <div class="text-sm">
-              <div class="font-medium mb-2">任务预估信息</div>
-              <div class="space-y-1 text-gray-600">
+              <div class="mb-2 font-medium">任务预估信息</div>
+              <div class="text-gray-600 space-y-1">
                 <div>• 预计执行时间：约 {{ estimatedDuration }} 分钟</div>
                 <div>• 选择特征数量：{{ formModel.features.length }} 个</div>
                 <div v-if="formModel.targetUserType === 'all'">• 目标范围：全体用户</div>
-                <div v-else-if="formModel.targetUserType === 'selected'">
-                  • 目标范围：{{ formModel.targetUsers.length }} 个用户
-                </div>
+                <div v-else-if="formModel.targetUserType === 'selected'">• 目标范围：{{ formModel.targetUsers.length }} 个用户</div>
                 <div v-else>• 目标范围：{{ formModel.targetDepartments.length }} 个部门</div>
               </div>
             </div>

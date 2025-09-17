@@ -1,142 +1,13 @@
-<template>
-  <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <NCard title="动态菜单管理" :bordered="false" size="small" class="sm:flex-1-hidden card-wrapper">
-      <template #header-extra>
-        <div class="flex-y-center gap-12px">
-          <NButton type="primary" ghost @click="handleScanRoutes">
-            <template #icon>
-              <SvgIcon icon="mdi:magnify-scan" />
-            </template>
-            扫描路由
-          </NButton>
-          <NButton type="info" ghost @click="handleAutoSync">
-            <template #icon>
-              <SvgIcon icon="mdi:sync" />
-            </template>
-            自动同步
-          </NButton>
-          <NButton type="success" ghost @click="handleAddMenu">
-            <template #icon>
-              <SvgIcon icon="mdi:plus" />
-            </template>
-            新增菜单
-          </NButton>
-          <NButton type="warning" ghost @click="handleBatchUpdate">
-            <template #icon>
-              <SvgIcon icon="mdi:format-list-checks" />
-            </template>
-            批量操作
-          </NButton>
-          <NButton secondary @click="refreshData">
-            <template #icon>
-              <SvgIcon icon="mdi:refresh" />
-            </template>
-            刷新
-          </NButton>
-        </div>
-      </template>
-      
-      <div class="h-full flex-col">
-        <!-- 筛选区域 -->
-        <div class="flex-y-center justify-between pb-12px">
-          <div class="flex-y-center gap-12px">
-            <NInput
-              v-model:value="searchQuery"
-              placeholder="搜索菜单名称、路径"
-              clearable
-              class="w-240px"
-              @input="handleSearch"
-            >
-              <template #prefix>
-                <SvgIcon icon="mdi:magnify" class="text-icon" />
-              </template>
-            </NInput>
-            <NSelect
-              v-model:value="statusFilter"
-              placeholder="状态筛选"
-              clearable
-              class="w-120px"
-              :options="statusOptions"
-              @update:value="handleFilterChange"
-            />
-            <NSelect
-              v-model:value="typeFilter"
-              placeholder="类型筛选"
-              clearable
-              class="w-120px"
-              :options="typeOptions"
-              @update:value="handleFilterChange"
-            />
-            <NSelect
-              v-model:value="sourceFilter"
-              placeholder="来源筛选"
-              clearable
-              class="w-120px"
-              :options="sourceOptions"
-              @update:value="handleFilterChange"
-            />
-          </div>
-          <div class="flex-y-center gap-8px">
-            <span class="text-sm text-gray">共 {{ totalCount }} 项</span>
-          </div>
-        </div>
-
-        <!-- 菜单树形表格 -->
-        <div class="flex-1-hidden">
-          <NDataTable
-            remote
-            striped
-            size="small"
-            class="h-full"
-            :data="menuData"
-            :columns="columns"
-            :loading="loading"
-            :row-key="(row: MenuRecord) => row.id"
-            :default-expand-all="false"
-            :cascade="false"
-            :children-key="'children'"
-            :indent="24"
-            flex-height
-            @update:checked-row-keys="handleCheckedRowKeysChange"
-          />
-        </div>
-      </div>
-    </NCard>
-
-    <!-- 扫描结果模态框 -->
-    <ScanResultModal
-      v-model:visible="scanResultVisible"
-      :scan-result="scanResult"
-      @sync-menus="handleSyncMenus"
-    />
-
-    <!-- 菜单编辑模态框 -->
-    <MenuEditModal
-      v-model:visible="editVisible"
-      :menu-data="editingMenu"
-      :operation-type="operationType"
-      @confirm="handleEditConfirm"
-    />
-
-    <!-- 批量操作模态框 -->
-    <BatchUpdateModal
-      v-model:visible="batchVisible"
-      :selected-keys="selectedRowKeys"
-      @confirm="handleBatchConfirm"
-    />
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import type { DataTableColumn } from 'naive-ui';
-import { NButton, NTag, NPopconfirm, NTooltip, useMessage } from 'naive-ui';
-import ScanResultModal from './modules/scan-result-modal.vue';
-import MenuEditModal from './modules/menu-edit-modal.vue';
-import BatchUpdateModal from './modules/batch-update-modal.vue';
+import { NButton, NPopconfirm, NTag, NTooltip, useMessage } from 'naive-ui';
 import { useDynamicMenu } from '@/hooks/business/use-dynamic-menu';
 import SvgIcon from '@/components/custom/svg-icon.vue';
 import { $t } from '@/locales';
+import ScanResultModal from './modules/scan-result-modal.vue';
+import MenuEditModal from './modules/menu-edit-modal.vue';
+import BatchUpdateModal from './modules/batch-update-modal.vue';
 
 defineOptions({
   name: 'DynamicMenuManagement'
@@ -405,12 +276,14 @@ function buildMenuTree(menus: MenuRecord[]): MenuRecord[] {
 
   // 排序
   const sortMenus = (menus: MenuRecord[]): MenuRecord[] => {
-    return menus.sort((a, b) => (a.sort || 0) - (b.sort || 0)).map(menu => {
-      if (menu.children && menu.children.length > 0) {
-        menu.children = sortMenus(menu.children);
-      }
-      return menu;
-    });
+    return menus
+      .sort((a, b) => (a.sort || 0) - (b.sort || 0))
+      .map(menu => {
+        if (menu.children && menu.children.length > 0) {
+          menu.children = sortMenus(menu.children);
+        }
+        return menu;
+      });
   };
 
   return sortMenus(roots);
@@ -568,6 +441,116 @@ onMounted(() => {
   loadMenuData();
 });
 </script>
+
+<template>
+  <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <NCard title="动态菜单管理" :bordered="false" size="small" class="sm:flex-1-hidden card-wrapper">
+      <template #header-extra>
+        <div class="flex-y-center gap-12px">
+          <NButton type="primary" ghost @click="handleScanRoutes">
+            <template #icon>
+              <SvgIcon icon="mdi:magnify-scan" />
+            </template>
+            扫描路由
+          </NButton>
+          <NButton type="info" ghost @click="handleAutoSync">
+            <template #icon>
+              <SvgIcon icon="mdi:sync" />
+            </template>
+            自动同步
+          </NButton>
+          <NButton type="success" ghost @click="handleAddMenu">
+            <template #icon>
+              <SvgIcon icon="mdi:plus" />
+            </template>
+            新增菜单
+          </NButton>
+          <NButton type="warning" ghost @click="handleBatchUpdate">
+            <template #icon>
+              <SvgIcon icon="mdi:format-list-checks" />
+            </template>
+            批量操作
+          </NButton>
+          <NButton secondary @click="refreshData">
+            <template #icon>
+              <SvgIcon icon="mdi:refresh" />
+            </template>
+            刷新
+          </NButton>
+        </div>
+      </template>
+
+      <div class="h-full flex-col">
+        <!-- 筛选区域 -->
+        <div class="flex-y-center justify-between pb-12px">
+          <div class="flex-y-center gap-12px">
+            <NInput v-model:value="searchQuery" placeholder="搜索菜单名称、路径" clearable class="w-240px" @input="handleSearch">
+              <template #prefix>
+                <SvgIcon icon="mdi:magnify" class="text-icon" />
+              </template>
+            </NInput>
+            <NSelect
+              v-model:value="statusFilter"
+              placeholder="状态筛选"
+              clearable
+              class="w-120px"
+              :options="statusOptions"
+              @update:value="handleFilterChange"
+            />
+            <NSelect
+              v-model:value="typeFilter"
+              placeholder="类型筛选"
+              clearable
+              class="w-120px"
+              :options="typeOptions"
+              @update:value="handleFilterChange"
+            />
+            <NSelect
+              v-model:value="sourceFilter"
+              placeholder="来源筛选"
+              clearable
+              class="w-120px"
+              :options="sourceOptions"
+              @update:value="handleFilterChange"
+            />
+          </div>
+          <div class="flex-y-center gap-8px">
+            <span class="text-sm text-gray">共 {{ totalCount }} 项</span>
+          </div>
+        </div>
+
+        <!-- 菜单树形表格 -->
+        <div class="flex-1-hidden">
+          <NDataTable
+            remote
+            striped
+            size="small"
+            class="h-full"
+            :data="menuData"
+            :columns="columns"
+            :loading="loading"
+            :row-key="(row: MenuRecord) => row.id"
+            :default-expand-all="false"
+            :cascade="false"
+            children-key="children"
+            :indent="24"
+            flex-height
+            @update:checked-row-keys="handleCheckedRowKeysChange"
+          />
+        </div>
+      </div>
+    </NCard>
+
+    <!-- 扫描结果模态框 -->
+    <ScanResultModal v-model:visible="scanResultVisible" :scan-result="scanResult" @sync-menus="handleSyncMenus" />
+
+    <!-- 菜单编辑模态框 -->
+    <MenuEditModal v-model:visible="editVisible" :menu-data="editingMenu" :operation-type="operationType" @confirm="handleEditConfirm" />
+
+    <!-- 批量操作模态框 -->
+    <BatchUpdateModal v-model:visible="batchVisible" :selected-keys="selectedRowKeys" @confirm="handleBatchConfirm" />
+  </div>
+</template>
 
 <style scoped>
 .card-wrapper {

@@ -1,12 +1,10 @@
 import { computed } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
-import { useCustomerStore, type CustomerAccess } from '@/store/modules/customer';
+import { type CustomerAccess, useCustomerStore } from '@/store/modules/customer';
 import { fetchGetAllAvailableCustomers } from '@/service/api/customer/customer';
 import { fetchCustomerIdByOrgId } from '@/service/api';
 
-/**
- * 客户业务逻辑 Hook
- */
+/** 客户业务逻辑 Hook */
 export function useCustomer() {
   const authStore = useAuthStore();
   const customerStore = useCustomerStore();
@@ -18,9 +16,7 @@ export function useCustomer() {
   // 是否是 admin 用户
   const isAdmin = computed(() => userInfo.value?.userName === 'admin');
 
-  /**
-   * 根据用户角色确定客户访问权限
-   */
+  /** 根据用户角色确定客户访问权限 */
   const determineCustomerAccess = async (): Promise<CustomerAccess> => {
     const user = userInfo.value;
 
@@ -38,38 +34,35 @@ export function useCustomer() {
         status: 'ACTIVE',
         description: `客户ID: ${item.customerId}`
       }));
-      
+
       return {
         canSwitch: true,
         defaultCustomerId: null, // 需要手动选择
         customerList
       };
-    } else {
-      // 其他用户：不能切换，使用自己的客户ID
-      let customerId = user.customerId;
-      
-      // 如果用户没有直接的 customerId，尝试通过 orgId 获取
-      // 注意：如果用户类型定义中没有 orgId 字段，这部分逻辑需要调整
-      // if (!customerId && user.orgId && Array.isArray(user.orgId) && user.orgId.length > 0) {
-      //   try {
-      //     const { data } = await fetchCustomerIdByOrgId(user.orgId[0]);
-      //     customerId = data.customerId;
-      //   } catch (error) {
-      //     console.error('根据组织ID获取客户ID失败:', error);
-      //   }
-      // }
-
-      return {
-        canSwitch: false,
-        defaultCustomerId: customerId ? customerId.toString() : null, // 转换为字符串
-        customerList: []
-      };
     }
+    // 其他用户：不能切换，使用自己的客户ID
+    const customerId = user.customerId;
+
+    // 如果用户没有直接的 customerId，尝试通过 orgId 获取
+    // 注意：如果用户类型定义中没有 orgId 字段，这部分逻辑需要调整
+    // if (!customerId && user.orgId && Array.isArray(user.orgId) && user.orgId.length > 0) {
+    //   try {
+    //     const { data } = await fetchCustomerIdByOrgId(user.orgId[0]);
+    //     customerId = data.customerId;
+    //   } catch (error) {
+    //     console.error('根据组织ID获取客户ID失败:', error);
+    //   }
+    // }
+
+    return {
+      canSwitch: false,
+      defaultCustomerId: customerId ? customerId.toString() : null, // 转换为字符串
+      customerList: []
+    };
   };
 
-  /**
-   * 初始化客户上下文
-   */
+  /** 初始化客户上下文 */
   const initializeCustomerContext = async () => {
     try {
       // 从存储中恢复状态
@@ -99,13 +92,11 @@ export function useCustomer() {
     }
   };
 
-  /**
-   * 验证当前客户访问权限
-   */
+  /** 验证当前客户访问权限 */
   const validateCurrentCustomerAccess = async () => {
     const currentCustomerId = customerStore.currentCustomerId;
     const user = userInfo.value;
-    
+
     if (!currentCustomerId) {
       throw new Error('未设置当前客户ID');
     }
@@ -124,10 +115,9 @@ export function useCustomer() {
     return true;
   };
 
-  /**
-   * 切换客户（仅超级管理员）
-   */
-  const switchCustomer = async (customerId: string) => { // 改为字符串类型
+  /** 切换客户（仅超级管理员） */
+  const switchCustomer = async (customerId: string) => {
+    // 改为字符串类型
     if (!customerStore.canSwitchCustomer) {
       throw new Error('当前用户无权限切换客户');
     }
@@ -135,9 +125,7 @@ export function useCustomer() {
     await customerStore.switchCustomer(customerId);
   };
 
-  /**
-   * 获取当前客户统计信息
-   */
+  /** 获取当前客户统计信息 */
   const getCurrentCustomerStatistics = async () => {
     const customerId = customerStore.currentCustomerId;
     if (!customerId) {
@@ -147,20 +135,16 @@ export function useCustomer() {
     // 这里可以调用统计API
     // const { data } = await fetchGetCustomerStatistics(customerId);
     // return data;
-    
+
     return null;
   };
 
-  /**
-   * 重置客户上下文（登出时调用）
-   */
+  /** 重置客户上下文（登出时调用） */
   const resetCustomerContext = () => {
     customerStore.reset();
   };
 
-  /**
-   * 检查是否需要选择客户
-   */
+  /** 检查是否需要选择客户 */
   const needsCustomerSelection = computed(() => {
     return customerStore.canSwitchCustomer && !customerStore.currentCustomerId;
   });
@@ -185,14 +169,11 @@ export function useCustomer() {
   };
 }
 
-/**
- * 客户上下文验证装饰器
- * 可以用于路由守卫等场景
- */
+/** 客户上下文验证装饰器 可以用于路由守卫等场景 */
 export function withCustomerContext<T extends (...args: any[]) => any>(fn: T): T {
   return (async (...args: any[]) => {
     const { validateCurrentCustomerAccess } = useCustomer();
-    
+
     try {
       await validateCurrentCustomerAccess();
       return await fn(...args);

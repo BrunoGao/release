@@ -1,7 +1,22 @@
 <script setup lang="tsx">
-import { NButton, NPopconfirm, NCollapse, NCollapseItem, NAlert, NList, NListItem, NIcon, NSpace, NTag, NTooltip, NProgress, NCard, NStatistic } from 'naive-ui';
+import {
+  NAlert,
+  NButton,
+  NCard,
+  NCollapse,
+  NCollapseItem,
+  NIcon,
+  NList,
+  NListItem,
+  NPopconfirm,
+  NProgress,
+  NSpace,
+  NStatistic,
+  NTag,
+  NTooltip
+} from 'naive-ui';
 import type { Ref } from 'vue';
-import { ref, computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
 import { useAuthStore } from '@/store/modules/auth';
@@ -53,12 +68,16 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       render: row => {
         const category = row.ruleCategory || 'SINGLE';
         const typeMap = {
-          'SINGLE': { text: '单体征', type: 'primary' },
-          'COMPOSITE': { text: '复合', type: 'warning' },
-          'COMPLEX': { text: '复杂', type: 'error' }
+          SINGLE: { text: '单体征', type: 'primary' },
+          COMPOSITE: { text: '复合', type: 'warning' },
+          COMPLEX: { text: '复杂', type: 'error' }
         };
-        const config = typeMap[category] || typeMap['SINGLE'];
-        return <NTag type={config.type} size="small">{config.text}</NTag>;
+        const config = typeMap[category] || typeMap.SINGLE;
+        return (
+          <NTag type={config.type} size="small">
+            {config.text}
+          </NTag>
+        );
       }
     },
     {
@@ -79,7 +98,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
                   </NIcon>
                   多指标组合 ({indicators.length})
                 </NTag>
-                <div class="flex flex-wrap gap-1 composite-indicators">
+                <div class="composite-indicators flex flex-wrap gap-1">
                   {indicators.slice(0, 3).map((indicator, index) => (
                     <NTag key={index} type="info" size="tiny" class="text-xs">
                       {dictTag('health_data_type', indicator)?.props?.children || indicator}
@@ -89,7 +108,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
                     <NTooltip trigger="hover">
                       {{
                         trigger: () => (
-                          <NTag type="default" size="tiny" class="text-xs cursor-pointer">
+                          <NTag type="default" size="tiny" class="cursor-pointer text-xs">
                             +{indicators.length - 3}
                           </NTag>
                         ),
@@ -108,16 +127,15 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
                 </div>
               </div>
             );
-          } else {
-            return (
-              <NTag type="warning" size="small">
-                <NIcon size="12" class="mr-1">
-                  <i class="i-material-symbols:warning"></i>
-                </NIcon>
-                未配置指标
-              </NTag>
-            );
           }
+          return (
+            <NTag type="warning" size="small">
+              <NIcon size="12" class="mr-1">
+                <i class="i-material-symbols:warning"></i>
+              </NIcon>
+              未配置指标
+            </NTag>
+          );
         } else if (row.ruleCategory === 'COMPLEX') {
           // 复杂规则：显示AI分析标识
           return (
@@ -128,29 +146,27 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
               AI智能分析
             </NTag>
           );
-        } else {
-          // 单体征规则：显示具体指标
-          const indicator = dictTag('health_data_type', row.physicalSign);
-          if (indicator) {
-            return (
-              <NTag type="primary" size="small">
-                <NIcon size="12" class="mr-1">
-                  <i class="i-material-symbols:monitor-heart"></i>
-                </NIcon>
-                {indicator}
-              </NTag>
-            );
-          } else {
-            return (
-              <NTag type="default" size="small">
-                <NIcon size="12" class="mr-1">
-                  <i class="i-material-symbols:help"></i>
-                </NIcon>
-                {row.physicalSign || '未设置'}
-              </NTag>
-            );
-          }
         }
+        // 单体征规则：显示具体指标
+        const indicator = dictTag('health_data_type', row.physicalSign);
+        if (indicator) {
+          return (
+            <NTag type="primary" size="small">
+              <NIcon size="12" class="mr-1">
+                <i class="i-material-symbols:monitor-heart"></i>
+              </NIcon>
+              {indicator}
+            </NTag>
+          );
+        }
+        return (
+          <NTag type="default" size="small">
+            <NIcon size="12" class="mr-1">
+              <i class="i-material-symbols:help"></i>
+            </NIcon>
+            {row.physicalSign || '未设置'}
+          </NTag>
+        );
       }
     },
     {
@@ -164,7 +180,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           const conditions = row.compositeConditions || [];
           if (conditions.length > 0) {
             return (
-              <div class="flex flex-col gap-1 composite-conditions">
+              <div class="composite-conditions flex flex-col gap-1">
                 <NTag type="warning" size="small" class="mb-1">
                   <NIcon size="12" class="mr-1">
                     <i class="i-material-symbols:rule"></i>
@@ -172,7 +188,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
                   复合条件 ({conditions.length})
                 </NTag>
                 {conditions.slice(0, 2).map((condition, index) => (
-                  <div key={index} class="text-xs text-gray-600 condition-item px-2 py-1">
+                  <div key={index} class="condition-item px-2 py-1 text-xs text-gray-600">
                     {condition.indicator}: {condition.operator} {condition.value}
                   </div>
                 ))}
@@ -180,14 +196,12 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
                   <NTooltip trigger="hover">
                     {{
                       trigger: () => (
-                        <div class="text-xs text-blue-600 cursor-pointer hover:text-blue-800">
-                          查看更多条件 (+{conditions.length - 2})
-                        </div>
+                        <div class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">查看更多条件 (+{conditions.length - 2})</div>
                       ),
                       default: () => (
-                        <div class="flex flex-col gap-1 max-w-60">
+                        <div class="max-w-60 flex flex-col gap-1">
                           {conditions.slice(2).map((condition, index) => (
-                            <div key={index} class="text-xs p-2 tooltip-condition">
+                            <div key={index} class="tooltip-condition p-2 text-xs">
                               <strong>{condition.indicator}</strong>: {condition.operator} {condition.value}
                               {condition.unit && <span class="text-gray-500"> {condition.unit}</span>}
                             </div>
@@ -199,16 +213,15 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
                 )}
               </div>
             );
-          } else {
-            return (
-              <NTag type="warning" size="small">
-                <NIcon size="12" class="mr-1">
-                  <i class="i-material-symbols:warning"></i>
-                </NIcon>
-                未配置条件
-              </NTag>
-            );
           }
+          return (
+            <NTag type="warning" size="small">
+              <NIcon size="12" class="mr-1">
+                <i class="i-material-symbols:warning"></i>
+              </NIcon>
+              未配置条件
+            </NTag>
+          );
         } else if (row.ruleCategory === 'COMPLEX') {
           // 复杂规则：显示AI条件
           return (
@@ -219,49 +232,48 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
               AI算法决策
             </NTag>
           );
-        } else {
-          // 单体征规则：显示具体阈值
-          const min = row.thresholdMin;
-          const max = row.thresholdMax;
-          
-          if (min != null && max != null) {
-            return (
-              <NTag type="primary" size="small">
-                <NIcon size="12" class="mr-1">
-                  <i class="i-material-symbols:straighten"></i>
-                </NIcon>
-                {min} - {max}
-              </NTag>
-            );
-          } else if (min != null) {
-            return (
-              <NTag type="warning" size="small">
-                <NIcon size="12" class="mr-1">
-                  <i class="i-material-symbols:keyboard-arrow-up"></i>
-                </NIcon>
-                ≥ {min}
-              </NTag>
-            );
-          } else if (max != null) {
-            return (
-              <NTag type="error" size="small">
-                <NIcon size="12" class="mr-1">
-                  <i class="i-material-symbols:keyboard-arrow-down"></i>
-                </NIcon>
-                ≤ {max}
-              </NTag>
-            );
-          }
-          
+        }
+        // 单体征规则：显示具体阈值
+        const min = row.thresholdMin;
+        const max = row.thresholdMax;
+
+        if (min != null && max != null) {
           return (
-            <NTag type="default" size="small">
+            <NTag type="primary" size="small">
               <NIcon size="12" class="mr-1">
-                <i class="i-material-symbols:help"></i>
+                <i class="i-material-symbols:straighten"></i>
               </NIcon>
-              未设置
+              {min} - {max}
+            </NTag>
+          );
+        } else if (min != null) {
+          return (
+            <NTag type="warning" size="small">
+              <NIcon size="12" class="mr-1">
+                <i class="i-material-symbols:keyboard-arrow-up"></i>
+              </NIcon>
+              ≥ {min}
+            </NTag>
+          );
+        } else if (max != null) {
+          return (
+            <NTag type="error" size="small">
+              <NIcon size="12" class="mr-1">
+                <i class="i-material-symbols:keyboard-arrow-down"></i>
+              </NIcon>
+              ≤ {max}
             </NTag>
           );
         }
+
+        return (
+          <NTag type="default" size="small">
+            <NIcon size="12" class="mr-1">
+              <i class="i-material-symbols:help"></i>
+            </NIcon>
+            未设置
+          </NTag>
+        );
       }
     },
     {
@@ -278,7 +290,11 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           4: { text: '低', type: 'default', color: '#52c41a' }
         };
         const config = priorityMap[priority] || priorityMap[3];
-        return <NTag type={config.type} size="small">{config.text}</NTag>;
+        return (
+          <NTag type={config.type} size="small">
+            {config.text}
+          </NTag>
+        );
       }
     },
     {
@@ -288,13 +304,17 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       minWidth: 100,
       render: row => {
         const levelMap = {
-          'CRITICAL': { text: '紧急', type: 'error' },
-          'HIGH': { text: '高', type: 'warning' },
-          'MEDIUM': { text: '中', type: 'info' },
-          'LOW': { text: '低', type: 'default' }
+          CRITICAL: { text: '紧急', type: 'error' },
+          HIGH: { text: '高', type: 'warning' },
+          MEDIUM: { text: '中', type: 'info' },
+          LOW: { text: '低', type: 'default' }
         };
-        const config = levelMap[row.level] || levelMap['MEDIUM'];
-        return <NTag type={config.type} size="small">{config.text}</NTag>;
+        const config = levelMap[row.level] || levelMap.MEDIUM;
+        return (
+          <NTag type={config.type} size="small">
+            {config.text}
+          </NTag>
+        );
       }
     },
     {
@@ -307,7 +327,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
         if (seconds >= 3600) {
           return <span>{(seconds / 3600).toFixed(1)}小时</span>;
         } else if (seconds >= 60) {
-          return <span>{(seconds / 60)}分钟</span>;
+          return <span>{seconds / 60}分钟</span>;
         }
         return <span>{seconds}秒</span>;
       }
@@ -320,13 +340,13 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       render: row => {
         const channels = row.enabledChannels || ['message'];
         const channelMap = {
-          'message': '内部消息',
-          'wechat': '微信',
-          'sms': '短信',
-          'email': '邮件'
+          message: '内部消息',
+          wechat: '微信',
+          sms: '短信',
+          email: '邮件'
         };
         return (
-          <div class="flex gap-1 justify-center flex-wrap">
+          <div class="flex flex-wrap justify-center gap-1">
             {channels.map(ch => (
               <NTag key={ch} size="small" type="success">
                 {channelMap[ch] || ch}
@@ -364,7 +384,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       width: 280,
       minWidth: 280,
       render: row => (
-        <div class="flex-center gap-8px flex-wrap">
+        <div class="flex-center flex-wrap gap-8px">
           {hasAuth('t:alert:rules:update') && (
             <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
               编辑
@@ -376,16 +396,11 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           <NTooltip trigger="hover">
             {{
               trigger: () => (
-                <NButton 
-                  type={row.isEnabled ? 'warning' : 'success'} 
-                  quaternary 
-                  size="small" 
-                  onClick={() => toggleRuleStatus(row)}
-                >
+                <NButton type={row.isEnabled ? 'warning' : 'success'} quaternary size="small" onClick={() => toggleRuleStatus(row)}>
                   {row.isEnabled ? '禁用' : '启用'}
                 </NButton>
               ),
-              default: () => row.isEnabled ? '点击禁用规则' : '点击启用规则'
+              default: () => (row.isEnabled ? '点击禁用规则' : '点击启用规则')
             }}
           </NTooltip>
           {hasAuth('t:alert:rules:delete') && (
@@ -473,7 +488,7 @@ const ruleStats = computed(() => {
       complex: 0
     };
   }
-  
+
   const stats = {
     total: data.value.length,
     enabled: data.value.filter(r => r.isEnabled).length,
@@ -482,7 +497,7 @@ const ruleStats = computed(() => {
     composite: data.value.filter(r => r.ruleCategory === 'COMPOSITE').length,
     complex: data.value.filter(r => r.ruleCategory === 'COMPLEX').length
   };
-  
+
   return stats;
 });
 
@@ -506,7 +521,7 @@ function onWizardSuccess() {
 <template>
   <div class="min-h-500px flex-col-stretch gap-8px overflow-hidden lt-sm:overflow-auto">
     <!-- 统计概览 -->
-    <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
+    <div class="grid grid-cols-2 mb-4 gap-4 md:grid-cols-6">
       <NCard size="small" class="stats-card">
         <NStatistic label="总规则数" :value="ruleStats.total">
           <template #prefix>
@@ -516,7 +531,7 @@ function onWizardSuccess() {
           </template>
         </NStatistic>
       </NCard>
-      
+
       <NCard size="small" class="stats-card">
         <NStatistic label="已启用" :value="ruleStats.enabled">
           <template #prefix>
@@ -526,7 +541,7 @@ function onWizardSuccess() {
           </template>
         </NStatistic>
       </NCard>
-      
+
       <NCard size="small" class="stats-card">
         <NStatistic label="已禁用" :value="ruleStats.disabled">
           <template #prefix>
@@ -536,7 +551,7 @@ function onWizardSuccess() {
           </template>
         </NStatistic>
       </NCard>
-      
+
       <NCard size="small" class="stats-card">
         <NStatistic label="单体征规则" :value="ruleStats.single">
           <template #prefix>
@@ -546,7 +561,7 @@ function onWizardSuccess() {
           </template>
         </NStatistic>
       </NCard>
-      
+
       <NCard size="small" class="stats-card">
         <NStatistic label="复合规则" :value="ruleStats.composite">
           <template #prefix>
@@ -556,14 +571,12 @@ function onWizardSuccess() {
           </template>
         </NStatistic>
       </NCard>
-      
+
       <NCard size="small" class="stats-card">
-        <div class="flex justify-between items-center">
+        <div class="flex items-center justify-between">
           <div>
-            <div class="text-xs text-gray-500 mb-1">性能监控</div>
-            <NButton type="primary" size="small" @click="goToPerformanceMonitor">
-              查看详情
-            </NButton>
+            <div class="mb-1 text-xs text-gray-500">性能监控</div>
+            <NButton type="primary" size="small" @click="goToPerformanceMonitor">查看详情</NButton>
           </div>
           <NIcon size="20" color="#13c2c2">
             <i class="i-material-symbols:monitoring"></i>
@@ -581,7 +594,7 @@ function onWizardSuccess() {
               <span class="text-xs text-gray-500">点击展开查看详细操作说明</span>
             </NSpace>
           </template>
-          
+
           <div class="manual-content manual-scrollable">
             <NAlert type="info" :show-icon="false" class="mb-4">
               <template #header>
@@ -592,16 +605,31 @@ function onWizardSuccess() {
                   <span class="font-semibold">系统概述 - 增强版</span>
                 </div>
               </template>
-              <div class="space-y-2 text-sm">
-                <p><strong>✨ 全新功能</strong>：支持单体征、复合、复杂三种规则类型，实现智能告警和多渠道通知</p>
-                <p><strong>🚀 性能优化</strong>：三层缓存架构，支持并行处理和实时性能监控</p>
-                <p><strong>📊 统计监控</strong>：规则执行统计、性能排行、系统负载监控等</p>
-                <p><strong>🎯 智能向导</strong>：提供分步引导配置，适合新用户快速上手；传统表单适合专家用户快速编辑</p>
-                <p><strong>⚡ 实时操作</strong>：支持一键测试、启用/禁用切换、实时性能监控，无需页面刷新</p>
+              <div class="text-sm space-y-2">
+                <p>
+                  <strong>✨ 全新功能</strong>
+                  ：支持单体征、复合、复杂三种规则类型，实现智能告警和多渠道通知
+                </p>
+                <p>
+                  <strong>🚀 性能优化</strong>
+                  ：三层缓存架构，支持并行处理和实时性能监控
+                </p>
+                <p>
+                  <strong>📊 统计监控</strong>
+                  ：规则执行统计、性能排行、系统负载监控等
+                </p>
+                <p>
+                  <strong>🎯 智能向导</strong>
+                  ：提供分步引导配置，适合新用户快速上手；传统表单适合专家用户快速编辑
+                </p>
+                <p>
+                  <strong>⚡ 实时操作</strong>
+                  ：支持一键测试、启用/禁用切换、实时性能监控，无需页面刷新
+                </p>
               </div>
             </NAlert>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <!-- 基础操作 -->
               <NCard size="small" class="manual-section">
                 <template #header>
@@ -618,7 +646,9 @@ function onWizardSuccess() {
                       <span class="item-number">1</span>
                       <div>
                         <div class="item-title">新增规则</div>
-                        <div class="item-desc">点击"智能配置向导"进行分步引导创建，或使用"新增"按钮快速创建。向导支持单体征、复合规则，提供配置建议和验证</div>
+                        <div class="item-desc">
+                          点击"智能配置向导"进行分步引导创建，或使用"新增"按钮快速创建。向导支持单体征、复合规则，提供配置建议和验证
+                        </div>
                       </div>
                     </div>
                   </NListItem>
@@ -726,7 +756,7 @@ function onWizardSuccess() {
                     <span class="example-param">通知: 微信+内部消息</span>
                   </div>
                 </div>
-                
+
                 <div class="example-item">
                   <div class="example-title">专家示例 - 心血管综合预警</div>
                   <div class="example-content">
@@ -740,7 +770,7 @@ function onWizardSuccess() {
                     <span class="example-param">通知: 微信+短信+内部消息</span>
                   </div>
                 </div>
-                
+
                 <div class="example-item">
                   <div class="example-title">紧急情况 - 血氧危险预警</div>
                   <div class="example-content">
@@ -753,7 +783,7 @@ function onWizardSuccess() {
                     <span class="example-param">通知: 全渠道(实时推送)</span>
                   </div>
                 </div>
-                
+
                 <div class="example-item">
                   <div class="example-title">快速操作指南</div>
                   <div class="example-content">
@@ -773,20 +803,20 @@ function onWizardSuccess() {
     </NCard>
 
     <AlerrulesSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
-    
+
     <NCard :bordered="false" class="sm:flex-1-hidden card-wrapper" content-class="flex-col">
       <!-- 增强的头部操作区域 -->
-      <div class="flex items-center justify-between mb-4">
+      <div class="mb-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <h2 class="text-lg font-semibold text-gray-800">告警规则列表</h2>
+          <h2 class="text-lg text-gray-800 font-semibold">告警规则列表</h2>
           <NTag v-if="ruleStats.total > 0" :type="ruleStats.enabled > 0 ? 'success' : 'warning'" size="small">
             {{ ruleStats.enabled }}/{{ ruleStats.total }} 已启用
           </NTag>
         </div>
-        
+
         <div class="flex items-center gap-3">
           <!-- 智能向导按钮 -->
-          <NButton size="small" type="primary" ghost @click="openWizard" v-if="hasAuth('t:alert:rules:add')">
+          <NButton v-if="hasAuth('t:alert:rules:add')" size="small" type="primary" ghost @click="openWizard">
             <template #icon>
               <NIcon>
                 <i class="i-material-symbols:auto-awesome"></i>
@@ -794,7 +824,7 @@ function onWizardSuccess() {
             </template>
             智能配置向导
           </NButton>
-          
+
           <!-- 传统操作按钮 -->
           <TableHeaderOperation
             v-model:columns="columnChecks"
@@ -825,7 +855,7 @@ function onWizardSuccess() {
       />
       <!-- 传统编辑表单 -->
       <AlerrulesOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" @submitted="getDataByPage" />
-      
+
       <!-- 智能配置向导 -->
       <AlertRuleWizard v-model:visible="wizardVisible" @success="onWizardSuccess" />
     </NCard>
@@ -977,7 +1007,7 @@ function onWizardSuccess() {
 }
 
 .example-title::before {
-  content: "💡";
+  content: '💡';
   font-size: 12px;
 }
 
@@ -1085,15 +1115,15 @@ function onWizardSuccess() {
   .examples-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .manual-content {
     padding: 4px;
   }
-  
+
   .manual-scrollable {
     max-height: 400px;
   }
-  
+
   .composite-indicators,
   .composite-conditions {
     max-width: 120px;

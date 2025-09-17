@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
-import { NButton, NCard, NForm, NFormItem, NInput, NSelect, NTreeSelect, NDatePicker } from 'naive-ui';
+import { NButton, NCard, NDatePicker, NForm, NFormItem, NInput, NSelect, NTreeSelect } from 'naive-ui';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -79,7 +79,7 @@ const accuracyOptions = [
 ];
 
 // 组织树选项
-const orgOptions = computed(() => 
+const orgOptions = computed(() =>
   props.orgUnitsTree.map(item => ({
     key: item.id,
     label: item.name,
@@ -103,7 +103,7 @@ const orgOptions = computed(() =>
     </template>
 
     <NForm ref="queryFormRef" :model="model" label-placement="left" :label-width="80">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 sm:grid-cols-2 xl:grid-cols-4">
         <!-- 任务名称 -->
         <NFormItem label="任务名称" path="name">
           <NInput v-model:value="model.name" clearable placeholder="请输入任务名称" />
@@ -111,22 +111,12 @@ const orgOptions = computed(() =>
 
         <!-- 预测模型 -->
         <NFormItem label="预测模型" path="modelId">
-          <NSelect 
-            v-model:value="model.modelId" 
-            :options="modelOptions" 
-            clearable 
-            placeholder="请选择预测模型" 
-          />
+          <NSelect v-model:value="model.modelId" :options="modelOptions" clearable placeholder="请选择预测模型" />
         </NFormItem>
 
         <!-- 任务状态 -->
         <NFormItem label="任务状态" path="status">
-          <NSelect 
-            v-model:value="model.status" 
-            :options="statusOptions" 
-            clearable 
-            placeholder="请选择任务状态" 
-          />
+          <NSelect v-model:value="model.status" :options="statusOptions" clearable placeholder="请选择任务状态" />
         </NFormItem>
 
         <!-- 组织部门 -->
@@ -144,58 +134,31 @@ const orgOptions = computed(() =>
 
         <!-- 目标用户 -->
         <NFormItem label="目标用户" path="userId">
-          <NSelect 
-            v-model:value="model.userId" 
-            :options="userOptions" 
-            clearable 
-            placeholder="请选择用户" 
-          />
+          <NSelect v-model:value="model.userId" :options="userOptions" clearable placeholder="请选择用户" />
         </NFormItem>
 
         <!-- 预测时长 -->
         <NFormItem label="预测时长" path="predictionHorizon">
-          <NSelect 
-            v-model:value="model.predictionHorizon" 
-            :options="horizonOptions" 
-            clearable 
-            placeholder="请选择时长" 
-          />
+          <NSelect v-model:value="model.predictionHorizon" :options="horizonOptions" clearable placeholder="请选择时长" />
         </NFormItem>
 
         <!-- 风险等级 -->
         <NFormItem label="风险等级" path="riskLevel">
-          <NSelect 
-            v-model:value="model.riskLevel" 
-            :options="riskOptions" 
-            clearable 
-            placeholder="请选择风险等级" 
-          />
+          <NSelect v-model:value="model.riskLevel" :options="riskOptions" clearable placeholder="请选择风险等级" />
         </NFormItem>
 
         <!-- 准确率范围 -->
         <NFormItem label="准确率" path="accuracyRange">
-          <NSelect 
-            v-model:value="model.accuracyRange" 
-            :options="accuracyOptions" 
-            clearable 
-            placeholder="请选择准确率范围" 
-          />
+          <NSelect v-model:value="model.accuracyRange" :options="accuracyOptions" clearable placeholder="请选择准确率范围" />
         </NFormItem>
 
         <!-- 创建日期范围 -->
         <NFormItem label="创建时间" path="dateRange" class="sm:col-span-2">
-          <NDatePicker
-            v-model:value="model.dateRange"
-            type="daterange"
-            clearable
-            placeholder="请选择日期范围"
-            format="yyyy-MM-dd"
-            class="w-full"
-          />
+          <NDatePicker v-model:value="model.dateRange" type="daterange" clearable placeholder="请选择日期范围" format="yyyy-MM-dd" class="w-full" />
         </NFormItem>
       </div>
 
-      <div class="flex-y-center justify-end gap-12px mt-4">
+      <div class="mt-4 flex-y-center justify-end gap-12px">
         <NButton @click="reset">
           <template #icon>
             <div class="i-mdi:refresh" />

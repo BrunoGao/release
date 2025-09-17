@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 
 interface HealthDimension {
@@ -51,14 +51,14 @@ const profileColors = {
 
 const processedData = computed(() => {
   if (!props.healthDimensions || props.healthDimensions.length === 0) return null;
-  
+
   const radarIndicators = props.healthDimensions.map(item => ({
     name: item.name,
     max: 100
   }));
-  
+
   const radarData = props.healthDimensions.map(item => item.score);
-  
+
   // 创建旭日图数据
   const sunburstData = [
     {
@@ -88,7 +88,7 @@ const processedData = computed(() => {
       }))
     }
   ];
-  
+
   return {
     radarIndicators,
     radarData,
@@ -129,7 +129,7 @@ function updateChart() {
       textStyle: {
         color: '#374151'
       },
-      formatter: function(params: any) {
+      formatter(params: any) {
         if (params.componentType === 'radar') {
           const dimension = props.healthDimensions[params.dataIndex];
           return `
@@ -324,7 +324,7 @@ function updateChart() {
         },
         detail: {
           valueAnimation: true,
-          formatter: function(value: number) {
+          formatter(value: number) {
             return `{value|${Math.round(value)}}{unit|分}`;
           },
           rich: {
@@ -380,7 +380,7 @@ function updateChart() {
     animationDuration: 2000,
     animationEasing: 'elasticOut'
   };
-  
+
   updateOptions(option);
 }
 
@@ -388,9 +388,9 @@ function getStatusColor(status: string, opacity: number = 1) {
   const color = profileColors[status as keyof typeof profileColors] || profileColors.average;
   if (opacity < 1) {
     const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
+    const r = Number.parseInt(hex.substr(0, 2), 16);
+    const g = Number.parseInt(hex.substr(2, 2), 16);
+    const b = Number.parseInt(hex.substr(4, 2), 16);
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   }
   return color;
@@ -408,19 +408,27 @@ function getStatusText(status: string) {
 
 function getTrendColor(trend: string) {
   switch (trend) {
-    case 'up': return '#52c41a';
-    case 'down': return '#ff4d4f';
-    case 'stable': return '#6b7280';
-    default: return '#6b7280';
+    case 'up':
+      return '#52c41a';
+    case 'down':
+      return '#ff4d4f';
+    case 'stable':
+      return '#6b7280';
+    default:
+      return '#6b7280';
   }
 }
 
 function getTrendText(trend: string) {
   switch (trend) {
-    case 'up': return '↗ 上升';
-    case 'down': return '↘ 下降';
-    case 'stable': return '→ 稳定';
-    default: return '- 未知';
+    case 'up':
+      return '↗ 上升';
+    case 'down':
+      return '↘ 下降';
+    case 'stable':
+      return '→ 稳定';
+    default:
+      return '- 未知';
   }
 }
 
@@ -454,7 +462,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="chartRef" class="w-full h-full min-h-96" />
+  <div ref="chartRef" class="h-full min-h-96 w-full" />
 </template>
 
 <style scoped>

@@ -9,7 +9,7 @@ export function fetchGetHealthBaselineList(params?: Api.Health.HealthBaselineSea
   if (filteredParams?.userId === 'all') {
     delete filteredParams.userId;
   }
-  
+
   return request<Api.Health.HealthBaselineList>({
     url: '/t_health_baseline/page',
     method: 'GET',

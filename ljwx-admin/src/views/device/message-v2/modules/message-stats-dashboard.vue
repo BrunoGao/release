@@ -1,21 +1,41 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import { 
-  NCard, NStatistic, NGrid, NGridItem, NSpin, NEmpty, NTabs, NTabPane,
-  NSpace, NButton, NIcon, NDatePicker, NSelect, NAlert, NProgress,
-  NTable, NTag
+import { computed, onMounted, ref, watch } from 'vue';
+import {
+  NAlert,
+  NButton,
+  NCard,
+  NDatePicker,
+  NEmpty,
+  NGrid,
+  NGridItem,
+  NIcon,
+  NProgress,
+  NSelect,
+  NSpace,
+  NSpin,
+  NStatistic,
+  NTabPane,
+  NTable,
+  NTabs,
+  NTag
 } from 'naive-ui';
-import { 
-  StatsChartOutline, TrendingUpOutline, TimeOutline, SpeedometerOutline,
-  BarChartOutline, PieChartOutline, CalendarOutline, RefreshOutline
+import {
+  BarChartOutline,
+  CalendarOutline,
+  PieChartOutline,
+  RefreshOutline,
+  SpeedometerOutline,
+  StatsChartOutline,
+  TimeOutline,
+  TrendingUpOutline
 } from '@vicons/ionicons5';
-import { 
-  fetchGetMessageStatistics, 
-  fetchGetChannelStatistics,
-  fetchGetResponseTimeStatistics,
-  fetchGetMessageTypeDistribution
-} from '@/service/api/health/device-message-v2';
 import type { DataTableColumns } from 'naive-ui';
+import {
+  fetchGetChannelStatistics,
+  fetchGetMessageStatistics,
+  fetchGetMessageTypeDistribution,
+  fetchGetResponseTimeStatistics
+} from '@/service/api/health/device-message-v2';
 
 interface Props {
   customerId?: number;
@@ -46,7 +66,7 @@ const currentChannelStats = computed(() => localChannelStats.value || props.chan
 // 概览统计
 const overviewStats = computed(() => {
   if (!currentStats.value) return null;
-  
+
   const stats = currentStats.value;
   return {
     total: stats.totalMessages,
@@ -66,28 +86,29 @@ const overviewStats = computed(() => {
 // 消息类型统计
 const messageTypeStats = computed(() => {
   if (!currentStats.value?.messageTypeStats) return [];
-  
+
   return Object.entries(currentStats.value.messageTypeStats).map(([type, count]) => ({
     type,
     count,
-    percentage: currentStats.value!.totalMessages > 0 
-      ? (count / currentStats.value!.totalMessages * 100).toFixed(1)
-      : '0'
+    percentage: currentStats.value!.totalMessages > 0 ? ((count / currentStats.value!.totalMessages) * 100).toFixed(1) : '0'
   }));
 });
 
 // 紧急程度统计
 const urgencyStats = computed(() => {
   if (!currentStats.value?.urgencyStats) return [];
-  
+
   const urgencyOrder = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
-  return urgencyOrder.map(urgency => ({
-    urgency,
-    count: currentStats.value!.urgencyStats[urgency] || 0,
-    percentage: currentStats.value!.totalMessages > 0 
-      ? ((currentStats.value!.urgencyStats[urgency] || 0) / currentStats.value!.totalMessages * 100).toFixed(1)
-      : '0'
-  })).filter(item => item.count > 0);
+  return urgencyOrder
+    .map(urgency => ({
+      urgency,
+      count: currentStats.value!.urgencyStats[urgency] || 0,
+      percentage:
+        currentStats.value!.totalMessages > 0
+          ? (((currentStats.value!.urgencyStats[urgency] || 0) / currentStats.value!.totalMessages) * 100).toFixed(1)
+          : '0'
+    }))
+    .filter(item => item.count > 0);
 });
 
 // 渠道统计表格列
@@ -97,16 +118,20 @@ const channelColumns: DataTableColumns<any> = [
     key: 'channel',
     render(row) {
       const channelColors = {
-        'DEVICE': 'info',
-        'SMS': 'success',
-        'EMAIL': 'warning', 
-        'PUSH': 'error',
-        'WECHAT': 'success'
+        DEVICE: 'info',
+        SMS: 'success',
+        EMAIL: 'warning',
+        PUSH: 'error',
+        WECHAT: 'success'
       } as const;
-      return h(NTag, { 
-        type: channelColors[row.channel as keyof typeof channelColors] || 'default',
-        size: 'small' 
-      }, () => row.channel);
+      return h(
+        NTag,
+        {
+          type: channelColors[row.channel as keyof typeof channelColors] || 'default',
+          size: 'small'
+        },
+        () => row.channel
+      );
     }
   },
   {
@@ -135,10 +160,14 @@ const channelColumns: DataTableColumns<any> = [
     title: '成功率',
     key: 'successRate',
     render(row) {
-      const rate = row.total > 0 ? (row.delivered / row.total * 100).toFixed(1) : '0';
-      return h('span', { 
-        class: `font-medium ${Number(rate) >= 90 ? 'text-green-600' : Number(rate) >= 70 ? 'text-yellow-600' : 'text-red-600'}`
-      }, `${rate}%`);
+      const rate = row.total > 0 ? ((row.delivered / row.total) * 100).toFixed(1) : '0';
+      return h(
+        'span',
+        {
+          class: `font-medium ${Number(rate) >= 90 ? 'text-green-600' : Number(rate) >= 70 ? 'text-yellow-600' : 'text-red-600'}`
+        },
+        `${rate}%`
+      );
     },
     sorter: (a, b) => {
       const rateA = a.total > 0 ? a.delivered / a.total : 0;
@@ -158,7 +187,7 @@ const channelColumns: DataTableColumns<any> = [
 // 渠道统计数据
 const channelTableData = computed(() => {
   if (!currentChannelStats.value) return [];
-  
+
   return Object.entries(currentChannelStats.value).map(([channel, stats]: [string, any]) => ({
     channel,
     total: stats.totalMessages || 0,
@@ -181,33 +210,44 @@ function formatDuration(ms: number) {
 // 获取紧急程度颜色
 function getUrgencyColor(urgency: string) {
   switch (urgency) {
-    case 'CRITICAL': return '#ff4d4f';
-    case 'HIGH': return '#faad14';
-    case 'MEDIUM': return '#1890ff';
-    case 'LOW': return '#52c41a';
-    default: return '#d9d9d9';
+    case 'CRITICAL':
+      return '#ff4d4f';
+    case 'HIGH':
+      return '#faad14';
+    case 'MEDIUM':
+      return '#1890ff';
+    case 'LOW':
+      return '#52c41a';
+    default:
+      return '#d9d9d9';
   }
 }
 
 // 获取消息类型颜色
 function getMessageTypeColor(type: string) {
   switch (type) {
-    case 'EMERGENCY': return '#ff4d4f';
-    case 'ALERT': return '#faad14';
-    case 'WARNING': return '#faad14';
-    case 'NOTIFICATION': return '#1890ff';
-    case 'INFO': return '#52c41a';
-    default: return '#d9d9d9';
+    case 'EMERGENCY':
+      return '#ff4d4f';
+    case 'ALERT':
+      return '#faad14';
+    case 'WARNING':
+      return '#faad14';
+    case 'NOTIFICATION':
+      return '#1890ff';
+    case 'INFO':
+      return '#52c41a';
+    default:
+      return '#d9d9d9';
   }
 }
 
 // 加载统计数据
 async function loadStats() {
   if (!props.customerId) return;
-  
+
   loading.value = true;
   const [startTime, endTime] = dateRange.value;
-  
+
   try {
     // 加载基础统计
     const { error: statsError, data: stats } = await fetchGetMessageStatistics({
@@ -216,44 +256,43 @@ async function loadStats() {
       startTime: new Date(startTime).toISOString(),
       endTime: new Date(endTime).toISOString()
     });
-    
+
     if (!statsError && stats) {
       localStats.value = stats;
     }
-    
+
     // 加载渠道统计
     const { error: channelError, data: channelData } = await fetchGetChannelStatistics({
       customerId: props.customerId,
       startTime: new Date(startTime).toISOString(),
       endTime: new Date(endTime).toISOString()
     });
-    
+
     if (!channelError && channelData) {
       localChannelStats.value = channelData;
     }
-    
+
     // 加载响应时间统计
     const { error: responseError, data: responseData } = await fetchGetResponseTimeStatistics({
       customerId: props.customerId,
       startTime: new Date(startTime).toISOString(),
       endTime: new Date(endTime).toISOString()
     });
-    
+
     if (!responseError && responseData) {
       responseTimeStats.value = responseData;
     }
-    
+
     // 加载消息类型分布
     const { error: typeError, data: typeData } = await fetchGetMessageTypeDistribution({
       customerId: props.customerId,
       startTime: new Date(startTime).toISOString(),
       endTime: new Date(endTime).toISOString()
     });
-    
+
     if (!typeError && typeData) {
       typeDistribution.value = typeData;
     }
-    
   } catch (error) {
     console.error('加载统计数据失败:', error);
   } finally {
@@ -286,21 +325,15 @@ onMounted(() => {
           clearable
           size="small"
           :shortcuts="{
-            '最近1小时': [Date.now() - 60 * 60 * 1000, Date.now()],
-            '最近24小时': [Date.now() - 24 * 60 * 60 * 1000, Date.now()],
-            '最近7天': [Date.now() - 7 * 24 * 60 * 60 * 1000, Date.now()],
-            '最近30天': [Date.now() - 30 * 24 * 60 * 60 * 1000, Date.now()]
+            最近1小时: [Date.now() - 60 * 60 * 1000, Date.now()],
+            最近24小时: [Date.now() - 24 * 60 * 60 * 1000, Date.now()],
+            最近7天: [Date.now() - 7 * 24 * 60 * 60 * 1000, Date.now()],
+            最近30天: [Date.now() - 30 * 24 * 60 * 60 * 1000, Date.now()]
           }"
         />
       </div>
-      
-      <NButton 
-        type="primary" 
-        quaternary 
-        size="small"
-        :loading="loading"
-        @click="loadStats"
-      >
+
+      <NButton type="primary" quaternary size="small" :loading="loading" @click="loadStats">
         <template #icon>
           <NIcon :component="RefreshOutline" />
         </template>
@@ -317,25 +350,20 @@ onMounted(() => {
               <!-- 核心指标 -->
               <NGrid :cols="4" :x-gap="16" :y-gap="16" class="mb-24px">
                 <NGridItem>
-                  <NStatistic 
-                    label="总消息数" 
-                    :value="overviewStats.total"
-                    :value-style="{ color: '#1890ff' }"
-                  >
+                  <NStatistic label="总消息数" :value="overviewStats.total" :value-style="{ color: '#1890ff' }">
                     <template #prefix>
                       <NIcon :component="StatsChartOutline" />
                     </template>
                   </NStatistic>
                 </NGridItem>
                 <NGridItem>
-                  <NStatistic 
-                    label="发送成功率" 
+                  <NStatistic
+                    label="发送成功率"
                     :value="overviewStats.sendSuccessRate"
                     suffix="%"
                     :precision="1"
-                    :value-style="{ 
-                      color: overviewStats.sendSuccessRate >= 90 ? '#52c41a' : 
-                             overviewStats.sendSuccessRate >= 70 ? '#faad14' : '#ff4d4f' 
+                    :value-style="{
+                      color: overviewStats.sendSuccessRate >= 90 ? '#52c41a' : overviewStats.sendSuccessRate >= 70 ? '#faad14' : '#ff4d4f'
                     }"
                   >
                     <template #prefix>
@@ -344,14 +372,14 @@ onMounted(() => {
                   </NStatistic>
                 </NGridItem>
                 <NGridItem>
-                  <NStatistic 
-                    label="确认率" 
+                  <NStatistic
+                    label="确认率"
                     :value="overviewStats.acknowledgeSuccessRate"
                     suffix="%"
                     :precision="1"
-                    :value-style="{ 
-                      color: overviewStats.acknowledgeSuccessRate >= 80 ? '#52c41a' : 
-                             overviewStats.acknowledgeSuccessRate >= 60 ? '#faad14' : '#ff4d4f' 
+                    :value-style="{
+                      color:
+                        overviewStats.acknowledgeSuccessRate >= 80 ? '#52c41a' : overviewStats.acknowledgeSuccessRate >= 60 ? '#faad14' : '#ff4d4f'
                     }"
                   >
                     <template #prefix>
@@ -360,11 +388,7 @@ onMounted(() => {
                   </NStatistic>
                 </NGridItem>
                 <NGridItem>
-                  <NStatistic 
-                    label="平均响应时间" 
-                    :value="formatDuration(overviewStats.averageResponseTime)"
-                    :value-style="{ color: '#722ed1' }"
-                  >
+                  <NStatistic label="平均响应时间" :value="formatDuration(overviewStats.averageResponseTime)" :value-style="{ color: '#722ed1' }">
                     <template #prefix>
                       <NIcon :component="SpeedometerOutline" />
                     </template>
@@ -377,11 +401,11 @@ onMounted(() => {
                 <NGrid :cols="3" :x-gap="16" :y-gap="16">
                   <NGridItem>
                     <div class="text-center">
-                      <div class="text-2xl font-bold text-green-500 mb-4px">{{ overviewStats.acknowledged }}</div>
+                      <div class="mb-4px text-2xl text-green-500 font-bold">{{ overviewStats.acknowledged }}</div>
                       <div class="text-sm text-gray-500">已确认</div>
-                      <NProgress 
-                        type="circle" 
-                        :percentage="overviewStats.total > 0 ? (overviewStats.acknowledged / overviewStats.total * 100) : 0"
+                      <NProgress
+                        type="circle"
+                        :percentage="overviewStats.total > 0 ? (overviewStats.acknowledged / overviewStats.total) * 100 : 0"
                         :stroke-width="8"
                         color="#52c41a"
                         class="mt-8px"
@@ -392,11 +416,11 @@ onMounted(() => {
                   </NGridItem>
                   <NGridItem>
                     <div class="text-center">
-                      <div class="text-2xl font-bold text-red-500 mb-4px">{{ overviewStats.failed }}</div>
+                      <div class="mb-4px text-2xl text-red-500 font-bold">{{ overviewStats.failed }}</div>
                       <div class="text-sm text-gray-500">失败</div>
-                      <NProgress 
-                        type="circle" 
-                        :percentage="overviewStats.total > 0 ? (overviewStats.failed / overviewStats.total * 100) : 0"
+                      <NProgress
+                        type="circle"
+                        :percentage="overviewStats.total > 0 ? (overviewStats.failed / overviewStats.total) * 100 : 0"
                         :stroke-width="8"
                         color="#ff4d4f"
                         class="mt-8px"
@@ -407,11 +431,11 @@ onMounted(() => {
                   </NGridItem>
                   <NGridItem>
                     <div class="text-center">
-                      <div class="text-2xl font-bold text-yellow-500 mb-4px">{{ overviewStats.pending }}</div>
+                      <div class="mb-4px text-2xl text-yellow-500 font-bold">{{ overviewStats.pending }}</div>
                       <div class="text-sm text-gray-500">待处理</div>
-                      <NProgress 
-                        type="circle" 
-                        :percentage="overviewStats.total > 0 ? (overviewStats.pending / overviewStats.total * 100) : 0"
+                      <NProgress
+                        type="circle"
+                        :percentage="overviewStats.total > 0 ? (overviewStats.pending / overviewStats.total) * 100 : 0"
                         :stroke-width="8"
                         color="#faad14"
                         class="mt-8px"
@@ -423,7 +447,7 @@ onMounted(() => {
                 </NGrid>
               </NCard>
             </div>
-            
+
             <NEmpty v-else description="暂无统计数据" />
           </div>
         </NTabPane>
@@ -434,16 +458,13 @@ onMounted(() => {
             <!-- 消息类型统计 -->
             <NCard title="消息类型分布" size="small">
               <div v-if="messageTypeStats.length > 0" class="space-y-8px">
-                <div 
-                  v-for="item in messageTypeStats" 
+                <div
+                  v-for="item in messageTypeStats"
                   :key="item.type"
-                  class="flex items-center justify-between p-12px border border-gray-200 rounded-lg"
+                  class="flex items-center justify-between border border-gray-200 rounded-lg p-12px"
                 >
                   <div class="flex items-center gap-12px">
-                    <div 
-                      class="w-12px h-12px rounded-full"
-                      :style="{ backgroundColor: getMessageTypeColor(item.type) }"
-                    ></div>
+                    <div class="h-12px w-12px rounded-full" :style="{ backgroundColor: getMessageTypeColor(item.type) }"></div>
                     <span class="font-medium">{{ item.type }}</span>
                   </div>
                   <div class="flex items-center gap-16px">
@@ -458,16 +479,13 @@ onMounted(() => {
             <!-- 紧急程度统计 -->
             <NCard title="紧急程度分布" size="small">
               <div v-if="urgencyStats.length > 0" class="space-y-8px">
-                <div 
-                  v-for="item in urgencyStats" 
+                <div
+                  v-for="item in urgencyStats"
                   :key="item.urgency"
-                  class="flex items-center justify-between p-12px border border-gray-200 rounded-lg"
+                  class="flex items-center justify-between border border-gray-200 rounded-lg p-12px"
                 >
                   <div class="flex items-center gap-12px">
-                    <div 
-                      class="w-12px h-12px rounded-full"
-                      :style="{ backgroundColor: getUrgencyColor(item.urgency) }"
-                    ></div>
+                    <div class="h-12px w-12px rounded-full" :style="{ backgroundColor: getUrgencyColor(item.urgency) }"></div>
                     <span class="font-medium">{{ item.urgency }}</span>
                   </div>
                   <div class="flex items-center gap-16px">
@@ -484,13 +502,7 @@ onMounted(() => {
         <!-- 渠道统计 -->
         <NTabPane name="channels" tab="渠道统计">
           <NCard title="渠道分发统计" size="small">
-            <NTable 
-              v-if="channelTableData.length > 0"
-              :columns="channelColumns"
-              :data="channelTableData"
-              :pagination="false"
-              size="small"
-            />
+            <NTable v-if="channelTableData.length > 0" :columns="channelColumns" :data="channelTableData" :pagination="false" size="small" />
             <NEmpty v-else description="暂无渠道统计数据" />
           </NCard>
         </NTabPane>
@@ -504,34 +516,34 @@ onMounted(() => {
               </template>
               性能指标基于选定时间范围内的消息传递数据计算
             </NAlert>
-            
+
             <NCard title="响应时间分析" size="small">
               <div v-if="responseTimeStats">
                 <NGrid :cols="2" :x-gap="16" :y-gap="16">
                   <NGridItem>
-                    <NStatistic 
-                      label="平均送达时间" 
+                    <NStatistic
+                      label="平均送达时间"
                       :value="formatDuration(responseTimeStats.overall?.averageDeliveryTime || 0)"
                       :value-style="{ color: '#1890ff' }"
                     />
                   </NGridItem>
                   <NGridItem>
-                    <NStatistic 
-                      label="平均确认时间" 
+                    <NStatistic
+                      label="平均确认时间"
                       :value="formatDuration(responseTimeStats.overall?.averageAcknowledgmentTime || 0)"
                       :value-style="{ color: '#52c41a' }"
                     />
                   </NGridItem>
                   <NGridItem>
-                    <NStatistic 
-                      label="P90送达时间" 
+                    <NStatistic
+                      label="P90送达时间"
                       :value="formatDuration(responseTimeStats.overall?.p90DeliveryTime || 0)"
                       :value-style="{ color: '#faad14' }"
                     />
                   </NGridItem>
                   <NGridItem>
-                    <NStatistic 
-                      label="P99送达时间" 
+                    <NStatistic
+                      label="P99送达时间"
                       :value="formatDuration(responseTimeStats.overall?.p99DeliveryTime || 0)"
                       :value-style="{ color: '#ff4d4f' }"
                     />

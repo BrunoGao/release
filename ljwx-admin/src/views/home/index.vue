@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { NButton, NCollapse, NCollapseItem, NAlert, NList, NListItem, NIcon, NSpace, NCard, NGrid, NGi, NTag } from 'naive-ui';
+import { NAlert, NButton, NCard, NCollapse, NCollapseItem, NGi, NGrid, NIcon, NList, NListItem, NSpace, NTag } from 'naive-ui';
 import { useAppStore } from '@/store/modules/app';
 import { useAuthStore } from '@/store/modules/auth';
 import { fetchGatherTotalInfo } from '@/service/api';
@@ -60,7 +60,7 @@ const manualExpanded = ref(['manual']);
               <span class="text-xs text-gray-500">了解平台核心功能</span>
             </NSpace>
           </template>
-          
+
           <div class="manual-content">
             <NAlert type="success" :show-icon="false" class="mb-4">
               <template #header>
@@ -74,7 +74,7 @@ const manualExpanded = ref(['manual']);
               首页展示了您的健康监测系统的核心数据统计和实时分析，帮助您快速了解整体运营状况
             </NAlert>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <!-- 设备消息分析 -->
               <NCard size="small" class="manual-section">
                 <template #header>
@@ -82,7 +82,7 @@ const manualExpanded = ref(['manual']);
                     <NIcon size="18" color="#3b82f6">
                       <i class="i-material-symbols:message"></i>
                     </NIcon>
-                    <span class="font-medium text-blue-700">设备消息分析</span>
+                    <span class="text-blue-700 font-medium">设备消息分析</span>
                   </div>
                 </template>
                 <NList size="small">
@@ -123,7 +123,7 @@ const manualExpanded = ref(['manual']);
                     <NIcon size="18" color="#ef4444">
                       <i class="i-material-symbols:warning"></i>
                     </NIcon>
-                    <span class="font-medium text-red-700">告警分析</span>
+                    <span class="text-red-700 font-medium">告警分析</span>
                   </div>
                 </template>
                 <NList size="small">
@@ -165,11 +165,11 @@ const manualExpanded = ref(['manual']);
                   <NIcon size="18" color="#10b981">
                     <i class="i-material-symbols:touch-app"></i>
                   </NIcon>
-                  <span class="font-medium text-green-700">交互操作指南</span>
+                  <span class="text-green-700 font-medium">交互操作指南</span>
                 </div>
               </template>
-              
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+
+              <div class="grid grid-cols-1 mt-3 gap-4 md:grid-cols-3">
                 <div class="operation-guide">
                   <div class="guide-header">
                     <NIcon size="16" color="#3b82f6">
@@ -221,11 +221,11 @@ const manualExpanded = ref(['manual']);
                   <NIcon size="18" color="#8b5cf6">
                     <i class="i-material-symbols:help"></i>
                   </NIcon>
-                  <span class="font-medium text-purple-700">数据指标说明</span>
+                  <span class="text-purple-700 font-medium">数据指标说明</span>
                 </div>
               </template>
-              
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+
+              <div class="grid grid-cols-1 mt-3 gap-3 lg:grid-cols-4 sm:grid-cols-2">
                 <div class="metric-explain">
                   <div class="metric-title">📱 设备状态</div>
                   <div class="metric-content">
@@ -467,12 +467,12 @@ const manualExpanded = ref(['manual']);
   .manual-content {
     padding: 8px;
   }
-  
+
   .operation-guide,
   .metric-explain {
     padding: 12px;
   }
-  
+
   .guide-step,
   .metric-item {
     font-size: 11px;
