@@ -101,6 +101,16 @@ public interface ISysOrgUnitsFacade {
      * @CreateTime 2024-07-11 - 10:31:23
      */
     List<SysOrgUnitsTreeVO> queryAllOrgUnitsListConvertToTree(Long id);
+    
+    /**
+     * 查询租户下属的部门列表并转换为树形结构（不包含租户节点本身）
+     *
+     * @param tenantId 租户ID
+     * @return {@link List }<{@link SysOrgUnitsTreeVO }> 下属部门树形结构对象集合
+     * @author bruno.gao
+     * @CreateTime 2025-09-18 - 20:31:23
+     */
+    List<SysOrgUnitsTreeVO> queryTenantDepartmentsTree(Long tenantId);
 
     /**
      * 删除部门前置检查 - 分析影响的用户和设备

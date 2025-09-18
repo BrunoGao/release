@@ -86,8 +86,13 @@ public class SysOrgUnitsController {
 
     @DeleteMapping("/")
     @SaCheckPermission("sys:org:units:delete")
-    @Operation(operationId = "5", summary = "批量删除租户/部门信息")
+    @Operation(operationId = "5", summary = "批量删除部门信息（不包括租户级别）")
     public Result<Boolean> batchDelete(@Parameter(description = "删除对象") @RequestBody SysOrgUnitsDeleteDTO sysOrgUnitsDeleteDTO) {
+        // 检查是否包含租户级别的删除操作
+        if (containsTenantLevelDeletion(sysOrgUnitsDeleteDTO.getIds())) {
+            return Result.failure("组织管理页面不允许删除租户级别的组织，请在客户配置页面进行租户管理操作");
+        }
+        
         return Result.status(sysOrgUnitsFacade.batchDelete(sysOrgUnitsDeleteDTO));
     }
 
@@ -100,24 +105,38 @@ public class SysOrgUnitsController {
         System.out.println("  id: " + id);
         System.out.println("  customerId: " + customerId);
         
-        // 如果传入了customerId，说明要按租户过滤，将customerId作为id进行查询
-        Long effectiveId = (customerId != null) ? customerId : id;
-        System.out.println("  effectiveId: " + effectiveId);
-        
-        return Result.data(sysOrgUnitsFacade.queryAllOrgUnitsListConvertToTree(effectiveId));
+        if (customerId != null) {
+            // 如果传入了customerId，返回该租户下属的部门树结构（不包含租户节点本身）
+            System.out.println("  返回租户下属部门树结构，customerId: " + customerId);
+            return Result.data(sysOrgUnitsFacade.queryTenantDepartmentsTree(customerId));
+        } else {
+            // 否则使用原有逻辑
+            System.out.println("  使用原有树结构查询，id: " + id);
+            return Result.data(sysOrgUnitsFacade.queryAllOrgUnitsListConvertToTree(id));
+        }
     }
 
     @PostMapping("/delete-precheck")
     @SaCheckPermission("sys:org:units:delete")
-    @Operation(operationId = "7", summary = "删除部门前置检查 - 分析影响的用户和设备")
+    @Operation(operationId = "7", summary = "删除部门前置检查 - 分析影响的用户和设备（不包括租户级别）")
     public Result<DepartmentDeletePreCheckDTO> deletePreCheck(@Parameter(description = "删除对象") @RequestBody SysOrgUnitsDeleteDTO sysOrgUnitsDeleteDTO) {
+        // 检查是否包含租户级别的删除操作
+        if (containsTenantLevelDeletion(sysOrgUnitsDeleteDTO.getIds())) {
+            return Result.failure("组织管理页面不允许删除租户级别的组织，请在客户配置页面进行租户管理操作");
+        }
+        
         return Result.data(sysOrgUnitsFacade.deletePreCheck(sysOrgUnitsDeleteDTO));
     }
 
     @DeleteMapping("/cascade-delete")
     @SaCheckPermission("sys:org:units:delete")
-    @Operation(operationId = "8", summary = "级联删除部门 - 包含用户和设备释放")
+    @Operation(operationId = "8", summary = "级联删除部门 - 包含用户和设备释放（不包括租户级别）")
     public Result<Boolean> cascadeDelete(@Parameter(description = "删除对象") @RequestBody SysOrgUnitsDeleteDTO sysOrgUnitsDeleteDTO) {
+        // 检查是否包含租户级别的删除操作
+        if (containsTenantLevelDeletion(sysOrgUnitsDeleteDTO.getIds())) {
+            return Result.failure("组织管理页面不允许删除租户级别的组织，请在客户配置页面进行租户管理操作");
+        }
+        
         return Result.status(sysOrgUnitsFacade.cascadeDelete(sysOrgUnitsDeleteDTO));
     }
     
@@ -137,6 +156,30 @@ public class SysOrgUnitsController {
             return sysUserService.isAdminUser(Long.parseLong(loginId));
         } catch (Exception e) {
             return false;
+        }
+    }
+    
+    /**
+     * 检查删除列表中是否包含租户级别的组织
+     * 租户级别组织的特征：parentId 为 0 或 1
+     */
+    private boolean containsTenantLevelDeletion(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return false;
+        }
+        
+        try {
+            // 查询这些ID对应的组织信息，检查是否有租户级别的
+            for (Long id : ids) {
+                var orgUnit = sysOrgUnitsFacade.get(id);
+                if (orgUnit != null && isTopLevelOrg(orgUnit.getParentId())) {
+                    return true; // 发现租户级别的组织
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            // 如果查询失败，为了安全起见，禁止删除操作
+            return true;
         }
     }
 

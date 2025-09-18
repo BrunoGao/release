@@ -124,6 +124,39 @@ public class TCustomerConfigController {
     public Result<Boolean> batchDelete(@Parameter(description = "删除对象") @RequestBody TCustomerConfigDeleteDTO tCustomerConfigDeleteDTO) {
         return Result.status(tCustomerConfigFacade.batchDelete(tCustomerConfigDeleteDTO));
     }
+    
+    @DeleteMapping("/{id}")
+    @SaCheckPermission("t:customer:config:delete")
+    @Operation(operationId = "13", summary = "删除单个租户")
+    public Result<Boolean> deleteTenant(@Parameter(description = "租户ID") @PathVariable("id") Long id) {
+        try {
+            TCustomerConfigDeleteDTO deleteDTO = new TCustomerConfigDeleteDTO();
+            deleteDTO.setIds(List.of(id));
+            
+            // 使用现有的级联删除逻辑
+            return Result.status(tCustomerConfigFacade.tenantCascadeDelete(deleteDTO));
+            
+        } catch (Exception e) {
+            log.error("删除租户失败: id=" + id, e);
+            return Result.failure("删除租户失败: " + e.getMessage());
+        }
+    }
+    
+    @PostMapping("/tenant-delete-precheck/{id}")
+    @SaCheckPermission("t:customer:config:delete")
+    @Operation(operationId = "14", summary = "删除单个租户前置检查")
+    public Result<DepartmentDeletePreCheckDTO> tenantDeletePrecheck(@Parameter(description = "租户ID") @PathVariable("id") Long id) {
+        try {
+            TCustomerConfigDeleteDTO deleteDTO = new TCustomerConfigDeleteDTO();
+            deleteDTO.setIds(List.of(id));
+            
+            return Result.data(tCustomerConfigFacade.tenantDeletePreCheck(deleteDTO));
+            
+        } catch (Exception e) {
+            log.error("租户删除前置检查失败: id=" + id, e);
+            return Result.failure("前置检查失败: " + e.getMessage());
+        }
+    }
 
     @PostMapping("/tenant-delete-precheck")
     @SaCheckPermission("t:customer:config:delete")

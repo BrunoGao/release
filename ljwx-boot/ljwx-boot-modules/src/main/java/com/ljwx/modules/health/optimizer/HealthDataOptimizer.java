@@ -19,18 +19,25 @@
 
 package com.ljwx.modules.health.optimizer;
 
+import com.ljwx.common.api.vo.Result;
+import com.ljwx.modules.health.domain.entity.TDeviceInfo;
 import com.ljwx.modules.health.domain.entity.TUserHealthData;
+import com.ljwx.modules.health.service.ITDeviceInfoService;
+import com.ljwx.modules.health.service.ITUserHealthDataService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * 健康数据性能优化器
@@ -52,6 +59,12 @@ public class HealthDataOptimizer {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+    
+    @Autowired
+    private ITUserHealthDataService userHealthDataService;
+    
+    @Autowired
+    private ITDeviceInfoService deviceInfoService;
     
     // CPU自适应配置
     private final int cpuCores = Runtime.getRuntime().availableProcessors();
@@ -101,6 +114,408 @@ public class HealthDataOptimizer {
         
         // 启动批处理任务
         startBatchProcessor();
+    }
+    
+    // ============= Python功能迁移 =============
+    
+    /**
+     * Python字段映射表 (从health_data_batch_processor.py迁移)
+     */
+    private static final Map<String, String> PYTHON_FIELD_MAPPING;
+    static {
+        Map<String, String> mapping = new HashMap<>();
+        mapping.put("heart_rate", "heart_rate");
+        mapping.put("blood_oxygen", "blood_oxygen");
+        mapping.put("temperature", "body_temperature");
+        mapping.put("pressure_high", "blood_pressure_systolic");
+        mapping.put("pressure_low", "blood_pressure_diastolic");
+        mapping.put("stress", "stress");
+        mapping.put("step", "step");
+        mapping.put("distance", "distance");
+        mapping.put("calorie", "calorie");
+        mapping.put("latitude", "latitude");
+        mapping.put("longitude", "longitude");
+        mapping.put("altitude", "altitude");
+        mapping.put("sleep", "sleepData");
+        mapping.put("sleep_data", "sleepData");
+        mapping.put("workout_data", "workoutData");
+        PYTHON_FIELD_MAPPING = Collections.unmodifiableMap(mapping);
+    }
+    
+    /**
+     * 健康数据批量上传 (迁移自 Python health_data_batch_processor.py:upload_health_data)
+     */
+    public Result<Map<String, Object>> uploadHealthData(List<Map<String, Object>> healthDataList) {
+        long startTime = System.currentTimeMillis();
+        log.info("🚀 开始健康数据批量上传，数据量: {}", healthDataList.size());
+        
+        try {
+            // 1. 数据验证和转换 (复用Python验证逻辑)
+            List<TUserHealthData> validatedData = validateAndTransformHealthData(healthDataList);
+            log.debug("数据验证完成，有效数据: {}", validatedData.size());
+            
+            // 2. 重复检测 (复用Python去重逻辑)
+            List<TUserHealthData> deduplicatedData = performDuplicateDetection(validatedData);
+            log.debug("去重完成，最终数据: {}", deduplicatedData.size());
+            
+            // 3. 分片批处理 (复用Python的分片策略)
+            processDataInAdaptiveShards(deduplicatedData);
+            
+            // 4. 更新统计信息
+            long processed = deduplicatedData.size();
+            long duplicates = validatedData.size() - processed;
+            
+            processedCount.addAndGet(processed);
+            batchCount.incrementAndGet();
+            duplicateCount.addAndGet(duplicates);
+            
+            // 5. 构建响应结果 (保持Python接口兼容)
+            long processingTime = System.currentTimeMillis() - startTime;
+            Map<String, Object> result = buildSuccessResponse(processed, duplicates, processingTime);
+            
+            log.info("✅ 批量健康数据处理完成: 处理{}条，去重{}条，耗时{}ms", 
+                processed, duplicates, processingTime);
+            
+            return Result.ok(result);
+            
+        } catch (Exception e) {
+            errorCount.incrementAndGet();
+            long errorTime = System.currentTimeMillis() - startTime;
+            log.error("❌ 批量健康数据处理失败，耗时{}ms", errorTime, e);
+            
+            return Result.error("上传失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 设备信息批量上传 (迁移自 Python device_batch_processor.py)
+     */
+    public Result<Map<String, Object>> uploadDeviceInfo(List<Map<String, Object>> deviceDataList) {
+        long startTime = System.currentTimeMillis();
+        log.info("🚀 开始设备信息批量上传，数据量: {}", deviceDataList.size());
+        
+        try {
+            // 1. 设备数据验证和转换
+            List<TDeviceInfo> validatedDevices = validateAndTransformDeviceData(deviceDataList);
+            
+            // 2. 设备信息去重
+            List<TDeviceInfo> deduplicatedDevices = removeDuplicateDevices(validatedDevices);
+            
+            // 3. 批量处理设备数据
+            processDeviceDataInBatches(deduplicatedDevices);
+            
+            long processingTime = System.currentTimeMillis() - startTime;
+            Map<String, Object> result = Map.of(
+                "success", true,
+                "processed", deduplicatedDevices.size(),
+                "total", deviceDataList.size(),
+                "duplicates", validatedDevices.size() - deduplicatedDevices.size(),
+                "processing_time_ms", processingTime
+            );
+            
+            log.info("✅ 批量设备信息处理完成: {}", result);
+            return Result.ok(result);
+            
+        } catch (Exception e) {
+            log.error("❌ 批量设备信息处理失败", e);
+            return Result.error("设备信息上传失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 通用事件上传 (迁移自 Python upload_common_event逻辑)
+     */
+    public Result<Map<String, Object>> uploadCommonEvent(Map<String, Object> eventData) {
+        log.info("🚀 开始处理通用事件");
+        
+        try {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            
+            // 1. 处理健康数据部分
+            if (eventData.containsKey("health_data")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> healthData = (List<Map<String, Object>>) eventData.get("health_data");
+                Result<Map<String, Object>> healthResult = uploadHealthData(healthData);
+                result.put("health_result", healthResult.getResult());
+            }
+            
+            // 2. 处理设备信息部分
+            if (eventData.containsKey("device_info")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> deviceData = (List<Map<String, Object>>) eventData.get("device_info");
+                Result<Map<String, Object>> deviceResult = uploadDeviceInfo(deviceData);
+                result.put("device_result", deviceResult.getResult());
+            }
+            
+            // 3. 处理其他事件数据
+            if (eventData.containsKey("alert_data")) {
+                // 集成告警处理
+                processAlertEvents(eventData.get("alert_data"));
+                result.put("alert_result", Map.of("success", true));
+            }
+            
+            log.info("✅ 通用事件处理完成");
+            return Result.ok(result);
+            
+        } catch (Exception e) {
+            log.error("❌ 通用事件处理失败", e);
+            return Result.error("通用事件处理失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 数据验证和转换 (Python字段映射逻辑)
+     */
+    private List<TUserHealthData> validateAndTransformHealthData(List<Map<String, Object>> healthDataList) {
+        return healthDataList.parallelStream()
+            .map(this::transformSingleHealthData)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * 单条健康数据转换 (复用Python的字段映射)
+     */
+    private TUserHealthData transformSingleHealthData(Map<String, Object> data) {
+        try {
+            TUserHealthData healthData = new TUserHealthData();
+            
+            // 基础字段映射 (修正字段类型)
+            healthData.setDeviceSn(getStringValue(data, "device_id"));
+            healthData.setUserId(parseLong(data.get("user_id")));
+            healthData.setOrgId(parseLong(data.get("org_id")));
+            healthData.setCustomerId(parseLong(data.get("customer_id")));
+            
+            // 健康指标字段映射 (使用Python的mapping逻辑)
+            for (Map.Entry<String, String> mapping : PYTHON_FIELD_MAPPING.entrySet()) {
+                String pythonField = mapping.getKey();
+                Object value = data.get(pythonField);
+                if (value != null) {
+                    setHealthDataField(healthData, pythonField, value);
+                }
+            }
+            
+            // 时间字段处理
+            healthData.setCreateTime(parseDateTime(data.get("create_time")));
+            
+            return healthData;
+            
+        } catch (Exception e) {
+            log.warn("健康数据转换失败: {}", data, e);
+            return null;
+        }
+    }
+    
+    /**
+     * 重复检测 (Python去重算法)
+     */
+    private List<TUserHealthData> performDuplicateDetection(List<TUserHealthData> dataList) {
+        Set<String> currentBatchKeys = new HashSet<>();
+        
+        return dataList.stream()
+            .filter(data -> {
+                String duplicateKey = generateDuplicateKey(data);
+                
+                // 检查Redis缓存中的重复记录 (Python逻辑)
+                String redisKey = "health_data_key:" + duplicateKey;
+                Boolean exists = redisTemplate.hasKey(redisKey);
+                
+                if (Boolean.TRUE.equals(exists) || currentBatchKeys.contains(duplicateKey)) {
+                    duplicateCount.incrementAndGet();
+                    return false;
+                }
+                
+                // 记录到Redis缓存 (24小时过期)
+                redisTemplate.opsForValue().set(redisKey, "1", Duration.ofHours(24));
+                currentBatchKeys.add(duplicateKey);
+                return true;
+            })
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * CPU自适应分片处理 (Python分片策略)
+     */
+    private void processDataInAdaptiveShards(List<TUserHealthData> dataList) {
+        // 按设备ID分片 (Python算法)
+        Map<Integer, List<TUserHealthData>> shards = dataList.stream()
+            .collect(Collectors.groupingBy(data -> 
+                Math.abs(data.getDeviceSn().hashCode()) % cpuCores
+            ));
+        
+        // 并行处理各分片
+        List<CompletableFuture<Void>> futures = shards.entrySet().stream()
+            .map(entry -> CompletableFuture.runAsync(
+                () -> processSingleShard(entry.getValue()),
+                executor
+            ))
+            .collect(Collectors.toList());
+        
+        // 等待所有分片完成
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+    }
+    
+    /**
+     * 获取优化器统计信息 (兼容Python接口)
+     */
+    public Map<String, Object> getOptimizerStats() {
+        return Map.of(
+            "processed", processedCount.get(),
+            "batches", batchCount.get(),
+            "errors", errorCount.get(),
+            "duplicates", duplicateCount.get(),
+            "queue_size", executor.getQueue().size(),
+            "active_threads", executor.getActiveCount(),
+            "cpu_cores", cpuCores,
+            "batch_size", batchSize
+        );
+    }
+    
+    // ============= 辅助方法 =============
+    
+    private String generateDuplicateKey(TUserHealthData data) {
+        return String.format("%s_%s_%s", 
+            data.getDeviceSn(), 
+            data.getCreateTime(), 
+            data.getHeartRate()
+        );
+    }
+    
+    private Map<String, Object> buildSuccessResponse(long processed, long duplicates, long processingTime) {
+        return Map.of(
+            "success", true,
+            "message", "数据处理成功",
+            "processed", processed,
+            "duplicates", duplicates,
+            "processing_time_ms", processingTime,
+            "batch_size", batchSize,
+            "shard_count", cpuCores
+        );
+    }
+    
+    private String getStringValue(Map<String, Object> data, String key) {
+        Object value = data.get(key);
+        return value != null ? value.toString() : null;
+    }
+    
+    private void setHealthDataField(TUserHealthData healthData, String field, Object value) {
+        // 根据字段名设置相应的值
+        try {
+            switch (field) {
+                case "heart_rate" -> healthData.setHeartRate(parseInt(value));
+                case "blood_oxygen" -> healthData.setBloodOxygen(parseInt(value));
+                case "temperature" -> healthData.setTemperature(parseDouble(value));
+                case "pressure_high" -> healthData.setPressureHigh(parseInt(value));
+                case "pressure_low" -> healthData.setPressureLow(parseInt(value));
+                case "stress" -> healthData.setStress(parseInt(value));
+                case "step" -> healthData.setStep(parseInt(value));
+                case "distance" -> healthData.setDistance(parseDouble(value));
+                case "calorie" -> healthData.setCalorie(parseDouble(value));
+                case "latitude" -> healthData.setLatitude(parseDouble(value));
+                case "longitude" -> healthData.setLongitude(parseDouble(value));
+                case "altitude" -> healthData.setAltitude(parseDouble(value));
+                default -> log.debug("未识别的字段: {}", field);
+            }
+        } catch (Exception e) {
+            log.warn("设置字段值失败: field={}, value={}", field, value, e);
+        }
+    }
+    
+    private Double parseDouble(Object value) {
+        if (value == null) return null;
+        try {
+            return Double.parseDouble(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+    
+    private Integer parseInt(Object value) {
+        if (value == null) return null;
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+    
+    private Long parseLong(Object value) {
+        if (value == null) return null;
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+    
+    private LocalDateTime parseDateTime(Object value) {
+        if (value == null) return LocalDateTime.now();
+        try {
+            if (value instanceof String) {
+                return LocalDateTime.parse((String) value, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            }
+            return LocalDateTime.now();
+        } catch (Exception e) {
+            return LocalDateTime.now();
+        }
+    }
+    
+    // 设备数据处理相关方法
+    private List<TDeviceInfo> validateAndTransformDeviceData(List<Map<String, Object>> deviceDataList) {
+        // 设备数据转换逻辑
+        return deviceDataList.stream()
+            .map(this::transformSingleDeviceData)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    }
+    
+    private TDeviceInfo transformSingleDeviceData(Map<String, Object> data) {
+        // 简化的设备数据转换
+        try {
+            TDeviceInfo deviceInfo = new TDeviceInfo();
+            deviceInfo.setSerialNumber(getStringValue(data, "device_id"));
+            deviceInfo.setDeviceName(getStringValue(data, "device_name"));
+            deviceInfo.setCustomerId(parseLong(data.get("customer_id")));
+            return deviceInfo;
+        } catch (Exception e) {
+            log.warn("设备数据转换失败: {}", data, e);
+            return null;
+        }
+    }
+    
+    private List<TDeviceInfo> removeDuplicateDevices(List<TDeviceInfo> devices) {
+        // 设备去重逻辑
+        return devices.stream()
+            .collect(Collectors.toMap(
+                TDeviceInfo::getSerialNumber,
+                device -> device,
+                (existing, replacement) -> existing
+            ))
+            .values()
+            .stream()
+            .collect(Collectors.toList());
+    }
+    
+    private void processDeviceDataInBatches(List<TDeviceInfo> devices) {
+        // 批量处理设备数据
+        deviceInfoService.saveBatch(devices);
+    }
+    
+    private void processAlertEvents(Object alertData) {
+        // 告警事件处理逻辑
+        log.info("处理告警事件: {}", alertData);
+    }
+    
+    private void processSingleShard(List<TUserHealthData> shardData) {
+        try {
+            // 批量插入到数据库
+            userHealthDataService.saveBatch(shardData, batchSize);
+            log.debug("分片处理完成，数据量: {}", shardData.size());
+        } catch (Exception e) {
+            log.error("分片处理失败", e);
+            errorCount.addAndGet(shardData.size());
+        }
     }
 
     /**

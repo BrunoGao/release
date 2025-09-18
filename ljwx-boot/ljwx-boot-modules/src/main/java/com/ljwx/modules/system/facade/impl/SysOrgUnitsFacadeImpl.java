@@ -108,11 +108,55 @@ public class SysOrgUnitsFacadeImpl implements ISysOrgUnitsFacade {
     public RPage<SysOrgUnitsTreeVO> listSysOrgUnitsPage(PageQuery pageQuery, SysOrgUnitsSearchDTO sysOrgUnitsSearchDTO) {
         SysOrgUnitsBO sysOrgUnitsBO = CglibUtil.convertObj(sysOrgUnitsSearchDTO, SysOrgUnitsBO::new);
         
-        // 如果传入了customerId，说明要按租户过滤，将customerId作为id进行查询
+        // 如果传入了customerId，说明要按租户过滤，返回租户下属的部门（不包含租户本身）
         if (sysOrgUnitsSearchDTO.getCustomerId() != null) {
             System.out.println("🔍 SysOrgUnitsFacadeImpl - 根据customerId过滤: " + sysOrgUnitsSearchDTO.getCustomerId());
-            sysOrgUnitsBO.setId(sysOrgUnitsSearchDTO.getCustomerId());
+            
+            // 查询租户下的所有部门
+            List<SysOrgUnits> allOrgUnits = sysOrgUnitsService.querySysOrgUnitsListWithStatus(StringPools.ONE, sysOrgUnitsSearchDTO.getCustomerId());
+            
+            // 过滤掉租户节点本身，只保留下属部门
+            List<SysOrgUnits> departmentsOnly = allOrgUnits.stream()
+                    .filter(unit -> !unit.getId().equals(sysOrgUnitsSearchDTO.getCustomerId()))
+                    .collect(Collectors.toList());
+            
+            // 如果没有下属部门，返回空结果
+            if (departmentsOnly.isEmpty()) {
+                return new RPage<>(pageQuery.getPage(), pageQuery.getPageSize(), List.of(), 0, 0);
+            }
+            
+            // 找出顶级部门（parentId 等于 customerId 的部门）
+            List<SysOrgUnits> topDepartments = departmentsOnly.stream()
+                    .filter(unit -> unit.getParentId().equals(sysOrgUnitsSearchDTO.getCustomerId()))
+                    .sorted(Comparator.comparing(SysOrgUnits::getSort))
+                    .collect(Collectors.toList());
+            
+            // 按 parentId 分组，用于构建子部门
+            Map<Long, List<SysOrgUnits>> orgUnitsMap = departmentsOnly.stream()
+                    .collect(Collectors.groupingBy(SysOrgUnits::getParentId));
+            
+            // 构建树形结构
+            List<SysOrgUnitsTreeVO> topDepartmentTreeVOList = topDepartments.stream()
+                    .map(unit -> {
+                        SysOrgUnitsTreeVO orgUnitsTreeVO = CglibUtil.convertObj(unit, SysOrgUnitsTreeVO::new);
+                        orgUnitsTreeVO.setChildren(initOrgUnitsChild(unit.getId(), orgUnitsMap));
+                        return orgUnitsTreeVO;
+                    }).collect(Collectors.toList());
+            
+            // 构建分页结果
+            RPage<SysOrgUnitsTreeVO> result = new RPage<>(
+                pageQuery.getPage(), 
+                pageQuery.getPageSize(), 
+                topDepartmentTreeVOList,
+                topDepartmentTreeVOList.isEmpty() ? 0 : 1,
+                topDepartmentTreeVOList.size()
+            );
+            
+            System.out.println("🏢 返回部门管理页面结果，不包含租户节点，部门数量: " + topDepartmentTreeVOList.size());
+            return result;
         }
+        
+        // 原有逻辑：查询租户或全部组织
         IPage<SysOrgUnits> sysOrgUnitsIPage = sysOrgUnitsService.listSysOrgUnitsPage(pageQuery, sysOrgUnitsBO);
         List<SysOrgUnits> topOrgUnits = sysOrgUnitsIPage.getRecords();
         if (topOrgUnits.isEmpty()) {
@@ -179,6 +223,23 @@ public class SysOrgUnitsFacadeImpl implements ISysOrgUnitsFacade {
         // 组装对应结构
         List<SysOrgUnitsTreeVO> result = initOrgUnitsChild(directParent, orgUnitsMap);  
         System.out.println("queryAllOrgUnitsListConvertToTree:result: " + result);
+        return result;
+    }
+    
+    @Override
+    public List<SysOrgUnitsTreeVO> queryTenantDepartmentsTree(Long tenantId) {
+        // 查询租户下的所有数据
+        List<SysOrgUnits> allOrgUnits = sysOrgUnitsService.querySysOrgUnitsListWithStatus(StringPools.ONE, tenantId);
+        System.out.println("🏢 queryTenantDepartmentsTree - tenantId: " + tenantId);
+        System.out.println("🏢 查询到的所有组织单位: " + allOrgUnits);
+        
+        // 按 parentId 分组
+        Map<Long, List<SysOrgUnits>> orgUnitsMap = allOrgUnits.stream()
+                .collect(Collectors.groupingBy(SysOrgUnits::getParentId));
+        
+        // 直接返回租户下属的部门，不包含租户节点本身
+        List<SysOrgUnitsTreeVO> result = initOrgUnitsChild(tenantId, orgUnitsMap);
+        System.out.println("🏢 返回的部门树结构: " + result);
         return result;
     }
 
