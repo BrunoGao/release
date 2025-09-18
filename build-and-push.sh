@@ -232,6 +232,18 @@ build_app_image() {
     if [ $? -eq 0 ]; then
         echo "✅ $image_name 应用镜像构建成功"
         echo "🏷️  镜像标签: $tag, $latest_tag"
+        
+        # 本地构建完成后推送到阿里云
+        if [ "$LOCAL_BUILD" = "true" ] && [ "$PUSH_TO_REGISTRY" = "true" ]; then
+            echo "🚀 推送镜像到阿里云镜像仓库..."
+            docker push $tag
+            docker push $latest_tag
+            if [ $? -eq 0 ]; then
+                echo "✅ $image_name 镜像推送成功"
+            else
+                echo "⚠️  $image_name 镜像推送失败"
+            fi
+        fi
     else
         echo "❌ $image_name 应用镜像构建失败"
         return 1
@@ -290,6 +302,18 @@ build_monitoring_image() {
     if [ $? -eq 0 ]; then
         echo "✅ $image_name:$version 监控镜像构建成功"
         echo "🏷️  镜像标签: $tag, $latest_tag"
+        
+        # 本地构建完成后推送到阿里云
+        if [ "$LOCAL_BUILD" = "true" ] && [ "$PUSH_TO_REGISTRY" = "true" ]; then
+            echo "🚀 推送镜像到阿里云镜像仓库..."
+            docker push $tag
+            docker push $latest_tag
+            if [ $? -eq 0 ]; then
+                echo "✅ $image_name 镜像推送成功"
+            else
+                echo "⚠️  $image_name 镜像推送失败"
+            fi
+        fi
     else
         echo "❌ $image_name:$version 监控镜像构建失败"
         return 1
