@@ -737,7 +737,7 @@ onMounted(() => {
                   :style="{ 
                   backgroundColor: severity === '紧急' ? '#f5222d' : 
                                   severity === '高' ? '#fa8c16' : 
-                          : severity === '中'
+                                  severity === '中'
                             ? '#faad14'
                             : severity === '低'
                               ? '#52c41a'

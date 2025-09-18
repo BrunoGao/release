@@ -678,7 +678,7 @@ onMounted(() => {
                   :style="{ 
                   backgroundColor: urgency === '非常紧急' ? '#f5222d' : 
                                   urgency === '高级' ? '#fa8c16' : 
-                          : urgency === '中级'
+                                  urgency === '中级'
                             ? '#52c41a'
                             : urgency === '低级'
                               ? '#91d5ff'
