@@ -1,0 +1,364 @@
+// SCSS Variables for ljwx-bigscreen-vue3
+// These variables complement the CSS custom properties in global.scss
+
+// ========== 颜色系统 ==========
+
+// 主色调 - 健康绿
+$primary-50: #e6fff7;
+$primary-100: #b3ffe6;
+$primary-200: #80ffd5;
+$primary-300: #4dffc4;
+$primary-400: #1affb3;
+$primary-500: #00ff9d;
+$primary-600: #00cc7d;
+$primary-700: #00995e;
+$primary-800: #00663e;
+$primary-900: #00331f;
+
+// 科技蓝
+$tech-50: #e6f7ff;
+$tech-100: #b3e9ff;
+$tech-200: #80dbff;
+$tech-300: #4dcdff;
+$tech-400: #1abfff;
+$tech-500: #00e4ff;
+$tech-600: #00b7cc;
+$tech-700: #008a99;
+$tech-800: #005c66;
+$tech-900: #002e33;
+
+// 功能色
+$success-50: #f0f9f0;
+$success-100: #d4e8d4;
+$success-200: #a6d4a6;
+$success-300: #79c179;
+$success-400: #4bae4b;
+$success-500: #67c23a;
+$success-600: #529b2f;
+$success-700: #3d7422;
+$success-800: #274d16;
+$success-900: #13260b;
+
+$warning-50: #fffaf0;
+$warning-100: #feecdc;
+$warning-200: #fdd9b3;
+$warning-300: #fcc78a;
+$warning-400: #fab461;
+$warning-500: #ffa726;
+$warning-600: #cc8520;
+$warning-700: #996418;
+$warning-800: #664210;
+$warning-900: #332108;
+
+$error-50: #fff5f5;
+$error-100: #fed7d7;
+$error-200: #feb2b2;
+$error-300: #fc8181;
+$error-400: #f56565;
+$error-500: #ff6b6b;
+$error-600: #cc5555;
+$error-700: #993f3f;
+$error-800: #662a2a;
+$error-900: #331515;
+
+$info-50: #eff6ff;
+$info-100: #dbeafe;
+$info-200: #bfdbfe;
+$info-300: #93c5fd;
+$info-400: #60a5fa;
+$info-500: #409eff;
+$info-600: #337ecc;
+$info-700: #265e99;
+$info-800: #1a3f66;
+$info-900: #0d1f33;
+
+// 背景色
+$bg-primary: #0a1525;
+$bg-secondary: #1a2332;
+$bg-tertiary: #2a3441;
+$bg-card: rgba(6, 18, 25, 0.9);
+$bg-elevated: rgba(26, 35, 50, 0.8);
+$bg-modal: rgba(0, 0, 0, 0.8);
+$bg-overlay: rgba(0, 0, 0, 0.6);
+
+// 文字色
+$text-primary: #ffffff;
+$text-secondary: rgba(255, 255, 255, 0.8);
+$text-tertiary: rgba(255, 255, 255, 0.6);
+$text-disabled: rgba(255, 255, 255, 0.4);
+
+// 边框色
+$border-primary: rgba(0, 255, 157, 0.3);
+$border-secondary: rgba(0, 228, 255, 0.2);
+$border-tertiary: rgba(255, 255, 255, 0.1);
+$border-light: rgba(255, 255, 255, 0.15);
+
+// 阴影
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+$shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
+$shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.25);
+$shadow-glow: 0 0 20px rgba(0, 255, 157, 0.3);
+$shadow-tech: 0 0 20px rgba(0, 228, 255, 0.3);
+
+// ========== 尺寸系统 ==========
+
+// 间距
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-2xl: 48px;
+$spacing-3xl: 64px;
+
+// 圆角
+$radius-xs: 2px;
+$radius-sm: 4px;
+$radius-md: 8px;
+$radius-lg: 12px;
+$radius-xl: 16px;
+$radius-2xl: 24px;
+$radius-full: 50%;
+
+// 字体大小
+$font-xs: 10px;
+$font-sm: 12px;
+$font-base: 14px;
+$font-md: 16px;
+$font-lg: 18px;
+$font-xl: 20px;
+$font-xxl: 24px;
+$font-2xl: 24px;
+$font-3xl: 32px;
+$font-4xl: 48px;
+
+// 行高
+$leading-none: 1;
+$leading-tight: 1.25;
+$leading-normal: 1.5;
+$leading-relaxed: 1.75;
+
+// 字体家族
+$font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+$font-tech: 'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace;
+$font-mono: 'JetBrains Mono', monospace;
+
+// ========== 动画系统 ==========
+
+// 过渡时长
+$duration-fast: 150ms;
+$duration-normal: 300ms;
+$duration-slow: 500ms;
+
+// 缓动函数
+$ease-linear: linear;
+$ease-in: cubic-bezier(0.4, 0, 1, 1);
+$ease-out: cubic-bezier(0, 0, 0.2, 1);
+$ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+$ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+// ========== 层级系统 ==========
+
+$z-dropdown: 1000;
+$z-sticky: 1010;
+$z-fixed: 1020;
+$z-modal-backdrop: 1030;
+$z-modal: 1040;
+$z-popover: 1050;
+$z-tooltip: 1060;
+$z-toast: 1070;
+$z-loading: 1080;
+
+// ========== 断点系统 ==========
+
+$breakpoint-xs: 480px;
+$breakpoint-sm: 640px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 1024px;
+$breakpoint-xl: 1280px;
+$breakpoint-2xl: 1536px;
+
+// 断点映射
+$breakpoints: (
+  xs: $breakpoint-xs,
+  sm: $breakpoint-sm,
+  md: $breakpoint-md,
+  lg: $breakpoint-lg,
+  xl: $breakpoint-xl,
+  2xl: $breakpoint-2xl
+);
+
+// ========== 健康监测相关颜色 ==========
+
+// 健康状态颜色
+$health-excellent: #4caf50;
+$health-good: #8bc34a;
+$health-fair: #ffc107;
+$health-poor: #f44336;
+$health-critical: #d32f2f;
+
+// 设备状态颜色
+$device-online: #00ff9d;
+$device-offline: #757575;
+$device-warning: #ff9800;
+$device-error: #f44336;
+
+// 数据图表颜色
+$chart-primary: #00e4ff;
+$chart-secondary: #00ff9d;
+$chart-tertiary: #ffa726;
+$chart-quaternary: #e91e63;
+$chart-quinary: #9c27b0;
+
+// 渐变色组合
+$gradient-primary: linear-gradient(135deg, #{$primary-500}, #{$tech-500});
+$gradient-secondary: linear-gradient(135deg, #{$tech-500}, #{$primary-500});
+$gradient-success: linear-gradient(135deg, #{$success-400}, #{$success-600});
+$gradient-warning: linear-gradient(135deg, #{$warning-400}, #{$warning-600});
+$gradient-error: linear-gradient(135deg, #{$error-400}, #{$error-600});
+
+// Import Sass modules for modern syntax
+@use "sass:color";
+@use "sass:map";
+
+// ========== Mixins ==========
+
+// 响应式断点 Mixin
+@mixin respond-to($breakpoint) {
+  @if map.has-key($breakpoints, $breakpoint) {
+    @media (min-width: map.get($breakpoints, $breakpoint)) {
+      @content;
+    }
+  } @else {
+    @warn "无效的断点: `#{$breakpoint}`. 可用断点: #{map.keys($breakpoints)}";
+  }
+}
+
+// 文字发光效果
+@mixin text-glow($color: $primary-500, $intensity: 10px) {
+  text-shadow: 0 0 $intensity $color;
+}
+
+// 盒子发光效果
+@mixin box-glow($color: $primary-500, $intensity: 10px) {
+  box-shadow: 0 0 $intensity rgba($color, 0.6);
+}
+
+// 玻璃态效果
+@mixin glass-effect($opacity: 0.1, $blur: 10px) {
+  background: rgba(255, 255, 255, $opacity);
+  backdrop-filter: blur($blur);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+// 卡片样式
+@mixin card-style($padding: $spacing-lg) {
+  background: $bg-card;
+  border-radius: $radius-lg;
+  padding: $padding;
+  border: 1px solid $border-light;
+}
+
+// 按钮样式
+@mixin button-style($bg-color: $primary-500, $text-color: $text-primary) {
+  background: $bg-color;
+  color: $text-color;
+  border: none;
+  border-radius: $radius-md;
+  padding: $spacing-sm $spacing-md;
+  cursor: pointer;
+  transition: all $duration-normal $ease-in-out;
+  
+  &:hover {
+    background: color.scale($bg-color, $lightness: 20%);
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// 输入框样式
+@mixin input-style {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid $border-tertiary;
+  border-radius: $radius-md;
+  padding: $spacing-sm $spacing-md;
+  color: $text-primary;
+  
+  &:focus {
+    outline: none;
+    border-color: $primary-500;
+    box-shadow: 0 0 0 2px rgba($primary-500, 0.2);
+  }
+  
+  &::placeholder {
+    color: $text-tertiary;
+  }
+}
+
+// 滚动条样式
+@mixin scrollbar-style($width: 6px) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $width;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: $radius-sm;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: $primary-500;
+    border-radius: $radius-sm;
+    
+    &:hover {
+      background: $primary-400;
+    }
+  }
+  
+  scrollbar-width: thin;
+  scrollbar-color: $primary-500 rgba(255, 255, 255, 0.1);
+}
+
+// 动画关键帧（如果需要在 SCSS 中使用）
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

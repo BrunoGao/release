@@ -1,0 +1,435 @@
+// 科技主题样式 - Tech Theme Styles
+@use "@/assets/styles/variables.scss" as *;
+
+// ========== 科技风格基础样式 ==========
+
+// 科技边框效果
+.tech-border {
+  border: 1px solid $tech-500;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    background: linear-gradient(45deg, 
+      $tech-500 0%, 
+      transparent 25%, 
+      transparent 75%, 
+      $tech-500 100%);
+    z-index: -1;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity $duration-normal $ease-in-out;
+  }
+  
+  &:hover::before {
+    opacity: 1;
+  }
+}
+
+// 科技发光效果
+.tech-glow {
+  box-shadow: 0 0 20px rgba($tech-500, 0.3);
+  
+  &:hover {
+    box-shadow: 0 0 30px rgba($tech-500, 0.5);
+  }
+}
+
+// 科技文字样式
+.tech-text {
+  font-family: $font-tech;
+  color: $tech-500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  
+  &.glow {
+    @include text-glow($tech-500);
+  }
+}
+
+// 科技按钮
+.tech-button {
+  @include button-style($tech-500, $text-primary);
+  font-family: $font-tech;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left $duration-slow $ease-in-out;
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
+}
+
+// 科技输入框
+.tech-input {
+  @include input-style;
+  font-family: $font-tech;
+  background: rgba($tech-900, 0.3);
+  border-color: $tech-500;
+  
+  &:focus {
+    border-color: $tech-400;
+    box-shadow: 0 0 0 2px rgba($tech-500, 0.2);
+  }
+}
+
+// 科技卡片
+.tech-card {
+  @include card-style;
+  background: linear-gradient(135deg, 
+    rgba($bg-card, 0.8), 
+    rgba($tech-900, 0.2));
+  border: 1px solid rgba($tech-500, 0.3);
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, 
+      transparent, 
+      $tech-500, 
+      transparent);
+    animation: techScan 3s linear infinite;
+  }
+}
+
+// ========== 数据流动画效果 ==========
+
+.data-stream {
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, 
+      transparent, 
+      $primary-500, 
+      transparent);
+    animation: dataFlow 2s linear infinite;
+  }
+}
+
+// ========== 全息效果 ==========
+
+.hologram {
+  background: linear-gradient(135deg, 
+    rgba($tech-500, 0.1), 
+    rgba($primary-500, 0.1));
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba($tech-500, 0.3);
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      from 0deg at 50% 50%,
+      transparent,
+      rgba($tech-500, 0.1),
+      transparent,
+      rgba($primary-500, 0.1),
+      transparent
+    );
+    animation: hologramRotate 10s linear infinite;
+    z-index: -1;
+  }
+}
+
+// ========== 扫描线效果 ==========
+
+.scan-lines {
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba($tech-500, 0.05) 2px,
+        rgba($tech-500, 0.05) 4px
+      );
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+// ========== 电路板图案 ==========
+
+.circuit-pattern {
+  background-image: 
+    radial-gradient(circle at 1px 1px, $tech-500 1px, transparent 0),
+    linear-gradient(45deg, 
+      rgba($tech-500, 0.1) 25%, 
+      transparent 25%),
+    linear-gradient(-45deg, 
+      rgba($tech-500, 0.1) 25%, 
+      transparent 25%);
+  background-size: 20px 20px, 40px 40px, 40px 40px;
+  background-position: 0 0, 0 0, 20px 20px;
+}
+
+// ========== 网格背景 ==========
+
+.grid-background {
+  background-image: 
+    linear-gradient(rgba($tech-500, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba($tech-500, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+// ========== 状态指示器 ==========
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+  
+  &.online {
+    background: $device-online;
+    box-shadow: 0 0 10px rgba($device-online, 0.5);
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      border: 1px solid rgba($device-online, 0.3);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+  }
+  
+  &.offline {
+    background: $device-offline;
+  }
+  
+  &.warning {
+    background: $device-warning;
+    animation: blink 1s ease-in-out infinite;
+  }
+  
+  &.error {
+    background: $device-error;
+    animation: blink 0.5s ease-in-out infinite;
+  }
+}
+
+// ========== 数据表格样式 ==========
+
+.tech-table {
+  background: rgba($bg-card, 0.8);
+  border: 1px solid rgba($tech-500, 0.3);
+  border-radius: $radius-lg;
+  overflow: hidden;
+  
+  th {
+    background: rgba($tech-500, 0.2);
+    color: $tech-300;
+    font-family: $font-tech;
+    text-transform: uppercase;
+    font-size: $font-xs;
+    letter-spacing: 1px;
+    padding: $spacing-md;
+    border-bottom: 1px solid rgba($tech-500, 0.3);
+  }
+  
+  td {
+    padding: $spacing-md;
+    border-bottom: 1px solid rgba($tech-500, 0.1);
+    color: $text-secondary;
+    
+    &:first-child {
+      color: $tech-400;
+      font-family: $font-tech;
+    }
+  }
+  
+  tr:hover {
+    background: rgba($tech-500, 0.05);
+  }
+}
+
+// ========== 进度条样式 ==========
+
+.tech-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba($tech-500, 0.2);
+  border-radius: $radius-full;
+  overflow: hidden;
+  position: relative;
+  
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, $tech-500, $primary-500);
+    border-radius: $radius-full;
+    position: relative;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.3), 
+        transparent);
+      animation: shimmer 2s ease-in-out infinite;
+    }
+  }
+}
+
+// ========== 加载动画 ==========
+
+.tech-loader {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba($tech-500, 0.3);
+  border-top: 2px solid $tech-500;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  
+  &.large {
+    width: 60px;
+    height: 60px;
+    border-width: 3px;
+  }
+  
+  &.small {
+    width: 20px;
+    height: 20px;
+    border-width: 1px;
+  }
+}
+
+// ========== 动画定义 ==========
+
+@keyframes techScan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes hologramRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+// ========== 响应式调整 ==========
+
+@include respond-to(md) {
+  .tech-card {
+    padding: $spacing-xl;
+  }
+  
+  .tech-text {
+    font-size: $font-lg;
+  }
+}
+
+@include respond-to(lg) {
+  .hologram::before {
+    animation-duration: 15s;
+  }
+}
+
+// ========== 主题变体 ==========
+
+.theme-dark {
+  --tech-primary: #{$tech-500};
+  --tech-secondary: #{$tech-300};
+  --tech-background: #{$bg-primary};
+}
+
+.theme-light {
+  --tech-primary: #{$tech-700};
+  --tech-secondary: #{$tech-600};
+  --tech-background: #ffffff;
+}
+
+// ========== 打印样式调整 ==========
+
+@media print {
+  .tech-glow,
+  .tech-border::before,
+  .hologram::before,
+  .scan-lines::before {
+    display: none !important;
+  }
+  
+  .tech-text {
+    color: #000000 !important;
+  }
+}
