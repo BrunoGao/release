@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手表日志监控系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; background: #0a0e1a; color: #fff; overflow-x: hidden; }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .controls {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .control-group label {
+            font-size: 0.9em;
+            color: #ccc;
+        }
+        
+        .control-group input, .control-group select {
+            padding: 8px 12px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px;
+            gap: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .stat-card h3 {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card p {
+            color: #ddd;
+        }
+        
+        .logs-container {
+            margin: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .logs-header {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .logs-table th {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .logs-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            vertical-align: top;
+        }
+        
+        .logs-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .log-level {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .log-level.DEBUG { background: #6c757d; }
+        .log-level.INFO { background: #17a2b8; }
+        .log-level.WARN { background: #ffc107; color: #000; }
+        .log-level.ERROR { background: #dc3545; }
+        
+        .log-content {
+            max-width: 400px;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+        }
+        
+        .pagination button {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination .current {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #ccc;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .stats {
+                flex-direction: column;
+            }
+            
+            .logs-table {
+                font-size: 0.8em;
+            }
+            
+            .log-content {
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 手表日志监控系统</h1>
+        <p>实时监控手表设备日志，支持按设备序列号和时间戳筛选</p>
+    </div>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label>设备序列号</label>
+            <input type="text" id="deviceSn" placeholder="输入设备序列号">
+        </div>
+        
+        <div class="control-group">
+            <label>日志级别</label>
+            <select id="logLevel">
+                <option value="">全部</option>
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>开始时间</label>
+            <input type="datetime-local" id="startTime">
+        </div>
+        
+        <div class="control-group">
+            <label>结束时间</label>
+            <input type="datetime-local" id="endTime">
+        </div>
+        
+        <div class="control-group">
+            <label>&nbsp;</label>
+            <button class="btn" onclick="searchLogs()">🔍 查询</button>
+        </div>
+        
+        <div class="control-group">
+            <label>&nbsp;</label>
+            <button class="btn" onclick="clearFilters()">🗑️ 清空</button>
+        </div>
+        
+        <div class="control-group">
+            <label>&nbsp;</label>
+            <button class="btn" onclick="autoRefresh()">🔄 自动刷新</button>
+        </div>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card">
+            <h3 id="totalLogs">0</h3>
+            <p>总日志数</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="currentPage">1</h3>
+            <p>当前页</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="totalPages">1</h3>
+            <p>总页数</p>
+        </div>
+    </div>
+    
+    <div class="logs-container">
+        <div class="logs-header">
+            <h3>📋 日志列表</h3>
+            <span id="refreshTime">最后更新: --</span>
+        </div>
+        
+        <div id="logsContent">
+            <div class="loading">正在加载日志数据...</div>
+        </div>
+        
+        <div class="pagination" id="pagination" style="display: none;">
+            <button onclick="goToPage(1)">首页</button>
+            <button onclick="goToPage(currentPage - 1)" id="prevBtn">上一页</button>
+            <span class="current" id="pageInfo">第 1 页</span>
+            <button onclick="goToPage(currentPage + 1)" id="nextBtn">下一页</button>
+            <button onclick="goToPage(totalPages)" id="lastBtn">末页</button>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let autoRefreshInterval = null;
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认时间范围（最近24小时）
+            const now = new Date();
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            
+            document.getElementById('endTime').value = formatDateTime(now);
+            document.getElementById('startTime').value = formatDateTime(yesterday);
+            
+            // 加载初始数据
+            searchLogs();
+        });
+        
+        function formatDateTime(date) {
+            return date.toISOString().slice(0, 16);
+        }
+        
+        function searchLogs(page = 1) {
+            currentPage = page;
+            
+            const params = new URLSearchParams({
+                deviceSn: document.getElementById('deviceSn').value,
+                level: document.getElementById('logLevel').value,
+                startTime: document.getElementById('startTime').value,
+                endTime: document.getElementById('endTime').value,
+                page: page,
+                pageSize: 50
+            });
+            
+            document.getElementById('logsContent').innerHTML = '<div class="loading">正在加载日志数据...</div>';
+            
+            fetch(`/api/watch_logs?${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayLogs(data.data);
+                        updateStats(data.data);
+                        updatePagination(data.data);
+                        updateRefreshTime();
+                    } else {
+                        document.getElementById('logsContent').innerHTML = 
+                            `<div class="no-data">❌ 加载失败: ${data.message}</div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('logsContent').innerHTML = 
+                        '<div class="no-data">❌ 网络错误，请检查连接</div>';
+                });
+        }
+        
+        function displayLogs(data) {
+            const logs = data.logs;
+            
+            if (logs.length === 0) {
+                document.getElementById('logsContent').innerHTML = 
+                    '<div class="no-data">📭 暂无日志数据</div>';
+                return;
+            }
+            
+            let html = `
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>设备序列号</th>
+                            <th>时间戳</th>
+                            <th>级别</th>
+                            <th>日志内容</th>
+                            <th>创建时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            logs.forEach(log => {
+                html += `
+                    <tr>
+                        <td><code>${log.device_sn}</code></td>
+                        <td>${log.timestamp}</td>
+                        <td><span class="log-level ${log.log_level}">${log.log_level}</span></td>
+                        <td class="log-content">${escapeHtml(log.log_content)}</td>
+                        <td>${log.created_at}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('logsContent').innerHTML = html;
+        }
+        
+        function updateStats(data) {
+            document.getElementById('totalLogs').textContent = data.total;
+            document.getElementById('currentPage').textContent = data.page;
+            document.getElementById('totalPages').textContent = data.totalPages;
+            totalPages = data.totalPages;
+        }
+        
+        function updatePagination(data) {
+            const pagination = document.getElementById('pagination');
+            
+            if (data.totalPages <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+            
+            pagination.style.display = 'flex';
+            
+            document.getElementById('pageInfo').textContent = `第 ${data.page} 页`;
+            document.getElementById('prevBtn').disabled = data.page <= 1;
+            document.getElementById('nextBtn').disabled = data.page >= data.totalPages;
+            document.getElementById('lastBtn').disabled = data.page >= data.totalPages;
+        }
+        
+        function updateRefreshTime() {
+            const now = new Date();
+            document.getElementById('refreshTime').textContent = 
+                `最后更新: ${now.toLocaleString()}`;
+        }
+        
+        function goToPage(page) {
+            if (page >= 1 && page <= totalPages && page !== currentPage) {
+                searchLogs(page);
+            }
+        }
+        
+        function clearFilters() {
+            document.getElementById('deviceSn').value = '';
+            document.getElementById('logLevel').value = '';
+            document.getElementById('startTime').value = '';
+            document.getElementById('endTime').value = '';
+            searchLogs(1);
+        }
+        
+        function autoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                event.target.textContent = '🔄 自动刷新';
+                event.target.style.background = 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)';
+            } else {
+                autoRefreshInterval = setInterval(() => {
+                    searchLogs(currentPage);
+                }, 10000); // 每10秒刷新
+                event.target.textContent = '⏸️ 停止刷新';
+                event.target.style.background = 'linear-gradient(45deg, #ff6b6b 0%, #ee5a24 100%)';
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                searchLogs(1);
+            }
+        });
+    </script>
+</body>
+</html> 

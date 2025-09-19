@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ BIGSCREEN_TITLE }}</title>
+    
+    <!-- 关键路径CSS内联 -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #001529 0%, #002853 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 25% 1fr 25%;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(0, 132, 255, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 132, 255, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            color: #00e4ff;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #00e4ff, #0084ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .user-details h3 {
+            color: #00e4ff;
+            margin-bottom: 5px;
+        }
+        
+        .user-details p {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .left-panel, .right-panel {
+            background: rgba(0, 21, 41, 0.8);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 132, 255, 0.2);
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            background: rgba(0, 21, 41, 0.8);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 132, 255, 0.2);
+            padding: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .health-overview {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .health-card {
+            background: rgba(0, 132, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(0, 132, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .health-card:hover {
+            background: rgba(0, 132, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .health-card.heart-rate {
+            border-left: 4px solid #ff4757;
+        }
+        
+        .health-card.blood-oxygen {
+            border-left: 4px solid #00d2d3;
+        }
+        
+        .health-card.temperature {
+            border-left: 4px solid #ffa726;
+        }
+        
+        .health-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00e4ff;
+            margin: 10px 0;
+        }
+        
+        .health-label {
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .health-status {
+            color: #52c41a;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .chart-section {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .chart-card {
+            background: rgba(0, 21, 41, 0.6);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 132, 255, 0.2);
+            padding: 15px;
+        }
+        
+        .chart-title {
+            color: #00e4ff;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .chart {
+            height: 280px;
+            background: rgba(0, 132, 255, 0.05);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+        
+        .panel-title {
+            color: #00e4ff;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(0, 132, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        
+        .trend-item, .alert-item {
+            background: rgba(0, 132, 255, 0.1);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #00e4ff;
+        }
+        
+        .alert-item.critical {
+            border-left-color: #ff4d4f;
+            background: rgba(255, 77, 79, 0.1);
+        }
+        
+        .alert-item.warning {
+            border-left-color: #faad14;
+            background: rgba(250, 173, 20, 0.1);
+        }
+        
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .item-title {
+            font-weight: bold;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .item-time {
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .item-content {
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .trend-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00e4ff;
+            margin: 5px 0;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+        
+        .footer {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 10px;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .health-card.loading {
+            animation: pulse 2s infinite;
+        }
+        
+        .device-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .device-status.online {
+            background: rgba(82, 196, 26, 0.2);
+            color: #52c41a;
+        }
+        
+        .device-status.offline {
+            background: rgba(255, 77, 79, 0.2);
+            color: #ff4d4f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>{{ BIGSCREEN_TITLE }}</h1>
+            <div class="user-info">
+                <div class="user-avatar">👤</div>
+                <div class="user-details">
+                    <h3 id="userName">加载中...</h3>
+                    <p id="userDept">部门信息</p>
+                    <p>设备: <span id="deviceSn">未知</span> 
+                       <span id="deviceStatus" class="device-status">检测中</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 左侧面板 - 健康趋势 -->
+        <div class="left-panel">
+            <div class="panel-title">📈 健康趋势</div>
+            <div id="healthTrends" class="loading">加载中...</div>
+        </div>
+        
+        <!-- 主内容区域 -->
+        <div class="main-content">
+            <!-- 健康概览卡片 -->
+            <div class="health-overview">
+                <div class="health-card heart-rate loading">
+                    <div class="health-label">心率</div>
+                    <div class="health-value" id="heartRate">--</div>
+                    <div class="health-status" id="heartRateStatus">正常</div>
+                </div>
+                <div class="health-card blood-oxygen loading">
+                    <div class="health-label">血氧</div>
+                    <div class="health-value" id="bloodOxygen">--</div>
+                    <div class="health-status" id="bloodOxygenStatus">正常</div>
+                </div>
+                <div class="health-card temperature loading">
+                    <div class="health-label">体温</div>
+                    <div class="health-value" id="temperature">--</div>
+                    <div class="health-status" id="temperatureStatus">正常</div>
+                </div>
+            </div>
+            
+            <!-- 图表区域 -->
+            <div class="chart-section">
+                <div class="chart-card">
+                    <div class="chart-title">24小时健康数据趋势</div>
+                    <div id="healthTrendChart" class="chart">数据加载中...</div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">健康评分分析</div>
+                    <div id="healthScoreChart" class="chart">分析加载中...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧面板 - 个人告警 -->
+        <div class="right-panel">
+            <div class="panel-title">⚠️ 个人告警</div>
+            <div id="personalAlerts" class="loading">加载中...</div>
+        </div>
+        
+        <!-- 底部 -->
+        <div class="footer">
+            © 2024 LJWX Personal BigScreen - FastAPI {{ BIGSCREEN_VERSION }}
+        </div>
+    </div>
+
+    <!-- 异步加载脚本 -->
+    <script>
+        // 全局配置
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentDeviceSn = urlParams.get('deviceSn') || 'DEV12345';
+        
+        // API 客户端
+        class ApiClient {
+            async get(url, params = {}) {
+                const queryString = new URLSearchParams(params).toString();
+                const fullUrl = queryString ? `${url}?${queryString}` : url;
+                
+                try {
+                    const response = await fetch(fullUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    console.error('API请求失败:', error);
+                    return null;
+                }
+            }
+        }
+        
+        const api = new ApiClient();
+        
+        // 数据加载函数
+        async function loadPersonalInfo() {
+            const userInfo = await api.get('/get_personal_info', {
+                deviceSn: currentDeviceSn
+            });
+            
+            if (userInfo) {
+                document.getElementById('userName').textContent = userInfo.user_name || userInfo.real_name;
+                document.getElementById('userDept').textContent = userInfo.dept_name || '未知部门';
+                document.getElementById('deviceSn').textContent = userInfo.deviceSn;
+                
+                const statusElement = document.getElementById('deviceStatus');
+                const status = userInfo.device_status || '离线';
+                statusElement.textContent = status;
+                statusElement.className = `device-status ${status === '在线' ? 'online' : 'offline'}`;
+            }
+        }
+        
+        async function loadRealtimeHealth() {
+            const healthData = await api.get('/api/personal/realtime-health', {
+                userId: '1',
+                cardType: 'health',
+                deviceSn: currentDeviceSn
+            });
+            
+            if (healthData && healthData.status === 'success' && healthData.data) {
+                const data = healthData.data;
+                
+                // 更新健康数据显示
+                document.getElementById('heartRate').textContent = data.heart_rate ? `${data.heart_rate} bpm` : '--';
+                document.getElementById('bloodOxygen').textContent = data.blood_oxygen ? `${data.blood_oxygen}%` : '--';
+                document.getElementById('temperature').textContent = data.temperature ? `${data.temperature}°C` : '--';
+                
+                // 更新状态
+                document.getElementById('heartRateStatus').textContent = 
+                    data.heart_rate >= 60 && data.heart_rate <= 100 ? '正常' : '异常';
+                document.getElementById('bloodOxygenStatus').textContent = 
+                    data.blood_oxygen >= 95 ? '正常' : '偏低';
+                document.getElementById('temperatureStatus').textContent = 
+                    data.temperature >= 36.0 && data.temperature <= 37.2 ? '正常' : '异常';
+                
+                // 移除加载状态
+                document.querySelectorAll('.health-card').forEach(card => {
+                    card.classList.remove('loading');
+                });
+            }
+        }
+        
+        async function loadHealthTrends() {
+            const trendsData = await api.get('/api/health/trends/analysis', {
+                deviceSn: currentDeviceSn,
+                timeRange: '7d'
+            });
+            
+            const trendsContainer = document.getElementById('healthTrends');
+            if (trendsData && trendsData.status === 'success' && trendsData.data) {
+                const data = trendsData.data;
+                
+                const trendsHtml = `
+                    <div class="trend-item">
+                        <div class="item-header">
+                            <div class="item-title">心率趋势</div>
+                            <div class="item-time">${data.heart_rate?.trend || '稳定'}</div>
+                        </div>
+                        <div class="trend-value">${data.heart_rate?.average || '--'} bpm</div>
+                        <div class="item-content">变化: ${data.heart_rate?.change_percentage || 0}%</div>
+                    </div>
+                    <div class="trend-item">
+                        <div class="item-header">
+                            <div class="item-title">血氧趋势</div>
+                            <div class="item-time">${data.blood_oxygen?.trend || '稳定'}</div>
+                        </div>
+                        <div class="trend-value">${data.blood_oxygen?.average || '--'}%</div>
+                        <div class="item-content">变化: ${data.blood_oxygen?.change_percentage || 0}%</div>
+                    </div>
+                    <div class="trend-item">
+                        <div class="item-header">
+                            <div class="item-title">活动趋势</div>
+                            <div class="item-time">${data.activity?.step_trend || '稳定'}</div>
+                        </div>
+                        <div class="trend-value">${data.activity?.step_average || '--'} 步</div>
+                        <div class="item-content">卡路里: ${data.activity?.calorie_average || '--'}</div>
+                    </div>
+                `;
+                
+                trendsContainer.innerHTML = trendsHtml;
+            } else {
+                trendsContainer.innerHTML = '<div class="loading">暂无趋势数据</div>';
+            }
+        }
+        
+        async function loadPersonalAlerts() {
+            const alerts = await api.get('/api/personal/alerts', {
+                deviceSn: currentDeviceSn
+            });
+            
+            const alertsContainer = document.getElementById('personalAlerts');
+            if (alerts && alerts.length > 0) {
+                alertsContainer.innerHTML = alerts.map(alert => `
+                    <div class="alert-item ${alert.alert_level === '高' ? 'critical' : alert.alert_level === '中' ? 'warning' : ''}">
+                        <div class="item-header">
+                            <div class="item-title">${alert.alert_type}</div>
+                            <div class="item-time">${alert.alert_timestamp}</div>
+                        </div>
+                        <div class="item-content">
+                            ${alert.alert_status}<br>
+                            设备: ${alert.deviceSn}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                alertsContainer.innerHTML = '<div class="loading">暂无个人告警</div>';
+            }
+        }
+        
+        // 初始化
+        async function init() {
+            try {
+                await Promise.all([
+                    loadPersonalInfo(),
+                    loadRealtimeHealth(),
+                    loadHealthTrends(),
+                    loadPersonalAlerts()
+                ]);
+                
+                // 模拟图表加载
+                setTimeout(() => {
+                    document.getElementById('healthTrendChart').innerHTML = '24小时趋势图表';
+                    document.getElementById('healthScoreChart').innerHTML = '健康评分分析图';
+                }, 1000);
+                
+                console.log('Personal BigScreen 初始化完成');
+            } catch (error) {
+                console.error('初始化失败:', error);
+            }
+        }
+        
+        // 自动刷新
+        function startAutoRefresh() {
+            setInterval(async () => {
+                await Promise.all([
+                    loadRealtimeHealth(),
+                    loadHealthTrends(),
+                    loadPersonalAlerts()
+                ]);
+            }, 30000); // 30秒刷新一次
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+            startAutoRefresh();
+        });
+    </script>
+</body>
+</html>

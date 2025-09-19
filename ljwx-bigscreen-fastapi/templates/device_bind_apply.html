@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备绑定申请 - 智慧健康监控</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); max-width: 400px; width: 90%; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #333; font-size: 24px; margin-bottom: 8px; }
+        .header p { color: #666; font-size: 14px; }
+        .device-info { background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #667eea; }
+        .device-info h3 { color: #333; margin-bottom: 10px; font-size: 16px; }
+        .device-info p { color: #666; font-size: 14px; margin: 5px 0; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #333; font-weight: 500; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; transition: border-color 0.3s; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #667eea; }
+        .btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .status { padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center; display: none; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid #fff; border-radius: 50%; border-top-color: transparent; animation: spin 1s ease-in-out infinite; margin-right: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 480px) { .container { padding: 20px; margin: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 设备绑定申请</h1>
+            <p>将健康监控设备绑定到您的账户</p>
+        </div>
+        
+        <div class="device-info">
+            <h3>📱 设备信息</h3>
+            <p><strong>设备序列号:</strong> {{ device.serial_number if device else sn }}</p>
+            <p><strong>设备名称:</strong> {{ device.device_name if device else '智能健康手表' }}</p>
+            <p><strong>设备型号:</strong> {{ device.model if device else 'LJWX-W1' }}</p>
+        </div>
+        
+        <form id="bindForm">
+            <div class="form-group">
+                <label for="userId">👤 用户ID</label>
+                <input type="number" id="userId" name="user_id" placeholder="请输入您的用户ID" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="orgId">🏢 组织ID</label>
+                <input type="number" id="orgId" name="org_id" placeholder="请输入您的组织ID" required>
+            </div>
+            
+            <div class="status" id="statusMsg"></div>
+            
+            <button type="submit" class="btn" id="submitBtn">
+                <span id="btnText">提交绑定申请</span>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('bindForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const statusMsg = document.getElementById('statusMsg');
+            
+            // 禁用按钮，显示加载状态
+            btn.disabled = true;
+            btnText.innerHTML = '<span class="loading"></span>提交中...';
+            statusMsg.style.display = 'none';
+            
+            const formData = {
+                sn: '{{ sn }}',
+                user_id: parseInt(document.getElementById('userId').value),
+                org_id: parseInt(document.getElementById('orgId').value)
+            };
+            
+            try {
+                const response = await fetch('/api/device/bind/apply', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    statusMsg.className = 'status success';
+                    statusMsg.innerHTML = '✅ ' + result.msg + '<br><small>请等待管理员审批，审批通过后设备将自动绑定到您的账户</small>';
+                    btnText.textContent = '申请已提交';
+                } else {
+                    statusMsg.className = 'status error';
+                    statusMsg.innerHTML = '❌ ' + result.msg;
+                    btn.disabled = false;
+                    btnText.textContent = '重新提交';
+                }
+                
+                statusMsg.style.display = 'block';
+                
+            } catch (error) {
+                statusMsg.className = 'status error';
+                statusMsg.innerHTML = '❌ 网络错误，请稍后重试';
+                statusMsg.style.display = 'block';
+                
+                btn.disabled = false;
+                btnText.textContent = '重新提交';
+            }
+        });
+    </script>
+</body>
+</html> 

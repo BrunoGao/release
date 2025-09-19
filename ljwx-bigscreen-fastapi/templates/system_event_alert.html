@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统事件告警管理 - LJWX企业大屏</title>
+    <link href="/static/css/bootstrap-5.1.3.min.css" rel="stylesheet">
+    <link href="/static/css/font-awesome-4.7.0.min.css" rel="stylesheet">
+    <style>
+        .alert-card{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border-radius:15px;margin-bottom:20px} /* 告警卡片样式 */
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:30px} /* 统计网格 */
+        .rule-badge{padding:5px 12px;border-radius:20px;font-size:12px;margin:2px} /* 规则徽章 */
+        .critical{background:#dc3545;color:#fff} /* 严重事件样式 */
+        .high{background:#fd7e14;color:#fff} /* 高级事件样式 */
+        .medium{background:#ffc107;color:#000} /* 中级事件样式 */
+        .low{background:#6c757d;color:#fff} /* 低级事件样式 */
+        .queue-status{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px} /* 队列状态指示器 */
+        .pending{background:#ffc107} /* 待处理状态 */
+        .processing{background:#17a2b8} /* 处理中状态 */
+        .completed{background:#28a745} /* 已完成状态 */
+        .failed{background:#dc3545} /* 失败状态 */
+        .config-panel{background:#f8f9fa;border-radius:10px;padding:20px;margin-bottom:20px} /* 配置面板样式 */
+        .btn-group-toggle .btn{margin:0 5px 5px 0} /* 按钮组样式 */
+        .table-responsive{max-height:400px;overflow-y:auto} /* 表格滚动 */
+        .real-time-indicator{animation:pulse 2s infinite} /* 实时指示器动画 */
+        @keyframes pulse{0%{opacity:1}50%{opacity:0.5}100%{opacity:1}} /* 脉冲动画 */
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid py-4">
+        <!-- 页面标题 -->
+        <div class="row">
+            <div class="col-12">
+                <h2 class="text-primary mb-4"><i class="fa fa-shield"></i> 系统事件告警管理</h2>
+            </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="alert-card text-center p-4">
+                <h3 id="totalEvents" class="mb-1">0</h3>
+                <p class="mb-0">今日事件总数</p>
+            </div>
+            <div class="alert-card text-center p-4">
+                <h3 id="emergencyEvents" class="mb-1">0</h3>
+                <p class="mb-0">紧急事件</p>
+            </div>
+            <div class="alert-card text-center p-4">
+                <h3 id="queuePending" class="mb-1">0</h3>
+                <p class="mb-0">队列待处理</p>
+            </div>
+            <div class="alert-card text-center p-4">
+                <h3 id="responseRate" class="mb-1">0%</h3>
+                <p class="mb-0">响应成功率</p>
+            </div>
+        </div>
+
+        <!-- 导航标签 -->
+        <ul class="nav nav-tabs" id="alertTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab">
+                    <i class="fa fa-cog"></i> 事件规则管理
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button" role="tab">
+                    <i class="fa fa-list"></i> 处理队列监控
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="wechat-tab" data-bs-toggle="tab" data-bs-target="#wechat" type="button" role="tab">
+                    <i class="fa fa-wechat"></i> 微信配置
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="test-tab" data-bs-toggle="tab" data-bs-target="#test" type="button" role="tab">
+                    <i class="fa fa-flask"></i> 测试中心
+                </button>
+            </li>
+        </ul>
+
+        <!-- 标签内容 -->
+        <div class="tab-content" id="alertTabsContent">
+            <!-- 事件规则管理 -->
+            <div class="tab-pane fade show active" id="rules" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">系统事件规则配置</h5>
+                        <button class="btn btn-primary btn-sm" onclick="addRule()">
+                            <i class="fa fa-plus"></i> 新增规则
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="rulesTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>规则类型</th>
+                                        <th>完整事件类型</th>
+                                        <th>告警级别</th>
+                                        <th>通知方式</th>
+                                        <th>告警消息</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rulesTableBody">
+                                    <!-- 动态加载 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 处理队列监控 -->
+            <div class="tab-pane fade" id="queue" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <span class="real-time-indicator">🔴</span> 实时处理队列
+                        </h5>
+                        <div>
+                            <button class="btn btn-success btn-sm" onclick="restartProcessor()">
+                                <i class="fa fa-refresh"></i> 重启处理器
+                            </button>
+                            <button class="btn btn-info btn-sm" onclick="refreshQueue()">
+                                <i class="fa fa-sync"></i> 刷新
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="queueTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>事件类型</th>
+                                        <th>设备SN</th>
+                                        <th>事件值</th>
+                                        <th>处理状态</th>
+                                        <th>重试次数</th>
+                                        <th>创建时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="queueTableBody">
+                                    <!-- 动态加载 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 微信配置 -->
+            <div class="tab-pane fade" id="wechat" role="tabpanel">
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="config-panel">
+                            <h5><i class="fa fa-building"></i> 企业微信配置</h5>
+                            <form id="enterpriseForm">
+                                <div class="mb-3">
+                                    <label class="form-label">企业ID (CorpID)</label>
+                                    <input type="text" class="form-control" id="corpId" placeholder="wx...">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">应用AgentID</label>
+                                    <input type="text" class="form-control" id="agentId" placeholder="1000002">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">应用Secret</label>
+                                    <input type="password" class="form-control" id="enterpriseSecret" placeholder="应用Secret">
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="enterpriseEnabled">
+                                    <label class="form-check-label">启用企业微信告警</label>
+                                </div>
+                                <button type="button" class="btn btn-primary" onclick="saveWeChatConfig('enterprise')">
+                                    <i class="fa fa-save"></i> 保存配置
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="testWeChatAlert('enterprise')">
+                                    <i class="fa fa-test"></i> 测试告警
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="config-panel">
+                            <h5><i class="fa fa-wechat"></i> 微信公众号配置</h5>
+                            <form id="officialForm">
+                                <div class="mb-3">
+                                    <label class="form-label">AppID</label>
+                                    <input type="text" class="form-control" id="appId" placeholder="wx...">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">AppSecret</label>
+                                    <input type="password" class="form-control" id="appSecret" placeholder="AppSecret">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">模板消息ID</label>
+                                    <input type="text" class="form-control" id="templateId" placeholder="模板ID">
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="officialEnabled">
+                                    <label class="form-check-label">启用公众号告警</label>
+                                </div>
+                                <button type="button" class="btn btn-primary" onclick="saveWeChatConfig('official')">
+                                    <i class="fa fa-save"></i> 保存配置
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="testWeChatAlert('official')">
+                                    <i class="fa fa-test"></i> 测试告警
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 测试中心 -->
+            <div class="tab-pane fade" id="test" role="tabpanel">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fa fa-flask"></i> 系统事件模拟测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>紧急事件测试</h6>
+                                <div class="btn-group-toggle mb-3">
+                                    <button class="btn btn-danger" onclick="testEvent('SOS_EVENT')">SOS紧急求助</button>
+                                    <button class="btn btn-danger" onclick="testEvent('FALLDOWN_EVENT')">跌倒检测</button>
+                                    <button class="btn btn-danger" onclick="testEvent('ONE_KEY_ALARM')">一键报警</button>
+                                </div>
+                                <h6>健康告警测试</h6>
+                                <div class="btn-group-toggle mb-3">
+                                    <button class="btn btn-warning" onclick="testEvent('HEARTRATE_HIGH_ALERT')">心率过高</button>
+                                    <button class="btn btn-warning" onclick="testEvent('SPO2_LOW_ALERT')">血氧过低</button>
+                                    <button class="btn btn-warning" onclick="testEvent('TEMPERATURE_HIGH_ALERT')">体温过高</button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>系统事件测试</h6>
+                                <div class="btn-group-toggle mb-3">
+                                    <button class="btn btn-info" onclick="testEvent('WEAR_STATUS_CHANGED')">佩戴状态</button>
+                                    <button class="btn btn-info" onclick="testEvent('BOOT_COMPLETED')">设备启动</button>
+                                    <button class="btn btn-info" onclick="testEvent('CALL_STATE')">通话状态</button>
+                                </div>
+                                <h6>自定义测试</h6>
+                                <div class="mb-3">
+                                    <input type="text" class="form-control mb-2" id="customEventType" placeholder="事件类型(如:SOS_EVENT)">
+                                    <input type="text" class="form-control mb-2" id="customDeviceSn" placeholder="设备SN" value="TEST_DEVICE_001">
+                                    <input type="text" class="form-control mb-2" id="customEventValue" placeholder="事件值">
+                                    <button class="btn btn-primary" onclick="testCustomEvent()">发送自定义事件</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info">
+                            <strong>说明：</strong>测试事件将直接触发告警处理流程，包括微信推送和消息通知。请确保已正确配置微信参数。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 规则编辑模态框 -->
+    <div class="modal fade" id="ruleModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="ruleModalTitle">编辑规则</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="ruleForm">
+                        <input type="hidden" id="ruleId">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">规则类型*</label>
+                                    <input type="text" class="form-control" id="ruleType" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">告警级别*</label>
+                                    <select class="form-select" id="severityLevel" required>
+                                        <option value="critical">严重(Critical)</option>
+                                        <option value="high">高(High)</option>
+                                        <option value="medium">中(Medium)</option>
+                                        <option value="low">低(Low)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">完整事件类型*</label>
+                            <input type="text" class="form-control" id="eventType" placeholder="如:com.tdtech.ohos.health.action.SOS_EVENT" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">告警消息模板*</label>
+                            <textarea class="form-control" id="alertMessage" rows="3" required></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">通知类型*</label>
+                                    <select class="form-select" id="notificationType" required>
+                                        <option value="message">平台消息</option>
+                                        <option value="wechat">微信推送</option>
+                                        <option value="both">双重通知</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">重试次数</label>
+                                    <input type="number" class="form-control" id="retryCount" value="3" min="0" max="10">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="isEmergency">
+                            <label class="form-check-label">紧急事件(优先微信推送)</label>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="isActive" checked>
+                            <label class="form-check-label">启用规则</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveRule()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/bootstrap-5.1.3.bundle.min.js"></script>
+    <script>
+        let currentTenantId=1; // 当前租户ID
+
+        // 页面加载完成
+        document.addEventListener('DOMContentLoaded',function(){
+            loadStats();loadRules();loadWeChatConfig();
+            setInterval(()=>{loadStats();if(document.querySelector('#queue-tab').classList.contains('active'))loadQueue()},5000); // 5秒刷新统计
+        });
+
+        // 加载统计数据
+        async function loadStats(){
+            try{
+                const response=await fetch('/api/system-event/queue/stats');
+                const data=await response.json();
+                if(data.code===200){
+                    document.getElementById('totalEvents').textContent=data.data.total_events||0;
+                    document.getElementById('emergencyEvents').textContent=data.data.emergency_events||0;
+                    document.getElementById('queuePending').textContent=data.data.pending_count||0;
+                    document.getElementById('responseRate').textContent=(data.data.success_rate||0)+'%';
+                }
+            }catch(e){console.error('加载统计失败:',e)}
+        }
+
+        // 加载事件规则
+        async function loadRules(){
+            try{
+                const response=await fetch('/api/system-event/rules');
+                const data=await response.json();
+                if(data.code===200){
+                    const tbody=document.getElementById('rulesTableBody');
+                    tbody.innerHTML=data.data.map(rule=>`
+                        <tr>
+                            <td><span class="rule-badge ${rule.severity_level}">${rule.rule_type}</span></td>
+                            <td class="text-muted small">${rule.event_type}</td>
+                            <td><span class="rule-badge ${rule.severity_level}">${rule.severity_level}</span></td>
+                            <td><span class="badge bg-${rule.notification_type==='wechat'?'success':rule.notification_type==='both'?'primary':'secondary'}">${rule.notification_type}</span></td>
+                            <td class="text-truncate" style="max-width:200px" title="${rule.alert_message}">${rule.alert_message}</td>
+                            <td><span class="badge bg-${rule.is_active?'success':'danger'}">${rule.is_active?'启用':'禁用'}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="editRule(${rule.id})">编辑</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRule(${rule.id})">删除</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            }catch(e){console.error('加载规则失败:',e)}
+        }
+
+        // 加载处理队列
+        async function loadQueue(){
+            try{
+                const response=await fetch('/api/system-event/queue/stats?detail=true');
+                const data=await response.json();
+                if(data.code===200){
+                    const tbody=document.getElementById('queueTableBody');
+                    tbody.innerHTML=(data.data.queue_items||[]).map(item=>`
+                        <tr>
+                            <td>${item.id}</td>
+                            <td>${item.event_type}</td>
+                            <td>${item.device_sn}</td>
+                            <td class="text-truncate" style="max-width:150px">${item.event_value||'-'}</td>
+                            <td><span class="queue-status ${item.processing_status}"></span>${item.processing_status}</td>
+                            <td>${item.retry_count}/3</td>
+                            <td>${item.create_time}</td>
+                            <td>
+                                ${item.processing_status==='failed'?`<button class="btn btn-sm btn-warning" onclick="retryQueueItem(${item.id})">重试</button>`:''}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            }catch(e){console.error('加载队列失败:',e)}
+        }
+
+        // 加载微信配置
+        async function loadWeChatConfig(){
+            try{
+                const response=await fetch('/api/wechat-alarm/config');
+                const data=await response.json();
+                if(data.code===200){
+                    data.data.forEach(config=>{
+                        if(config.type==='enterprise'){
+                            document.getElementById('corpId').value=config.corp_id||'';
+                            document.getElementById('agentId').value=config.agent_id||'';
+                            document.getElementById('enterpriseSecret').value=config.secret||'';
+                            document.getElementById('enterpriseEnabled').checked=config.enabled;
+                        }else if(config.type==='official'){
+                            document.getElementById('appId').value=config.appid||'';
+                            document.getElementById('appSecret').value=config.appsecret||'';
+                            document.getElementById('templateId').value=config.template_id||'';
+                            document.getElementById('officialEnabled').checked=config.enabled;
+                        }
+                    });
+                }
+            }catch(e){console.error('加载微信配置失败:',e)}
+        }
+
+        // 保存微信配置
+        async function saveWeChatConfig(type){
+            const formData=type==='enterprise'?{
+                type,corp_id:document.getElementById('corpId').value,
+                agent_id:document.getElementById('agentId').value,
+                secret:document.getElementById('enterpriseSecret').value,
+                enabled:document.getElementById('enterpriseEnabled').checked
+            }:{
+                type,appid:document.getElementById('appId').value,
+                appsecret:document.getElementById('appSecret').value,
+                template_id:document.getElementById('templateId').value,
+                enabled:document.getElementById('officialEnabled').checked
+            };
+            try{
+                const response=await fetch('/api/wechat-alarm/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(formData)});
+                const data=await response.json();
+                alert(data.message||'保存成功');
+            }catch(e){alert('保存失败:'+e.message)}
+        }
+
+        // 测试微信告警
+        async function testWeChatAlert(type){
+            try{
+                const response=await fetch('/api/wechat-alarm/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,message:'系统测试告警消息'})});
+                const data=await response.json();
+                alert(data.message||'测试完成');
+            }catch(e){alert('测试失败:'+e.message)}
+        }
+
+        // 测试事件
+        async function testEvent(eventType){
+            const testData={event_type:`com.tdtech.ohos.health.action.${eventType}`,device_sn:'TEST_DEVICE_001',event_value:'测试值',timestamp:Date.now()};
+            try{
+                const response=await fetch('/upload_common_event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(testData)});
+                const data=await response.json();
+                alert(`事件测试: ${data.message||'已发送'}`);
+                setTimeout(loadStats,1000);
+            }catch(e){alert('测试失败:'+e.message)}
+        }
+
+        // 自定义事件测试
+        function testCustomEvent(){
+            const eventType=document.getElementById('customEventType').value;
+            const deviceSn=document.getElementById('customDeviceSn').value;
+            const eventValue=document.getElementById('customEventValue').value;
+            if(!eventType||!deviceSn)return alert('请填写事件类型和设备SN');
+            testEvent(eventType.replace('com.tdtech.ohos.health.action.','').replace('com.tdtech.ohos.action.',''));
+        }
+
+        // 新增规则
+        function addRule(){
+            document.getElementById('ruleModalTitle').textContent='新增事件规则';
+            document.getElementById('ruleForm').reset();
+            document.getElementById('ruleId').value='';
+            new bootstrap.Modal(document.getElementById('ruleModal')).show();
+        }
+
+        // 编辑规则
+        async function editRule(id){
+            try{
+                const response=await fetch(`/api/system-event/rules/${id}`);
+                const data=await response.json();
+                if(data.code===200){
+                    const rule=data.data;
+                    document.getElementById('ruleModalTitle').textContent='编辑事件规则';
+                    document.getElementById('ruleId').value=rule.id;
+                    document.getElementById('ruleType').value=rule.rule_type;
+                    document.getElementById('eventType').value=rule.event_type;
+                    document.getElementById('severityLevel').value=rule.severity_level;
+                    document.getElementById('alertMessage').value=rule.alert_message;
+                    document.getElementById('notificationType').value=rule.notification_type;
+                    document.getElementById('retryCount').value=rule.retry_count;
+                    document.getElementById('isEmergency').checked=rule.is_emergency;
+                    document.getElementById('isActive').checked=rule.is_active;
+                    new bootstrap.Modal(document.getElementById('ruleModal')).show();
+                }
+            }catch(e){alert('加载规则失败:'+e.message)}
+        }
+
+        // 保存规则
+        async function saveRule(){
+            const formData=new FormData(document.getElementById('ruleForm'));
+            const data={
+                rule_type:document.getElementById('ruleType').value,
+                event_type:document.getElementById('eventType').value,
+                severity_level:document.getElementById('severityLevel').value,
+                alert_message:document.getElementById('alertMessage').value,
+                notification_type:document.getElementById('notificationType').value,
+                retry_count:parseInt(document.getElementById('retryCount').value),
+                is_emergency:document.getElementById('isEmergency').checked,
+                is_active:document.getElementById('isActive').checked
+            };
+            const id=document.getElementById('ruleId').value;
+            try{
+                const url=id?`/api/system-event/rules/${id}`:'/api/system-event/rules';
+                const method=id?'PUT':'POST';
+                const response=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+                const result=await response.json();
+                alert(result.message||'保存成功');
+                bootstrap.Modal.getInstance(document.getElementById('ruleModal')).hide();
+                loadRules();
+            }catch(e){alert('保存失败:'+e.message)}
+        }
+
+        // 删除规则
+        async function deleteRule(id){
+            if(!confirm('确定删除此规则吗？'))return;
+            try{
+                const response=await fetch(`/api/system-event/rules/${id}`,{method:'DELETE'});
+                const data=await response.json();
+                alert(data.message||'删除成功');
+                loadRules();
+            }catch(e){alert('删除失败:'+e.message)}
+        }
+
+        // 重启处理器
+        async function restartProcessor(){
+            try{
+                const response=await fetch('/api/system-event/processor/restart',{method:'POST'});
+                const data=await response.json();
+                alert(data.message||'重启成功');
+            }catch(e){alert('重启失败:'+e.message)}
+        }
+
+        // 刷新队列
+        function refreshQueue(){loadQueue()}
+
+        // 重试队列项
+        async function retryQueueItem(id){
+            try{
+                const response=await fetch(`/api/system-event/queue/${id}/retry`,{method:'POST'});
+                const data=await response.json();
+                alert(data.message||'重试成功');
+                loadQueue();
+            }catch(e){alert('重试失败:'+e.message)}
+        }
+
+        // 标签切换事件
+        document.getElementById('queue-tab').addEventListener('shown.bs.tab',loadQueue);
+    </script>
+</body>
+</html> 

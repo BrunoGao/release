@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备绑定管理 - 智慧健康监控管理平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Microsoft YaHei', sans-serif; }
+        .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; }
+        .navbar-brand { color: white !important; font-weight: bold; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .card-header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 12px 12px 0 0; font-weight: 600; }
+        .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 8px; }
+        .btn-success { background: linear-gradient(135deg, #28a745, #20c997); border: none; }
+        .btn-danger { background: linear-gradient(135deg, #dc3545, #fd7e14); border: none; }
+        .table th { background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; font-weight: 600; }
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-approved { background-color: #d4edda; color: #155724; }
+        .status-rejected { background-color: #f8d7da; color: #721c24; }
+        .tabs { border-bottom: 1px solid #dee2e6; margin-bottom: 20px; }
+        .tab-button { padding: 10px 20px; margin-right: 10px; background: none; border: none; color: #6c757d; cursor: pointer; border-bottom: 3px solid transparent; }
+        .tab-button.active { color: #667eea; border-bottom-color: #667eea; font-weight: 600; }
+        .search-box { max-width: 300px; }
+        .qr-modal .modal-body { text-align: center; }
+        .device-status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+        .device-online { background-color: #28a745; }
+        .device-offline { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/"><i class="fas fa-heartbeat me-2"></i>智慧健康监控管理平台</a>
+            <span class="navbar-text text-white">设备绑定管理</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- 标签页导航 -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('requests')"><i class="fas fa-clipboard-list me-2"></i>绑定申请</button>
+            <button class="tab-button" onclick="switchTab('manual')"><i class="fas fa-plus me-2"></i>手动绑定</button>
+            <button class="tab-button" onclick="switchTab('logs')"><i class="fas fa-history me-2"></i>操作日志</button>
+        </div>
+
+        <!-- 绑定申请管理 -->
+        <div id="requests-tab" class="tab-content">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>绑定申请管理</h5>
+                    <div class="d-flex gap-2">
+                        <select class="form-select search-box" id="statusFilter" onchange="loadRequests()">
+                            <option value="">全部状态</option>
+                            <option value="PENDING">待审批</option>
+                            <option value="APPROVED">已通过</option>
+                            <option value="REJECTED">已拒绝</option>
+                        </select>
+                        <button class="btn btn-success btn-sm" onclick="batchApprove('APPROVED')"><i class="fas fa-check me-1"></i>批量通过</button>
+                        <button class="btn btn-danger btn-sm" onclick="batchApprove('REJECTED')"><i class="fas fa-times me-1"></i>批量拒绝</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                                    <th>申请ID</th>
+                                    <th>设备信息</th>
+                                    <th>申请人</th>
+                                    <th>组织</th>
+                                    <th>申请时间</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requestsTable">
+                                <tr><td colspan="8" class="text-center text-muted">加载中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <nav id="requestsPagination"></nav>
+                </div>
+            </div>
+        </div>
+
+        <!-- 手动绑定 -->
+        <div id="manual-tab" class="tab-content" style="display: none;">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-plus me-2"></i>手动绑定设备</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="manualBindForm">
+                                <div class="mb-3">
+                                    <label class="form-label">设备序列号</label>
+                                    <input type="text" class="form-control" id="deviceSn" placeholder="请输入设备序列号" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">用户ID</label>
+                                    <input type="number" class="form-control" id="bindUserId" placeholder="请输入用户ID" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">组织ID</label>
+                                    <input type="number" class="form-control" id="bindOrgId" placeholder="请输入组织ID" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-link me-2"></i>立即绑定</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>二维码管理</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">设备序列号</label>
+                                <input type="text" class="form-control" id="qrDeviceSn" placeholder="请输入设备序列号">
+                            </div>
+                            <button class="btn btn-info" onclick="generateQRCode()"><i class="fas fa-qrcode me-2"></i>生成绑定二维码</button>
+                            <div id="qrResult" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div id="logs-tab" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>设备绑定日志</h5>
+                    <div class="d-flex gap-2">
+                        <input type="text" class="form-control search-box" id="logDeviceFilter" placeholder="设备序列号" onchange="loadLogs()">
+                        <input type="number" class="form-control search-box" id="logUserFilter" placeholder="用户ID" onchange="loadLogs()">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>日志ID</th>
+                                    <th>设备序列号</th>
+                                    <th>用户信息</th>
+                                    <th>操作类型</th>
+                                    <th>操作时间</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTable">
+                                <tr><td colspan="5" class="text-center text-muted">加载中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <nav id="logsPagination"></nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 审批模态框 -->
+    <div class="modal fade" id="approveModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">审批绑定申请</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">审批意见</label>
+                        <textarea class="form-control" id="approveComment" rows="3" placeholder="请输入审批意见（可选）"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" onclick="confirmApprove('APPROVED')">通过</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmApprove('REJECTED')">拒绝</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentRequestIds = [];
+        let currentPage = 1;
+        const pageSize = 10;
+
+        // 标签页切换
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + '-tab').style.display = 'block';
+            
+            if (tab === 'requests') loadRequests();
+            else if (tab === 'logs') loadLogs();
+        }
+
+        // 加载绑定申请
+        async function loadRequests(page = 1) {
+            const status = document.getElementById('statusFilter').value;
+            try {
+                const response = await fetch(`/api/device/bind/requests?page=${page}&size=${pageSize}&status=${status}`);
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    renderRequestsTable(result.data.items);
+                    renderPagination('requestsPagination', result.data.pages, page, loadRequests);
+                }
+            } catch (error) {
+                console.error('加载申请列表失败:', error);
+            }
+        }
+
+        // 渲染申请表格
+        function renderRequestsTable(items) {
+            const tbody = document.getElementById('requestsTable');
+            if (!items.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">暂无数据</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td><input type="checkbox" class="request-check" value="${item.id}"></td>
+                    <td>#${item.id}</td>
+                    <td>
+                        <div><strong>${item.device_sn}</strong></div>
+                        <small class="text-muted">${item.device_name}</small>
+                    </td>
+                    <td>
+                        <div>用户${item.user_id}</div>
+                        <small class="text-muted">${item.user_name}</small>
+                    </td>
+                    <td>${item.org_name}</td>
+                    <td>${item.apply_time}</td>
+                    <td><span class="status-badge status-${item.status.toLowerCase()}">${getStatusText(item.status)}</span></td>
+                    <td>
+                        ${item.status === 'PENDING' ? `
+                            <button class="btn btn-success btn-sm" onclick="approveRequest([${item.id}], 'APPROVED')">通过</button>
+                            <button class="btn btn-danger btn-sm" onclick="approveRequest([${item.id}], 'REJECTED')">拒绝</button>
+                        ` : `<span class="text-muted">已处理</span>`}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 状态文本转换
+        function getStatusText(status) {
+            const statusMap = { 'PENDING': '待审批', 'APPROVED': '已通过', 'REJECTED': '已拒绝' };
+            return statusMap[status] || status;
+        }
+
+        // 全选/取消全选
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.request-check');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        }
+
+        // 批量审批
+        function batchApprove(action) {
+            const checkedBoxes = document.querySelectorAll('.request-check:checked');
+            if (!checkedBoxes.length) {
+                alert('请先选择要处理的申请');
+                return;
+            }
+            
+            const ids = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+            approveRequest(ids, action);
+        }
+
+        // 审批申请
+        async function approveRequest(ids, action) {
+            if (!confirm(`确定要${action === 'APPROVED' ? '通过' : '拒绝'}这些申请吗？`)) return;
+            
+            try {
+                const response = await fetch('/api/device/bind/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        ids: ids, 
+                        action: action, 
+                        approver_id: 1,  // 管理员ID
+                        comment: ''
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.code === 200) {
+                    alert(result.msg);
+                    loadRequests();
+                } else {
+                    alert('操作失败: ' + result.msg);
+                }
+            } catch (error) {
+                alert('操作失败: ' + error.message);
+            }
+        }
+
+        // 手动绑定
+        document.getElementById('manualBindForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                device_sn: document.getElementById('deviceSn').value,
+                user_id: parseInt(document.getElementById('bindUserId').value),
+                org_id: parseInt(document.getElementById('bindOrgId').value),
+                operator_id: 1  // 管理员ID
+            };
+            
+            try {
+                const response = await fetch('/api/device/bind/manual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                if (result.code === 200) {
+                    alert('绑定成功！');
+                    this.reset();
+                } else {
+                    alert('绑定失败: ' + result.msg);
+                }
+            } catch (error) {
+                alert('绑定失败: ' + error.message);
+            }
+        });
+
+        // 生成二维码
+        async function generateQRCode() {
+            const sn = document.getElementById('qrDeviceSn').value;
+            if (!sn) {
+                alert('请输入设备序列号');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/device/${sn}/qrcode`);
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    document.getElementById('qrResult').innerHTML = `
+                        <div class="text-center">
+                            <img src="${result.data.qrcode}" alt="绑定二维码" class="img-fluid" style="max-width: 200px;">
+                            <p class="mt-2 small text-muted">扫描此二维码进行设备绑定</p>
+                            <button class="btn btn-sm btn-outline-primary" onclick="copyToClipboard('${result.data.url}')">复制链接</button>
+                        </div>
+                    `;
+                } else {
+                    alert('生成失败: ' + result.msg);
+                }
+            } catch (error) {
+                alert('生成失败: ' + error.message);
+            }
+        }
+
+        // 加载日志
+        async function loadLogs(page = 1) {
+            const deviceSn = document.getElementById('logDeviceFilter').value;
+            const userId = document.getElementById('logUserFilter').value;
+            
+            try {
+                const params = new URLSearchParams({ page, size: pageSize });
+                if (deviceSn) params.append('device_sn', deviceSn);
+                if (userId) params.append('user_id', userId);
+                
+                const response = await fetch(`/api/device/bind/logs?${params}`);
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    renderLogsTable(result.data.items);
+                    renderPagination('logsPagination', Math.ceil(result.data.total / pageSize), page, loadLogs);
+                }
+            } catch (error) {
+                console.error('加载日志失败:', error);
+            }
+        }
+
+        // 渲染日志表格
+        function renderLogsTable(items) {
+            const tbody = document.getElementById('logsTable');
+            if (!items.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无数据</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td>#${item.id}</td>
+                    <td>${item.device_sn}</td>
+                    <td>
+                        <div>用户${item.user_id}</div>
+                        <small class="text-muted">${item.user_name}</small>
+                    </td>
+                    <td>
+                        <span class="badge ${item.status === 'BIND' ? 'bg-success' : 'bg-danger'}">
+                            ${item.status === 'BIND' ? '绑定' : '解绑'}
+                        </span>
+                    </td>
+                    <td>${item.operate_time}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 渲染分页
+        function renderPagination(containerId, totalPages, currentPage, callback) {
+            const container = document.getElementById(containerId);
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let pagination = '<ul class="pagination justify-content-center">';
+            
+            for (let i = 1; i <= totalPages; i++) {
+                pagination += `
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="${callback.name}(${i}); return false;">${i}</a>
+                    </li>
+                `;
+            }
+            
+            pagination += '</ul>';
+            container.innerHTML = pagination;
+        }
+
+        // 复制到剪贴板
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('链接已复制到剪贴板！');
+            });
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRequests();
+        });
+    </script>
+</body>
+</html> 

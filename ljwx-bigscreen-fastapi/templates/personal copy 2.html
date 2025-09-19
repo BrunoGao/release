@@ -1,0 +1,4441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能穿戴个人健康大屏 v1.3.5</title>
+    
+    <!-- 依赖引入 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
+    
+    <style>
+        /* ============= 基础样式重置 ============= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ============= 主题系统 CSS变量 ============= */
+        :root {
+            /* 默认主题 - 高科技蓝绿色 */
+            --primary-color: #00ff9d;
+            --secondary-color: #00e4ff;
+            --accent-color: #ff6b6b;
+            --background-primary: #0a1525;
+            --background-secondary: rgba(0, 21, 41, 0.9);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --border-color: rgba(0, 255, 157, 0.3);
+            --shadow-primary: rgba(0, 255, 157, 0.2);
+            --chart-bg: rgba(13, 20, 33, 0.95);
+        }
+
+        /* 深蓝主题 */
+        .theme-deep-blue {
+            --primary-color: #1890ff;
+            --secondary-color: #40a9ff;
+            --accent-color: #ff7875;
+            --background-primary: #001529;
+            --border-color: rgba(24, 144, 255, 0.3);
+            --shadow-primary: rgba(24, 144, 255, 0.2);
+        }
+
+        /* 紫罗兰主题 */
+        .theme-purple {
+            --primary-color: #722ed1;
+            --secondary-color: #9254de;
+            --accent-color: #ff9c6e;
+            --background-primary: #1a0d2e;
+            --border-color: rgba(114, 46, 209, 0.3);
+            --shadow-primary: rgba(114, 46, 209, 0.2);
+        }
+
+        /* 绿色生态主题 */
+        .theme-eco-green {
+            --primary-color: #52c41a;
+            --secondary-color: #73d13d;
+            --accent-color: #ffa940;
+            --background-primary: #162312;
+            --border-color: rgba(82, 196, 26, 0.3);
+            --shadow-primary: rgba(82, 196, 26, 0.2);
+        }
+
+        /* 橙色暖阳主题 */
+        .theme-warm-orange {
+            --primary-color: #fa8c16;
+            --secondary-color: #ffa940;
+            --accent-color: #40a9ff;
+            --background-primary: #2d1b0e;
+            --border-color: rgba(250, 140, 22, 0.3);
+            --shadow-primary: rgba(250, 140, 22, 0.2);
+        }
+
+        @font-face {
+            font-family: "NumFont";
+            src: url('{{ url_for("static", filename="fonts/num.otf") }}') format('truetype');
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+        }
+
+        /* ============= 主体布局样式 ============= */
+        .app-container {
+            height: 100vh;
+            width: 100vw;
+            background: 
+                url('/static/health-assets/effects/particle-01.png') no-repeat top right,
+                url('/static/health-assets/effects/particle-02.png') no-repeat bottom left,
+                radial-gradient(ellipse at center, var(--background-primary) 0%, #041018 100%);
+            background-size: 300px 300px, 250px 250px, 100% 100%;
+            position: relative;
+            overflow: hidden;
+            transition: background 0.3s ease;
+        }
+
+        /* 动态背景粒子 - 使用CSS变量 */
+        .app-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(2px 2px at 20px 30px, var(--shadow-primary), transparent),
+                radial-gradient(2px 2px at 40px 70px, var(--border-color), transparent),
+                radial-gradient(1px 1px at 90px 40px, var(--shadow-primary), transparent),
+                radial-gradient(1px 1px at 130px 80px, var(--border-color), transparent);
+            background-size: 200px 200px;
+            animation: particles 20s linear infinite;
+            opacity: 0.4;
+            transition: background 0.3s ease;
+        }
+
+        @keyframes particles {
+            0% { background-position: 0 0, 0 0, 0 0, 0 0; }
+            100% { background-position: 200px 200px, -200px 200px, 200px -200px, -200px -200px; }
+        }
+
+        /* 主网格布局 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            grid-template-rows: 80px 1fr;
+            gap: 20px;
+            height: 100vh;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ============= 顶部导航栏 ============= */
+        .top-header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 12px;
+            padding: 0 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .top-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            animation: scan 3s infinite;
+        }
+
+        @keyframes scan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(45deg, #00ff9d, #00e4ff);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #041018;
+            font-weight: bold;
+        }
+
+        .header-title {
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
+        }
+
+        .header-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .device-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ffffff;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff9d;
+            box-shadow: 0 0 10px rgba(0, 255, 157, 0.8);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .close-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 71, 87, 0.1);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            color: #ff4757;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 71, 87, 0.2);
+            transform: scale(1.1);
+        }
+
+        /* ============= 个性化控制样式 ============= */
+        .personalization-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 0 15px;
+            border-right: 1px solid var(--border-color);
+            margin-right: 15px;
+        }
+
+        .theme-selector, .layout-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        .control-select {
+            background: var(--background-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .control-select:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 8px var(--shadow-primary);
+        }
+
+        .control-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 12px var(--shadow-primary);
+        }
+
+        .settings-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .settings-btn:hover {
+            background: var(--background-secondary);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            box-shadow: 0 0 8px var(--shadow-primary);
+        }
+
+        /* ============= 布局样式变化 ============= */
+        /* 紧凑布局 */
+        .layout-compact .main-grid {
+            grid-template-columns: 280px 1fr 280px;
+            gap: 15px;
+            padding: 15px;
+        }
+
+        .layout-compact .health-card {
+            padding: 15px;
+        }
+
+        .layout-compact .advanced-gauge {
+            width: 80px;
+            height: 80px;
+        }
+
+        /* 展开布局 */
+        .layout-expanded .main-grid {
+            grid-template-columns: 400px 1fr 400px;
+            gap: 25px;
+            padding: 25px;
+        }
+
+        .layout-expanded .health-card {
+            padding: 25px;
+        }
+
+        .layout-expanded .advanced-gauge {
+            width: 140px;
+            height: 140px;
+        }
+
+        /* ============= 告警模态框样式 ============= */
+        .alert-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .alert-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .alert-modal-content {
+            background: var(--chart-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .alert-modal.show .alert-modal-content {
+            transform: scale(1);
+        }
+
+        .alert-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(135deg, var(--background-secondary), rgba(0, 21, 41, 0.7));
+        }
+
+        .alert-modal-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 18px;
+        }
+
+        .modal-close-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            color: #ff4757;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close-btn:hover {
+            background: rgba(255, 71, 87, 0.1);
+            border-color: rgba(255, 71, 87, 0.5);
+        }
+
+        .alert-modal-body {
+            padding: 20px 24px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .no-alerts {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 16px;
+            padding: 40px 20px;
+        }
+
+        .alert-detail-item {
+            background: linear-gradient(135deg, rgba(13, 20, 33, 0.7), rgba(6, 18, 25, 0.7));
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .alert-detail-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 16px var(--shadow-primary);
+        }
+
+        .alert-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .alert-level-badge {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .alert-level-badge.critical {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+            border: 1px solid rgba(255, 71, 87, 0.3);
+        }
+
+        .alert-level-badge.warning {
+            background: rgba(255, 170, 0, 0.2);
+            color: #ffaa00;
+            border: 1px solid rgba(255, 170, 0, 0.3);
+        }
+
+        .alert-level-badge.info {
+            background: rgba(0, 228, 255, 0.2);
+            color: #00e4ff;
+            border: 1px solid rgba(0, 228, 255, 0.3);
+        }
+
+        .alert-time {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .alert-content {
+            color: var(--text-primary);
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        .alert-status {
+            color: var(--primary-color);
+            font-size: 12px;
+            margin-top: 6px;
+            font-weight: bold;
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .alert-action-btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .alert-action-btn.primary {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .alert-action-btn.primary:hover {
+            background: var(--secondary-color);
+            box-shadow: 0 0 8px var(--shadow-primary);
+        }
+
+        .alert-action-btn.secondary {
+            background: var(--background-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .alert-action-btn.secondary:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .alert-action-btn.danger {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+            border: 1px solid rgba(255, 71, 87, 0.3);
+        }
+
+        .alert-action-btn.danger:hover {
+            background: rgba(255, 71, 87, 0.3);
+            box-shadow: 0 0 8px rgba(255, 71, 87, 0.4);
+        }
+
+        .alert-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            background: var(--background-secondary);
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .modal-btn.primary {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .modal-btn.primary:hover {
+            background: var(--secondary-color);
+            box-shadow: 0 0 12px var(--shadow-primary);
+        }
+
+        .modal-btn.secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-btn.secondary:hover {
+            background: var(--background-secondary);
+            color: var(--text-primary);
+            border-color: var(--primary-color);
+        }
+
+        /* ============= Toast 通知样式 ============= */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--chart-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            z-index: 10001;
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toast-icon {
+            font-size: 16px;
+        }
+
+        .toast.toast-success {
+            border-color: var(--primary-color);
+        }
+
+        .toast.toast-success .toast-icon {
+            color: var(--primary-color);
+        }
+
+        .toast.toast-error {
+            border-color: #ff4757;
+        }
+
+        .toast.toast-error .toast-icon {
+            color: #ff4757;
+        }
+
+        .toast.toast-warning {
+            border-color: #ffaa00;
+        }
+
+        .toast.toast-warning .toast-icon {
+            color: #ffaa00;
+        }
+
+        .toast-message {
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        /* ============= 移动端响应式优化 ============= */
+        /* 大型平板 - 1200px以上 */
+        @media (min-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 380px 1fr 380px;
+                gap: 24px;
+                padding: 24px;
+            }
+        }
+
+        /* 中型屏幕 - 768px 到 1199px */
+        @media (max-width: 1199px) and (min-width: 768px) {
+            .main-grid {
+                grid-template-columns: 300px 1fr 300px;
+                gap: 16px;
+                padding: 16px;
+            }
+
+            .health-card {
+                padding: 18px;
+            }
+
+            .advanced-gauge {
+                width: 100px;
+                height: 100px;
+            }
+
+            .gauge-value {
+                font-size: 20px;
+            }
+
+            .header-title {
+                font-size: 20px;
+            }
+
+            .personalization-controls {
+                gap: 10px;
+            }
+
+            .control-select {
+                font-size: 11px;
+                padding: 4px 8px;
+            }
+        }
+
+        /* 小型平板 - 600px 到 767px */
+        @media (max-width: 767px) and (min-width: 600px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: 60px 1fr;
+                gap: 12px;
+                padding: 12px;
+            }
+
+            .top-header {
+                padding: 0 20px;
+                height: 60px;
+            }
+
+            .header-title {
+                font-size: 18px;
+            }
+
+            .header-subtitle {
+                font-size: 12px;
+            }
+
+            /* 重新布局为单列布局 */
+            .left-panel, .center-panel, .right-panel {
+                width: 100%;
+            }
+
+            /* 创建手机版的网格布局 */
+            .mobile-content {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: auto auto 400px;
+                gap: 12px;
+            }
+
+            .left-panel {
+                grid-column: 1;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .right-panel {
+                grid-column: 2;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .center-panel {
+                grid-column: 1 / -1;
+            }
+
+            .health-card {
+                padding: 16px;
+            }
+
+            .advanced-gauge {
+                width: 80px;
+                height: 80px;
+            }
+
+            .gauge-value {
+                font-size: 16px;
+            }
+
+            .personalization-controls {
+                display: none; /* 在小屏幕上隐藏个性化控件 */
+            }
+        }
+
+        /* 手机端 - 599px以下 */
+        @media (max-width: 599px) {
+            html, body {
+                overflow-y: auto; /* 允许垂直滚动 */
+            }
+
+            .app-container {
+                min-height: 100vh;
+                height: auto;
+            }
+
+            .main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: 50px auto;
+                gap: 8px;
+                padding: 8px;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .top-header {
+                padding: 0 12px;
+                height: 50px;
+                min-height: 50px;
+            }
+
+            .logo {
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+            }
+
+            .header-title {
+                font-size: 16px;
+            }
+
+            .header-subtitle {
+                font-size: 10px;
+            }
+
+            .device-status {
+                font-size: 12px;
+            }
+
+            .status-indicator {
+                width: 8px;
+                height: 8px;
+            }
+
+            .close-btn {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+
+            .personalization-controls {
+                display: none;
+            }
+
+            /* 手机版布局 */
+            .mobile-layout {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            /* 健康指标横向排列 */
+            .health-metrics-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .health-card {
+                padding: 12px;
+                min-height: auto;
+            }
+
+            .card-header {
+                margin-bottom: 8px;
+            }
+
+            .card-title {
+                font-size: 12px;
+            }
+
+            .card-icon {
+                font-size: 14px;
+            }
+
+            .advanced-gauge {
+                width: 60px;
+                height: 60px;
+                margin: 0 auto 8px;
+            }
+
+            .gauge-value {
+                font-size: 14px;
+            }
+
+            .gauge-unit {
+                font-size: 10px;
+            }
+
+            .health-details {
+                display: none; /* 在手机上隐藏详细信息 */
+            }
+
+            /* 主图表区域 */
+            .main-chart-container {
+                padding: 16px;
+                margin: 8px 0;
+            }
+
+            .chart-header h3 {
+                font-size: 16px;
+            }
+
+            .time-controls {
+                gap: 8px;
+            }
+
+            .control-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+
+            /* 消息和告警区域 */
+            .message-alert-row {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .message-panel, .alert-panel {
+                padding: 12px;
+            }
+
+            .panel-title {
+                font-size: 14px;
+            }
+
+            .message-count, .alert-count {
+                font-size: 12px;
+                padding: 2px 6px;
+            }
+
+            .message-item, .alert-item {
+                padding: 8px;
+                margin-bottom: 6px;
+            }
+
+            .message-content, .alert-text {
+                font-size: 12px;
+            }
+
+            .message-time, .alert-time {
+                font-size: 10px;
+            }
+
+            /* 模态框优化 */
+            .alert-modal-content {
+                width: 95%;
+                max-height: 90vh;
+                margin: 0 10px;
+            }
+
+            .alert-modal-header {
+                padding: 12px 16px;
+            }
+
+            .alert-modal-header h3 {
+                font-size: 16px;
+            }
+
+            .alert-modal-body {
+                padding: 12px 16px;
+            }
+
+            .alert-detail-item {
+                padding: 12px;
+            }
+
+            .alert-actions {
+                flex-direction: column;
+            }
+
+            .alert-action-btn {
+                width: 100%;
+                padding: 10px;
+                font-size: 14px;
+            }
+
+            .modal-btn {
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+
+            /* Toast 优化 */
+            .toast {
+                right: 10px;
+                left: 10px;
+                top: 10px;
+                right: 10px;
+            }
+        }
+
+        /* 超小屏幕 - 360px以下 */
+        @media (max-width: 360px) {
+            .main-grid {
+                padding: 4px;
+                gap: 4px;
+            }
+
+            .top-header {
+                padding: 0 8px;
+            }
+
+            .header-title {
+                font-size: 14px;
+            }
+
+            .header-subtitle {
+                display: none; /* 隐藏副标题 */
+            }
+
+            .health-metrics-row {
+                grid-template-columns: 1fr; /* 单列布局 */
+            }
+
+            .health-card {
+                padding: 8px;
+            }
+
+            .advanced-gauge {
+                width: 50px;
+                height: 50px;
+            }
+
+            .gauge-value {
+                font-size: 12px;
+            }
+
+            .main-chart-container {
+                padding: 8px;
+            }
+
+            .control-btn {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+        }
+
+        /* 触摸优化 */
+        @media (hover: none) and (pointer: coarse) {
+            .health-card:hover {
+                transform: none; /* 移除悬停动画 */
+            }
+
+            .control-btn {
+                min-height: 44px; /* 增加触摸目标大小 */
+            }
+
+            .alert-action-btn, .modal-btn {
+                min-height: 44px;
+            }
+
+            .close-btn, .settings-btn {
+                min-width: 44px;
+                min-height: 44px;
+            }
+        }
+
+        /* ============= 左侧面板 ============= */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* ============= 健康指标卡片 ============= */
+        .health-card {
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .health-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff9d, transparent);
+            animation: scan 4s infinite;
+        }
+
+        .health-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 255, 157, 0.2);
+            border-color: rgba(0, 255, 157, 0.5);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .card-icon {
+            font-size: 20px;
+        }
+
+        .health-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff9d;
+            box-shadow: 0 0 8px rgba(0, 255, 157, 0.8);
+        }
+
+        .health-status.warning {
+            background: #ffaa00;
+            box-shadow: 0 0 8px rgba(255, 170, 0, 0.8);
+        }
+
+        .health-status.critical {
+            background: #ff4757;
+            box-shadow: 0 0 8px rgba(255, 71, 87, 0.8);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ============= 高级仪表盘样式 ============= */
+        .advanced-gauge {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+        }
+
+        .gauge-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .gauge-value-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 2;
+        }
+
+        .gauge-value {
+            font-family: "NumFont", monospace;
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff9d;
+            text-shadow: 0 0 10px rgba(0, 255, 157, 0.8);
+            line-height: 1;
+        }
+
+        .gauge-unit {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 4px;
+        }
+
+        .health-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: rgba(0, 21, 41, 0.3);
+            border-radius: 6px;
+            border: 1px solid rgba(0, 255, 157, 0.1);
+        }
+
+        .detail-label {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .detail-value {
+            color: #00e4ff;
+            font-weight: 600;
+        }
+
+        /* ============= 中央区域 ============= */
+        .center-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .main-chart-container {
+            flex: 1;
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(0, 255, 157, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .chart-title {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 8px 16px;
+            background: rgba(0, 255, 157, 0.1);
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            border-radius: 6px;
+            color: #00ff9d;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .control-btn:hover,
+        .control-btn.active {
+            background: rgba(0, 255, 157, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 157, 0.3);
+        }
+
+        .main-chart {
+            height: 400px;
+            width: 100%;
+        }
+
+        /* ============= 右侧面板 ============= */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* ============= 消息通知面板 ============= */
+        .message-panel {
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(0, 228, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            height: 300px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 228, 255, 0.2);
+        }
+
+        .panel-title {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .message-count {
+            background: linear-gradient(45deg, #ff6b6b, #ff4757);
+            color: #ffffff;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .message-list {
+            height: 220px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 255, 157, 0.3) transparent;
+        }
+
+        .message-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .message-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .message-list::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 157, 0.3);
+            border-radius: 2px;
+        }
+
+        .message-item {
+            background: rgba(0, 21, 41, 0.3);
+            border: 1px solid rgba(0, 228, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .message-item:hover {
+            background: rgba(0, 21, 41, 0.5);
+            border-color: rgba(0, 228, 255, 0.3);
+            transform: translateX(5px);
+        }
+
+        .message-content {
+            color: #ffffff;
+            font-size: 14px;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .message-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .message-type {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .message-type.alert {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+
+        .message-type.system {
+            background: rgba(0, 228, 255, 0.2);
+            color: #00e4ff;
+        }
+
+        .message-time {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 11px;
+        }
+
+        /* ============= 告警面板 ============= */
+        .alert-panel {
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(255, 71, 87, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .alert-panel:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 71, 87, 0.2);
+            border-color: rgba(255, 71, 87, 0.4);
+        }
+
+        .alert-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .alert-count {
+            font-family: "NumFont", monospace;
+            font-size: 32px;
+            font-weight: bold;
+            color: #ff4757;
+            text-shadow: 0 0 10px rgba(255, 71, 87, 0.8);
+        }
+
+        .alert-trend {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+        }
+
+        .alert-list {
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: rgba(255, 71, 87, 0.1);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .alert-icon {
+            width: 20px;
+            height: 20px;
+            background: #ff4757;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #ffffff;
+        }
+
+        .alert-text {
+            flex: 1;
+            color: #ffffff;
+            font-size: 12px;
+        }
+
+        /* ============= 响应式设计 ============= */
+        @media (max-width: 1440px) {
+            .main-grid {
+                grid-template-columns: 320px 1fr 320px;
+                gap: 15px;
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+            }
+            
+            .left-panel,
+            .right-panel {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 15px;
+            }
+        }
+
+        /* ============= 加载动画 ============= */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0, 255, 157, 0.2);
+            border-top-color: #00ff9d;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ============= 工具提示 ============= */
+        .tooltip {
+            position: absolute;
+            background: rgba(13, 20, 33, 0.95);
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #ffffff;
+            font-size: 12px;
+            z-index: 1000;
+            pointer-events: none;
+            backdrop-filter: blur(10px);
+        }
+
+        /* ============= 模态框样式 ============= */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-content {
+            background: linear-gradient(145deg, rgba(13, 20, 33, 0.95), rgba(6, 18, 25, 0.95));
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 80vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #ff4757;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        /* ============= 3D健康图表动画效果 ============= */
+        @keyframes heartbeat-fast {
+            0%, 100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 5px #ff6b6b);
+            }
+            25% {
+                transform: scale(1.05);
+                filter: drop-shadow(0 0 15px #ff4757);
+            }
+            50% {
+                transform: scale(1.02);
+                filter: drop-shadow(0 0 10px #ff6b6b);
+            }
+            75% {
+                transform: scale(1.03);
+                filter: drop-shadow(0 0 12px #ff4757);
+            }
+        }
+
+        @keyframes heartbeat-slow {
+            0%, 100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 5px #ff6b6b);
+            }
+            50% {
+                transform: scale(1.02);
+                filter: drop-shadow(0 0 8px #ff4757);
+            }
+        }
+
+        @keyframes heartbeat-moderate {
+            0%, 100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 5px #ffaa00);
+            }
+            33% {
+                transform: scale(1.03);
+                filter: drop-shadow(0 0 12px #ffaa00);
+            }
+            66% {
+                transform: scale(1.01);
+                filter: drop-shadow(0 0 8px #ffaa00);
+            }
+        }
+
+        @keyframes fever-warning {
+            0%, 100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 5px #ff4757) hue-rotate(0deg);
+            }
+            25% {
+                transform: scale(1.02);
+                filter: drop-shadow(0 0 15px #ff4757) hue-rotate(10deg);
+            }
+            50% {
+                transform: scale(1.01);
+                filter: drop-shadow(0 0 20px #ff6600) hue-rotate(20deg);
+            }
+            75% {
+                transform: scale(1.015);
+                filter: drop-shadow(0 0 12px #ff4757) hue-rotate(10deg);
+            }
+        }
+
+        @keyframes blood-oxygen-critical {
+            0%, 100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 8px #ff4757);
+            }
+            50% {
+                transform: scale(1.03);
+                filter: drop-shadow(0 0 20px #ff0000);
+            }
+        }
+
+        /* 增强3D仪表盘效果 - 使用真实立体渲染 */
+        .advanced-gauge {
+            position: relative;
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+
+        /* 主要3D外环效果 */
+        .advanced-gauge::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            right: -8px;
+            bottom: -8px;
+            background: 
+                radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent 50%),
+                radial-gradient(circle at 70% 70%, rgba(0, 255, 157, 0.2), transparent 50%),
+                conic-gradient(from 45deg, 
+                    rgba(0, 255, 157, 0.4), 
+                    rgba(0, 228, 255, 0.3), 
+                    rgba(255, 107, 107, 0.2), 
+                    rgba(255, 170, 0, 0.3),
+                    rgba(0, 255, 157, 0.4));
+            border-radius: 50%;
+            z-index: -1;
+            transform: translateZ(-20px);
+            filter: blur(2px);
+            animation: gauge-glow-3d 4s ease-in-out infinite;
+        }
+
+        /* 内部高光效果 */
+        .advanced-gauge::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.6), transparent 30%),
+                radial-gradient(circle at center, transparent 40%, rgba(0, 255, 157, 0.1) 70%);
+            border-radius: 50%;
+            z-index: 1;
+            pointer-events: none;
+            transform: translateZ(10px);
+            animation: inner-glow 3s ease-in-out infinite alternate;
+        }
+
+        /* 3D立体发光动画 */
+        @keyframes gauge-glow-3d {
+            0% {
+                opacity: 0.4;
+                transform: translateZ(-20px) rotateX(0deg) rotateY(0deg);
+                filter: blur(2px) brightness(1);
+            }
+            25% {
+                opacity: 0.7;
+                transform: translateZ(-15px) rotateX(5deg) rotateY(5deg);
+                filter: blur(1px) brightness(1.2);
+            }
+            50% {
+                opacity: 0.8;
+                transform: translateZ(-10px) rotateX(0deg) rotateY(10deg);
+                filter: blur(3px) brightness(1.1);
+            }
+            75% {
+                opacity: 0.6;
+                transform: translateZ(-15px) rotateX(-5deg) rotateY(5deg);
+                filter: blur(2px) brightness(1.3);
+            }
+            100% {
+                opacity: 0.5;
+                transform: translateZ(-20px) rotateX(0deg) rotateY(0deg);
+                filter: blur(2px) brightness(1);
+            }
+        }
+
+        /* 内部高光动画 */
+        @keyframes inner-glow {
+            0% {
+                opacity: 0.3;
+                transform: translateZ(10px) scale(0.95);
+            }
+            100% {
+                opacity: 0.8;
+                transform: translateZ(15px) scale(1.02);
+            }
+        }
+
+        /* 为不同健康指标定制的3D环境光 */
+        #heartRateCard .advanced-gauge::before {
+            background: 
+                radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent 50%),
+                conic-gradient(from 45deg, 
+                    rgba(255, 107, 107, 0.5), 
+                    rgba(255, 71, 87, 0.4), 
+                    rgba(255, 56, 56, 0.3), 
+                    rgba(255, 107, 107, 0.5));
+            box-shadow: 
+                inset 0 0 30px rgba(255, 107, 107, 0.3),
+                0 0 50px rgba(255, 107, 107, 0.2),
+                0 0 100px rgba(255, 107, 107, 0.1);
+        }
+
+        #bloodOxygenCard .advanced-gauge::before {
+            background: 
+                radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent 50%),
+                conic-gradient(from 45deg, 
+                    rgba(0, 228, 255, 0.5), 
+                    rgba(0, 191, 204, 0.4), 
+                    rgba(0, 153, 204, 0.3), 
+                    rgba(0, 228, 255, 0.5));
+            box-shadow: 
+                inset 0 0 30px rgba(0, 228, 255, 0.3),
+                0 0 50px rgba(0, 228, 255, 0.2),
+                0 0 100px rgba(0, 228, 255, 0.1);
+        }
+
+        #temperatureCard .advanced-gauge::before {
+            background: 
+                radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent 50%),
+                conic-gradient(from 45deg, 
+                    rgba(255, 170, 0, 0.5), 
+                    rgba(255, 153, 0, 0.4), 
+                    rgba(255, 136, 0, 0.3), 
+                    rgba(255, 170, 0, 0.5));
+            box-shadow: 
+                inset 0 0 30px rgba(255, 170, 0, 0.3),
+                0 0 50px rgba(255, 170, 0, 0.2),
+                0 0 100px rgba(255, 170, 0, 0.1);
+        }
+
+        /* 3D仪表盘容器立体效果 */
+        .gauge-container {
+            transform-style: preserve-3d;
+            transform: translateZ(0);
+            filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
+        }
+
+        /* ECharts图表容器3D增强 */
+        .gauge-container > div {
+            border-radius: 50%;
+            background: 
+                radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), transparent 70%),
+                radial-gradient(circle at center, rgba(13, 20, 33, 0.9), rgba(6, 18, 25, 0.95));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+                0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 专业医疗级健康状态指示器 */
+        .health-status.normal {
+            background: linear-gradient(135deg, #00ff3c, #00cc30);
+            animation: status-pulse-normal 2s ease-in-out infinite;
+        }
+
+        .health-status.warning {
+            background: linear-gradient(135deg, #ffaa00, #ff9900);
+            animation: status-pulse-warning 1.5s ease-in-out infinite;
+        }
+
+        .health-status.critical {
+            background: linear-gradient(135deg, #ff4757, #ff0000);
+            animation: status-pulse-critical 1s ease-in-out infinite;
+        }
+
+        @keyframes status-pulse-normal {
+            0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 60, 0.5); }
+            50% { box-shadow: 0 0 15px rgba(0, 255, 60, 0.8); }
+        }
+
+        @keyframes status-pulse-warning {
+            0%, 100% { box-shadow: 0 0 8px rgba(255, 170, 0, 0.6); }
+            50% { box-shadow: 0 0 20px rgba(255, 170, 0, 0.9); }
+        }
+
+        @keyframes status-pulse-critical {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 71, 87, 0.7); }
+            50% { box-shadow: 0 0 25px rgba(255, 71, 87, 1); }
+        }
+
+        /* 健康数据卡片增强 - 使用设计素材背景 */
+        .health-card {
+            position: relative;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .health-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                url('/static/health-assets/effects/glow-01.png') no-repeat center,
+                radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.05), transparent 50%);
+            background-size: contain, 100% 100%;
+            opacity: 0.3;
+            z-index: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .health-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 
+                0 15px 40px rgba(0, 255, 157, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .health-card:hover::before {
+            opacity: 0.6;
+        }
+
+        /* 为不同健康卡片设置专用背景效果 */
+        #heartRateCard::before {
+            background: 
+                url('/static/health-assets/effects/glow-01.png') no-repeat center,
+                radial-gradient(circle at 30% 30%, rgba(255, 107, 107, 0.1), transparent 60%);
+            background-size: 80% 80%, 100% 100%;
+        }
+
+        #bloodOxygenCard::before {
+            background: 
+                url('/static/health-assets/effects/glow-02.png') no-repeat center,
+                radial-gradient(circle at 70% 30%, rgba(0, 228, 255, 0.1), transparent 60%);
+            background-size: 80% 80%, 100% 100%;
+        }
+
+        #temperatureCard::before {
+            background: 
+                url('/static/health-assets/effects/glow-03.png') no-repeat center,
+                radial-gradient(circle at 50% 70%, rgba(255, 170, 0, 0.1), transparent 60%);
+            background-size: 80% 80%, 100% 100%;
+        }
+
+        /* 确保卡片内容层级正确 */
+        .health-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .health-card.alert-high {
+            animation: card-alert-high 2s ease-in-out infinite;
+        }
+
+        .health-card.alert-critical {
+            animation: card-alert-critical 1s ease-in-out infinite;
+        }
+
+        @keyframes card-alert-high {
+            0%, 100% {
+                border-color: rgba(255, 170, 0, 0.5);
+                box-shadow: 0 8px 25px rgba(255, 170, 0, 0.2);
+            }
+            50% {
+                border-color: rgba(255, 170, 0, 0.8);
+                box-shadow: 0 12px 35px rgba(255, 170, 0, 0.4);
+            }
+        }
+
+        @keyframes card-alert-critical {
+            0%, 100% {
+                border-color: rgba(255, 71, 87, 0.6);
+                box-shadow: 0 10px 30px rgba(255, 71, 87, 0.3);
+            }
+            50% {
+                border-color: rgba(255, 71, 87, 1);
+                box-shadow: 0 15px 40px rgba(255, 71, 87, 0.6);
+            }
+        }
+
+        /* ============= 健康素材增强动画效果 ============= */
+        
+        /* 增强粒子动画 - 适配健康素材 */
+        @keyframes particles-enhanced {
+            0% {
+                transform: translate(0, 0) scale(1) rotate(0deg);
+                opacity: 0.5;
+            }
+            25% {
+                transform: translate(10px, -5px) scale(1.05) rotate(90deg);
+                opacity: 0.7;
+            }
+            50% {
+                transform: translate(20px, -10px) scale(1) rotate(180deg);
+                opacity: 0.4;
+            }
+            75% {
+                transform: translate(15px, -3px) scale(0.95) rotate(270deg);
+                opacity: 0.6;
+            }
+            100% {
+                transform: translate(0, 0) scale(1) rotate(360deg);
+                opacity: 0.5;
+            }
+        }
+
+        /* 发光舞动效果 */
+        @keyframes glow-dance {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.2;
+            }
+            33% {
+                transform: translate(-10px, 5px) scale(1.1);
+                opacity: 0.4;
+            }
+            66% {
+                transform: translate(5px, -8px) scale(0.9);
+                opacity: 0.3;
+            }
+            100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.2;
+            }
+        }
+
+        /* 健康卡片呼吸效果 */
+        @keyframes health-card-breathe {
+            0%, 100% {
+                transform: scale(1) translateZ(0);
+                filter: brightness(1);
+            }
+            50% {
+                transform: scale(1.02) translateZ(5px);
+                filter: brightness(1.05);
+            }
+        }
+
+        /* 应用呼吸效果到健康卡片 */
+        .health-card {
+            animation: health-card-breathe 4s ease-in-out infinite;
+        }
+
+        .health-card:hover {
+            animation: none; /* 悬停时停止呼吸动画 */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="main-grid">
+            <!-- 顶部导航栏 -->
+            <header class="top-header">
+                <div class="header-left">
+                    <div class="logo">L</div>
+                    <div>
+                        <div class="header-title">智能健康监控</div>
+                        <div class="header-subtitle">个人健康大屏 v1.3.5</div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <!-- 个性化控制区域 -->
+                    <div class="personalization-controls">
+                        <!-- 主题切换器 -->
+                        <div class="theme-selector">
+                            <label class="control-label">🎨</label>
+                            <select id="themeSelect" class="control-select" onchange="switchTheme(this.value)">
+                                <option value="default">默认主题</option>
+                                <option value="deep-blue">深蓝主题</option>
+                                <option value="purple">紫罗兰主题</option>
+                                <option value="eco-green">生态绿</option>
+                                <option value="warm-orange">暖阳橙</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 布局选择器 -->
+                        <div class="layout-selector">
+                            <label class="control-label">📊</label>
+                            <select id="layoutSelect" class="control-select" onchange="switchLayout(this.value)">
+                                <option value="standard">标准布局</option>
+                                <option value="compact">紧凑布局</option>
+                                <option value="expanded">展开布局</option>
+                            </select>
+                        </div>
+
+                        <!-- 设置按钮 -->
+                        <button class="settings-btn" onclick="toggleSettings()" title="个性化设置">⚙️</button>
+                    </div>
+                    
+                    <div class="device-status">
+                        <div class="status-indicator"></div>
+                        <span id="deviceStatusText">设备在线</span>
+                    </div>
+                    <button class="close-btn" onclick="window.close()">✕</button>
+                </div>
+            </header>
+
+            <!-- 左侧健康指标面板 -->
+            <aside class="left-panel">
+                <!-- 心率卡片 -->
+                <div class="health-card" id="heartRateCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span class="card-icon">💓</span>
+                            <span>实时心率</span>
+                        </div>
+                        <div class="health-status" id="heartRateStatus"></div>
+                    </div>
+                    <div class="advanced-gauge">
+                        <div class="gauge-container">
+                            <div id="heartRateGauge" style="width: 100%; height: 100%;"></div>
+                            <div class="gauge-value-display">
+                                <div class="gauge-value" id="heartRateValue">--</div>
+                                <div class="gauge-unit">BPM</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="health-details">
+                        <div class="detail-item">
+                            <span class="detail-label">最高</span>
+                            <span class="detail-value" id="heartRateMax">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">最低</span>
+                            <span class="detail-value" id="heartRateMin">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">平均</span>
+                            <span class="detail-value" id="heartRateAvg">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">状态</span>
+                            <span class="detail-value" id="heartRateLevel">正常</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 血氧卡片 -->
+                <div class="health-card" id="bloodOxygenCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span class="card-icon">🩸</span>
+                            <span>血氧饱和度</span>
+                        </div>
+                        <div class="health-status" id="bloodOxygenStatus"></div>
+                    </div>
+                    <div class="advanced-gauge">
+                        <div class="gauge-container">
+                            <div id="bloodOxygenGauge" style="width: 100%; height: 100%;"></div>
+                            <div class="gauge-value-display">
+                                <div class="gauge-value" id="bloodOxygenValue">--</div>
+                                <div class="gauge-unit">%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="health-details">
+                        <div class="detail-item">
+                            <span class="detail-label">最高</span>
+                            <span class="detail-value" id="bloodOxygenMax">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">最低</span>
+                            <span class="detail-value" id="bloodOxygenMin">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">平均</span>
+                            <span class="detail-value" id="bloodOxygenAvg">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">状态</span>
+                            <span class="detail-value" id="bloodOxygenLevel">正常</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 中央图表区域 -->
+            <main class="center-panel">
+                <div class="main-chart-container">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span>📊</span>
+                            <span>健康数据趋势</span>
+                        </div>
+                        <div class="chart-controls">
+                            <button class="control-btn active" onclick="switchTimeRange('1h')">1小时</button>
+                            <button class="control-btn" onclick="switchTimeRange('6h')">6小时</button>
+                            <button class="control-btn" onclick="switchTimeRange('24h')">24小时</button>
+                            <button class="control-btn" onclick="switchTimeRange('7d')">7天</button>
+                        </div>
+                    </div>
+                    <div id="mainChart" class="main-chart"></div>
+                </div>
+            </main>
+
+            <!-- 右侧消息和告警面板 -->
+            <aside class="right-panel">
+                <!-- 体温和血压卡片 -->
+                <div class="health-card" id="temperatureCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span class="card-icon">🌡️</span>
+                            <span>体温</span>
+                        </div>
+                        <div class="health-status" id="temperatureStatus"></div>
+                    </div>
+                    <div class="advanced-gauge">
+                        <div class="gauge-container">
+                            <div id="temperatureGauge" style="width: 100%; height: 100%;"></div>
+                            <div class="gauge-value-display">
+                                <div class="gauge-value" id="temperatureValue">--</div>
+                                <div class="gauge-unit">°C</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="health-details">
+                        <div class="detail-item">
+                            <span class="detail-label">收缩压</span>
+                            <span class="detail-value" id="systolicValue">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">舒张压</span>
+                            <span class="detail-value" id="diastolicValue">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">步数</span>
+                            <span class="detail-value" id="stepCount">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">活动</span>
+                            <span class="detail-value" id="activityLevel">轻度</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 消息通知面板 -->
+                <div class="message-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>💬</span>
+                            <span>消息通知</span>
+                        </div>
+                        <div class="message-count" id="messageCount">0</div>
+                    </div>
+                    <div class="message-list" id="messageList">
+                        <!-- 消息内容将通过JavaScript动态加载 -->
+                        <div class="message-item">
+                            <div class="message-content">系统正在加载消息...</div>
+                            <div class="message-meta">
+                                <div class="message-type system">系统</div>
+                                <div class="message-time">--:--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 告警面板 -->
+                <div class="alert-panel" onclick="showAlertDetails()">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>🚨</span>
+                            <span>健康告警</span>
+                        </div>
+                        <div class="alert-trend">点击查看详情 ▶</div>
+                    </div>
+                    <div class="alert-summary">
+                        <div class="alert-count" id="alertCount">0</div>
+                        <div class="alert-trend" id="alertTrend">今日新增 0 条</div>
+                    </div>
+                    <div class="alert-list" id="alertList">
+                        <!-- 告警内容将通过JavaScript动态加载 -->
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // ============= 全局变量 =============
+        let deviceSn = '';
+        let socket = null;
+        let currentTimeRange = '1h';
+        let healthData = {};
+        let chartInstances = {};
+
+        // ============= 初始化函数 =============
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // 从URL获取设备序列号
+            const urlParams = new URLSearchParams(window.location.search);
+            deviceSn = urlParams.get('deviceSn') || 'CRFTQ23409001890';
+            
+            console.log('🚀 初始化个人健康大屏 v1.3.5');
+            console.log('📱 设备序列号:', deviceSn);
+            
+            // 初始化设备状态显示
+            initializeDeviceStatusDisplay();
+            
+            // 初始化图表
+            initializeCharts();
+            
+            // 加载个性化设置
+            loadPersonalizationSettings();
+            
+            // 加载健康数据
+            loadHealthData();
+            
+            // 加载消息和告警
+            loadMessages();
+            loadAlerts();
+            
+            // 加载设备状态
+            loadDeviceStatus();
+            
+            // 加载历史趋势数据
+            loadHistoryChart();
+            
+            // 初始化WebSocket连接
+            initializeWebSocket();
+            
+            // 初始化响应式布局
+            initializeResponsive();
+            
+            // 设置定时刷新
+            setInterval(loadHealthData, 10000);     // 10秒刷新健康数据
+            setInterval(loadMessages, 30000);       // 30秒刷新消息
+            setInterval(loadAlerts, 30000);         // 30秒刷新告警
+            setInterval(loadDeviceStatus, 60000);   // 60秒刷新设备状态
+            setInterval(loadHistoryChart, 300000);  // 5分钟刷新历史数据
+        }
+
+        // ============= 设备状态管理 =============
+        function updateDeviceStatus() {
+            const statusText = document.getElementById('deviceStatusText');
+            const statusIndicator = document.querySelector('.status-indicator');
+            
+            // 这里可以根据实际情况更新设备状态
+            statusText.textContent = `设备 ${deviceSn} 在线`;
+            statusIndicator.style.background = '#00ff9d';
+        }
+
+        // ============= 图表初始化 =============
+        function initializeCharts() {
+            // 初始化心率仪表盘
+            chartInstances.heartRateGauge = echarts.init(document.getElementById('heartRateGauge'));
+            chartInstances.heartRateGauge._chartName = '心率'; // 标记图表类型
+            initGaugeChart(chartInstances.heartRateGauge, '心率', 'BPM', 180, '#ff6b6b');
+            
+            // 初始化血氧仪表盘
+            chartInstances.bloodOxygenGauge = echarts.init(document.getElementById('bloodOxygenGauge'));
+            chartInstances.bloodOxygenGauge._chartName = '血氧'; // 标记图表类型
+            initGaugeChart(chartInstances.bloodOxygenGauge, '血氧', '%', 100, '#00e4ff');
+            
+            // 初始化体温仪表盘
+            chartInstances.temperatureGauge = echarts.init(document.getElementById('temperatureGauge'));
+            chartInstances.temperatureGauge._chartName = '体温'; // 标记图表类型
+            initGaugeChart(chartInstances.temperatureGauge, '体温', '°C', 50, '#ffaa00');
+            
+            // 初始化主趋势图
+            chartInstances.mainChart = echarts.init(document.getElementById('mainChart'));
+            initTrendChart(chartInstances.mainChart);
+        }
+
+        function initGaugeChart(chartInstance, name, unit, max, color) {
+            // 根据不同的健康指标创建专业的3D可视化
+            if (name === '心率') {
+                init3DHeartRateChart(chartInstance, color);
+            } else if (name === '血氧') {
+                init3DBloodOxygenChart(chartInstance, color);
+            } else if (name === '体温') {
+                init3DTemperatureChart(chartInstance, color);
+            } else {
+                // 默认增强型仪表盘
+                initEnhanced3DGauge(chartInstance, name, unit, max, color);
+            }
+        }
+
+        function init3DHeartRateChart(chartInstance, color) {
+            const option = {
+                backgroundColor: 'transparent',
+                graphic: [
+                    // 背景立体环
+                    {
+                        type: 'group',
+                        left: 'center',
+                        top: 'middle',
+                        children: [
+                            {
+                                type: 'ring',
+                                shape: {
+                                    cx: 0, cy: 0,
+                                    r: 120, r0: 100
+                                },
+                                style: {
+                                    fill: {
+                                        type: 'linear',
+                                        x: 0, y: 0, x2: 1, y2: 1,
+                                        colorStops: [
+                                            {offset: 0, color: 'rgba(255, 107, 107, 0.1)'},
+                                            {offset: 0.5, color: 'rgba(255, 107, 107, 0.3)'},
+                                            {offset: 1, color: 'rgba(255, 107, 107, 0.05)'}
+                                        ]
+                                    },
+                                    shadowColor: 'rgba(255, 107, 107, 0.5)',
+                                    shadowBlur: 25,
+                                    shadowOffsetX: 0,
+                                    shadowOffsetY: 5
+                                }
+                            },
+                            // 内部发光环
+                            {
+                                type: 'ring',
+                                shape: {
+                                    cx: 0, cy: -2,
+                                    r: 105, r0: 95
+                                },
+                                style: {
+                                    fill: {
+                                        type: 'radial',
+                                        x: 0.3, y: 0.3, r: 0.8,
+                                        colorStops: [
+                                            {offset: 0, color: 'rgba(255, 255, 255, 0.8)'},
+                                            {offset: 0.4, color: 'rgba(255, 107, 107, 0.6)'},
+                                            {offset: 1, color: 'rgba(255, 107, 107, 0.1)'}
+                                        ]
+                                    },
+                                    shadowColor: 'rgba(255, 255, 255, 0.8)',
+                                    shadowBlur: 15
+                                }
+                            }
+                        ]
+                    }
+                ],
+                series: [{
+                    name: '心率监测',
+                    type: 'gauge',
+                    startAngle: 200,
+                    endAngle: -40,
+                    min: 40,
+                    max: 180,
+                    radius: '85%',
+                    center: ['50%', '58%'],
+                    splitNumber: 8,
+                    
+                    // 增强3D外圈效果
+                    axisLine: {
+                        lineStyle: {
+                            width: 20,
+                            color: [
+                                [0.3, {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 1, y2: 0,
+                                    colorStops: [
+                                        {offset: 0, color: '#00ff3c'},
+                                        {offset: 0.5, color: '#00e635'},
+                                        {offset: 1, color: '#00cc30'}
+                                    ]
+                                }], // 正常心率区间 - 绿色渐变
+                                [0.7, {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 1, y2: 0,
+                                    colorStops: [
+                                        {offset: 0, color: '#ffaa00'},
+                                        {offset: 0.5, color: '#ff9900'},
+                                        {offset: 1, color: '#ff8800'}
+                                    ]
+                                }], // 轻度异常 - 橙色渐变
+                                [1, {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 1, y2: 0,
+                                    colorStops: [
+                                        {offset: 0, color: '#ff4757'},
+                                        {offset: 0.5, color: '#ff3838'},
+                                        {offset: 1, color: '#ff2929'}
+                                    ]
+                                }]    // 危险区间 - 红色渐变
+                            ],
+                            shadowColor: `${color}99`,
+                            shadowBlur: 30,
+                            shadowOffsetX: 0,
+                            shadowOffsetY: 8
+                        }
+                    },
+                    
+                    // 3D刻度线
+                    axisTick: {
+                        show: true,
+                        splitNumber: 4,
+                        length: 8,
+                        lineStyle: {
+                            color: '#ffffff66',
+                            width: 2,
+                            shadowColor: '#ffffff',
+                            shadowBlur: 5
+                        }
+                    },
+                    
+                    // 3D分割线
+                    splitLine: {
+                        show: true,
+                        length: 15,
+                        lineStyle: {
+                            color: '#ffffff88',
+                            width: 3,
+                            shadowColor: '#ffffff',
+                            shadowBlur: 8
+                        }
+                    },
+                    
+                    // 刻度标签
+                    axisLabel: {
+                        show: true,
+                        distance: 25,
+                        color: '#ffffff',
+                        fontSize: 12,
+                        fontWeight: 'bold',
+                        formatter: function(value) {
+                            if (value === 60) return '正常';
+                            if (value === 100) return '偏高';
+                            if (value === 140) return '危险';
+                            return value;
+                        }
+                    },
+                    
+                    // 3D指针
+                    pointer: {
+                        show: true,
+                        length: '75%',
+                        width: 6,
+                        itemStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: '#ff6b6b' },
+                                    { offset: 0.7, color: '#ff4757' },
+                                    { offset: 1, color: '#2f1b14' }
+                                ]
+                            },
+                            shadowColor: '#ff4757',
+                            shadowBlur: 15,
+                            shadowOffsetX: 0,
+                            shadowOffsetY: 0
+                        }
+                    },
+                    
+                    // 锚点
+                    anchor: {
+                        show: true,
+                        showAbove: true,
+                        size: 12,
+                        itemStyle: {
+                            color: '#ff4757',
+                            shadowColor: '#ff4757',
+                            shadowBlur: 10
+                        }
+                    },
+                    
+                    // 标题
+                    title: {
+                        show: true,
+                        offsetCenter: [0, '85%'],
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                        color: '#ffffff'
+                    },
+                    
+                    // 数值显示
+                    detail: {
+                        show: true,
+                        offsetCenter: [0, '65%'],
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        color: '#ff6b6b',
+                        formatter: '{value} BPM',
+                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                        borderRadius: 8,
+                        padding: [5, 10],
+                        shadowColor: '#ff6b6b',
+                        shadowBlur: 10
+                    },
+                    
+                    data: [{ 
+                        value: 75,
+                        name: '💓 实时心率'
+                    }]
+                }]
+            };
+            
+            chartInstance.setOption(option);
+        }
+
+        function init3DBloodOxygenChart(chartInstance, color) {
+            const option = {
+                backgroundColor: 'transparent',
+                series: [{
+                    name: '血氧饱和度',
+                    type: 'gauge',
+                    startAngle: 200,
+                    endAngle: -40,
+                    min: 88,
+                    max: 100,
+                    radius: '88%',
+                    center: ['50%', '58%'],
+                    splitNumber: 6,
+                    
+                    // 血氧专用颜色分区
+                    axisLine: {
+                        lineStyle: {
+                            width: 18,
+                            color: [
+                                [0.2, '#ff4757'], // 危险区域 88-90% - 红色
+                                [0.5, '#ffaa00'], // 警告区域 90-95% - 橙色  
+                                [1, '#00e4ff']    // 正常区域 95-100% - 蓝色
+                            ],
+                            shadowColor: `${color}99`,
+                            shadowBlur: 25,
+                            shadowOffsetX: 0,
+                            shadowOffsetY: 0
+                        }
+                    },
+                    
+                    // 血氧监测专用刻度
+                    axisTick: {
+                        show: true,
+                        splitNumber: 3,
+                        length: 10,
+                        lineStyle: {
+                            color: '#00e4ff88',
+                            width: 3,
+                            shadowColor: '#00e4ff',
+                            shadowBlur: 8
+                        }
+                    },
+                    
+                    splitLine: {
+                        show: true,
+                        length: 20,
+                        lineStyle: {
+                            color: '#ffffff99',
+                            width: 4,
+                            shadowColor: '#ffffff',
+                            shadowBlur: 10
+                        }
+                    },
+                    
+                    axisLabel: {
+                        show: true,
+                        distance: 30,
+                        color: '#ffffff',
+                        fontSize: 12,
+                        fontWeight: 'bold',
+                        formatter: function(value) {
+                            if (value === 90) return '低氧';
+                            if (value === 95) return '正常';
+                            if (value === 100) return '优秀';
+                            return value + '%';
+                        }
+                    },
+                    
+                    // 血氧专用指针
+                    pointer: {
+                        show: true,
+                        length: '80%',
+                        width: 8,
+                        itemStyle: {
+                            color: {
+                                type: 'radial',
+                                x: 0.5, y: 0.5, r: 0.5,
+                                colorStops: [
+                                    { offset: 0, color: '#ffffff' },
+                                    { offset: 0.7, color: '#00e4ff' },
+                                    { offset: 1, color: '#0099cc' }
+                                ]
+                            },
+                            shadowColor: '#00e4ff',
+                            shadowBlur: 20
+                        }
+                    },
+                    
+                    anchor: {
+                        show: true,
+                        showAbove: true,
+                        size: 15,
+                        itemStyle: {
+                            color: '#00e4ff',
+                            shadowColor: '#00e4ff',
+                            shadowBlur: 15
+                        }
+                    },
+                    
+                    title: {
+                        show: true,
+                        offsetCenter: [0, '85%'],
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                        color: '#ffffff'
+                    },
+                    
+                    detail: {
+                        show: true,
+                        offsetCenter: [0, '65%'],
+                        fontSize: 22,
+                        fontWeight: 'bold',
+                        color: '#00e4ff',
+                        formatter: '{value}%',
+                        backgroundColor: 'rgba(0, 228, 255, 0.1)',
+                        borderRadius: 8,
+                        padding: [5, 10],
+                        shadowColor: '#00e4ff',
+                        shadowBlur: 12
+                    },
+                    
+                    data: [{ 
+                        value: 98,
+                        name: '🩸 血氧饱和度'
+                    }]
+                }]
+            };
+            
+            chartInstance.setOption(option);
+        }
+
+        function init3DTemperatureChart(chartInstance, color) {
+            const option = {
+                backgroundColor: 'transparent',
+                series: [{
+                    name: '体温监测',
+                    type: 'gauge',
+                    startAngle: 200,
+                    endAngle: -40,
+                    min: 35.0,
+                    max: 40.0,
+                    radius: '88%',
+                    center: ['50%', '58%'],
+                    splitNumber: 10,
+                    
+                    // 体温专用颜色分区
+                    axisLine: {
+                        lineStyle: {
+                            width: 16,
+                            color: [
+                                [0.2, '#00d4ff'], // 低温区域 35.0-36.1°C - 蓝色
+                                [0.6, '#00ff3c'], // 正常区域 36.1-37.3°C - 绿色
+                                [0.8, '#ffaa00'], // 微热区域 37.3-38.0°C - 橙色
+                                [1, '#ff4757']    // 发热区域 38.0-40.0°C - 红色
+                            ],
+                            shadowColor: `${color}77`,
+                            shadowBlur: 22,
+                            shadowOffsetX: 0,
+                            shadowOffsetY: 0
+                        }
+                    },
+                    
+                    axisTick: {
+                        show: true,
+                        splitNumber: 5,
+                        length: 8,
+                        lineStyle: {
+                            color: '#ffaa0088',
+                            width: 2,
+                            shadowColor: '#ffaa00',
+                            shadowBlur: 6
+                        }
+                    },
+                    
+                    splitLine: {
+                        show: true,
+                        length: 18,
+                        lineStyle: {
+                            color: '#ffffff77',
+                            width: 3,
+                            shadowColor: '#ffffff',
+                            shadowBlur: 8
+                        }
+                    },
+                    
+                    axisLabel: {
+                        show: true,
+                        distance: 28,
+                        color: '#ffffff',
+                        fontSize: 11,
+                        fontWeight: 'bold',
+                        formatter: function(value) {
+                            if (value === 36.1) return '正常';
+                            if (value === 37.3) return '偏高';
+                            if (value === 38.0) return '发热';
+                            return value.toFixed(1) + '°C';
+                        }
+                    },
+                    
+                    // 温度计样式指针
+                    pointer: {
+                        show: true,
+                        length: '78%',
+                        width: 6,
+                        itemStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: '#ffffff' },
+                                    { offset: 0.3, color: '#ffaa00' },
+                                    { offset: 0.7, color: '#ff6600' },
+                                    { offset: 1, color: '#cc0000' }
+                                ]
+                            },
+                            shadowColor: '#ffaa00',
+                            shadowBlur: 18
+                        }
+                    },
+                    
+                    anchor: {
+                        show: true,
+                        showAbove: true,
+                        size: 14,
+                        itemStyle: {
+                            color: '#ffaa00',
+                            shadowColor: '#ffaa00',
+                            shadowBlur: 12
+                        }
+                    },
+                    
+                    title: {
+                        show: true,
+                        offsetCenter: [0, '85%'],
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                        color: '#ffffff'
+                    },
+                    
+                    detail: {
+                        show: true,
+                        offsetCenter: [0, '65%'],
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        color: '#ffaa00',
+                        formatter: '{value}°C',
+                        backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                        borderRadius: 8,
+                        padding: [5, 10],
+                        shadowColor: '#ffaa00',
+                        shadowBlur: 10
+                    },
+                    
+                    data: [{ 
+                        value: 36.5,
+                        name: '🌡️ 体温监测'
+                    }]
+                }]
+            };
+            
+            chartInstance.setOption(option);
+        }
+
+        function initEnhanced3DGauge(chartInstance, name, unit, max, color) {
+            const option = {
+                series: [{
+                    name: name,
+                    type: 'gauge',
+                    startAngle: 200,
+                    endAngle: -40,
+                    min: 0,
+                    max: max,
+                    radius: '85%',
+                    center: ['50%', '55%'],
+                    splitNumber: 10,
+                    itemStyle: {
+                        color: color,
+                        shadowColor: `${color}88`,
+                        shadowBlur: 15
+                    },
+                    progress: {
+                        show: true,
+                        width: 12,
+                        itemStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 1, y2: 0,
+                                colorStops: [
+                                    { offset: 0, color: color + '33' },
+                                    { offset: 0.5, color: color + '88' },
+                                    { offset: 1, color: color }
+                                ]
+                            },
+                            shadowColor: color,
+                            shadowBlur: 20
+                        }
+                    },
+                    pointer: {
+                        show: true,
+                        length: '75%',
+                        width: 5,
+                        itemStyle: {
+                            color: color,
+                            shadowColor: color,
+                            shadowBlur: 10
+                        }
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            width: 12,
+                            color: [[1, `${color}33`]],
+                            shadowColor: `${color}66`,
+                            shadowBlur: 15
+                        }
+                    },
+                    axisTick: { 
+                        show: true,
+                        lineStyle: {
+                            color: '#ffffff66',
+                            shadowBlur: 5
+                        }
+                    },
+                    splitLine: { 
+                        show: true,
+                        lineStyle: {
+                            color: '#ffffff88',
+                            shadowBlur: 8
+                        }
+                    },
+                    axisLabel: { 
+                        show: true,
+                        color: '#ffffff',
+                        fontSize: 11
+                    },
+                    title: { 
+                        show: true,
+                        color: '#ffffff',
+                        fontSize: 14
+                    },
+                    detail: { 
+                        show: true,
+                        color: color,
+                        fontSize: 18,
+                        fontWeight: 'bold'
+                    },
+                    data: [{ value: 0 }]
+                }]
+            };
+            
+            chartInstance.setOption(option);
+        }
+
+        function initTrendChart(chartInstance) {
+            const option = {
+                backgroundColor: 'transparent',
+                
+                // 专业医疗级别工具提示
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(13, 20, 33, 0.95)',
+                    borderColor: 'rgba(0, 255, 157, 0.5)',
+                    borderWidth: 2,
+                    textStyle: { 
+                        color: '#ffffff', 
+                        fontSize: 13,
+                        fontWeight: 'bold'
+                    },
+                    shadowBlur: 20,
+                    shadowColor: 'rgba(0, 255, 157, 0.3)',
+                    formatter: function(params) {
+                        let html = `<div style="padding: 10px;">`;
+                        html += `<div style="color: #00ff9d; font-size: 14px; margin-bottom: 8px;">📊 健康监测数据</div>`;
+                        html += `<div style="color: #ffffff88; font-size: 12px; margin-bottom: 10px;">${new Date(params[0].axisValue).toLocaleString()}</div>`;
+                        
+                        params.forEach(param => {
+                            const color = param.color;
+                            const name = param.seriesName;
+                            const value = param.value[1];
+                            let icon = '';
+                            let status = '';
+                            let unit = '';
+                            
+                            if (name === '心率') {
+                                icon = '💓';
+                                unit = ' BPM';
+                                if (value < 60) status = ' <span style="color: #ff4757;">偏低</span>';
+                                else if (value > 100) status = ' <span style="color: #ff4757;">偏高</span>';
+                                else status = ' <span style="color: #00ff3c;">正常</span>';
+                            } else if (name === '血氧') {
+                                icon = '🩸';
+                                unit = '%';
+                                if (value < 95) status = ' <span style="color: #ff4757;">低氧</span>';
+                                else status = ' <span style="color: #00ff3c;">正常</span>';
+                            } else if (name === '体温') {
+                                icon = '🌡️';
+                                unit = '°C';
+                                if (value < 36.1) status = ' <span style="color: #00d4ff;">偏低</span>';
+                                else if (value > 37.3) status = ' <span style="color: #ff4757;">偏高</span>';
+                                else status = ' <span style="color: #00ff3c;">正常</span>';
+                            }
+                            
+                            html += `<div style="margin: 5px 0; display: flex; align-items: center;">`;
+                            html += `<span style="color: ${color}; font-size: 16px; margin-right: 8px;">${icon}</span>`;
+                            html += `<span style="color: ${color}; font-weight: bold;">${name}: ${value}${unit}</span>`;
+                            html += `<span style="margin-left: 10px;">${status}</span>`;
+                            html += `</div>`;
+                        });
+                        
+                        html += `</div>`;
+                        return html;
+                    }
+                },
+                
+                // 图例增强
+                legend: {
+                    top: 15,
+                    textStyle: { 
+                        color: '#ffffff',
+                        fontSize: 13,
+                        fontWeight: 'bold'
+                    },
+                    itemWidth: 25,
+                    itemHeight: 14,
+                    itemGap: 30,
+                    icon: 'roundRect',
+                    selectedMode: 'multiple'
+                },
+                
+                // 网格增强
+                grid: {
+                    left: '8%',
+                    right: '8%',
+                    top: '18%',
+                    bottom: '15%',
+                    containLabel: true,
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1
+                },
+                
+                // X轴时间轴增强
+                xAxis: {
+                    type: 'time',
+                    axisLine: { 
+                        lineStyle: { 
+                            color: 'rgba(0, 255, 157, 0.4)',
+                            width: 2
+                        } 
+                    },
+                    axisLabel: { 
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        fontSize: 11,
+                        fontWeight: 'bold',
+                        formatter: function(value) {
+                            const date = new Date(value);
+                            return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                        }
+                    },
+                    axisTick: {
+                        show: true,
+                        lineStyle: {
+                            color: 'rgba(255, 255, 255, 0.3)'
+                        }
+                    },
+                    splitLine: {
+                        show: true,
+                        lineStyle: {
+                            color: 'rgba(255, 255, 255, 0.1)',
+                            type: 'dashed'
+                        }
+                    }
+                },
+                
+                // 双Y轴系统
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '心率 (BPM) / 血氧 (%)',
+                        nameTextStyle: {
+                            color: '#ff6b6b',
+                            fontSize: 12,
+                            fontWeight: 'bold'
+                        },
+                        position: 'left',
+                        axisLine: { 
+                            lineStyle: { 
+                                color: 'rgba(255, 107, 107, 0.6)',
+                                width: 2
+                            } 
+                        },
+                        axisLabel: { 
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            fontSize: 11,
+                            fontWeight: 'bold'
+                        },
+                        splitLine: {
+                            show: true,
+                            lineStyle: {
+                                color: 'rgba(255, 107, 107, 0.1)',
+                                type: 'dashed'
+                            }
+                        }
+                    },
+                    {
+                        type: 'value',
+                        name: '体温 (°C)',
+                        nameTextStyle: {
+                            color: '#ffaa00',
+                            fontSize: 12,
+                            fontWeight: 'bold'
+                        },
+                        position: 'right',
+                        min: 35.0,
+                        max: 40.0,
+                        axisLine: { 
+                            lineStyle: { 
+                                color: 'rgba(255, 170, 0, 0.6)',
+                                width: 2
+                            } 
+                        },
+                        axisLabel: { 
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            fontSize: 11,
+                            fontWeight: 'bold',
+                            formatter: '{value}°C'
+                        },
+                        splitLine: {
+                            show: false
+                        }
+                    }
+                ],
+                
+                // 增强系列数据
+                series: [
+                    {
+                        name: '心率',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        
+                        // 3D线条效果
+                        lineStyle: { 
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 1, y2: 0,
+                                colorStops: [
+                                    { offset: 0, color: '#ff6b6b' },
+                                    { offset: 0.5, color: '#ff4757' },
+                                    { offset: 1, color: '#ff3838' }
+                                ]
+                            },
+                            width: 3,
+                            shadowColor: '#ff6b6b',
+                            shadowBlur: 15,
+                            shadowOffsetY: 0
+                        },
+                        
+                        // 3D数据点
+                        itemStyle: { 
+                            color: '#ff6b6b',
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            shadowColor: '#ff6b6b',
+                            shadowBlur: 10
+                        },
+                        
+                        // 区域填充
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(255, 107, 107, 0.3)' },
+                                    { offset: 1, color: 'rgba(255, 107, 107, 0.05)' }
+                                ]
+                            }
+                        },
+                        
+                        emphasis: {
+                            scale: 1.1,
+                            itemStyle: {
+                                shadowColor: '#ff6b6b',
+                                shadowBlur: 20
+                            }
+                        },
+                        
+                        // 标记健康区间
+                        markLine: {
+                            data: [
+                                { yAxis: 60, name: '正常下限', lineStyle: { color: '#00ff3c', type: 'dashed', opacity: 0.6 } },
+                                { yAxis: 100, name: '正常上限', lineStyle: { color: '#00ff3c', type: 'dashed', opacity: 0.6 } }
+                            ],
+                            label: { show: false }
+                        },
+                        
+                        data: []
+                    },
+                    
+                    {
+                        name: '血氧',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 8,
+                        
+                        lineStyle: { 
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 1, y2: 0,
+                                colorStops: [
+                                    { offset: 0, color: '#00e4ff' },
+                                    { offset: 0.5, color: '#00d2ee' },
+                                    { offset: 1, color: '#00bfcc' }
+                                ]
+                            },
+                            width: 3,
+                            shadowColor: '#00e4ff',
+                            shadowBlur: 15
+                        },
+                        
+                        itemStyle: { 
+                            color: '#00e4ff',
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            shadowColor: '#00e4ff',
+                            shadowBlur: 10
+                        },
+                        
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(0, 228, 255, 0.25)' },
+                                    { offset: 1, color: 'rgba(0, 228, 255, 0.05)' }
+                                ]
+                            }
+                        },
+                        
+                        emphasis: {
+                            scale: 1.1,
+                            itemStyle: {
+                                shadowColor: '#00e4ff',
+                                shadowBlur: 20
+                            }
+                        },
+                        
+                        markLine: {
+                            data: [
+                                { yAxis: 95, name: '正常下限', lineStyle: { color: '#00ff3c', type: 'dashed', opacity: 0.6 } }
+                            ],
+                            label: { show: false }
+                        },
+                        
+                        data: []
+                    },
+                    
+                    {
+                        name: '体温',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'rect',
+                        symbolSize: [10, 6],
+                        yAxisIndex: 1,
+                        
+                        lineStyle: { 
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 1, y2: 0,
+                                colorStops: [
+                                    { offset: 0, color: '#ffaa00' },
+                                    { offset: 0.5, color: '#ff9900' },
+                                    { offset: 1, color: '#ff8800' }
+                                ]
+                            },
+                            width: 3,
+                            shadowColor: '#ffaa00',
+                            shadowBlur: 15
+                        },
+                        
+                        itemStyle: { 
+                            color: '#ffaa00',
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            shadowColor: '#ffaa00',
+                            shadowBlur: 10
+                        },
+                        
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(255, 170, 0, 0.2)' },
+                                    { offset: 1, color: 'rgba(255, 170, 0, 0.05)' }
+                                ]
+                            }
+                        },
+                        
+                        emphasis: {
+                            scale: 1.1,
+                            itemStyle: {
+                                shadowColor: '#ffaa00',
+                                shadowBlur: 20
+                            }
+                        },
+                        
+                        markLine: {
+                            data: [
+                                { yAxis: 36.1, name: '正常下限', lineStyle: { color: '#00ff3c', type: 'dashed', opacity: 0.6 } },
+                                { yAxis: 37.3, name: '正常上限', lineStyle: { color: '#00ff3c', type: 'dashed', opacity: 0.6 } }
+                            ],
+                            label: { show: false }
+                        },
+                        
+                        data: []
+                    }
+                ],
+                
+                // 数据缩放控制
+                dataZoom: [
+                    {
+                        type: 'inside',
+                        start: 0,
+                        end: 100,
+                        filterMode: 'filter'
+                    },
+                    {
+                        show: true,
+                        type: 'slider',
+                        bottom: '2%',
+                        start: 0,
+                        end: 100,
+                        height: 20,
+                        textStyle: {
+                            color: '#ffffff'
+                        },
+                        borderColor: 'rgba(0, 255, 157, 0.3)',
+                        fillerColor: 'rgba(0, 255, 157, 0.2)',
+                        handleStyle: {
+                            color: '#00ff9d'
+                        }
+                    }
+                ],
+                
+                // 动画配置
+                animation: true,
+                animationDuration: 2000,
+                animationEasing: 'cubicOut',
+                animationDelay: function (idx) {
+                    return idx * 200;
+                }
+            };
+            
+            chartInstance.setOption(option);
+        }
+
+        // ============= 数据加载函数 =============
+        function loadHealthData() {
+            console.log('📊 加载实时健康数据...');
+            
+            fetch(`/api/personal/realtime_health?deviceSn=${deviceSn}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        console.log('✅ 健康数据加载成功:', result.data);
+                        updateHealthDisplay(result.data);
+                    } else {
+                        console.warn('⚠️ 健康数据加载失败:', result.error);
+                        // 使用备用模拟数据
+                        const mockData = generateMockHealthData();
+                        updateHealthDisplay(mockData);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ 健康数据API请求失败:', error);
+                    // 使用备用模拟数据
+                    const mockData = generateMockHealthData();
+                    updateHealthDisplay(mockData);
+                });
+        }
+
+        function generateMockHealthData() {
+            const now = Date.now();
+            return {
+                timestamp: now,
+                heartRate: Math.floor(Math.random() * 40) + 60,
+                bloodOxygen: Math.floor(Math.random() * 10) + 95,
+                temperature: (Math.random() * 2 + 36).toFixed(1),
+                systolic: Math.floor(Math.random() * 40) + 110,
+                diastolic: Math.floor(Math.random() * 20) + 70,
+                stepCount: Math.floor(Math.random() * 5000) + 2000
+            };
+        }
+
+        function updateHealthDisplay(data) {
+            healthData = data;
+            
+            console.log('🔄 更新健康数据显示:', data);
+            
+            // 更新心率 - 使用增强的3D图表
+            updateGaugeValue(chartInstances.heartRateGauge, data.heartRate, 180);
+            document.getElementById('heartRateValue').textContent = data.heartRate;
+            updateHealthStatus('heartRate', data.heartRate, 60, 100);
+            updateHealthCardStatus('heartRateCard', data.heartRate, 60, 100, 120);
+            
+            // 更新血氧 - 使用增强的3D图表
+            updateGaugeValue(chartInstances.bloodOxygenGauge, data.bloodOxygen, 100);
+            document.getElementById('bloodOxygenValue').textContent = data.bloodOxygen;
+            updateHealthStatus('bloodOxygen', data.bloodOxygen, 95, 100);
+            updateHealthCardStatus('bloodOxygenCard', data.bloodOxygen, 95, 100, 90);
+            
+            // 更新体温 - 使用增强的3D图表和医疗级温度范围
+            const tempValue = parseFloat(data.temperature);
+            updateGaugeValue(chartInstances.temperatureGauge, tempValue, 40);
+            document.getElementById('temperatureValue').textContent = data.temperature;
+            updateHealthStatus('temperature', tempValue, 36.1, 37.3);
+            updateHealthCardStatus('temperatureCard', tempValue, 36.1, 37.3, 38.0);
+            
+            // 更新其他生命体征指标
+            updateVitalSigns(data);
+            
+            // 更新健康统计和趋势分析
+            updateHealthStatistics(data);
+            
+            console.log('✅ 健康数据显示更新完成');
+        }
+
+        function updateHealthCardStatus(cardId, value, minNormal, maxNormal, criticalThreshold) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            
+            // 清除之前的状态类
+            card.classList.remove('alert-high', 'alert-critical');
+            
+            // 根据健康数值应用相应的视觉效果
+            if (value < minNormal || value > maxNormal) {
+                if ((cardId.includes('heartRate') && (value < 50 || value > criticalThreshold)) ||
+                    (cardId.includes('bloodOxygen') && value < criticalThreshold) ||
+                    (cardId.includes('temperature') && value > criticalThreshold)) {
+                    card.classList.add('alert-critical');
+                } else {
+                    card.classList.add('alert-high');
+                }
+            }
+        }
+
+        function updateVitalSigns(data) {
+            // 更新血压指标
+            const systolicElement = document.getElementById('systolicValue');
+            const diastolicElement = document.getElementById('diastolicValue');
+            
+            if (systolicElement && data.systolic) {
+                systolicElement.textContent = data.systolic + ' mmHg';
+                // 血压分级显示
+                if (data.systolic > 140 || data.diastolic > 90) {
+                    systolicElement.style.color = '#ff4757';
+                    systolicElement.style.fontWeight = 'bold';
+                } else if (data.systolic > 130 || data.diastolic > 85) {
+                    systolicElement.style.color = '#ffaa00';
+                } else {
+                    systolicElement.style.color = '#00ff3c';
+                }
+            }
+            
+            if (diastolicElement && data.diastolic) {
+                diastolicElement.textContent = data.diastolic + ' mmHg';
+                if (data.diastolic > 90) {
+                    diastolicElement.style.color = '#ff4757';
+                    diastolicElement.style.fontWeight = 'bold';
+                } else if (data.diastolic > 85) {
+                    diastolicElement.style.color = '#ffaa00';
+                } else {
+                    diastolicElement.style.color = '#00ff3c';
+                }
+            }
+            
+            // 更新步数和活动等级
+            const stepCountElement = document.getElementById('stepCount');
+            const activityLevelElement = document.getElementById('activityLevel');
+            
+            if (stepCountElement && data.stepCount !== undefined) {
+                stepCountElement.textContent = data.stepCount.toLocaleString();
+                
+                // 根据步数显示活动等级
+                let activityLevel = '轻度';
+                let activityColor = '#ffaa00';
+                
+                if (data.stepCount > 10000) {
+                    activityLevel = '非常活跃';
+                    activityColor = '#00ff3c';
+                } else if (data.stepCount > 7000) {
+                    activityLevel = '活跃';
+                    activityColor = '#00e4ff';
+                } else if (data.stepCount > 5000) {
+                    activityLevel = '中等';
+                    activityColor = '#ffaa00';
+                } else if (data.stepCount < 2000) {
+                    activityLevel = '久坐';
+                    activityColor = '#ff4757';
+                }
+                
+                if (activityLevelElement) {
+                    activityLevelElement.textContent = activityLevel;
+                    activityLevelElement.style.color = activityColor;
+                    activityLevelElement.style.fontWeight = 'bold';
+                }
+            }
+        }
+
+        function updateHealthStatistics(data) {
+            // 更新健康详情统计
+            try {
+                // 心率统计
+                if (data.heartRate) {
+                    updateStatDetail('heartRateMax', Math.max(data.heartRate, getStoredMaxValue('heartRate', data.heartRate)));
+                    updateStatDetail('heartRateMin', Math.min(data.heartRate, getStoredMinValue('heartRate', data.heartRate)));
+                    updateStatDetail('heartRateAvg', calculateRunningAverage('heartRate', data.heartRate));
+                }
+                
+                // 血氧统计
+                if (data.bloodOxygen) {
+                    updateStatDetail('bloodOxygenMax', Math.max(data.bloodOxygen, getStoredMaxValue('bloodOxygen', data.bloodOxygen)));
+                    updateStatDetail('bloodOxygenMin', Math.min(data.bloodOxygen, getStoredMinValue('bloodOxygen', data.bloodOxygen)));
+                    updateStatDetail('bloodOxygenAvg', calculateRunningAverage('bloodOxygen', data.bloodOxygen));
+                }
+                
+                // 存储当前数据用于统计
+                storeHealthDataForStats(data);
+                
+            } catch (error) {
+                console.warn('⚠️ 健康统计更新出错:', error);
+            }
+        }
+
+        function updateStatDetail(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element && value !== undefined) {
+                if (elementId.includes('heartRate')) {
+                    element.textContent = Math.round(value) + ' BPM';
+                } else if (elementId.includes('bloodOxygen')) {
+                    element.textContent = Math.round(value) + '%';
+                } else if (elementId.includes('temperature')) {
+                    element.textContent = value.toFixed(1) + '°C';
+                }
+            }
+        }
+
+        function getStoredMaxValue(type, currentValue) {
+            const stored = localStorage.getItem(`health_max_${type}`);
+            const maxVal = stored ? Math.max(parseFloat(stored), currentValue) : currentValue;
+            localStorage.setItem(`health_max_${type}`, maxVal.toString());
+            return maxVal;
+        }
+
+        function getStoredMinValue(type, currentValue) {
+            const stored = localStorage.getItem(`health_min_${type}`);
+            const minVal = stored ? Math.min(parseFloat(stored), currentValue) : currentValue;
+            localStorage.setItem(`health_min_${type}`, minVal.toString());
+            return minVal;
+        }
+
+        function calculateRunningAverage(type, currentValue) {
+            const history = JSON.parse(localStorage.getItem(`health_history_${type}`) || '[]');
+            history.push(currentValue);
+            if (history.length > 100) history.shift(); // 保持最近100个数据点
+            
+            localStorage.setItem(`health_history_${type}`, JSON.stringify(history));
+            
+            const avg = history.reduce((sum, val) => sum + val, 0) / history.length;
+            return Math.round(avg * 10) / 10; // 保留一位小数
+        }
+
+        function storeHealthDataForStats(data) {
+            const timestamp = Date.now();
+            const statsEntry = {
+                timestamp,
+                heartRate: data.heartRate,
+                bloodOxygen: data.bloodOxygen,
+                temperature: parseFloat(data.temperature),
+                systolic: data.systolic,
+                diastolic: data.diastolic
+            };
+            
+            const recentStats = JSON.parse(localStorage.getItem('recent_health_stats') || '[]');
+            recentStats.push(statsEntry);
+            
+            // 保持最近1000个数据点
+            if (recentStats.length > 1000) recentStats.shift();
+            
+            localStorage.setItem('recent_health_stats', JSON.stringify(recentStats));
+        }
+
+        function updateGaugeValue(chartInstance, value, max) {
+            // 更新仪表盘数值并添加动态颜色和动画效果
+            const seriesConfig = {
+                data: [{ value: Math.min(value, max) }]
+            };
+            
+            // 根据数值动态调整颜色和效果
+            if (chartInstance._chartName === '心率') {
+                updateHeartRateGauge(chartInstance, value);
+            } else if (chartInstance._chartName === '血氧') {
+                updateBloodOxygenGauge(chartInstance, value);
+            } else if (chartInstance._chartName === '体温') {
+                updateTemperatureGauge(chartInstance, value);
+            } else {
+                // 通用仪表盘更新
+                chartInstance.setOption(seriesConfig);
+            }
+        }
+
+        function updateHeartRateGauge(chartInstance, heartRate) {
+            // 心率专用更新逻辑
+            let status = 'normal';
+            let alertColor = '#00ff3c';
+            let pulseEffect = '';
+            
+            if (heartRate < 50) {
+                status = 'low';
+                alertColor = '#ff4757';
+                pulseEffect = 'slow';
+            } else if (heartRate > 120) {
+                status = 'high';
+                alertColor = '#ff4757';
+                pulseEffect = 'fast';
+            } else if (heartRate > 100) {
+                status = 'elevated';
+                alertColor = '#ffaa00';
+                pulseEffect = 'moderate';
+            }
+            
+            const option = {
+                series: [{
+                    data: [{ 
+                        value: heartRate,
+                        name: `💓 心率: ${heartRate} BPM`
+                    }],
+                    detail: {
+                        formatter: `{value} BPM`,
+                        color: alertColor,
+                        backgroundColor: `${alertColor}15`,
+                        shadowColor: alertColor,
+                        shadowBlur: status === 'normal' ? 10 : 20
+                    },
+                    pointer: {
+                        itemStyle: {
+                            shadowBlur: status === 'normal' ? 15 : 25,
+                            shadowColor: alertColor
+                        }
+                    }
+                }]
+            };
+            
+            chartInstance.setOption(option);
+            
+            // 添加心率过高/过低的视觉警告效果
+            if (status !== 'normal') {
+                addHeartBeatAnimation(chartInstance, pulseEffect);
+            }
+        }
+
+        function updateBloodOxygenGauge(chartInstance, spo2) {
+            // 血氧饱和度专用更新逻辑
+            let status = 'normal';
+            let alertColor = '#00e4ff';
+            
+            if (spo2 < 90) {
+                status = 'critical';
+                alertColor = '#ff4757';
+            } else if (spo2 < 95) {
+                status = 'low';
+                alertColor = '#ffaa00';
+            } else if (spo2 >= 98) {
+                status = 'excellent';
+                alertColor = '#00ff3c';
+            }
+            
+            const option = {
+                series: [{
+                    data: [{ 
+                        value: spo2,
+                        name: `🩸 血氧: ${spo2}%`
+                    }],
+                    detail: {
+                        formatter: `{value}%`,
+                        color: alertColor,
+                        backgroundColor: `${alertColor}15`,
+                        shadowColor: alertColor,
+                        shadowBlur: status === 'critical' ? 25 : 12
+                    },
+                    pointer: {
+                        itemStyle: {
+                            shadowBlur: status === 'critical' ? 30 : 20,
+                            shadowColor: alertColor
+                        }
+                    }
+                }]
+            };
+            
+            chartInstance.setOption(option);
+        }
+
+        function updateTemperatureGauge(chartInstance, temperature) {
+            // 体温专用更新逻辑
+            let status = 'normal';
+            let alertColor = '#ffaa00';
+            let tempLevel = '';
+            
+            if (temperature < 36.1) {
+                status = 'hypothermia';
+                alertColor = '#00d4ff';
+                tempLevel = '体温偏低';
+            } else if (temperature > 38.0) {
+                status = 'fever';
+                alertColor = '#ff4757';
+                tempLevel = '发热';
+            } else if (temperature > 37.3) {
+                status = 'elevated';
+                alertColor = '#ffaa00';
+                tempLevel = '轻微偏高';
+            } else {
+                tempLevel = '体温正常';
+                alertColor = '#00ff3c';
+            }
+            
+            const option = {
+                series: [{
+                    data: [{ 
+                        value: temperature,
+                        name: `🌡️ ${tempLevel}: ${temperature}°C`
+                    }],
+                    detail: {
+                        formatter: `{value}°C`,
+                        color: alertColor,
+                        backgroundColor: `${alertColor}15`,
+                        shadowColor: alertColor,
+                        shadowBlur: status === 'fever' ? 25 : 10
+                    },
+                    pointer: {
+                        itemStyle: {
+                            shadowBlur: status === 'fever' ? 30 : 18,
+                            shadowColor: alertColor
+                        }
+                    }
+                }]
+            };
+            
+            chartInstance.setOption(option);
+            
+            // 发热时添加特殊效果
+            if (status === 'fever') {
+                addFeverAnimation(chartInstance);
+            }
+        }
+
+        function addHeartBeatAnimation(chartInstance, intensity) {
+            // 心率异常时的动画效果
+            const animationDuration = intensity === 'fast' ? 800 : intensity === 'slow' ? 2000 : 1200;
+            
+            chartInstance.setOption({
+                animation: true,
+                animationDuration: animationDuration,
+                animationEasing: 'elasticOut'
+            });
+            
+            // 添加DOM级别的脉冲效果
+            const chartDom = chartInstance.getDom();
+            if (chartDom) {
+                chartDom.style.animation = `heartbeat-${intensity} ${animationDuration}ms infinite`;
+            }
+        }
+
+        function addFeverAnimation(chartInstance) {
+            // 发热时的视觉警告效果
+            const chartDom = chartInstance.getDom();
+            if (chartDom) {
+                chartDom.style.animation = 'fever-warning 1500ms infinite';
+                chartDom.style.filter = 'drop-shadow(0 0 10px #ff4757)';
+            }
+        }
+
+        function updateHealthStatus(type, value, minNormal, maxNormal) {
+            const statusElement = document.getElementById(type + 'Status');
+            const levelElement = document.getElementById(type + 'Level');
+            
+            let status = 'normal';
+            let level = '正常';
+            
+            if (value < minNormal || value > maxNormal) {
+                status = 'warning';
+                level = '异常';
+                if (type === 'heartRate' && (value < 50 || value > 120)) {
+                    status = 'critical';
+                    level = '危险';
+                }
+            }
+            
+            statusElement.className = 'health-status ' + status;
+            if (levelElement) {
+                levelElement.textContent = level;
+            }
+        }
+
+        function updateTrendChart(historyData) {
+            if (!historyData || !chartInstances.mainChart) {
+                console.warn('⚠️ 图表实例或历史数据不可用');
+                return;
+            }
+            
+            const option = {
+                series: [
+                    {
+                        data: historyData.heartRate || []
+                    },
+                    {
+                        data: historyData.bloodOxygen || []
+                    },
+                    {
+                        data: historyData.temperature || []
+                    }
+                ]
+            };
+            
+            chartInstances.mainChart.setOption(option, true); // true表示不合并，完全替换数据
+            console.log('📊 趋势图表已更新');
+        }
+
+        // ============= 消息和告警加载 =============
+        function loadMessages() {
+            console.log('💬 加载消息数据...');
+            
+            fetch(`/api/personal/messages?deviceSn=${deviceSn}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        console.log('✅ 消息数据加载成功:', result.data.messages.length, '条消息');
+                        updateMessageDisplay(result.data.messages);
+                    } else {
+                        console.warn('⚠️ 消息数据加载失败:', result.error);
+                        // 使用备用数据
+                        const messages = [
+                            { type: 'system', content: '设备连接正常', time: '10:30', status: 'read' },
+                            { type: 'alert', content: '心率轻微偏高', time: '10:15', status: 'unread' }
+                        ];
+                        updateMessageDisplay(messages);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ 消息数据API请求失败:', error);
+                    // 使用备用数据
+                    const messages = [
+                        { type: 'system', content: '设备连接正常', time: '10:30', status: 'read' },
+                        { type: 'alert', content: '心率轻微偏高', time: '10:15', status: 'unread' }
+                    ];
+                    updateMessageDisplay(messages);
+                });
+        }
+
+        function updateMessageDisplay(messages) {
+            const messageList = document.getElementById('messageList');
+            const messageCount = document.getElementById('messageCount');
+            
+            // 统计未读消息数量
+            const unreadCount = messages.filter(msg => msg.status === 'unread').length;
+            messageCount.textContent = unreadCount;
+            
+            if (messages.length === 0) {
+                messageList.innerHTML = '<div class="message-item"><div class="message-content">暂无消息</div></div>';
+                return;
+            }
+            
+            messageList.innerHTML = messages.map(msg => `
+                <div class="message-item ${msg.status === 'unread' ? 'unread' : ''}">
+                    <div class="message-content">${msg.content}</div>
+                    <div class="message-meta">
+                        <div class="message-type ${msg.type}">${msg.type === 'alert' ? '告警' : msg.type === 'system' ? '系统' : '通知'}</div>
+                        <div class="message-time">${msg.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadAlerts() {
+            console.log('🚨 加载告警数据...');
+            
+            fetch(`/api/personal/alerts?deviceSn=${deviceSn}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        console.log('✅ 告警数据加载成功:', result.data.alerts.length, '条告警');
+                        updateAlertDisplay(result.data.alerts);
+                        // 更新告警统计
+                        document.getElementById('alertCount').textContent = result.data.pendingCount;
+                        document.getElementById('alertTrend').textContent = `今日新增 ${result.data.totalCount} 条`;
+                    } else {
+                        console.warn('⚠️ 告警数据加载失败:', result.error);
+                        // 使用备用数据
+                        const alerts = [
+                            { level: 'warning', content: '心率异常', time: '10:15', status: 'pending' }
+                        ];
+                        updateAlertDisplay(alerts);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ 告警数据API请求失败:', error);
+                    // 使用备用数据
+                    const alerts = [
+                        { level: 'warning', content: '心率异常', time: '10:15', status: 'pending' }
+                    ];
+                    updateAlertDisplay(alerts);
+                });
+        }
+
+        function updateAlertDisplay(alerts) {
+            const alertList = document.getElementById('alertList');
+            
+            if (alerts.length === 0) {
+                alertList.innerHTML = '<div class="alert-item"><div class="alert-text">暂无告警</div></div>';
+                return;
+            }
+            
+            alertList.innerHTML = alerts.map(alert => {
+                let icon = '⚠';
+                if (alert.level === 'critical') icon = '🔴';
+                else if (alert.level === 'warning') icon = '⚠️';
+                else if (alert.level === 'info') icon = 'ℹ️';
+                
+                return `
+                    <div class="alert-item alert-${alert.level}">
+                        <div class="alert-icon">${icon}</div>
+                        <div class="alert-text">${alert.content}</div>
+                        <div class="alert-time">${alert.time}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadDeviceStatus() {
+            console.log('📱 加载设备状态...');
+            
+            fetch(`/api/personal/device_status?deviceSn=${deviceSn}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        console.log('✅ 设备状态加载成功:', result.data);
+                        updateDeviceStatus(result.data);
+                    } else {
+                        console.warn('⚠️ 设备状态加载失败:', result.error);
+                        // 使用备用数据
+                        const deviceData = {
+                            batteryLevel: Math.floor(Math.random() * (100 - 20)) + 20,
+                            status: 'ACTIVE',
+                            lastUpdate: new Date()
+                        };
+                        updateDeviceStatus(deviceData);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ 设备状态API请求失败:', error);
+                    // 使用备用数据
+                    const deviceData = {
+                        batteryLevel: Math.floor(Math.random() * (100 - 20)) + 20,
+                        status: 'ACTIVE',
+                        lastUpdate: new Date()
+                    };
+                    updateDeviceStatus(deviceData);
+                });
+        }
+
+        function loadHistoryChart() {
+            console.log('📈 加载历史数据图表...');
+            
+            fetch(`/api/personal/health_history?deviceSn=${deviceSn}&timeRange=${currentTimeRange}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        console.log('✅ 历史数据加载成功:', result.data.totalRecords, '条记录');
+                        updateTrendChart(result.data);
+                    } else {
+                        console.warn('⚠️ 历史数据加载失败:', result.error);
+                        // 使用备用模拟数据
+                        const now = new Date();
+                        const historyData = [];
+                        for (let i = 23; i >= 0; i--) {
+                            const timestamp = new Date(now - i * 3600000);
+                            historyData.push({
+                                timestamp: timestamp,
+                                heartRate: Math.floor(Math.random() * (90 - 60)) + 60,
+                                bloodOxygen: Math.floor(Math.random() * (100 - 95)) + 95,
+                                temperature: (Math.random() * (37.2 - 36.2) + 36.2).toFixed(1)
+                            });
+                        }
+                        const formattedData = {
+                            heartRate: historyData.map(d => [d.timestamp.toISOString(), d.heartRate]),
+                            bloodOxygen: historyData.map(d => [d.timestamp.toISOString(), d.bloodOxygen]),
+                            temperature: historyData.map(d => [d.timestamp.toISOString(), parseFloat(d.temperature)])
+                        };
+                        updateTrendChart(formattedData);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ 历史数据API请求失败:', error);
+                    // 使用备用模拟数据
+                    const now = new Date();
+                    const historyData = [];
+                    for (let i = 23; i >= 0; i--) {
+                        const timestamp = new Date(now - i * 3600000);
+                        historyData.push({
+                            timestamp: timestamp,
+                            heartRate: Math.floor(Math.random() * (90 - 60)) + 60,
+                            bloodOxygen: Math.floor(Math.random() * (100 - 95)) + 95,
+                            temperature: (Math.random() * (37.2 - 36.2) + 36.2).toFixed(1)
+                        });
+                    }
+                    const formattedData = {
+                        heartRate: historyData.map(d => [d.timestamp.toISOString(), d.heartRate]),
+                        bloodOxygen: historyData.map(d => [d.timestamp.toISOString(), d.bloodOxygen]),
+                        temperature: historyData.map(d => [d.timestamp.toISOString(), parseFloat(d.temperature)])
+                    };
+                    updateTrendChart(formattedData);
+                });
+        }
+
+        function initializeDeviceStatusDisplay() {
+            // 初始化设备状态显示
+            const statusText = document.getElementById('deviceStatusText');
+            const statusIndicator = document.querySelector('.status-indicator');
+            
+            if (statusText) {
+                statusText.textContent = `设备 ${deviceSn} 初始化中...`;
+            }
+            if (statusIndicator) {
+                statusIndicator.style.background = '#ffaa00'; // 初始化为黄色
+            }
+            
+            console.log('📱 设备状态显示初始化完成');
+        }
+
+        function updateDeviceStatus(deviceData) {
+            if (!deviceData) {
+                console.warn('⚠️ updateDeviceStatus: deviceData 参数为空');
+                return;
+            }
+            
+            // 更新设备状态显示
+            const statusText = document.getElementById('deviceStatusText');
+            const statusIndicator = document.querySelector('.status-indicator');
+            
+            if (statusText) {
+                const statusDesc = deviceData.status === 'ACTIVE' ? '在线' : '离线';
+                statusText.textContent = `设备 ${deviceSn} ${statusDesc}`;
+            }
+            
+            if (statusIndicator) {
+                statusIndicator.style.background = deviceData.status === 'ACTIVE' ? '#00ff9d' : '#ff4757';
+            }
+            
+            console.log('📱 设备状态已更新:', deviceData);
+        }
+
+        // ============= WebSocket连接 =============
+        function initializeWebSocket() {
+            try {
+                socket = io();
+                
+                socket.on('connect', function() {
+                    console.log('🔗 WebSocket已连接');
+                });
+                
+                socket.on('health_data_update', function(data) {
+                    console.log('📊 收到实时健康数据:', data);
+                    updateHealthDisplay(data);
+                });
+                
+                socket.on('disconnect', function() {
+                    console.log('🔌 WebSocket连接断开');
+                });
+            } catch (error) {
+                console.log('⚠️ WebSocket连接失败:', error);
+            }
+        }
+
+        // ============= 个性化功能 ============= 
+        function switchTheme(themeName) {
+            console.log('🎨 切换主题:', themeName);
+            
+            // 移除所有主题类
+            document.body.classList.remove('theme-deep-blue', 'theme-purple', 'theme-eco-green', 'theme-warm-orange');
+            
+            // 添加新主题类
+            if (themeName !== 'default') {
+                document.body.classList.add(`theme-${themeName}`);
+            }
+            
+            // 保存主题偏好到localStorage
+            localStorage.setItem('personalTheme', themeName);
+            
+            // 重新加载图表以更新颜色
+            updateChartsTheme();
+        }
+
+        function switchLayout(layoutType) {
+            console.log('📊 切换布局:', layoutType);
+            
+            // 移除所有布局类
+            document.body.classList.remove('layout-compact', 'layout-expanded');
+            
+            // 添加新布局类
+            if (layoutType !== 'standard') {
+                document.body.classList.add(`layout-${layoutType}`);
+            }
+            
+            // 保存布局偏好到localStorage
+            localStorage.setItem('personalLayout', layoutType);
+            
+            // 重新调整图表尺寸
+            setTimeout(() => {
+                Object.values(chartInstances).forEach(chart => {
+                    if (chart && typeof chart.resize === 'function') {
+                        chart.resize();
+                    }
+                });
+            }, 300);
+        }
+
+        function toggleSettings() {
+            console.log('⚙️ 切换设置面板');
+            // 这里可以添加高级设置面板的显示/隐藏功能
+            alert('高级设置功能开发中...');
+        }
+
+        function updateChartsTheme() {
+            // 获取当前主题颜色
+            const rootStyles = getComputedStyle(document.documentElement);
+            const primaryColor = rootStyles.getPropertyValue('--primary-color').trim();
+            const secondaryColor = rootStyles.getPropertyValue('--secondary-color').trim();
+            const accentColor = rootStyles.getPropertyValue('--accent-color').trim();
+            
+            console.log('📊 更新图表主题颜色:', { primaryColor, secondaryColor, accentColor });
+            
+            // 更新仪表盘颜色
+            Object.entries(chartInstances).forEach(([key, chart]) => {
+                if (chart && key.includes('Gauge')) {
+                    let gaugeColor = primaryColor;
+                    if (key === 'heartRateGauge') gaugeColor = accentColor;
+                    else if (key === 'bloodOxygenGauge') gaugeColor = secondaryColor;
+                    
+                    chart.setOption({
+                        series: [{
+                            itemStyle: {
+                                color: gaugeColor,
+                                shadowColor: `${gaugeColor}66`,
+                                shadowBlur: 10
+                            },
+                            progress: {
+                                itemStyle: {
+                                    color: {
+                                        type: 'linear',
+                                        x: 0, y: 0, x2: 1, y2: 0,
+                                        colorStops: [
+                                            { offset: 0, color: gaugeColor + '22' },
+                                            { offset: 1, color: gaugeColor }
+                                        ]
+                                    }
+                                }
+                            },
+                            axisLine: {
+                                lineStyle: {
+                                    color: [[1, `${gaugeColor}22`]]
+                                }
+                            }
+                        }]
+                    });
+                }
+            });
+            
+            // 更新主趋势图颜色
+            if (chartInstances.mainChart) {
+                chartInstances.mainChart.setOption({
+                    series: [
+                        {
+                            lineStyle: { color: accentColor },
+                            itemStyle: { color: accentColor }
+                        },
+                        {
+                            lineStyle: { color: secondaryColor },
+                            itemStyle: { color: secondaryColor }
+                        },
+                        {
+                            lineStyle: { color: primaryColor },
+                            itemStyle: { color: primaryColor }
+                        }
+                    ]
+                });
+            }
+        }
+
+        function loadPersonalizationSettings() {
+            // 加载保存的主题设置
+            const savedTheme = localStorage.getItem('personalTheme') || 'default';
+            const themeSelect = document.getElementById('themeSelect');
+            if (themeSelect) {
+                themeSelect.value = savedTheme;
+                switchTheme(savedTheme);
+            }
+            
+            // 加载保存的布局设置
+            const savedLayout = localStorage.getItem('personalLayout') || 'standard';
+            const layoutSelect = document.getElementById('layoutSelect');
+            if (layoutSelect) {
+                layoutSelect.value = savedLayout;
+                switchLayout(savedLayout);
+            }
+            
+            console.log('⚙️ 加载个性化设置:', { theme: savedTheme, layout: savedLayout });
+        }
+
+        // ============= 交互函数 =============
+        function switchTimeRange(range) {
+            currentTimeRange = range;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.control-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            console.log('📈 切换时间范围:', range);
+            // 重新加载对应时间范围的历史数据
+            loadHistoryChart();
+        }
+
+        function showAlertDetails() {
+            console.log('🚨 显示告警详情');
+            
+            // 获取详细的告警信息
+            fetch(`/api/personal/alerts?deviceSn=${deviceSn}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        showAlertModal(result.data.alerts);
+                    } else {
+                        console.error('获取告警详情失败:', result.error);
+                        showAlertModal([]); // 显示空告警列表
+                    }
+                })
+                .catch(error => {
+                    console.error('告警详情API请求失败:', error);
+                    showAlertModal([]); // 显示空告警列表
+                });
+        }
+
+        function showAlertModal(alerts) {
+            const modalHTML = `
+                <div class="alert-modal" id="alertModal">
+                    <div class="alert-modal-content">
+                        <div class="alert-modal-header">
+                            <h3>🚨 健康告警详情</h3>
+                            <button class="modal-close-btn" onclick="closeAlertModal()">✕</button>
+                        </div>
+                        <div class="alert-modal-body">
+                            ${alerts.length === 0 ? 
+                                '<div class="no-alerts">🎉 太棒了！目前没有任何告警。</div>' : 
+                                alerts.map(alert => `
+                                    <div class="alert-detail-item alert-${alert.level}" data-alert-id="${alert.id}">
+                                        <div class="alert-detail-header">
+                                            <span class="alert-level-badge ${alert.level}">
+                                                ${alert.level === 'critical' ? '🔴 严重' : 
+                                                  alert.level === 'warning' ? '⚠️ 警告' : 
+                                                  alert.level === 'info' ? 'ℹ️ 信息' : '🔵 通知'}
+                                            </span>
+                                            <span class="alert-time">${alert.time}</span>
+                                        </div>
+                                        <div class="alert-content">${alert.content}</div>
+                                        <div class="alert-actions">
+                                            <button class="alert-action-btn primary" onclick="handleAlert('${alert.id}', 'acknowledge')">
+                                                ✓ 确认
+                                            </button>
+                                            <button class="alert-action-btn secondary" onclick="handleAlert('${alert.id}', 'dismiss')">
+                                                ✕ 关闭
+                                            </button>
+                                            ${alert.level === 'critical' ? 
+                                                `<button class="alert-action-btn danger" onclick="handleAlert('${alert.id}', 'emergency')">
+                                                    🆘 紧急处理
+                                                </button>` : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                        </div>
+                        <div class="alert-modal-footer">
+                            <button class="modal-btn secondary" onclick="closeAlertModal()">关闭</button>
+                            <button class="modal-btn primary" onclick="markAllAlertsRead()">全部标记为已读</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 添加模态框到页面
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // 显示动画
+            setTimeout(() => {
+                document.getElementById('alertModal').classList.add('show');
+            }, 10);
+        }
+
+        function closeAlertModal() {
+            const modal = document.getElementById('alertModal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.remove();
+                }, 300);
+            }
+        }
+
+        function handleAlert(alertId, action) {
+            console.log(`🛠️ 处理告警 ${alertId}: ${action}`);
+            
+            // 这里可以发送API请求来处理告警
+            const actionMessages = {
+                acknowledge: '告警已确认',
+                dismiss: '告警已关闭',
+                emergency: '已启动紧急处理流程'
+            };
+            
+            // 更新UI显示
+            const alertElement = document.querySelector(`[data-alert-id="${alertId}"]`);
+            if (alertElement) {
+                alertElement.style.opacity = '0.5';
+                alertElement.querySelector('.alert-content').innerHTML += 
+                    `<div class="alert-status">✓ ${actionMessages[action]}</div>`;
+            }
+            
+            // 显示成功消息
+            showToast(actionMessages[action], 'success');
+            
+            // 在真实实现中，这里应该发送API请求
+            // fetch(`/api/alerts/${alertId}/handle`, {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ action: action })
+            // });
+        }
+
+        function markAllAlertsRead() {
+            console.log('📝 标记所有告警为已读');
+            
+            // 更新所有告警项的显示状态
+            document.querySelectorAll('.alert-detail-item').forEach(item => {
+                item.style.opacity = '0.5';
+                const content = item.querySelector('.alert-content');
+                if (!content.querySelector('.alert-status')) {
+                    content.innerHTML += '<div class="alert-status">✓ 已读</div>';
+                }
+            });
+            
+            showToast('所有告警已标记为已读', 'success');
+            
+            // 延迟关闭模态框
+            setTimeout(() => {
+                closeAlertModal();
+                // 刷新告警列表
+                loadAlerts();
+            }, 1500);
+        }
+
+        function showToast(message, type = 'info') {
+            const toastHTML = `
+                <div class="toast toast-${type}" id="toast">
+                    <div class="toast-content">
+                        <span class="toast-icon">
+                            ${type === 'success' ? '✓' : 
+                              type === 'error' ? '✕' : 
+                              type === 'warning' ? '⚠️' : 'ℹ️'}
+                        </span>
+                        <span class="toast-message">${message}</span>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', toastHTML);
+            
+            const toast = document.getElementById('toast');
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ============= 工具函数 =============
+        function formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString();
+        }
+
+        function formatNumber(num) {
+            return num.toLocaleString();
+        }
+
+        // ============= 响应式处理 =============
+        let currentBreakpoint = 'desktop';
+        
+        function detectBreakpoint() {
+            const width = window.innerWidth;
+            let newBreakpoint;
+            
+            if (width <= 360) {
+                newBreakpoint = 'xs';
+            } else if (width <= 599) {
+                newBreakpoint = 'mobile';
+            } else if (width <= 767) {
+                newBreakpoint = 'tablet';
+            } else if (width <= 1199) {
+                newBreakpoint = 'laptop';
+            } else {
+                newBreakpoint = 'desktop';
+            }
+            
+            if (newBreakpoint !== currentBreakpoint) {
+                console.log('📱 屏幕尺寸变化:', currentBreakpoint, '->', newBreakpoint);
+                currentBreakpoint = newBreakpoint;
+                handleBreakpointChange(newBreakpoint);
+            }
+        }
+        
+        function handleBreakpointChange(breakpoint) {
+            const body = document.body;
+            const mainContent = document.querySelector('.main-grid');
+            
+            // 移除所有断点相关的类
+            body.classList.remove('breakpoint-xs', 'breakpoint-mobile', 'breakpoint-tablet', 'breakpoint-laptop', 'breakpoint-desktop');
+            body.classList.add(`breakpoint-${breakpoint}`);
+            
+            // 移动端特殊处理
+            if (breakpoint === 'mobile' || breakpoint === 'xs') {
+                reorganizeMobileLayout();
+            } else {
+                restoreDesktopLayout();
+            }
+            
+            // 延迟重新调整图表尺寸
+            setTimeout(() => {
+                Object.values(chartInstances).forEach(chart => {
+                    if (chart && typeof chart.resize === 'function') {
+                        chart.resize();
+                    }
+                });
+            }, 100);
+        }
+        
+        function reorganizeMobileLayout() {
+            console.log('📱 重组移动端布局');
+            
+            const leftPanel = document.querySelector('.left-panel');
+            const centerPanel = document.querySelector('.center-panel');
+            const rightPanel = document.querySelector('.right-panel');
+            const mainGrid = document.querySelector('.main-grid');
+            
+            if (!leftPanel || !centerPanel || !rightPanel) return;
+            
+            // 创建移动版布局容器
+            if (!document.querySelector('.mobile-layout')) {
+                const mobileLayout = document.createElement('div');
+                mobileLayout.className = 'mobile-layout';
+                
+                // 健康指标行
+                const healthRow = document.createElement('div');
+                healthRow.className = 'health-metrics-row';
+                
+                // 移动健康卡片到横向布局
+                const healthCards = leftPanel.querySelectorAll('.health-card');
+                healthCards.forEach(card => {
+                    healthRow.appendChild(card.cloneNode(true));
+                });
+                
+                // 消息告警行
+                const messageAlertRow = document.createElement('div');
+                messageAlertRow.className = 'message-alert-row';
+                
+                const rightPanels = rightPanel.querySelectorAll('.message-panel, .alert-panel');
+                rightPanels.forEach(panel => {
+                    messageAlertRow.appendChild(panel.cloneNode(true));
+                });
+                
+                // 组装移动版布局
+                mobileLayout.appendChild(healthRow);
+                mobileLayout.appendChild(centerPanel.cloneNode(true));
+                mobileLayout.appendChild(messageAlertRow);
+                
+                // 替换原有布局
+                leftPanel.style.display = 'none';
+                centerPanel.style.display = 'none';
+                rightPanel.style.display = 'none';
+                
+                mainGrid.appendChild(mobileLayout);
+                
+                // 重新绑定事件监听器
+                bindMobileEventListeners();
+            }
+        }
+        
+        function restoreDesktopLayout() {
+            console.log('🖥️ 恢复桌面端布局');
+            
+            const mobileLayout = document.querySelector('.mobile-layout');
+            if (mobileLayout) {
+                mobileLayout.remove();
+            }
+            
+            // 恢复原有面板显示
+            const leftPanel = document.querySelector('.left-panel');
+            const centerPanel = document.querySelector('.center-panel');
+            const rightPanel = document.querySelector('.right-panel');
+            
+            if (leftPanel) leftPanel.style.display = 'flex';
+            if (centerPanel) centerPanel.style.display = 'flex';
+            if (rightPanel) rightPanel.style.display = 'flex';
+        }
+        
+        function bindMobileEventListeners() {
+            // 为移动版布局中的元素重新绑定事件
+            const mobileAlertPanel = document.querySelector('.mobile-layout .alert-panel');
+            if (mobileAlertPanel) {
+                mobileAlertPanel.addEventListener('click', showAlertDetails);
+            }
+        }
+        
+        // 监听窗口尺寸变化
+        window.addEventListener('resize', function() {
+            detectBreakpoint();
+        });
+        
+        // 监听设备方向变化
+        window.addEventListener('orientationchange', function() {
+            setTimeout(() => {
+                detectBreakpoint();
+            }, 100);
+        });
+        
+        // 初始化时检测断点
+        function initializeResponsive() {
+            detectBreakpoint();
+        }
+
+        // ============= 错误处理 =============
+        window.addEventListener('error', function(event) {
+            console.error('⚠️ 页面错误:', event.error);
+        });
+
+        console.log('✅ 个人健康大屏初始化完成');
+    </script>
+</body>
+</html>

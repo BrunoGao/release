@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大屏性能监控</title>
+    <style>
+        body { font-family: monospace; background: #001529; color: #00e4ff; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .metric { background: rgba(0,21,41,0.8); padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .good { border-left: 5px solid #52c41a; }
+        .warning { border-left: 5px solid #faad14; }
+        .bad { border-left: 5px solid #ff4d4f; }
+        .test-btn { background: #1890ff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        #results { white-space: pre-wrap; background: #000; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: scroll; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 大屏性能监控仪表板</h1>
+        
+        <div class="metric good">
+            <h3>✅ 已完成优化</h3>
+            <ul>
+                <li>删除无法访问的192.168.1.83资源</li>
+                <li>本地化ECharts (1MB) 和 jQuery (87KB)</li>
+                <li>修复404错误的JS文件引用</li>
+                <li>部署终极性能优化器</li>
+            </ul>
+        </div>
+
+        <div class="metric warning">
+            <h3>⚠️ 仍需优化</h3>
+            <ul>
+                <li>统计API响应时间: 2.9秒</li>
+                <li>后端并发查询性能</li>
+                <li>缓存策略TTL过短(5秒)</li>
+            </ul>
+        </div>
+
+        <h3>🧪 性能测试工具</h3>
+        <button class="test-btn" onclick="testPageLoad()">测试页面加载时间</button>
+        <button class="test-btn" onclick="testAPIResponse()">测试API响应时间</button>
+        <button class="test-btn" onclick="testResourceSize()">检查资源大小</button>
+        <button class="test-btn" onclick="runFullDiagnosis()">完整性能诊断</button>
+
+        <h3>📊 测试结果</h3>
+        <div id="results">点击上方按钮开始测试...</div>
+    </div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            resultsDiv.textContent += `[${timestamp}] ${message}\n`;
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        async function testPageLoad() {
+            log('🚀 开始页面加载测试...');
+            const startTime = performance.now();
+            
+            try {
+                const response = await fetch('/main?customerId=1');
+                const endTime = performance.now();
+                const loadTime = endTime - startTime;
+                
+                log(`📄 HTML加载时间: ${loadTime.toFixed(0)}ms`);
+                
+                if (loadTime < 100) log('✅ HTML加载: 优秀');
+                else if (loadTime < 500) log('⚠️ HTML加载: 良好');
+                else log('❌ HTML加载: 需要优化');
+                
+            } catch (error) {
+                log(`❌ 页面加载失败: ${error.message}`);
+            }
+        }
+
+        async function testAPIResponse() {
+            log('🔗 开始API响应测试...');
+            const startTime = performance.now();
+            
+            try {
+                const today = new Date().toISOString().slice(0, 10);
+                const response = await fetch(`/api/statistics/overview?orgId=1&date=${today}`);
+                const endTime = performance.now();
+                const apiTime = endTime - startTime;
+                
+                log(`📊 API响应时间: ${apiTime.toFixed(0)}ms`);
+                
+                if (apiTime < 1000) log('✅ API响应: 优秀');
+                else if (apiTime < 3000) log('⚠️ API响应: 可接受');
+                else log('❌ API响应: 需要优化');
+                
+                const data = await response.json();
+                log(`📋 数据大小: ${JSON.stringify(data).length} 字符`);
+                
+            } catch (error) {
+                log(`❌ API测试失败: ${error.message}`);
+            }
+        }
+
+        async function testResourceSize() {
+            log('📦 检查资源大小...');
+            
+            const resources = [
+                '/static/libs/echarts.min.js',
+                '/static/libs/jquery.min.js', 
+                '/static/js/map_enhancement_patch.js',
+                '/static/js/map-optimizer.js'
+            ];
+            
+            for (const url of resources) {
+                try {
+                    const response = await fetch(url, {method: 'HEAD'});
+                    const size = response.headers.get('content-length');
+                    if (size) {
+                        const sizeKB = Math.round(size / 1024);
+                        log(`📄 ${url}: ${sizeKB}KB`);
+                    } else {
+                        log(`📄 ${url}: 大小未知`);
+                    }
+                } catch (error) {
+                    log(`❌ ${url}: 无法访问`);
+                }
+            }
+        }
+
+        async function runFullDiagnosis() {
+            log('🔍 开始完整性能诊断...');
+            log('='.repeat(50));
+            
+            await testPageLoad();
+            log('');
+            await testAPIResponse();
+            log('');
+            await testResourceSize();
+            log('');
+            
+            log('📈 诊断完成 - 优化建议:');
+            log('1. 继续监控API响应时间');
+            log('2. 考虑增加CDN加速');
+            log('3. 启用gzip压缩');
+            log('4. 优化数据库查询');
+            log('='.repeat(50));
+        }
+    </script>
+</body>
+</html>

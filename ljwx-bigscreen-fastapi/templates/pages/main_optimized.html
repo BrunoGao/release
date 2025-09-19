@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ BIGSCREEN_TITLE }}</title>
+    
+    <!-- 关键路径CSS内联 -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #001529 0%, #002853 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 22% 1fr 22%;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 132, 255, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 132, 255, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #00e4ff;
+        }
+        
+        .version-info {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .left-panel, .right-panel {
+            background: rgba(0, 21, 41, 0.8);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 132, 255, 0.2);
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            background: rgba(0, 21, 41, 0.8);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 132, 255, 0.2);
+            padding: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(0, 132, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(0, 132, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            background: rgba(0, 132, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00e4ff;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .stat-trend {
+            color: #52c41a;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .chart-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .chart-card {
+            background: rgba(0, 21, 41, 0.6);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 132, 255, 0.2);
+            padding: 15px;
+        }
+        
+        .chart-title {
+            color: #00e4ff;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .chart {
+            height: 300px;
+            background: rgba(0, 132, 255, 0.05);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+        
+        .panel-title {
+            color: #00e4ff;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(0, 132, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        
+        .alert-item, .data-item {
+            background: rgba(0, 132, 255, 0.1);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #00e4ff;
+        }
+        
+        .alert-item.critical {
+            border-left-color: #ff4d4f;
+            background: rgba(255, 77, 79, 0.1);
+        }
+        
+        .alert-item.warning {
+            border-left-color: #faad14;
+            background: rgba(250, 173, 20, 0.1);
+        }
+        
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .item-title {
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .item-time {
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .item-content {
+            color: #ccc;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+        
+        .footer {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 10px;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .stat-card.loading {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>{{ BIGSCREEN_TITLE }}</h1>
+            <div class="version-info">{{ BIGSCREEN_VERSION }}</div>
+        </div>
+        
+        <!-- 左侧面板 - 实时告警 -->
+        <div class="left-panel">
+            <div class="panel-title">🚨 实时告警</div>
+            <div id="alertsList" class="loading">加载中...</div>
+        </div>
+        
+        <!-- 主内容区域 -->
+        <div class="main-content">
+            <!-- 统计卡片 -->
+            <div class="stats-overview">
+                <div class="stat-card loading">
+                    <div class="stat-label">健康数据</div>
+                    <div class="stat-value" id="healthDataCount">0</div>
+                    <div class="stat-trend" id="healthTrend">+0%</div>
+                </div>
+                <div class="stat-card loading">
+                    <div class="stat-label">待处理告警</div>
+                    <div class="stat-value" id="pendingAlerts">0</div>
+                    <div class="stat-trend" id="alertTrend">+0%</div>
+                </div>
+                <div class="stat-card loading">
+                    <div class="stat-label">活跃设备</div>
+                    <div class="stat-value" id="activeDevices">0</div>
+                    <div class="stat-trend" id="deviceTrend">+0%</div>
+                </div>
+                <div class="stat-card loading">
+                    <div class="stat-label">未读消息</div>
+                    <div class="stat-value" id="unreadMessages">0</div>
+                    <div class="stat-trend" id="messageTrend">+0%</div>
+                </div>
+            </div>
+            
+            <!-- 图表区域 -->
+            <div class="chart-container">
+                <div class="chart-card">
+                    <div class="chart-title">健康趋势分析</div>
+                    <div id="healthChart" class="chart">图表加载中...</div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">设备状态分布</div>
+                    <div id="deviceChart" class="chart">图表加载中...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧面板 - 实时数据 -->
+        <div class="right-panel">
+            <div class="panel-title">📊 实时数据</div>
+            <div id="healthDataList" class="loading">加载中...</div>
+        </div>
+        
+        <!-- 底部 -->
+        <div class="footer">
+            © 2024 LJWX BigScreen - FastAPI {{ BIGSCREEN_VERSION }}
+        </div>
+    </div>
+
+    <!-- 异步加载脚本 -->
+    <script>
+        // 全局配置
+        const API_BASE = '';
+        const urlParams = new URLSearchParams(window.location.search);
+        const GLOBAL_CUSTOMER_ID = urlParams.get('customerId') || '1939964806110937090';
+        
+        // API 客户端
+        class ApiClient {
+            async get(url, params = {}) {
+                const queryString = new URLSearchParams(params).toString();
+                const fullUrl = queryString ? `${url}?${queryString}` : url;
+                
+                try {
+                    const response = await fetch(fullUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    console.error('API请求失败:', error);
+                    return null;
+                }
+            }
+        }
+        
+        const api = new ApiClient();
+        
+        // 数据加载函数
+        async function loadStatistics() {
+            const stats = await api.get('/api/statistics/overview', {
+                customerId: GLOBAL_CUSTOMER_ID
+            });
+            
+            if (stats) {
+                document.getElementById('healthDataCount').textContent = stats.health_data_count;
+                document.getElementById('pendingAlerts').textContent = stats.pending_alerts;
+                document.getElementById('activeDevices').textContent = stats.active_devices;
+                document.getElementById('unreadMessages').textContent = stats.unread_messages;
+                
+                document.getElementById('healthTrend').textContent = stats.health_trend;
+                document.getElementById('alertTrend').textContent = stats.alert_trend;
+                document.getElementById('deviceTrend').textContent = stats.device_trend;
+                document.getElementById('messageTrend').textContent = stats.message_trend;
+                
+                // 移除加载状态
+                document.querySelectorAll('.stat-card').forEach(card => {
+                    card.classList.remove('loading');
+                });
+            }
+        }
+        
+        async function loadAlerts() {
+            const alerts = await api.get('/api/alerts', {
+                customerId: GLOBAL_CUSTOMER_ID,
+                limit: 10
+            });
+            
+            const alertsList = document.getElementById('alertsList');
+            if (alerts && alerts.length > 0) {
+                alertsList.innerHTML = alerts.map(alert => `
+                    <div class="alert-item ${alert.alert_level === '高' ? 'critical' : alert.alert_level === '中' ? 'warning' : ''}">
+                        <div class="item-header">
+                            <div class="item-title">${alert.alert_type}</div>
+                            <div class="item-time">${alert.alert_timestamp}</div>
+                        </div>
+                        <div class="item-content">
+                            ${alert.user_name} - ${alert.dept_name}<br>
+                            设备: ${alert.deviceSn}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                alertsList.innerHTML = '<div class="loading">暂无告警信息</div>';
+            }
+        }
+        
+        async function loadHealthData() {
+            const healthData = await api.get('/get_health_data_by_orgIdAndUserId', {
+                customerId: GLOBAL_CUSTOMER_ID,
+                limit: 8
+            });
+            
+            const healthDataList = document.getElementById('healthDataList');
+            if (healthData && healthData.length > 0) {
+                healthDataList.innerHTML = healthData.map(data => `
+                    <div class="data-item">
+                        <div class="item-header">
+                            <div class="item-title">${data.user_name}</div>
+                            <div class="item-time">${data.timestamp}</div>
+                        </div>
+                        <div class="item-content">
+                            心率: ${data.heart_rate || '-'} bpm<br>
+                            血氧: ${data.blood_oxygen || '-'} %<br>
+                            体温: ${data.temperature || '-'} ℃
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                healthDataList.innerHTML = '<div class="loading">暂无健康数据</div>';
+            }
+        }
+        
+        // 初始化
+        async function init() {
+            try {
+                await Promise.all([
+                    loadStatistics(),
+                    loadAlerts(),
+                    loadHealthData()
+                ]);
+                
+                // 模拟图表加载
+                setTimeout(() => {
+                    document.getElementById('healthChart').innerHTML = '健康趋势图表';
+                    document.getElementById('deviceChart').innerHTML = '设备状态图表';
+                }, 1000);
+                
+                console.log('BigScreen 初始化完成');
+            } catch (error) {
+                console.error('初始化失败:', error);
+            }
+        }
+        
+        // 自动刷新
+        function startAutoRefresh() {
+            setInterval(async () => {
+                await Promise.all([
+                    loadStatistics(),
+                    loadAlerts(),
+                    loadHealthData()
+                ]);
+            }, 30000); // 30秒刷新一次
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+            startAutoRefresh();
+        });
+    </script>
+</body>
+</html>

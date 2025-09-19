@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{% block title %}灵境万象健康大屏系统{% endblock %}</title>
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="{{ url_for('static', path='fonts/num.otf') }}" as="font" type="font/otf" crossorigin>
+    <link rel="preload" href="{{ url_for('static', path='js/libs/jquery-3.6.0.min.js') }}" as="script">
+    <link rel="preload" href="{{ url_for('static', path='js/libs/echarts-5.4.0.min.js') }}" as="script">
+    
+    <!-- Critical CSS inline for fastest rendering -->
+    <style>
+        {% block critical_css %}
+        /* Critical path CSS - Base layout */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+            background: #0a1428;
+            color: #ffffff;
+            overflow: hidden;
+            min-height: 100vh;
+        }
+        
+        .loading-skeleton {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                rgba(255,255,255,0.1) 25%, 
+                rgba(255,255,255,0.2) 50%, 
+                rgba(255,255,255,0.1) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            z-index: 9999;
+        }
+        
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .hidden { display: none !important; }
+        {% endblock %}
+    </style>
+    
+    <!-- Non-critical CSS async loading -->
+    {% block async_css %}
+    <link rel="preload" href="{{ url_for('static', path='css/core/variables.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="{{ url_for('static', path='css/core/animations.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="{{ url_for('static', path='css/core/grid_layout.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript>
+        <link rel="stylesheet" href="{{ url_for('static', path='css/core/variables.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', path='css/core/animations.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', path='css/core/grid_layout.css') }}">
+    </noscript>
+    {% endblock %}
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Loading skeleton -->
+    <div id="app-skeleton" class="loading-skeleton">
+        <div class="skeleton-content">
+            {% block skeleton %}
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 20px;">加载中...</div>
+                <div style="width: 200px; height: 4px; background: rgba(0,228,255,0.3); border-radius: 2px; overflow: hidden;">
+                    <div style="width: 0%; height: 100%; background: #00e4ff; animation: loading-progress 2s ease-in-out infinite;"></div>
+                </div>
+            </div>
+            <style>
+                @keyframes loading-progress {
+                    0% { width: 0%; }
+                    50% { width: 60%; }
+                    100% { width: 100%; }
+                }
+            </style>
+            {% endblock %}
+        </div>
+    </div>
+    
+    <!-- Main content -->
+    <div id="main-content" class="hidden">
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- Core JavaScript -->
+    <script>
+        // Global namespace
+        window.LJWX = {
+            modules: {},
+            ready: false,
+            config: {
+                apiBaseUrl: '{{ request.url.scheme }}://{{ request.url.netloc }}/api/v1',
+                wsUrl: '{{ "wss" if request.url.scheme == "https" else "ws" }}://{{ request.url.netloc }}/ws',
+                debug: {{ "true" if debug else "false" }}
+            },
+            init: function() {
+                console.log('LJWX BigScreen 系统初始化完成');
+                this.ready = true;
+                document.dispatchEvent(new CustomEvent('ljwx:ready'));
+            }
+        };
+        
+        // Module loader
+        window.LJWX.loadModule = function(name, src) {
+            return new Promise((resolve, reject) => {
+                if (this.modules[name]) {
+                    resolve(this.modules[name]);
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    resolve(this.modules[name]);
+                };
+                script.onerror = () => {
+                    reject(new Error(`Failed to load module: ${name}`));
+                };
+                document.head.appendChild(script);
+            });
+        };
+        
+        // Performance monitoring
+        window.LJWX.performance = {
+            startTime: performance.now(),
+            marks: {},
+            mark: function(name) {
+                this.marks[name] = performance.now();
+            },
+            measure: function(name, startMark) {
+                const endTime = performance.now();
+                const startTime = this.marks[startMark] || this.startTime;
+                console.log(`${name}: ${endTime - startTime}ms`);
+                return endTime - startTime;
+            }
+        };
+        
+        // Error handler
+        window.addEventListener('error', function(e) {
+            console.error('全局错误:', e.error);
+            // 可以在这里添加错误上报逻辑
+        });
+        
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('未处理的Promise错误:', e.reason);
+            // 可以在这里添加错误上报逻辑
+        });
+    </script>
+    
+    <!-- Async module loading -->
+    <script>
+        {% block module_loading %}
+        // Default module loading strategy
+        const loadCoreModules = async () => {
+            try {
+                // Load core modules in parallel
+                await Promise.all([
+                    LJWX.loadModule('apiClient', '{{ url_for("static", path="js/core/api_client.js") }}'),
+                    LJWX.loadModule('cacheManager', '{{ url_for("static", path="js/core/cache_manager.js") }}'),
+                    LJWX.loadModule('eventDispatcher', '{{ url_for("static", path="js/core/event_dispatcher.js") }}')
+                ]);
+                
+                LJWX.performance.mark('core-modules-loaded');
+                
+                // Initialize application
+                await initializeApplication();
+                
+            } catch (error) {
+                console.error('模块加载失败:', error);
+                // Fallback handling
+                showErrorMessage('系统初始化失败，请刷新页面重试');
+            }
+        };
+        
+        const initializeApplication = async () => {
+            // Hide skeleton and show content
+            document.getElementById('app-skeleton').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            
+            // Initialize application
+            LJWX.init();
+            
+            LJWX.performance.measure('Total initialization time', 'startTime');
+        };
+        
+        const showErrorMessage = (message) => {
+            const skeleton = document.getElementById('app-skeleton');
+            skeleton.innerHTML = `
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #ff6b6b;">
+                    <div style="font-size: 24px; margin-bottom: 20px;">⚠️ ${message}</div>
+                    <button onclick="location.reload()" style="padding: 10px 20px; background: #00e4ff; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+                        重新加载
+                    </button>
+                </div>
+            `;
+        };
+        
+        // Start loading when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadCoreModules);
+        } else {
+            loadCoreModules();
+        }
+        {% endblock %}
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>JavaScript错误修复脚本</title>
+</head>
+<body>
+<script>
+// JavaScript错误修复脚本 - 极致优化版本#
+(function(){
+    'use strict';
+    
+    // 1. 修复chart.resize错误 - 全局图表管理器#
+    window.ChartManager={
+        charts:new Map(),
+        register(id,chart){if(chart&&typeof chart.resize==='function')this.charts.set(id,chart);},
+        unregister(id){this.charts.delete(id);},
+        resizeAll(){this.charts.forEach(chart=>{try{chart.resize();}catch(e){console.warn('Chart resize failed:',e);}});},
+        clear(){this.charts.clear();}
+    };
+    
+    // 2. 修复DOM元素contains错误 - 安全DOM操作#
+    window.SafeDOM={
+        contains(container,element){return container&&element&&typeof container.contains==='function'?container.contains(element):false;},
+        hasClass(element,className){return element&&element.classList?element.classList.contains(className):false;},
+        addClass(element,className){if(element&&element.classList)element.classList.add(className);},
+        removeClass(element,className){if(element&&element.classList)element.classList.remove(className);},
+        toggle(element,className){if(element&&element.classList)element.classList.toggle(className);}
+    };
+    
+    // 3. 修复XMLHttpRequest responseText错误 - 安全HTTP请求#
+    window.SafeRequest={
+        get(url,options={}){
+            return new Promise((resolve,reject)=>{
+                const xhr=new XMLHttpRequest();
+                xhr.open('GET',url);
+                xhr.responseType=options.responseType||'';
+                xhr.timeout=options.timeout||30000;
+                xhr.onload=()=>xhr.status>=200&&xhr.status<300?resolve(xhr):reject(new Error(`HTTP ${xhr.status}`));
+                xhr.onerror=()=>reject(new Error('Network error'));
+                xhr.ontimeout=()=>reject(new Error('Request timeout'));
+                try{xhr.send();}catch(e){reject(e);}
+            });
+        },
+        post(url,data,options={}){
+            return new Promise((resolve,reject)=>{
+                const xhr=new XMLHttpRequest();
+                xhr.open('POST',url);
+                xhr.setRequestHeader('Content-Type','application/json');
+                xhr.responseType=options.responseType||'';
+                xhr.timeout=options.timeout||30000;
+                xhr.onload=()=>xhr.status>=200&&xhr.status<300?resolve(xhr):reject(new Error(`HTTP ${xhr.status}`));
+                xhr.onerror=()=>reject(new Error('Network error'));
+                xhr.ontimeout=()=>reject(new Error('Request timeout'));
+                try{xhr.send(JSON.stringify(data));}catch(e){reject(e);}
+            });
+        }
+    };
+    
+    // 4. 修复高德地图API错误 - 地图错误处理#
+    window.MapErrorHandler={
+        init(){
+            window.addEventListener('error',this.handleError.bind(this));
+            if(window.AMap){
+                const originalPlugin=AMap.plugin;
+                AMap.plugin=function(plugins,callback){
+                    try{return originalPlugin.call(this,plugins,callback);}catch(e){console.warn('AMap plugin error:',e);if(callback)callback();}
+                };
+            }
+        },
+        handleError(event){
+            if(event.filename&&event.filename.includes('maps.amap.com')){
+                console.warn('高德地图API错误已捕获:',event.message);
+                event.preventDefault();
+                return true;
+            }
+        }
+    };
+    
+    // 5. 性能监控和自动修复 - 极致优化#
+    window.PerformanceMonitor={
+        errors:[],
+        init(){
+            window.addEventListener('error',this.logError.bind(this));
+            window.addEventListener('unhandledrejection',this.logPromiseError.bind(this));
+            setInterval(this.checkPerformance.bind(this),30000); //30秒检查一次#
+        },
+        logError(event){
+            this.errors.push({type:'script',message:event.message,filename:event.filename,line:event.lineno,time:Date.now()});
+            if(this.errors.length>100)this.errors.shift(); //保持最近100个错误#
+        },
+        logPromiseError(event){
+            this.errors.push({type:'promise',message:event.reason,time:Date.now()});
+            event.preventDefault();
+        },
+        checkPerformance(){
+            const recentErrors=this.errors.filter(e=>Date.now()-e.time<60000); //最近1分钟错误#
+            if(recentErrors.length>10){
+                console.warn(`性能警告: 最近1分钟发生${recentErrors.length}个错误`);
+                this.autoFix();
+            }
+        },
+        autoFix(){
+            try{
+                ChartManager.resizeAll(); //重新调整所有图表#
+                if(window.location.hash.includes('error'))window.location.reload(); //错误页面重新加载#
+            }catch(e){console.warn('自动修复失败:',e);}
+        }
+    };
+    
+    // 6. 图表初始化增强器 - 兼容所有图表库#
+    window.ChartInitializer={
+        init(){
+            if(window.echarts){this.enhanceECharts();}
+            if(window.Chart){this.enhanceChartJS();}
+        },
+        enhanceECharts(){
+            const originalInit=echarts.init;
+            echarts.init=function(dom,theme,opts){
+                try{
+                    const chart=originalInit.call(this,dom,theme,opts);
+                    if(chart&&dom&&dom.id)ChartManager.register(dom.id,chart);
+                    return chart;
+                }catch(e){
+                    console.warn('ECharts初始化失败:',e);
+                    return {resize:()=>{},setOption:()=>{},dispose:()=>{}};
+                }
+            };
+        },
+        enhanceChartJS(){
+            const originalChart=Chart;
+            window.Chart=function(ctx,config){
+                try{
+                    const chart=new originalChart(ctx,config);
+                    if(chart&&ctx&&ctx.canvas&&ctx.canvas.id)ChartManager.register(ctx.canvas.id,chart);
+                    return chart;
+                }catch(e){
+                    console.warn('Chart.js初始化失败:',e);
+                    return {resize:()=>{},update:()=>{},destroy:()=>{}};
+                }
+            };
+        }
+    };
+    
+    // 7. 窗口resize事件优化 - 防抖处理#
+    window.ResizeHandler={
+        timeout:null,
+        init(){
+            window.addEventListener('resize',this.handleResize.bind(this));
+        },
+        handleResize(){
+            clearTimeout(this.timeout);
+            this.timeout=setTimeout(()=>{
+                try{ChartManager.resizeAll();}catch(e){console.warn('Resize处理失败:',e);}
+            },100); //100ms防抖#
+        }
+    };
+    
+    // 8. 初始化所有修复器#
+    document.addEventListener('DOMContentLoaded',()=>{
+        MapErrorHandler.init();
+        PerformanceMonitor.init();
+        ChartInitializer.init();
+        ResizeHandler.init();
+        console.log('✅ JavaScript错误修复脚本已加载');
+    });
+    
+    // 9. 全局错误处理和降级机制#
+    window.onerror=function(msg,file,line,col,error){
+        console.warn(`全局错误捕获: ${msg} at ${file}:${line}:${col}`);
+        PerformanceMonitor.logError({message:msg,filename:file,lineno:line,colno:col});
+        return true; //阻止默认错误处理#
+    };
+    
+    window.onunhandledrejection=function(event){
+        console.warn('未处理的Promise拒绝:',event.reason);
+        PerformanceMonitor.logPromiseError(event);
+    };
+    
+})();
+</script>
+</body>
+</html> 

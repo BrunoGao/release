@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时统计大屏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #0c1445 0%, #1e3c72 50%, #2a5298 100%);
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 30px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 36px;
+            font-weight: 300;
+            color: #00e5ff;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+        }
+
+        .date-time {
+            font-size: 18px;
+            color: #b0bec5;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-bottom: 30px;
+            flex: 1;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #00e5ff, #64b5f6, #42a5f5);
+            border-radius: 15px 15px 0 0;
+        }
+
+        .stat-card.health::before {
+            background: linear-gradient(90deg, #4fc3f7, #29b6f6);
+        }
+
+        .stat-card.alert::before {
+            background: linear-gradient(90deg, #ff6b6b, #ff5252);
+        }
+
+        .stat-card.device::before {
+            background: linear-gradient(90deg, #66bb6a, #4caf50);
+        }
+
+        .stat-card.message::before {
+            background: linear-gradient(90deg, #ffca28, #ffc107);
+        }
+
+        .stat-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 48px;
+            opacity: 0.3;
+        }
+
+        .stat-title {
+            font-size: 18px;
+            color: #b0bec5;
+            margin-bottom: 15px;
+            font-weight: 300;
+        }
+
+        .stat-value {
+            font-size: 48px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ffffff, #e1f5fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-growth {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .positive {
+            color: #4caf50;
+        }
+
+        .negative {
+            color: #f44336;
+        }
+
+        .system-alerts {
+            background: rgba(255, 107, 107, 0.15);
+            border-radius: 15px;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+
+        .system-alerts-label {
+            font-size: 20px;
+            color: #ffcdd2;
+            display: flex;
+            align-items: center;
+        }
+
+        .system-alerts-label::before {
+            content: '⚠️';
+            margin-right: 10px;
+            font-size: 24px;
+        }
+
+        .system-alerts-count {
+            font-size: 36px;
+            font-weight: bold;
+            color: #ff6b6b;
+            text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+        }
+
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .loading .stat-value {
+            animation: pulse 1.5s infinite;
+        }
+
+        .last-updated {
+            text-align: center;
+            color: #78909c;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>实时统计</h1>
+            <div class="date-time" id="datetime">2025-08-07</div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card health">
+                <div class="stat-icon">📊</div>
+                <div class="stat-title">健康数据</div>
+                <div class="stat-value" id="healthDataCount">96.8K</div>
+                <div class="stat-growth positive" id="healthDataGrowth">+5%</div>
+                <span style="color: #90caf9; font-size: 12px;">条</span>
+            </div>
+
+            <div class="stat-card alert">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-title">待处理告警</div>
+                <div class="stat-value" id="pendingAlertsCount">5.2K</div>
+                <div class="stat-growth positive" id="pendingAlertsGrowth">+12%</div>
+                <span style="color: #ffcdd2; font-size: 12px;">条</span>
+            </div>
+
+            <div class="stat-card device">
+                <div class="stat-icon">📱</div>
+                <div class="stat-title">活跃设备</div>
+                <div class="stat-value" id="activeDevicesCount">0</div>
+                <div class="stat-growth positive" id="activeDevicesGrowth">+2%</div>
+                <span style="color: #a5d6a7; font-size: 12px;">台</span>
+            </div>
+
+            <div class="stat-card message">
+                <div class="stat-icon">💬</div>
+                <div class="stat-title">未读消息</div>
+                <div class="stat-value" id="unreadMessagesCount">1</div>
+                <div class="stat-growth positive" id="unreadMessagesGrowth">+8%</div>
+                <span style="color: #fff9c4; font-size: 12px;">条</span>
+            </div>
+        </div>
+
+        <div class="system-alerts">
+            <div class="system-alerts-label">系统警告</div>
+            <div class="system-alerts-count" id="systemAlertsCount">60</div>
+        </div>
+
+        <div class="last-updated" id="lastUpdated">
+            最后更新时间: --
+        </div>
+    </div>
+
+    <script>
+        // 获取customerId
+        const urlParams = new URLSearchParams(window.location.search);
+        const customerId = urlParams.get('customerId') || '1939964806110937090';
+
+        // 更新日期时间
+        function updateDateTime() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('zh-CN');
+            document.getElementById('datetime').textContent = dateStr;
+        }
+
+        // 加载实时统计数据
+        async function loadRealtimeStats() {
+            try {
+                const statsGrid = document.getElementById('statsGrid');
+                statsGrid.classList.add('loading');
+
+                const response = await fetch(`/api/realtime_stats?customerId=${customerId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const data = result.data;
+                    
+                    // 更新健康数据
+                    document.getElementById('healthDataCount').textContent = data.health_data.count;
+                    document.getElementById('healthDataGrowth').textContent = data.health_data.growth;
+                    document.getElementById('healthDataGrowth').className = 
+                        `stat-growth ${data.health_data.growth.startsWith('+') ? 'positive' : 'negative'}`;
+
+                    // 更新告警数据
+                    document.getElementById('pendingAlertsCount').textContent = data.pending_alerts.count;
+                    document.getElementById('pendingAlertsGrowth').textContent = data.pending_alerts.growth;
+                    document.getElementById('pendingAlertsGrowth').className = 
+                        `stat-growth ${data.pending_alerts.growth.startsWith('+') ? 'positive' : 'negative'}`;
+
+                    // 更新设备数据
+                    document.getElementById('activeDevicesCount').textContent = data.active_devices.count;
+                    document.getElementById('activeDevicesGrowth').textContent = data.active_devices.growth;
+                    document.getElementById('activeDevicesGrowth').className = 
+                        `stat-growth ${data.active_devices.growth.startsWith('+') ? 'positive' : 'negative'}`;
+
+                    // 更新消息数据
+                    document.getElementById('unreadMessagesCount').textContent = data.unread_messages.count;
+                    document.getElementById('unreadMessagesGrowth').textContent = data.unread_messages.growth;
+                    document.getElementById('unreadMessagesGrowth').className = 
+                        `stat-growth ${data.unread_messages.growth.startsWith('+') ? 'positive' : 'negative'}`;
+
+                    // 更新系统告警
+                    document.getElementById('systemAlertsCount').textContent = data.system_alerts;
+
+                    // 更新最后更新时间
+                    document.getElementById('lastUpdated').textContent = `最后更新时间: ${data.last_updated}`;
+                } else {
+                    console.error('获取统计数据失败:', result.error);
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+            } finally {
+                const statsGrid = document.getElementById('statsGrid');
+                statsGrid.classList.remove('loading');
+            }
+        }
+
+        // 初始化
+        updateDateTime();
+        loadRealtimeStats();
+
+        // 定时更新
+        setInterval(updateDateTime, 1000);
+        setInterval(loadRealtimeStats, 30000); // 每30秒更新一次数据
+    </script>
+</body>
+</html>

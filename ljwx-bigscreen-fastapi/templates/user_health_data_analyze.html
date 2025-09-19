@@ -1,0 +1,93 @@
+<!-- 在charts-grid中添加健康画像雷达图 -->
+<div class="chart-container">
+    <div id="healthProfileChart" style="width: 100%; height: 100%;"></div>
+</div>
+
+<!-- 添加相应的JavaScript代码 -->
+<script>
+    function updateHealthProfileChart(data) {
+        const chart = chartInstances.get('healthProfileChart');
+        const profiles = data.analysis.healthProfiles;
+        
+        // 准备雷达图数据
+        const indicators = [
+            { name: '心率', max: 100 },
+            { name: '血氧', max: 100 },
+            { name: '体温', max: 100 },
+            { name: '血压', max: 100 },
+            { name: '运动量', max: 100 },
+            { name: '热量消耗', max: 100 }
+        ];
+
+        const series = profiles.map(profile => ({
+            name: profile.userName,
+            value: [
+                profile.scores.heartRate.score,
+                profile.scores.bloodOxygen.score,
+                profile.scores.temperature.score,
+                (profile.scores.pressureHigh.score + profile.scores.pressureLow.score) / 2,
+                profile.scores.step.score,
+                profile.scores.calorie.score
+            ]
+        }));
+
+        chart.setOption({
+            title: {
+                text: '健康画像分析',
+                textStyle: { color: '#fff' }
+            },
+            tooltip: {
+                trigger: 'item'
+            },
+            legend: {
+                data: profiles.map(p => p.userName),
+                textStyle: { color: '#fff' }
+            },
+            radar: {
+                indicator: indicators,
+                splitArea: {
+                    areaStyle: {
+                        color: ['rgba(255,255,255,0.05)']
+                    }
+                },
+                axisLine: {
+                    lineStyle: { color: 'rgba(255,255,255,0.2)' }
+                },
+                splitLine: {
+                    lineStyle: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            series: [{
+                type: 'radar',
+                data: series.map(s => ({
+                    name: s.name,
+                    value: s.value,
+                    areaStyle: {
+                        opacity: 0.3
+                    }
+                }))
+            }]
+        });
+    }
+
+    // 在更新图表的函数中添加对新图表的更新
+    async function fetchData(startDate, endDate) {
+        try {
+            const response = await fetch(`http://localhost:5001/get_all_health_data_by_orgIdAndUserId?orgId=1&startDate=${startDate}&endDate=${endDate}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                updateHealthProfileChart(data.data);
+                updateHealthTrendChart(data.data);
+                updateCorrelationChart(data.data);
+                updateDepartmentComparisonChart(data.data);
+                updatePredictionsChart(data.data);
+                updateInsights(data.data);
+            } else {
+                console.error('Failed to fetch data:', data.error);
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    }
+</script> 

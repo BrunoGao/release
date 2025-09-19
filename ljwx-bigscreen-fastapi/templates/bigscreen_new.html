@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>灵境万象健康平台</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style2.0.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles-crystal.css') }}">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/alert-main.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/index-main.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/profile-main.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/title.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/profile-button.css') }}">
+    <script src="{{ url_for('static', filename='js/echarts-liquidfill.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script>
+        document.addEventListener('contextmenu', e => e.preventDefault()); // #禁用右键菜单
+        document.addEventListener('keydown', e => { // #禁用查看源代码快捷键
+          if((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 's' || e.key === 'i' || e.key === 'p')) e.preventDefault();
+        });
+        document.onkeydown = e => { // #禁用F12和其他功能键
+          if(e.key === 'F12' || e.key === 'F11' || e.key === 'F5') e.preventDefault();
+        };
+      </script>
+
+
+ 
+    <script>
+        $(function () {
+            $('.myscroll').myScroll({
+                speed: 60, //数值越大，速度越慢
+                rowHeight: 38 //li的高度
+            });
+
+            var map = L.map('map').setView([0, 0], 13);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">hg-tech</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            }).addTo(map);
+            var marker = L.marker([0, 0]).addTo(map);
+            var polyline = L.polyline([], { color: 'blue' }).addTo(map); // Initialize an empty polyline
+
+            function updateMap(lat, lon) {
+                map.setView([lat, lon], 13);
+                marker.setLatLng([lat, lon]);
+                polyline.addLatLng([lat, lon]); // Add new point to the polyline
+            }
+
+            function fetchLocationData() {
+                $.ajax({
+                    url: '/fetch_user_locations',
+                    type: 'GET',
+                    data: { deviceSn: '{{ deviceSn }}' }, // Use passed parameter
+                    success: function(response) {
+                        console.log(response);
+                        if (response.success) {
+                            var data = response.data;
+                            if (data.length > 0) {
+                                polyline.setLatLngs([]); // Clear existing polyline
+                                data.forEach(function(location) {
+                                    updateMap(location.latitude, location.longitude);
+                                });
+                                var latestData = data[data.length - 1];
+                                $('#latitude').text(latestData.latitude);
+                                $('#longitude').text(latestData.longitude);
+                                $('#time').text(latestData.timestamp);
+                            } else {
+                                console.error('No data found');
+                            }
+                        } else {
+                            console.error('No data found');
+                        }
+                    },
+                    error: function(error) {
+                        console.error('Error fetching health info:', error);
+                    }
+                });
+            }
+            fetchLocationData(); 
+            setInterval(fetchLocationData, 60000); // Fetch data every 10 seconds
+
+        })
+
+    </script>
+    <script>
+        // Declare a global variable to store health data
+        var globalHealthData = {};
+
+        function fetchHealthData() {
+            $.ajax({
+                url: '/fetch_health_data',
+                type: 'GET',
+                data: { deviceSn: '{{ deviceSn }}' }, // Example phone number
+                success: function(response) {
+                    if (response.success) {
+                        var data = response.data;
+                        globalHealthData = data; // Store data in the global variable
+                        $('#bloodPressure').text(data.pressureHigh + '/' + data.pressureLow);
+                        $('#heartRate').text(data.heartRate);
+                        $('#bloodOxygen').text(data.bloodOxygen);
+                        $('#temperature').text(data.temperature);
+                        $('#step').text(data.step);
+                        $('#pressureHigh').text(data.pressureHigh);
+                        $('#pressureLow').text(data.pressureLow);
+                        // Add more fields if needed
+                    } else {
+                        console.error('No data found');
+                    }
+                },
+                error: function(error) {
+                    console.error('Error fetching health info:', error);
+                }
+            });
+        }
+        fetchHealthData(); 
+        setInterval(fetchHealthData, 5000); // Fetch data every 10 seconds
+    </script>
+    <script>
+        $(function () {
+            const socket = io();
+
+            socket.on('health_data_update', function(response) {
+                console.log(response);
+                if (response.success) {
+                    var data = response.data;
+                    $('#bloodPressure').text(data.pressureHigh + '/' + data.pressureLow);
+                    $('#heartRate').text(data.heartRate);
+                    $('#bloodOxygen').text(data.bloodOxygen);
+                    $('#temperature').text(data.temperature);
+                    $('#step').text(data.step);
+                    $('#pressureHigh').text(data.pressureHigh);
+                    $('#pressureLow').text(data.pressureLow);
+                    $('#latitude').text(data.latitude);
+                    $('#longitude').text(data.longitude);
+
+                    // Update map with new coordinates
+                    updateMap(data.latitude, data.longitude);
+                } else {
+                    console.error('No data found');
+                }
+            });
+
+            socket.on('connect_error', function(error) {
+                console.error('WebSocket error:', error);
+            });
+
+            // Initialize the map
+            var map = L.map('map').setView([0, 0], 13);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">hg-tech</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            }).addTo(map);
+            var marker = L.marker([0, 0]).addTo(map);
+
+            function updateMap(lat, lon) {
+                map.setView([lat, lon], 13);
+                marker.setLatLng([lat, lon]);
+            }
+        });
+    </script>
+
+    <script>
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            const daysOfWeek = ['日', '一', '二', '三', '四', '五', '六'];
+            const dateString = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours() >= 12 ? 'pm' : 'am'} 周${daysOfWeek[now.getDay()]}`;
+            document.getElementById('datetime').innerHTML = `
+                <span id="time">${timeString}</span>
+                <span id="date">${dateString}</span>
+            `;
+        }
+  
+     
+    
+
+        async function updateWeather() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                  
+    
+                    // Fetch city name using reverse geocoding
+                    const locationResponse = await fetch(`https://restapi.amap.com/v3/geocode/regeo?location=${longitude},${latitude}&key=d45f28e481665db5b1145a5aa989e68a`);
+                    const locationData = await locationResponse.json();
+                    console.log(locationData);
+                    const city = locationData.regeocode.addressComponent.city || 
+                    (locationData.regeocode.addressComponent.province === "香港特别行政区" ? "香港" : locationData.regeocode.addressComponent.province);
+                    console.log(city);
+    
+                    // Fetch weather data using the city name
+                    const weatherResponse = await fetch(`https://restapi.amap.com/v3/weather/weatherInfo?city=${city}&key=d45f28e481665db5b1145a5aa989e68a`);
+                    const weatherData = await weatherResponse.json();
+                    if (weatherData.status === "1" && weatherData.lives && weatherData.lives.length > 0) {
+                        const weatherInfo = weatherData.lives[0];
+                        console.log(weatherInfo.weather);
+                        console.log(getWeatherIcon(weatherInfo.weather));
+                        document.getElementById('weatherImg').src = getWeatherIcon(weatherInfo.weather); // Update the src attribute
+                        document.getElementById('weather').innerHTML = `
+                            <p class="active">${weatherInfo.weather}</p>
+                            <p>${weatherInfo.temperature}℃</p>
+                        `;
+                    } else {
+                        console.error('Failed to fetch weather data:', weatherData.info);
+                    }
+                }, function(error) {
+                    console.error('Error getting location:', error);
+                });
+            } else {
+                console.error('Geolocation is not supported by this browser.');
+            }
+        }
+
+        function getWeatherIcon(weather) {
+            // Map weather conditions to icon URLs
+            const weatherIcons = {
+                "晴": "{{ url_for('static', filename='images/weather/晴.png') }}",
+                "多云": "{{ url_for('static', filename='images/weather/多云.png') }}",
+                "雪": "{{ url_for('static', filename='images/weather/暴雪.png') }}",
+                "暴雨": "{{ url_for('static', filename='images/weather/暴雨.png') }}",
+                "暴雨转大暴雨": "{{ url_for('static', filename='images/weather/暴雨转大暴雨.png') }}",
+                "大暴": "{{ url_for('static', filename='images/weather/大暴雪.png') }}",
+                "大暴雨": "{{ url_for('static', filename='images/weather/大暴雨.png') }}",
+                "大雪": "{{ url_for('static', filename='images/weather/大雪.png') }}",
+                "大雪转暴雪": "{{ url_for('static', filename='images/weather/大雪转暴雪.png') }}",
+                "大雨": "{{ url_for('static', filename='images/weather/大雨.png') }}",
+                "大雨转暴雨": "{{ url_for('static', filename='images/weather/雨转雨.png') }}",
+                "冻雨": "{{ url_for('static', filename='images/weather/冻雨.png') }}",
+                "浮尘": "{{ url_for('static', filename='images/weather/浮尘.png') }}",
+                "雷阵雨": "{{ url_for('static', filename='images/weather/雷阵雨.png') }}",
+                "雷阵雨加冰雹": "{{ url_for('static', filename='images/weather/雷阵雨加冰雹.png') }}",
+                "霾": "{{ url_for('static', filename='images/weather/霾.png') }}",
+                "强沙尘暴": "{{ url_for('static', filename='images/weather/强沙尘暴.png') }}",
+                "沙尘暴": "{{ url_for('static', filename='images/weather/沙尘暴.png') }}",
+                "大暴雨": "{{ url_for('static', filename='images/weather/特大暴雨.png') }}",
+                "雾": "{{ url_for('static', filename='images/weather/雾.png') }}",
+                "小雪": "{{ url_for('static', filename='images/weather/小雪.png') }}",
+                "小雪转中雪": "{{ url_for('static', filename='images/weather/小雪转中雪.png') }}",
+                "小雨": "{{ url_for('static', filename='images/weather/小雨.png') }}",
+                "小雨转中雨": "{{ url_for('static', filename='images/weather/小雨转中雨.png') }}",
+                "扬沙": "{{ url_for('static', filename='images/weather/扬沙.png') }}",
+                "阴": "{{ url_for('static', filename='images/weather/阴.png') }}",
+                "雨加雪": "{{ url_for('static', filename='images/weather/雨加雪.png') }}",
+                "阵雪": "{{ url_for('static', filename='images/weather/阵雪.png') }}",
+                "阵雨": "{{ url_for('static', filename='images/weather/阵雨.png') }}",
+                "中雪": "{{ url_for('static', filename='images/weather/中雪.png') }}",
+                "中雪转大雪": "{{ url_for('static', filename='images/weather/中雪转大雪.png') }}",
+                "中雨": "{{ url_for('static', filename='images/weather/中雨.png') }}",
+                "中雨转大雨": "{{ url_for('static', filename='images/weather/中雨转大雨.png') }}"
+            };
+            return weatherIcons[weather] || '{{ url_for('static', filename='images/weather/default-icon.png') }}';
+        }
+
+        function setFont() {
+            // 1、页面一加载就要知道页面宽计算
+            var setFont = function () {
+                // 因为要定义变量可能和别的变量相互冲突，污染，所有用自调用函数
+                var html = document.documentElement;// 获取html
+                // 获取宽度
+                var width = html.clientWidth;
+
+                // 判断
+                if (width < 1024) width = 1024
+                if (width > 1920) width = 1920
+                // 设置html的基准值
+                var fontSize = width / 80 + 'px';
+                // 设置给html
+                html.style.fontSize = fontSize;
+            }
+            setFont();
+            // 2、页面改变的时候也需要设置
+            // 尺寸改变事件
+            window.onresize = function () {
+                setFont();
+            }
+            document.addEventListener('DOMContentLoaded', function() {
+                setFont();
+            });
+        }
+        function myMarqueen() {
+            //事件委托
+            $('.monitor').on('click', ' a', function () {
+                //点击当前的a 加类名 active  他的兄弟删除类名
+                $(this).addClass('active').siblings().removeClass('active');
+                //获取一一对应的下标 
+                var index = $(this).index();
+                //选取content 然后狗日对应下标的 显示   当前的弟.content隐藏
+                $('.content').eq(index).show().siblings('.content').hide();
+            });
+            //滚动
+            //原理：把marquee下面的子盒子都复制一遍 加入到marquee中
+            //      然后动画向上滚动，滚动到一半重新开始滚动
+            //因为选取的是两个marquee  所以要遍历
+            $('.monitor .marquee').each(function (index, dom) {
+                //将每个 的所有子级都复制一遍
+                var rows = $(dom).children().clone();
+                //再将新的到的加入原来的
+                $(dom).append(rows);
+            });
+
+        }
+        
+        
+        function fetchAndDisplayAlerts() {
+            $.ajax({
+                url: '/fetch_alerts',
+                type: 'GET',
+                data: {
+                    deviceSn: '{{ deviceSn }}' 
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var alerts = response.alerts;
+                        var container = $('#alertContainer');
+                        if (container.length === 0) {
+                            console.error("Alert container not found.");
+                            return;
+                        }
+                        container.empty(); // Clear previous alerts
+
+                        // Display total number of alerts and unique alert types
+                        $('#totalAlerts').text('Total Alerts: ' + response.totalAlerts);
+                        $('#uniqueAlertTypes').text('Unique Alert Types: ' + response.uniqueAlertTypes);
+                        
+
+                        alerts.forEach(function(alert) {
+                            console.log(alert);
+                            var alertTypeClass = '';
+                            switch (alert.alertType) {
+                                case '\u8dcc\u5012': // '跌倒'
+                                    alertTypeClass = 'alert-type-fall';
+                                    break;
+                                case '\u8840\u6c27\u5f02\u5e38': // '血氧异常'
+                                    alertTypeClass = 'alert-type-oxygen';
+                                    break;
+                                case '\u8840\u538b\u5f02\u5e38': // '血压异常'
+                                    alertTypeClass = 'alert-type-pressure';
+                                    break;
+                                case '\u4f53\u6e29\u5f02\u5e38': // '体温异常'
+                                    alertTypeClass = 'alert-type-temperature';
+                                    break;
+                                case '\u5fc3\u7387\u5f02\u5e38': // '心率异常'
+                                    alertTypeClass = 'alert-type-heart-rate';
+                                    break;
+                                default:
+                                    alertTypeClass = 'alert-type-n  ormal'; // Default to normal if unknown
+                            }
+                            var alertSeverityLevel = '';
+                            switch (alert.severityLevel) {
+                                case 'medium':
+                                    alertSeverityLevel = '三级';
+                                    break;
+                                case 'high':
+                                    alertSeverityLevel = '二级';
+                                    break;
+                                case 'critical':
+                                    alertSeverityLevel = '一级';
+                                    break;
+                                    default:
+                                        alertSeverityLevel = '未知'; // Default to normal if unknown
+                            }
+
+
+                            var row = $('<div class="row ' + alertTypeClass + '"></div>');
+                            row.append('<span class="col">' + alert.userName + '</span>');
+                            row.append('<span class="col">' + alertSeverityLevel + '</span>');
+                            row.append('<span class="col">' + alert.alertType + '</span>');
+                            row.append('<span class="icon-dot" style="color: inherit;"></span>'); // Use the same color as the row
+                            container.append(row);
+                            console.log(row);
+                        });
+                    } else {
+                        console.error('Failed to fetch alerts:', response.error);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX error:', status, error);
+                }
+            });
+        }
+        
+
+    </script>
+   
+</head>
+<body>
+<!--头部-->
+<header id="header">
+    <div class="header">
+        <div class="title-container">
+           
+<button class="button">
+  <div class="title-inner">
+    <div class="svgs">
+      <svg
+        viewBox="0 0 256 256"
+        height="1em"
+        width="1em"
+        xmlns="http://www.w3.org/2000/svg"
+        class="svg-l"
+      >
+        <path
+          d="M240 128a15.79 15.79 0 0 1-10.5 15l-63.44 23.07L143 229.5a16 16 0 0 1-30 0l-23.06-63.44L26.5 143a16 16 0 0 1 0-30l63.44-23.06L113 26.5a16 16 0 0 1 30 0l23.07 63.44L229.5 113a15.79 15.79 0 0 1 10.5 15"
+          fill="currentColor"
+        ></path>
+      </svg>
+      <svg
+        viewBox="0 0 256 256"
+        height="1em"
+        width="1em"
+        xmlns="http://www.w3.org/2000/svg"
+        class="svg-s"
+      >
+        <path
+          d="M240 128a15.79 15.79 0 0 1-10.5 15l-63.44 23.07L143 229.5a16 16 0 0 1-30 0l-23.06-63.44L26.5 143a16 16 0 0 1 0-30l63.44-23.06L113 26.5a16 16 0 0 1 30 0l23.07 63.44L229.5 113a15.79 15.79 0 0 1 10.5 15"
+          fill="currentColor"
+        ></path>
+      </svg>
+    </div>
+    灵境万象健康管理平台
+  </div>
+</button>
+
+        </div>
+    </div>
+</header>
+
+<!--内容-->
+<section id="data_content">
+    <div class="data_content">
+        <!--左边-->
+        <div class="data_left fl">
+            <div class="left_top">
+                <div class="data_info">
+                   
+                        <div class="v13_3">
+                            <div class="v14_75"></div>
+                         
+                            
+                            <div class="v18_180"></div>
+                            <div class="v18_128">
+                                <div class="v18_113">
+                                    <div class="v18_110"></div>
+                                    <div class="v18_111"></div>
+                                    <div class="name"></div>
+                                </div>
+                                <div class="v18_114">
+                                    <div class="v18_116"></div>
+                                    <div class="v18_117"></div>
+                                    <div class="name"></div>
+                                </div>
+                                <span class="v18_132" id="bloodPressure">120/80</span>
+                                <span class="v18_133">血压</span>
+                                <div class="v128_7"></div>
+                            </div>
+                            <div class="v18_134">
+                                <div class="v18_135">
+                                    <div class="v18_136"></div>
+                                    <div class="v18_137"></div>
+                                    <div class="name"></div>
+                                </div>
+                                <div class="v18_139">
+                                    <div class="v18_140"></div>
+                                    <div class="v18_141"></div>
+                                    <div class="name"></div>
+                                </div>
+                                <span class="v18_143" id="heartRate">93</span>
+                                <span class="v18_144">心率</span>
+                                <div class="v128_8"></div>
+                            </div>
+                            <div class="v18_156">
+                                <div class="v18_157">
+                                    <div class="v18_158"></div>
+                                    <div class="v18_159"></div>
+                                    <div class="name"></div>
+                                </div>
+                                <div class="v18_161">
+                                    <div class="v18_162"></div>
+                                    <div class="v18_163"></div>
+                                    <div class="name"></div>
+                                </div>
+                                <span class="v18_165" id="bloodOxygen">85</span>
+                                <span class="v18_166">血氧</span>
+                                <div class="v128_9"></div>
+                            </div>
+                            <div class="v14_82"></div>
+                            <div class="v14_73"></div>
+                            <span class="v14_74">{{userName}} 健康档案</span>
+                            <span class="v14_77">
+                                <button class="profile-button">健康画像</button>
+                                </span>
+                            <span class="v18_100"> <button class="profile-button">生命体征</button></span>
+                            <span class="v18_167"><button class="profile-button">就诊记录</button></span>
+                            <span class="v18_178">时间</span>
+                            <span class="v18_179">操作</span>
+                            <div class="v18_187 record">
+                                <span class="v18_181 date">2022年1月25日10:25</span>
+                                <span class="v18_182 action">住院观察</span>
+                            </div>
+                            <div class="v18_188 record">
+                                <span class="v18_183 date">2022年1月25日10:25</span>
+                                <span class="v18_184 action">患者验血</span>
+                            </div>
+                            <div class="v18_189 record">
+                                <span class="v18_185 date">2022年1月25日10:25</span>
+                                <span class="v18_186 action">X光片拍摄</span>
+                            </div>
+                            <span class="v14_84">档案号：23123123</span>
+                            <span class="v14_85">年龄：23</span>
+                            <span class="v14_87">现病史：</span>
+                            <span class="v14_86">性别：男</span>
+                            <span class="v14_81">Patient portrait</span>
+                            <span class="v18_101">Vital signs</span>
+                            <span class="v18_168">Visit record</span>
+                        
+                            <div class="v18_99">
+                                <div class="v14_78"></div>
+                                <div class="v14_79"></div>
+                            </div>
+                            <div class="v18_104">
+                                <div class="v18_105"></div>
+                                <div class="v18_106"></div>
+                            </div>
+                            <div class="v16_92"></div>
+                          
+                            <div class="v18_687">
+                                <div class="v18_262">
+                                    <div class="v18_193">
+                                        
+                                        
+                                    </div>
+                                   
+                                    <span class="v18_263" style="color: green; ">87</span>
+                                    <span class="v18_266" style="color: green; ">健康</span>
+                                </div>
+                                
+                                <div class="v18_633">
+                                  
+                                    <div class="v18_646">
+                                        
+                                    </div>
+                                </div>
+                           
+                            </div>
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        </div>
+        <!--中间-->
+        <div class="data_c fl">
+            <div class="center-center">
+               
+            </div>
+            <div class="data_c_1">
+
+                <div id="contPar" class="contPar">
+                    <div id="page1"  style="z-index:1">
+
+                        <div id="drag-container" style="z-index: 1">
+                            <div id="spin-container">
+                                <img alt="" class="infoBtn" src="{{ url_for('static', filename='picture/health_profile.png') }}">
+                                <img alt="" class="" src="{{ url_for('static', filename='picture/monitor.png') }}">
+                                <img alt="" class="" src="{{ url_for('static', filename='picture/health.png') }}">
+                                <img alt="" class="" src="{{ url_for('static', filename='picture/heart.png') }}">
+
+                            </div>
+                            <div id="ground"></div>
+                        </div>
+
+                        <img alt="" class="img3 png" src="{{ url_for('static', filename='images/newdz.png') }}" >
+                    </div>
+                </div>
+            </div>
+        
+        </div>
+        <!--右边-->
+        <div class="data_right">
+            <div class="right_top">
+                <div class="right_info">
+                    <div class="e1_23">
+                        <div class="e1_24"></div>
+                        <div class="e1_25">
+                            
+                            <button class="profile-button">实时指数</button>
+                        </div>
+                        <div class="e1_28">
+                            <div class="e1_29">
+                                <div class="e1_30"></div>
+                                <div class="e1_31">
+                                    <div class="e1_32">
+                                        <div class="e1_33"></div>
+                                        <div class="e1_34">
+                                            <div class="e1_35"></div>
+                                            <div class="e1_36"></div>
+                                        </div>
+                                    </div>
+                                    <div class="e1_37">
+                                        <span class="e1_38">87</span>
+                                        <span class="e1_39">疲劳指数</span>
+                                        <span class="e1_40">+10%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="e1_41">
+                                <div class="e1_42"></div>
+                                <div class="e1_43">
+                                    <div class="e1_44">
+                                        <div class="e1_45"></div>
+                                        <div class="e1_46">
+                                            <div class="e1_47"></div>
+                                            <div class="e1_48"></div>
+                                        </div>
+                                    </div>
+                                    <div class="e1_49">
+                                        <span class="e1_50">78</span>
+                                        <span class="e1_51">心理健康指数</span>
+                                        <span class="e1_52">+8%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="e1_53">
+                                <div class="e1_54"></div>
+                                <div class="e1_55">
+                                    <div class="e1_56">
+                                        <div class="e1_57"></div>
+                                        <div class="e1_58"></div>
+                                    </div>
+                                    <div class="e1_59">
+                                        <span class="e1_60">25</span>
+                                        <span class="e1_61">风险指数</span>
+                                        <span class="e1_62">+2%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="e1_63">
+                                <div class="e1_64"></div>
+                                <div class="e1_65">
+                                    <div class="e1_66">
+                                        <div class="e1_67"></div>
+                                        <div class="e1_68">
+                                            <div class="e1_69"></div>
+                                            <div class="e1_70"></div>
+                                        </div>
+                                    </div>
+                                    <div class="e1_71">
+                                        <span class="e1_72">12</span>
+                                        <span class="e1_73">告警总数</span>
+                                        <span class="e1_74">+30%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="right_info_second" style="position: relative; top: 190px;">
+                    <!-- Add a div for the map -->
+                    <div id="map" style="height: 250px;"></div> 
+                </div>
+                <div class="right_info" style="position: relative; top: 180px;">
+                    <div class="monitor panel">
+                        <div class="inner">
+                            <div class="tabs">
+                                <a href="javascript:;" data-index="0" class="active">实时报警信息</a>
+                                
+                            </div>
+                            <div class="content" style="display: block;">
+                                <div class="head">
+                                    <span class="col">名字</span>
+                                    <span class="col">告警级别</span>
+                                    <span class="col">告警类型</span>
+                                </div>
+                                <div class="marquee-view">
+                                    <div class="marquee" id="alertContainer">
+                                        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+                                        <script>
+                                            $(document).ready(function() {
+                                                fetchAndDisplayAlerts();
+                                            });
+                                        </script>
+                                    </div>
+                                </div>
+                            </div>
+                           
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/jquery-1.8.0.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/echarts.min.js') }}"></script>
+<script src="js/echart.js"></script>
+<!--<script type="text/javascript" src="js/com.js"></script>-->
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fontscroll.js') }}"></script>
+
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <p id="modalText">Some information here...</p>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', (event) => {
+        const modal = document.getElementById("infoModal");
+        const span = document.getElementsByClassName("close")[0];
+        const images = document.querySelectorAll('.infoBtn, .data_c img');
+      
+        images.forEach(img => {
+          img.addEventListener('click', function() {
+              modal.style.display = "block";
+              if (this.src.includes("monitor.png")) {
+                  document.getElementById("modalText").innerHTML = `
+                    <div style="font-family: 'Orbitron', sans-serif; line-height: 1.6;">
+                      <h3 style="color: #007BFF; text-align: center; text-shadow: 2px 2px 4px #000;">实时体征</h3>
+                      <p style="text-shadow: 2px 2px 4px #000; "><strong>姓名：</strong> <span id="name">user7</span></p>
+                      <p style="text-shadow: 2px 2px 4px #000; "><strong>心率：</strong> <span id="heartRate">${globalHealthData.heartRate || 'N/A'}</span></p>
+                      <p style="text-shadow: 2px 2px 4px #000; "><strong>血氧：</strong> <span id="bloodOxygen">${globalHealthData.bloodOxygen || 'N/A'}</span></p>
+                      <p style="text-shadow: 2px 2px 4px #000; "><strong>压力：</strong> <span id="pressure">${globalHealthData.stress || 'N/A'}</span></p>
+                      <p style="text-shadow: 2px 2px 4px #000; "><strong>体温：</strong> <span id="temperature">${globalHealthData.temperature || 'N/A'} °C</span></p>
+                      <p style="text-shadow: 2px 2px 4px #000; "><strong>步数：</strong> <span id="step">${globalHealthData.step || 'N/A'}</span></p>
+                  </div>`;
+              }else if (this.src.includes("health_profile.png")) {
+              document.getElementById("modalText").innerHTML = `
+                  
+      <div class="card">
+          <div class="bg uwu"></div>
+          <div class="bg"></div>
+          <div class="content">
+                <div class="img">
+                    <img src="static/images/矿工.jpeg" alt="矿工" style="width: 100%; height: auto;">
+                </div>
+                <p style="text-shadow: 1px 1px 2px #000;"><strong>BMI：</strong> 24 kg/m²</p>
+                        <p style="text-shadow: 1px 1px 2px #000;"><strong>血脂：</strong> 150 mg/dL</p>
+                        <p style="text-shadow: 1px 1px 2px #000;"><strong>血压：</strong> ${globalHealthData.pressureHigh|| 'N/A'}/${globalHealthData.pressureLow|| 'N/A'} mmHg</p>
+                        <p style="text-shadow: 1px 1px 2px #000;"><strong>血糖：</strong> 90 mg/dL</p>
+                        <p style="text-shadow: 1px 1px 2px #000;"><strong>心理健康：</strong> 85 </p>
+          </div>
+      </div>`;
+          }else if (this.src.includes("health.png")) {
+               document.getElementById("modalText").innerHTML = `
+                  <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                      <h3 style="color: #007BFF; text-align: center; text-shadow: 1px 1px 2px #000;">最新体检</h3>
+                      <p style="text-shadow: 1px 1px 2px #000;"><strong>心率：</strong> <span id="heartRate">${globalHealthData.heartRate || 'N/A'} bpm</p>
+                      <p style="text-shadow: 1px 1px 2px #000;"><strong>收缩压：</strong><span id="pressureHigh"> ${globalHealthData.pressureHigh || 'N/A'} mmHg</p>
+                      <p style="text-shadow: 1px 1px 2px #000;"><strong>舒张压：</strong><span id="pressureLow"> ${globalHealthData.pressureLow || 'N/A'} mmHg</p>
+                      <p style="text-shadow: 1px 1px 2px #000;"><strong>体温：</strong> ${globalHealthData.temperature || 'N/A'}°C</p>
+                      <p style="text-shadow: 1px 1px 2px #000;"><strong>血氧：</strong> ${globalHealthData.bloodOxygen || 'N/A'} SaO2</p>
+                  </div>`;
+          }else {
+              document.getElementById("modalText").innerHTML = `
+              <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                  <h3 style="color: #007BFF; text-align: center; text-shadow: 1px 1px 2px #000;">心理检测</h3>
+                  <p style="text-shadow: 1px 1px 2px #000;"><strong>焦虑：</strong> 45 分</p>
+                  <p style="text-shadow: 1px 1px 2px #000;"><strong>抑郁：</strong> 30 分</p>
+                  <p style="text-shadow: 1px 1px 2px #000;"><strong>压力：</strong> 50 分</p>
+                  <p style="text-shadow: 1px 1px 2px #000;"><strong>幸福感：</strong> 70 分</p>
+                  <p style="text-shadow: 1px 1px 2px #000;"><strong>心理健康指数：</strong> 85 分</p>
+              </div>`;
+              }
+          });
+      });
+      
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+      
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+      });
+      
+</script>
+</body>
+</html>

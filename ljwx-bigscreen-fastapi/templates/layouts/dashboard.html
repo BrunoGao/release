@@ -1,0 +1,334 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - 数据大屏{% endblock %}
+
+{% block critical_css %}
+{{ super() }}
+
+/* Dashboard specific critical CSS */
+.dashboard-container {
+    display: grid;
+    grid-template-columns: 22% 1fr 22%;
+    grid-template-rows: repeat(3, 1fr);
+    grid-gap: 16px;
+    height: 100vh;
+    padding: 16px;
+    background: radial-gradient(ellipse at center, #0a1428 0%, #061018 100%);
+}
+
+.side-container {
+    display: grid;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-gap: 16px;
+}
+
+.center-container {
+    display: grid;
+    grid-template-rows: 20% 35% 45%;
+    grid-gap: 16px;
+}
+
+.panel {
+    background: rgba(0, 43, 64, 0.8);
+    border: 1px solid rgba(0, 228, 255, 0.2);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.panel:hover {
+    border-color: rgba(0, 228, 255, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 228, 255, 0.1);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0, 228, 255, 0.1);
+}
+
+.panel-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #00e4ff;
+    text-shadow: 0 0 10px rgba(0, 228, 255, 0.3);
+}
+
+.panel-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.panel-content {
+    height: calc(100% - 60px);
+    overflow: hidden;
+}
+
+/* Responsive design */
+@media screen and (max-width: 1920px) {
+    .dashboard-container {
+        grid-template-columns: 20% 1fr 20%;
+    }
+}
+
+@media screen and (max-width: 1440px) {
+    .dashboard-container {
+        grid-template-columns: 18% 1fr 18%;
+        grid-gap: 12px;
+        padding: 12px;
+    }
+    
+    .panel {
+        padding: 12px;
+    }
+}
+
+@media screen and (max-width: 1024px) {
+    .dashboard-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        grid-gap: 8px;
+        padding: 8px;
+    }
+    
+    .side-container {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: auto;
+    }
+    
+    .center-container {
+        grid-template-rows: auto auto auto;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .side-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+    }
+    
+    .panel {
+        min-height: 200px;
+    }
+}
+{% endblock %}
+
+{% block async_css %}
+{{ super() }}
+<link rel="preload" href="{{ url_for('static', path='css/components/charts.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" href="{{ url_for('static', path='css/components/panels.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" href="{{ url_for('static', path='css/themes/dark_theme.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/components/charts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/components/panels.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/themes/dark_theme.css') }}">
+</noscript>
+{% endblock %}
+
+{% block skeleton %}
+<div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+    <!-- Dashboard skeleton structure -->
+    <div style="display: grid; grid-template-columns: 22% 1fr 22%; grid-template-rows: repeat(3, 1fr); grid-gap: 16px; height: 100vh; padding: 16px;">
+        <!-- Left column skeleton -->
+        <div style="display: grid; grid-template-rows: 1fr 1fr 1fr; grid-gap: 16px;">
+            <div class="skeleton-panel"></div>
+            <div class="skeleton-panel"></div>
+            <div class="skeleton-panel"></div>
+        </div>
+        
+        <!-- Center column skeleton -->
+        <div style="display: grid; grid-template-rows: 20% 35% 45%; grid-gap: 16px;">
+            <div class="skeleton-panel"></div>
+            <div class="skeleton-panel"></div>
+            <div class="skeleton-panel"></div>
+        </div>
+        
+        <!-- Right column skeleton -->
+        <div style="display: grid; grid-template-rows: 1fr 1fr 1fr; grid-gap: 16px;">
+            <div class="skeleton-panel"></div>
+            <div class="skeleton-panel"></div>
+            <div class="skeleton-panel"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+.skeleton-panel {
+    background: rgba(0, 43, 64, 0.6);
+    border: 1px solid rgba(0, 228, 255, 0.1);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-panel::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(0,228,255,0.4), 
+        transparent);
+    animation: skeleton-shimmer 2s infinite;
+}
+
+@keyframes skeleton-shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+</style>
+
+<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10;">
+    <div style="font-size: 24px; margin-bottom: 20px; color: #00e4ff; text-shadow: 0 0 20px rgba(0,228,255,0.5);">
+        ⚡ 正在启动大屏系统...
+    </div>
+    <div style="width: 300px; height: 4px; background: rgba(0,228,255,0.3); border-radius: 2px; overflow: hidden;">
+        <div style="width: 0%; height: 100%; background: linear-gradient(90deg, #00e4ff, #0099cc); animation: loading-progress 2s ease-in-out infinite; border-radius: 2px;"></div>
+    </div>
+    <div style="margin-top: 12px; font-size: 14px; color: rgba(255,255,255,0.7);">
+        初始化数据连接和图表组件...
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    {% block dashboard_content %}
+    <!-- Default dashboard content -->
+    <div class="side-container">
+        <!-- Left panels -->
+        {% block left_panels %}{% endblock %}
+    </div>
+    
+    <div class="center-container">
+        <!-- Center panels -->
+        {% block center_panels %}{% endblock %}
+    </div>
+    
+    <div class="side-container">
+        <!-- Right panels -->
+        {% block right_panels %}{% endblock %}
+    </div>
+    {% endblock %}
+</div>
+{% endblock %}
+
+{% block module_loading %}
+// Dashboard specific module loading
+const loadDashboardModules = async () => {
+    try {
+        LJWX.performance.mark('dashboard-start');
+        
+        // Load core modules first
+        await Promise.all([
+            LJWX.loadModule('apiClient', '{{ url_for("static", path="js/core/api_client.js") }}'),
+            LJWX.loadModule('cacheManager', '{{ url_for("static", path="js/core/cache_manager.js") }}'),
+            LJWX.loadModule('eventDispatcher', '{{ url_for("static", path="js/core/event_dispatcher.js") }}'),
+            LJWX.loadModule('performanceMonitor', '{{ url_for("static", path="js/core/performance_monitor.js") }}')
+        ]);
+        
+        LJWX.performance.mark('core-loaded');
+        
+        // Load dashboard specific modules
+        await Promise.all([
+            LJWX.loadModule('chartController', '{{ url_for("static", path="js/components/chart_controller.js") }}'),
+            LJWX.loadModule('panelManager', '{{ url_for("static", path="js/components/panel_manager.js") }}'),
+            LJWX.loadModule('dataVisualization', '{{ url_for("static", path="js/components/data_visualization.js") }}'),
+            LJWX.loadModule('realTimeUpdater', '{{ url_for("static", path="js/utils/real_time_updater.js") }}')
+        ]);
+        
+        LJWX.performance.mark('dashboard-modules-loaded');
+        
+        // Load external libraries
+        await Promise.all([
+            loadExternalScript('{{ url_for("static", path="js/libs/echarts-5.4.0.min.js") }}'),
+            loadExternalScript('{{ url_for("static", path="js/libs/jquery-3.6.0.min.js") }}')
+        ]);
+        
+        LJWX.performance.mark('external-libs-loaded');
+        
+        // Initialize dashboard
+        await initializeDashboard();
+        
+    } catch (error) {
+        console.error('Dashboard模块加载失败:', error);
+        showErrorMessage('大屏系统初始化失败，请检查网络连接并刷新页面');
+    }
+};
+
+const loadExternalScript = (src) => {
+    return new Promise((resolve, reject) => {
+        // Check if already loaded
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+};
+
+const initializeDashboard = async () => {
+    // Initialize performance monitoring
+    if (LJWX.modules.performanceMonitor) {
+        LJWX.performance.monitor = new LJWX.modules.performanceMonitor();
+    }
+    
+    // Initialize cache manager
+    if (LJWX.modules.cacheManager) {
+        LJWX.cache = new LJWX.modules.cacheManager();
+        await LJWX.cache.preloadCriticalData();
+    }
+    
+    // Initialize chart controller
+    if (LJWX.modules.chartController) {
+        LJWX.charts = new LJWX.modules.chartController();
+    }
+    
+    // Initialize panel manager
+    if (LJWX.modules.panelManager) {
+        LJWX.panels = new LJWX.modules.panelManager();
+    }
+    
+    // Initialize real-time updater
+    if (LJWX.modules.realTimeUpdater) {
+        LJWX.realTime = new LJWX.modules.realTimeUpdater();
+        await LJWX.realTime.start();
+    }
+    
+    // Hide skeleton and show content
+    document.getElementById('app-skeleton').classList.add('hidden');
+    document.getElementById('main-content').classList.remove('hidden');
+    
+    // Initialize application
+    LJWX.init();
+    
+    // Performance metrics
+    LJWX.performance.measure('Dashboard initialization', 'dashboard-start');
+    LJWX.performance.measure('Core modules loading', 'dashboard-start', 'core-loaded');
+    LJWX.performance.measure('Dashboard modules loading', 'core-loaded', 'dashboard-modules-loaded');
+    LJWX.performance.measure('External libraries loading', 'dashboard-modules-loaded', 'external-libs-loaded');
+    
+    console.log('🚀 Dashboard初始化完成');
+};
+
+// Start loading when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadDashboardModules);
+} else {
+    loadDashboardModules();
+}
+{% endblock %}

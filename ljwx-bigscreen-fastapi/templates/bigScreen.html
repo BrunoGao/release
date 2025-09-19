@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>地图数据可视化</title>
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/index.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='fonts/icomoon.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+   
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.3.2/echarts.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+   
+    <script>
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            const daysOfWeek = ['日', '一', '二', '三', '四', '五', '六'];
+            const dateString = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours() >= 12 ? 'pm' : 'am'} 周${daysOfWeek[now.getDay()]}`;
+            document.getElementById('datetime').innerHTML = `
+                <span id="time">${timeString}</span>
+                <span id="date">${dateString}</span>
+            `;
+        }
+     
+    
+
+        async function updateWeather() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                  
+    
+                    // Fetch city name using reverse geocoding
+                    const locationResponse = await fetch(`https://restapi.amap.com/v3/geocode/regeo?location=${longitude},${latitude}&key=d45f28e481665db5b1145a5aa989e68a`);
+                    const locationData = await locationResponse.json();
+                    console.log(locationData);
+                    const city = locationData.regeocode.addressComponent.city || 
+                    (locationData.regeocode.addressComponent.province === "香港特别行政区" ? "香港" : locationData.regeocode.addressComponent.province);
+                    console.log(city);
+    
+                    // Fetch weather data using the city name
+                    const weatherResponse = await fetch(`https://restapi.amap.com/v3/weather/weatherInfo?city=深圳&key=d45f28e481665db5b1145a5aa989e68a`);
+                    const weatherData = await weatherResponse.json();
+                    if (weatherData.status === "1" && weatherData.lives && weatherData.lives.length > 0) {
+                        const weatherInfo = weatherData.lives[0];
+                        document.getElementById('weatherImg').src = getWeatherIcon(weatherInfo.weather);
+                        document.getElementById('weather').innerHTML = `
+                            <p class="active">${weatherInfo.weather}</p>
+                            <p>${weatherInfo.temperature}℃</p>
+                        `;
+                    } else {
+                        console.error('Failed to fetch weather data:', weatherData.info);
+                    }
+                }, function(error) {
+                    console.error('Error getting location:', error);
+                });
+            } else {
+                console.error('Geolocation is not supported by this browser.');
+            }
+        }
+
+        function getWeatherIcon(weather) {
+            // Map weather conditions to icon URLs
+            const weatherIcons = {
+                "晴": "{{ url_for('static', filename='images/weather/晴.png') }}",
+                "多云": "{{ url_for('static', filename='images/weather/多云.png') }}",
+                "暴雪": "{{ url_for('static', filename='images/weather/暴雪.png') }}",
+                "暴雨": "{{ url_for('static', filename='images/weather/暴雨.png') }}",
+                "暴雨转大暴雨": "{{ url_for('static', filename='images/weather/暴雨转大暴雨.png') }}",
+                "大暴雪": "{{ url_for('static', filename='images/weather/大暴雪.png') }}",
+                "大暴雨": "{{ url_for('static', filename='images/weather/大暴雨.png') }}",
+                "大雪": "{{ url_for('static', filename='images/weather/大雪.png') }}",
+                "大雪转暴雪": "{{ url_for('static', filename='images/weather/大雪转暴雪.png') }}",
+                "大雨": "{{ url_for('static', filename='images/weather/大雨.png') }}",
+                "大雨转暴雨": "{{ url_for('static', filename='images/weather/大雨转暴雨.png') }}",
+                "冻雨": "{{ url_for('static', filename='images/weather/冻雨.png') }}",
+                "浮尘": "{{ url_for('static', filename='images/weather/浮尘.png') }}",
+                "雷阵雨": "{{ url_for('static', filename='images/weather/雷阵雨.png') }}",
+                "雷阵雨加冰雹": "{{ url_for('static', filename='images/weather/雷阵雨加冰雹.png') }}",
+                "霾": "{{ url_for('static', filename='images/weather/霾.png') }}",
+                "强沙尘暴": "{{ url_for('static', filename='images/weather/强沙尘暴.png') }}",
+                "沙尘暴": "{{ url_for('static', filename='images/weather/沙尘暴.png') }}",
+                "特大暴雨": "{{ url_for('static', filename='images/weather/特大暴雨.png') }}",
+                "雾": "{{ url_for('static', filename='images/weather/雾.png') }}",
+                "小雪": "{{ url_for('static', filename='images/weather/小雪.png') }}",
+                "小雪转中雪": "{{ url_for('static', filename='images/weather/小雪转中雪.png') }}",
+                "小雨": "{{ url_for('static', filename='images/weather/小雨.png') }}",
+                "小雨转中雨": "{{ url_for('static', filename='images/weather/小雨转中雨.png') }}",
+                "扬沙": "{{ url_for('static', filename='images/weather/扬沙.png') }}",
+                "阴": "{{ url_for('static', filename='images/weather/阴.png') }}",
+                "雨加雪": "{{ url_for('static', filename='images/weather/雨加雪.png') }}",
+                "阵雪": "{{ url_for('static', filename='images/weather/阵雪.png') }}",
+                "阵雨": "{{ url_for('static', filename='images/weather/阵雨.png') }}",
+                "中雪": "{{ url_for('static', filename='images/weather/中雪.png') }}",
+                "中雪转大雪": "{{ url_for('static', filename='images/weather/中雪转大雪.png') }}",
+                "中雨": "{{ url_for('static', filename='images/weather/中雨.png') }}",
+                "中雨转大雨": "{{ url_for('static', filename='images/weather/中雨转大雨.png') }}"
+            };
+            return weatherIcons[weather] || '{{ url_for('static', filename='images/weather/default-icon.png') }}';
+        }
+
+        function setFont() {
+            // 1、页面一加载就要知道页面宽度计算
+            var setFont = function () {
+                // 因为要定义变量可能和别的变量相互冲突，污染，所有用自调用函数
+                var html = document.documentElement;// 获取html
+                // 获取宽度
+                var width = html.clientWidth;
+
+                // 判断
+                if (width < 1024) width = 1024
+                if (width > 1920) width = 1920
+                // 设置html的基准值
+                var fontSize = width / 80 + 'px';
+                // 设置给html
+                html.style.fontSize = fontSize;
+            }
+            setFont();
+            // 2、页面改变的时候也需要设置
+            // 尺寸改变事件
+            window.onresize = function () {
+                setFont();
+            }
+            document.addEventListener('DOMContentLoaded', function() {
+                setFont();
+            });
+        }
+        function myMarqueen() {
+            //事件委托
+            $('.monitor').on('click', ' a', function () {
+                //点击当前的a 加类名 active  他的兄弟删除类名
+                $(this).addClass('active').siblings().removeClass('active');
+                //获取一一对应的下标 
+                var index = $(this).index();
+                //选取content 然后狗日对应下标的 显示   当前的���弟.content隐藏
+                $('.content').eq(index).show().siblings('.content').hide();
+            });
+            //滚动
+            //原理：把marquee下面的子盒子都复制一遍 加入到marquee中
+            //      然后动画向上滚动，滚动到一半重新开始滚动
+            //因为选取的是两个marquee  所以要遍历
+            $('.monitor .marquee').each(function (index, dom) {
+                //将每个 的所有子级都复制一遍
+                var rows = $(dom).children().clone();
+                //再将新的到的加入原来的
+                $(dom).append(rows);
+            });
+
+        }
+        function peopleCount() {
+            // 中间省略的数据  准备三项
+            var item = {
+                name: '',
+                value: 1200,
+                // 柱子颜色
+                itemStyle: {
+                    color: '#254065'
+                },
+                // 鼠标经过柱子颜色
+                emphasis: {
+                    itemStyle: {
+                        color: '#254065'
+                    }
+                },
+                // 工具提示隐藏
+                tooltip: {
+                    extraCssText: 'opacity:0'
+                }
+            };
+            option = {
+                // 工具提示
+                tooltip: {
+                    // 触发类型  经过轴触发axis  经过轴触发item
+                    trigger: 'item',
+                    // 轴触发提示才有效
+                    axisPointer: {
+                        // 默认为直线，可选为：'line' 线效果 | 'shadow' 阴影效果       
+                        type: 'shadow'
+                    }
+                },
+                // 图表边界控制
+                grid: {
+                    // 距离 上右下左 的距离
+                    left: '0',
+                    right: '3%',
+                    bottom: '3%',
+                    top: '5%',
+                    // 大小是否包含文本【类似于boxsizing】
+                    containLabel: true,
+                    //显示边框
+                    show: true,
+                    //边框颜色
+                    borderColor: 'rgba(0, 240, 255, 0.3)'
+                },
+                // 控制x轴
+                xAxis: [
+                    {
+                        // 使用类目，必须有data属性
+                        type: 'category',
+                        // 使用 data 中的数据设为刻度文字
+                        data: ['上海', '广州', '北京', '深圳', '合肥', '', '......', '', '杭州', '厦门', '济南', '成都', '重庆'],
+                        // 刻度设置
+                        axisTick: {
+                            // true意思：图形在刻度中间
+                            // false意思：图形在刻度之间
+                            alignWithLabel: false,
+                            show: false
+                        },
+                        //文字
+                        axisLabel: {
+                            color: '#4c9bfd'
+                        }
+                    }
+                ],
+                // 控制y轴
+                yAxis: [
+                    {
+                        // 使用数据的值设为刻度文字
+                        type: 'value',
+                        axisTick: {
+                            // true意思：图形在刻度中间
+                            // false意思：图形在刻度之间
+                            alignWithLabel: false,
+                            show: false
+                        },
+                        //文字
+                        axisLabel: {
+                            color: '#4c9bfd'
+                        },
+                        splitLine: {
+                            lineStyle: {
+                                color: 'rgba(0, 240, 255, 0.3)'
+                            }
+                        },
+                    }
+                ],
+                // 控制x轴
+                series: [
+        
+                    {
+                        // series配置
+                        // 颜色
+                        itemStyle: {
+                            // 提供的工具函数生成渐变颜色
+                            color: new echarts.graphic.LinearGradient(
+                                // (x1,y2) 点到点 (x2,y2) 之间进行渐变
+                                0, 0, 0, 1,
+                                [
+                                    { offset: 0, color: '#00fffb' }, // 0 起始颜色
+                                    { offset: 1, color: '#0061ce' }  // 1 结束颜色
+                                ]
+                            )
+                        },
+                        // 图表数据名称
+                        name: '用户统计',
+                        // 图表类型
+                        type: 'bar',
+                        // 柱子宽度
+                        barWidth: '60%',
+                        // 数据
+                        data: [2100, 1900, 1700, 1560, 1400, item, item, item, 900, 750, 600, 480, 240]
+                    }
+                ]
+            };
+            var myechart = echarts.init($('.users .bar')[0]);
+            myechart.setOption(option);
+            myechart.on('click',  function(param) {
+                alert("更多模板，关注公众号【DreamCoders】\n回复'BigDataView'即可获取\n或前往Gitee下载 https://gitee.com/iGaoWei/big-data-view")
+                setTimeout(function(){
+                    location.href = "https://gitee.com/iGaoWei/big-data-view";
+                },20000);
+            });
+        }
+        
+        function fetchAndDisplayAlertTypes() {
+            var myechart = echarts.init($('.pie')[0]);
+
+            // Fetch data from the server
+            $.ajax({
+                url: '/fetch_alertType_stats',
+                type: 'GET',
+                data: {
+                    userName: getSelectedUserName() // You can modify this to fetch specific user alerts or remove it to fetch all
+                },
+                success: function(response) {
+                    //console.log("数据获取成功:", response); // 输出获取的数据
+
+                    // Check if the response has the expected structure and the 'success' flag is true
+                    if (response && response.success && response.alertTypeStats) {
+                        var option = {
+                            tooltip: {
+                                trigger: 'item',
+                                formatter: "{a} <br/>{b} : {c} ({d}%)"
+                            },
+                            series: [
+                                {
+                                    name: '异常类型',
+                                    type: 'pie',
+                                    radius: ['10%', '70%'],
+                                    center: ['50%', '50%'],
+                                    roseType: 'radius',
+                                    data: response.alertTypeStats,  // Use the fetched data directly from alertTypeStats
+                                    label: {
+                                        fontSize: 10
+                                    },
+                                    labelLine: {
+                                        length: 8,
+                                        length2: 10
+                                    }
+                                }
+                            ],
+                            color: ['#006cff', '#60cda0', '#ed8884', '#ff9f7f', '#0096ff', '#9fe6b8', '#32c5e9', '#1d9dff']
+                        };
+                        //console.log("图表配置选项:", option); // 输出图表配置
+
+                        myechart.setOption(option);
+                        document.querySelector('.data .item:nth-child(1) h4').textContent = response.totalAlerts;
+                        document.querySelector('.data .item:nth-child(2) h4').textContent = response.monthlyAlerts;
+                    } else {
+                        console.error('Invalid data structure:', response);
+                    }
+                },
+                error: function(error) {
+                    console.error('Error fetching data:', error);
+                }
+            });
+
+            myechart.on('click', function(param) {
+                console.log("图表点击参数:", param); // 输出点击事件的参数
+                setTimeout(function(){
+                    location.href = "https://gitee.com/iGaoWei/big-data-view";
+                }, 20000);
+            });
+        }
+        function fetchAndDisplayAlerts() {
+            $.ajax({
+                url: '/fetch_alerts',
+                type: 'GET',
+                data: {
+                    userName: getSelectedUserName() // You can modify this to fetch specific user alerts or remove it to fetch all
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var alerts = response.alerts;
+                        var container = $('#alertContainer');
+                        if (container.length === 0) {
+                            console.error("Alert container not found.");
+                            return;
+                        }
+                        container.empty(); // Clear previous alerts
+                                              alerts.forEach(function(alert) {
+                            var alertTypeClass = '';
+                            switch (alert.alertType) {
+                                case '跌倒':
+                                    alertTypeClass = 'alert-type-fall';
+                                    break;
+                                case '血氧异常':
+                                    alertTypeClass = 'alert-type-oxygen';
+                                    break;
+                                case '血压异常':
+                                    alertTypeClass = 'alert-type-pressure';
+                                    break;
+                                case '体温异常':
+                                    alertTypeClass = 'alert-type-temperature';
+                                    break;
+                                case '心率异常':
+                                    alertTypeClass = 'alert-type-heart-rate';
+                                    break;
+                                default:
+                                    alertTypeClass = 'alert-type-normal'; // Default to normal if unknown
+                            }
+
+                            var row = $('<div class="row ' + alertTypeClass + '"></div>');
+                            row.append('<span class="col">' + alert.userName + '</span>');
+                            row.append('<span class="col">' + alert.phoneNumber + '</span>');
+                            row.append('<span class="col">' + alert.alertType + '</span>');
+                            row.append('<span class="icon-dot" style="color: inherit;"></span>'); // Use the same color as the row
+                            container.append(row);
+                        });
+                    } else {
+                        console.error('Failed to fetch alerts:', response.error);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX error:', status, error);
+                }
+            });
+        }
+        function initializeHealthChart(chartContainer) {
+         
+            var myechart = echarts.init($(chartContainer)[0]);
+            //console.log(chartContainer); 
+            var type = $(chartContainer).attr('class').split(' ')[1]; // Assuming the second class denotes the type
+            //console.log(type); // Check what elements are selected
+
+            var colorMap = {
+                'heartRate': '#ff4757',
+                'bloodOxygen': '#1e90ff',
+                'temperature': '#ff7f50',
+                'step': '#26eb54'
+            };
+      
+
+        
+            // Initialize chart configuration
+            var option = {
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    borderColor: '#333',
+                    borderWidth: 1,
+                    textStyle: {
+                        color: '#fff'
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    axisTick: { show: false },
+                    axisLabel: { color: '#4c9bfd' },
+                    axisLine: { show: true, lineStyle: { color: '#012f4a' } },
+                    boundaryGap: false,
+            
+                },
+                yAxis: {
+                    type: 'value',
+                    axisTick: { show: false },
+                    axisLabel: { color: '#4c9bfd' },
+                    axisLine: { show: true, lineStyle: { color: '#012f4a' } },
+                    splitLine: { lineStyle: { color: 'rgba(0, 240, 255, 0.3)' } },
+                },
+                legend: {
+                    textStyle: { color: '#4c9bfd' },
+                    right: '10%'
+                },
+                grid: {
+                    show: true,
+                    top: '20%',
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    borderColor: '#012f4a',
+                    containLabel: true
+                },
+                series: [
+                    {
+                        name: type,
+                        type: 'line',
+                        smooth: true,
+                        itemStyle: { color: colorMap[type] }
+                    }
+                ]
+            };
+        
+            // Data and time range mapping
+            var dataMap = {
+                year: {
+                    xAxisData: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                    seriesData: [
+                        [24, 40, 101, 134, 90, 230, 210, 230, 120, 230, 210, 120]
+                    ]
+                },
+                month: {
+                    xAxisData: Array.from({ length: 30 }, (_, i) => `${i + 1}日`),
+                    seriesData: [
+                        Array.from({ length: 30 }, () => Math.floor(Math.random() * 100))
+                    ]
+                },
+                week: {
+                    xAxisData: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                    seriesData: [
+                        [43, 73, 62, 54, 91, 54, 84]
+                    ]
+                },
+                day: {
+                    xAxisData: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+                    seriesData: [
+                        Array.from({ length: 24 }, () => Math.floor(Math.random() * 100))
+                    ]
+                }
+            };
+        
+            // Click event handling
+          
+            $('.health').on('click', '.caption a', function () {
+                $(this).addClass('active').siblings('a').removeClass('active');
+                var key = $(this).attr('data-type');
+                var config = dataMap[key];
+                //console.log(config.xAxisData);
+                
+                if (['day', 'week', 'month', 'year'].includes(key)) {
+                    
+                
+                    // Fetch new data for 'day', 'week', 'month', 'year'
+                    $.ajax({
+                        url: '/fetch_demison_health_data',
+                        type: 'GET',
+                        data: {
+                            userName: getSelectedUserName(),
+                            dimension: key,
+                            type: type // Pass the type as a parameter
+                        },
+                        success: function(response) {
+                            if (dataMap[key]) { // Check if the dimension key exists in dataMap
+                                var fullXAxisData = dataMap[key].xAxisData;
+                                var fullSeriesData = new Array(fullXAxisData.length).fill(0); // Default values set to 0
+                        
+                                // Map backend data to the full series
+                                response.data.forEach(function(item) {
+                                    var index = -1;
+                                    if (key === 'day') {
+                                        var timePart = item.date.split(' ')[1]; // Extract the hour part for 'day'
+                                        index = fullXAxisData.indexOf(timePart);
+                                    } else if (key === 'week') {
+                                        var date = new Date(item.date);
+                                        var dayName = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()]; // Convert date to day name for 'week'
+                                        index = fullXAxisData.indexOf(dayName);
+                                    } else if (key === 'month') {
+                                        var dayPart = item.date.split('-')[2] + '日'; // Extract the day part and append '日' for 'month'
+                                        index = fullXAxisData.indexOf(dayPart);
+                                    } else if (key === 'year') {
+                                        var monthPart = parseInt(item.date.split('-')[1], 10) + '月'; // Extract the month part and append '月' for 'year'
+                                        index = fullXAxisData.indexOf(monthPart);
+                                    }
+                        
+                                    if (index !== -1) {
+                                        fullSeriesData[index] = parseFloat(item.avgMetric);
+                                    }
+                                });
+                        
+                                // Update chart data
+                                option.xAxis.data = fullXAxisData;
+                                option.series[0].data = fullSeriesData;
+                        
+                                // Apply updated options to the chart
+                                myechart.setOption(option, true);
+                            } else {
+                                console.error('Invalid dimension:', dimension);
+                            }
+                        },
+                        error: function(error) {
+                            console.error('Error fetching data:', error);
+                        }
+                    });
+                } else {
+                    option.xAxis.data = config.xAxisData;
+                    option.series[0].data = config.seriesData[0];
+                    myechart.setOption(option, true);
+                }
+            });
+        
+            // Initialize default display of year data
+            $('.health .caption a[data-type="day"]').click();
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            setFont();
+            myMarqueen();
+            fetchAndDisplayAlertTypes();
+            peopleCount();
+            updateTime();
+            updateWeather();
+            initializeHealthChart('.heartRate'); // Initialize heart rate chart
+            initializeHealthChart('.bloodOxygen'); // Initialize blood oxygen chart
+            initializeHealthChart('.temperature'); 
+            initializeHealthChart('.step'); 
+            setInterval(updateTime, 1000);
+            
+        });
+
+        function refreshAllData() {
+            // Refresh all data that depends on the selected user
+            fetchAndDisplayAlerts();
+            fetchAndDisplayAlertTypes();
+            initializeHealthChart('.heartRate'); // Initialize heart rate chart
+            initializeHealthChart('.bloodOxygen'); // Initialize blood oxygen chart
+            initializeHealthChart('.temperature'); 
+            initializeHealthChart('.step'); 
+        }
+
+
+
+    </script>
+ 
+</head>
+
+<body>
+    <script>
+        var selectedUserName = null;
+        
+        function getSelectedUserName() {
+            return selectedUserName;
+        }
+    </script>
+    <div class="viewport">
+        <div class="column">
+            <div class="overview panel">
+                <div class="inner">
+                    <div class="item">
+                        <h4>5000</h4>
+                        <span>
+                            <i class="icon-dot" style="color: #006cff"></i>
+                            总人数
+                        </span>
+                    </div>
+                    <div class="item">
+                        <h4>4987</h4>
+                        <span>
+                            <i class="icon-dot" style="color: #6acca3"></i>
+                            佩戴人数
+                        </span>
+                    </div>
+                    <div class="item">
+                        <h4>4987</h4>
+                        <span>
+                            <i class="icon-dot" style="color: #6acca3"></i>
+                            监控人数
+                        </span>
+                    </div>
+                    <div class="item">
+                        <h4>108</h4>
+                        <span>
+                            <i class="icon-dot" style="color: #ed3f35"></i>
+                            异常项目
+                        </span>
+                    </div>
+                </div>
+            </div>
+           
+            <!--监控-->
+            <div class="monitor panel">
+                <div class="inner">
+                    <div class="tabs">
+                        <a href="javascript:;" data-index="0" class="active">实时报警信息</a>
+                        
+                    </div>
+                    <div class="content" style="display: block;">
+                        <div class="head">
+                            <span class="col">名字</span>
+                            <span class="col">手机号码</span>
+                            <span class="col">异常类型</span>
+                        </div>
+                        <div class="marquee-view">
+                            <div class="marquee" id="alertContainer">
+                                <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+                                <script>
+                                    $(document).ready(function() {
+                                        fetchAndDisplayAlerts();
+                                    });
+                                </script>
+                            </div>
+                        </div>
+                    </div>
+                   
+                </div>
+            </div>
+            <!--点位-->
+            <div class="point panel">
+                <div class="inner">
+                    <h3>报警类型分布统计</h3>
+                    <div class="chart">
+                        <div class="pie" id="pieChart"></div>
+                        <div class="data">
+                            <div class="item">
+                                <h4>320,11</h4>
+                                <span>
+                                    <i class="icon-dot" style="color: #ed3f35"></i>
+                                    报警总数
+                                </span>
+                            </div>
+                            <div class="item">
+                                <h4>418</h4>
+                                <span>
+                                    <i class="icon-dot" style="color: #eacf19"></i>
+                                    本月新增
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
+        </div>
+        <div class="column">
+            <div class="center-center">
+                <div class="weather-box">
+                    <p id="datetime">
+                        <span id="time">13:56:51</span>
+                        <span id="date">2024/6/9 pm 周0</span>
+                    </p>
+                    <div class="weather">
+                        <img id="weatherImg" src="{{ url_for('static', filename='images/weather/weather_img01.png') }}" alt="Weather Image">
+                        <div id="weather">
+                            <p class="active">多云</p>
+                            <p>16-22℃</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 地图 -->
+            <div class="map" id="map">
+                <h3>
+                    <span class="icon-cube"></span>
+                    实时位置监控
+                </h3>
+               
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        var map = L.map('map').setView([22.5431, 114.0579], 12);
+                        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                            attribution: '© heguang-tech'
+                        }).addTo(map);
+                        var baseLayers = {
+                            "高德地图": L.tileLayer('http://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+                                subdomains: "1234"
+                            }).addTo(map),
+                        
+                            "高德影像": L.layerGroup([
+                                L.tileLayer('http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', {
+                                    subdomains: "1234"
+                                }),
+                                L.tileLayer('http://webst0{s}.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scale=1&style=8', {
+                                    subdomains: "1234"
+                                })
+                            ]),
+                        
+                            // 天地图 (替换tk为您的key)
+                            "天地图": L.layerGroup([
+                                L.tileLayer('http://t{s}.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=您的key', {
+                                    subdomains: ['0', '1', '2', '3', '4', '5', '6', '7']
+                                }),
+                                L.tileLayer('http://t{s}.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=您的key', {
+                                    subdomains: ['0', '1', '2', '3', '4', '5', '6', '7']
+                                })
+                            ]),
+                        
+                            "天地图影像": L.layerGroup([
+                                L.tileLayer('http://t{s}.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=您的key', {
+                                    subdomains: ['0', '1', '2', '3', '4', '5', '6', '7']
+                                }),
+                                L.tileLayer('http://t{s}.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=您的key', {
+                                    subdomains: ['0', '1', '2', '3', '4', '5', '6', '7']
+                                })
+                            ]),
+                        
+                            "天地图地形": L.layerGroup([
+                                L.tileLayer('http://t{s}.tianditu.gov.cn/ter_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ter&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=您的key', {
+                                    subdomains: ['0', '1', '2', '3', '4', '5', '6', '7']
+                                }),
+                                L.tileLayer('http://t{s}.tianditu.gov.cn/cta_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cta&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=您的key', {
+                                    subdomains: ['0', '1', '2', '3', '4', '5', '6', '7']
+                                })
+                            ]),
+                        
+                            "Google地图": L.tileLayer('http://mt1.google.cn/vt/lyrs=m@207000000&hl=zh-CN&gl=CN&src=app&x={x}&y={y}&z={z}&s=Galile'),
+                        
+                            "Google影像": L.layerGroup([
+                                L.tileLayer('http://mt1.google.cn/vt/lyrs=s&hl=zh-CN&gl=CN&x={x}&y={y}&z={z}&s=Gali'),
+                                L.tileLayer('http://mt1.google.cn/vt/imgtp=png32&lyrs=h@207000000&hl=zh-CN&gl=cn&x={x}&y={y}&z={z}&s=Galil')
+                            ]),
+                        
+                            "GeoQ": L.tileLayer('http://map.geoq.cn/ArcGIS/rest/services/ChinaOnlineCommunity/MapServer/tile/{z}/{y}/{x}'),
+                        
+                            "GeoQ 藏蓝": L.tileLayer('http://map.geoq.cn/ArcGIS/rest/services/ChinaOnlineStreetPurplishBlue/MapServer/tile/{z}/{y}/{x}'),
+                        
+                            "GeoQ 灰": L.tileLayer('http://map.geoq.cn/ArcGIS/rest/services/ChinaOnlineStreetGray/MapServer/tile/{z}/{y}/{x}')
+                        };
+                          //注意将map的crs赋值 crs: L.CRS.Baidu 详情请阅读示例页面 
+//控制地图底图
+
+
+L.control.layers(baseLayers, {}, { position: "topright" }).addTo(map);
+
+                        function updateData() {
+                            $.getJSON('/fetch_user_names', function(response) {
+                                var userNames = response.userNames; // Assuming the API returns an object with a userNames array
+                                userNames.forEach(function(userName) {
+                                    $.getJSON('/fetch_health_data_by_user_name?userName=' + encodeURIComponent(userName), function(data) {
+                                        //.log(data); // Log the data to see its structure
+                                           
+                                        if (data.success && data.data) { // Check if data.data exists and request was successful
+                                            var user = data.data; // Directly use the data.data object
+                                            var iconUrl = user.heartRate > 100 ? '{{ url_for('static', filename='images/red-icon.png')}}' : '{{ url_for('static', filename='images/blue-icon.png')}}';
+                                        
+                                            var icon = L.icon({
+                                                iconUrl: iconUrl,
+                                                iconSize: [24, 24],
+                                                iconAnchor: [12, 24],
+                                                popupAnchor: [0, -24]
+                                            });
+                                            var marker = L.marker([user.latitude, user.longitude], {icon: icon}).addTo(map);
+                                           var popupContent = `
+                                                <div style="font-size: 14px; line-height: 1.6; background-color: #f9f9f9; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                                    <strong style="color: #333;">姓名:</strong> <span style="color: #555;">${user.userName}</span><br>
+                                                    <strong style="color: #333;">心率:</strong> <span id="heartRate-${user.userName}" style="color: ${user.heartRate > 100 ? '#ff4757' : '#555'};">${user.heartRate} bpm</span><br>
+                                                    <strong style="color: #333;">血氧:</strong> <span style="color: #1e90ff;">${user.bloodOxygen}%</span><br>
+                                                    <strong style="color: #333;">体温:</strong> <span style="color: #ff7f50;">${user.temperature} ℃</span><br>
+                                                    <strong style="color: #333;">血压:</strong> <span style="color: #6acca3;">${user.pressureHigh} / ${user.pressureLow} mmHg</span><br>
+                                                    <strong style="color: #333;">步数:</strong> <span style="color: #6acca3;">${user.step}</span>
+                                                </div>
+                                            `;
+                                            marker.bindPopup(popupContent);
+                                            marker.on('click', function(e) {
+                                                selectedUserName = user.userName;
+                                                var heartRateElement = document.getElementById('heartRate-' + user.userName);
+                                                console.log(heartRateElement);
+                                                if (user.heartRate > 100) {
+                                                    heartRateElement.style.color = 'red';
+                                                }
+                                                //.log("Selected User: " + selectedUserName);
+                                                refreshAllData(); // Call to refresh all data
+                                            });
+                                          
+                                        } else {
+                                            console.error('Data is not available or request was not successful');
+                                        }
+                                    }).fail(function(jqxhr, textStatus, error) {
+                                        var err = textStatus + ", " + error;
+                                        console.log("Request Failed: " + err);
+                                    });
+                                });
+                            }).fail(function(jqxhr, textStatus, error) {
+                                console.error("Failed to fetch user names:", textStatus, error);
+                            });
+                        }
+
+                        updateData(); // Initial call
+                        setInterval(updateData, 60000); // Update data every minute
+                      
+                
+                       
+                    });
+                </script>
+            </div>
+            <!-- 用户 -->
+            <div class="users panel">
+                <div class="inner">
+                    <h3>全国用户总量统计</h3>
+                    <div class="chart">
+                        <div class="bar"></div>
+                        <div class="data">
+                            <div class="item">
+                                <h4>120,899</h4>
+                                <span>
+                                    <i class="icon-dot" style="color: #ed3f35"></i>
+                                    用户总量
+                                </span>
+                            </div>
+                            <div class="item">
+                                <h4>248</h4>
+                                <span>
+                                    <i class="icon-dot" style="color: #eacf19"></i>
+                                    本月新增
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="column" >
+           
+           
+            <!-- 健康数据 -->
+            <div class="health panel" style="flex: 1; margin-bottom: 10px;">
+                <div class="inner">
+                    <div class="caption">
+                        <h3>心率</h3>
+                        <a href="javascript:;" data-type="day">日</a>
+                        <a href="javascript:;" data-type="week">周</a>
+                        <a href="javascript:;" data-type="month">月</a>
+                        <a href="javascript:;" class="active" data-type="year">年</a>
+                    </div>
+                    <div class="chart">
+                        <div class="label"></div>
+                        <div class="line heartRate"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="health panel" style="flex: 1; margin-bottom: 10px;">
+                <div class="inner">
+                    <div class="caption">
+                        <h3>血氧</h3>
+                        <a href="javascript:;" data-type="day">日</a>
+                        <a href="javascript:;" data-type="week">周</a>
+                        <a href="javascript:;" data-type="month">月</a>
+                        <a href="javascript:;" class="active" data-type="year">年</a>
+                    </div>
+                    <div class="chart">
+                        <div class="label"></div>
+                        <div class="line bloodOxygen"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="health panel" style="flex: 1; margin-bottom: 10px;">
+                <div class="inner">
+                    <div class="caption">
+                        <h3>体温</h3>
+                        <a href="javascript:;" data-type="day">日</a>
+                        <a href="javascript:;" data-type="week">周</a>
+                        <a href="javascript:;" data-type="month">月</a>
+                        <a href="javascript:;" class="active" data-type="year">年</a>
+                    </div>
+                    <div class="chart">
+                        <div class="label"></div>
+                        <div class="line temperature"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="health panel" style="flex: 1; margin-bottom: 10px;">
+                <div class="inner">
+                    <div class="caption">
+                        <h3>步数</h3>
+                        <a href="javascript:;" data-type="day">日</a>
+                        <a href="javascript:;" data-type="week">周</a>
+                        <a href="javascript:;" data-type="month">月</a>
+                        <a href="javascript:;" class="active" data-type="year">年</a>
+                    </div>
+                    <div class="chart">
+                        <div class="label"></div>
+                        <div class="line step"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 排行榜 -->
+            
+        </div>
+    </div>
+</body>
+<script src="{{ url_for('static', filename='js/echarts.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var users = [/* 你的用户数据数组 */];
+        users.forEach(function(user) {
+            var heartRateElement = document.getElementById('heartRate-' + user.userName);
+            if (user.heartRate > 100) {
+                heartRateElement.style.color = 'red';
+            }
+        });
+    });
+    </script>
+</html>

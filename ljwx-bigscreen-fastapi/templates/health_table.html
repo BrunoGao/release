@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>健康数据表格</title>
+
+  <!-- 字体图标 -->
+  <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/font-awesome-6.0.0.min.css') }}"
+  />
+
+  <!-- 自定义样式 -->
+  <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/health_table.css') }}"
+  />
+
+  <!-- jQuery（如果有更多交互，可考虑换成原生或 Vue） -->
+  <script
+    src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"
+    defer
+  ></script>
+
+  <!-- XLSX库 -->
+  <script src="{{ url_for('static', filename='js/xlsx-0.18.5.full.min.js') }}"></script>
+  <!-- XLSX库备用CDN -->
+  <script>
+    // 如果本地XLSX库加载失败，使用CDN备用
+    if (typeof XLSX === 'undefined') {
+      console.warn('本地XLSX库加载失败，使用CDN备用');
+      const xlsxScript = document.createElement('script');
+      xlsxScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      xlsxScript.crossOrigin = 'anonymous';
+      xlsxScript.onload = function() {
+        console.log('✅ CDN XLSX库加载成功');
+      };
+      xlsxScript.onerror = function() {
+        console.error('❌ CDN XLSX库也加载失败');
+      };
+      document.head.appendChild(xlsxScript);
+    }
+  </script>
+
+  <!-- 自定义弹窗组件 -->
+  <script src="{{ url_for('static', filename='js/custom-alert.js') }}"></script>
+
+  <style>
+    /* 页面基础样式 */
+    html,body{width:100vw;height:100vh;margin:0;padding:0;overflow-x:hidden;background:#181c2f;color:#fff;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif;}
+    .health-table-container{width:100%;height:auto;margin:0;padding:16px;overflow-x:auto;}
+    table.health-table{width:100%;table-layout:auto;border-collapse:collapse;background:#232946;border-radius:8px;overflow:hidden;border:2px solid #00eaff;}
+    table.health-table th,table.health-table td{white-space:nowrap;padding:10px 12px;box-sizing:border-box;border-bottom:1px solid #2a2f4a;}
+    table.health-table th{background:#181c2f;color:#00eaff;font-weight:700;border-bottom:2px solid #00eaff;}
+    table.health-table td{color:#fff;}
+    table.health-table tbody tr:nth-child(odd){background:#232946;}
+    table.health-table tbody tr:nth-child(even){background:#1a2236;}
+    table.health-table tbody tr:hover{background:#2a2f4a;}
+    table.health-table td.num{text-align:right;}
+    table.health-table td.warn{color:#ff4d4f;font-weight:bold;}
+    
+    .toolbar-row{display:flex;align-items:center;gap:16px;padding:8px 0 16px 0;flex-wrap:wrap;}
+    .pagination-bar{display:flex;align-items:center;gap:8px;font-size:16px;}
+    .pagination-btn{padding:6px 12px;border:1.5px solid #00eaff;background:#232946;color:#00eaff;border-radius:6px;font-size:15px;cursor:pointer;transition:.2s;box-shadow:0 2px 8px #00eaff22;}
+    .pagination-btn:disabled{background:#555;color:#999;cursor:not-allowed;border-color:#555;}
+    .pagination-btn:not(:disabled):hover{background:#00eaff;color:#181c2f;}
+    .pagination-input,.pagination-select{height:32px;text-align:center;border:1.5px solid #00eaff;border-radius:6px;font-size:15px;background:#181c2f;color:#00eaff;padding:4px 8px;}
+    .pagination-input{width:50px;}
+    .pagination-select{width:80px;}
+    .pagination-label{font-size:15px;color:#00eaff;font-weight:500;}
+    
+    .date-input{font-size:16px;width:140px;border:1.5px solid #3a6ea5;border-radius:6px;background:#232946;color:#fff;padding:6px 8px;outline:none;transition:.2s;}
+    .date-input:focus{border-color:#00eaff;}
+    .date-label{color:#00eaff;font-weight:bold;font-size:16px;}
+    .btn-primary{font-size:16px;padding:6px 18px;background:#00eaff;color:#181c2f;border:none;border-radius:6px;font-weight:bold;cursor:pointer;transition:.2s;box-shadow:0 2px 8px #00eaff44;}
+    .btn-primary:hover{background:#38f9d7;color:#232946;}
+    
+    .loading{text-align:center;padding:40px;color:#00eaff;font-size:18px;}
+    .error{text-align:center;padding:40px;color:#ff4d4f;font-size:16px;}
+    .empty{text-align:center;padding:40px;color:#999;font-size:16px;}
+  </style>
+</head>
+
+<body>
+  <div class="health-table-container">
+    <div class="toolbar-row">
+      <div class="pagination-bar">
+        <button id="prevPageTop" class="pagination-btn">&lt;</button>
+        <input id="currentPageTop" class="pagination-input" type="number" min="1" value="1"/>
+        <span id="totalPagesTop" class="pagination-label">/ 1</span>
+        <button id="nextPageTop" class="pagination-btn">&gt;</button>
+        <select id="pageSizeSelectTop" class="pagination-select">
+          <option value="20">20/页</option>
+          <option value="50">50/页</option>
+          <option value="100">100/页</option>
+          <option value="200">200/页</option>
+        </select>
+        <span class="pagination-label">跳至</span>
+        <input id="jumpPageTop" class="pagination-input" type="number" min="1"/>
+        <button id="jumpBtnTop" class="pagination-btn">跳转</button>
+      </div>
+      <span class="date-label">起始日期：</span>
+      <input type="date" id="startDate" class="date-input"/>
+      <span class="date-label">结束日期：</span>
+      <input type="date" id="endDate" class="date-input"/>
+      <button id="dateSearchBtn" class="btn-primary">查询</button>
+      <button id="exportExcelBtn" class="btn-primary" style="margin-left:auto;">导出Excel</button>
+    </div>
+    
+    <div id="loadingMsg" class="loading" style="display:none;">正在加载数据...</div>
+    <div id="errorMsg" class="error" style="display:none;"></div>
+    <div id="emptyMsg" class="empty" style="display:none;">暂无数据</div>
+    
+    <table class="health-table" id="healthTable" style="display:none;">
+      <thead id="tableHead">
+        <!-- 动态生成表头 -->
+      </thead>
+      <tbody id="healthDataBody"></tbody>
+    </table>
+    
+    <div class="pagination-bar" id="paginationBottom" style="margin-top:16px;justify-content:center;">
+      <button id="prevPage" class="pagination-btn">&lt;</button>
+      <input id="currentPage" class="pagination-input" type="number" min="1" value="1"/>
+      <span id="totalPages" class="pagination-label">/ 1</span>
+      <button id="nextPage" class="pagination-btn">&gt;</button>
+      <select id="pageSizeSelect" class="pagination-select">
+        <option value="20">20/页</option>
+        <option value="50">50/页</option>
+        <option value="100">100/页</option>
+        <option value="200">200/页</option>
+      </select>
+      <span class="pagination-label">跳至</span>
+      <input id="jumpPage" class="pagination-input" type="number" min="1"/>
+      <button id="jumpBtn" class="pagination-btn">跳转</button>
+    </div>
+  </div>
+
+  <script>
+    let currentPage=1,totalPages=1,pageSize=100,allData=[],enabledMetrics=[],currentColumns=[];
+    const params=new URLSearchParams(location.search);
+    const customerId=params.get('customerId')||'1',deptId=params.get('deptId')||customerId,userId=params.get('userId')||'';
+    
+    // 字段映射：英文字段名到中文表头和分组
+    const fieldMapping = {
+      // 基本信息
+      'deptName': {title: '部门', group: '基本信息', isBasic: true},
+      'userName': {title: '用户', group: '基本信息', isBasic: true},
+      'deviceSn': {title: '设备', group: '基本信息', isBasic: true},
+      
+      // 健康指标
+      'heart_rate': {title: '心率<br><span style="font-weight:400;font-size:12px;">bpm</span>', group: '基础体征', isNum: true, warn: (v) => v < 60 || v > 100},
+      'blood_oxygen': {title: '血氧<br><span style="font-weight:400;font-size:12px;">%</span>', group: '基础体征', isNum: true, warn: (v) => v < 95},
+      'temperature': {title: '体温<br><span style="font-weight:400;font-size:12px;">℃</span>', group: '基础体征', isNum: true, warn: (v) => v > 37.5},
+      'pressure_high': {title: '收缩压<br><span style="font-weight:400;font-size:12px;">mmHg</span>', group: '血压/压力', isNum: true, warn: (v) => v > 140 || v < 90},
+      'pressure_low': {title: '舒张压<br><span style="font-weight:400;font-size:12px;">mmHg</span>', group: '血压/压力', isNum: true, warn: (v) => v > 90 || v < 60},
+      'stress': {title: '压力', group: '血压/压力', isNum: true, warn: (v) => v > 80},
+      
+      // 运动数据
+      'step': {title: '步数<br><span style="font-weight:400;font-size:12px;">步</span>', group: '运动', isNum: true},
+      'calorie': {title: '卡路里<br><span style="font-weight:400;font-size:12px;">kcal</span>', group: '运动', isNum: true},
+      'distance': {title: '距离<br><span style="font-weight:400;font-size:12px;">m</span>', group: '运动', isNum: true},
+      
+      // 扩展指标
+      'sleep': {title: '睡眠<br><span style="font-weight:400;font-size:12px;">小时</span>', group: '健康状态', isNum: true},
+      'ecg': {title: 'ECG', group: '健康状态', isNum: true},
+      'work_out': {title: '运动模式', group: '运动', isNum: true},
+      'wear': {title: '佩戴状态', group: '设备状态'},
+      'exercise_daily': {title: '日运动量', group: '运动', isNum: true},
+      
+      // 位置信息
+      'location': {title: '位置', group: '位置信息'}, // location指标对应位置相关字段
+      'altitude': {title: '海拔', group: '位置信息', isNum: true},
+      'longitude': {title: '经度', group: '位置信息'},
+      'latitude': {title: '纬度', group: '位置信息'},
+      
+      // 时间信息
+      'timestamp': {title: '时间', group: '时间', isBasic: true}
+    };
+    
+    // 字段名兼容映射：enabledMetrics中的字段名 -> 实际数据字段名
+    const fieldAliasMapping = {
+      'heart_rate': ['heart_rate', 'heartRate'],
+      'blood_oxygen': ['blood_oxygen', 'bloodOxygen'],
+      'temperature': ['temperature'],
+      'pressure_high': ['pressure_high', 'pressureHigh'],
+      'pressure_low': ['pressure_low', 'pressureLow'],
+      'stress': ['stress'],
+      'step': ['step'],
+      'calorie': ['calorie'],
+      'distance': ['distance'],
+      'sleep': ['sleep'],
+      'ecg': ['ecg'],
+      'work_out': ['work_out', 'workOut'],
+      'wear': ['wear'],
+      'exercise_daily': ['exercise_daily', 'exerciseDaily'],
+      'location': ['latitude', 'longitude', 'altitude'], // location指标对应多个位置字段
+      'altitude': ['altitude'],
+      'longitude': ['longitude'],
+      'latitude': ['latitude']
+    };
+    
+    // 获取实际数据中的字段值
+    function getFieldValue(data, metricName) {
+      const aliases = fieldAliasMapping[metricName] || [metricName];
+      for (const alias of aliases) {
+        if (data[alias] !== undefined && data[alias] !== null && data[alias] !== '') {
+          return data[alias];
+        }
+      }
+      return null;
+    }
+    
+    function showLoading(){document.getElementById('loadingMsg').style.display='block';document.getElementById('healthTable').style.display='none';document.getElementById('errorMsg').style.display='none';document.getElementById('emptyMsg').style.display='none';}
+    function showError(msg){document.getElementById('errorMsg').innerText=msg;document.getElementById('errorMsg').style.display='block';document.getElementById('loadingMsg').style.display='none';document.getElementById('healthTable').style.display='none';document.getElementById('emptyMsg').style.display='none';}
+    function showEmpty(){document.getElementById('emptyMsg').style.display='block';document.getElementById('loadingMsg').style.display='none';document.getElementById('healthTable').style.display='none';document.getElementById('errorMsg').style.display='none';}
+    function showTable(){document.getElementById('healthTable').style.display='table';document.getElementById('loadingMsg').style.display='none';document.getElementById('errorMsg').style.display='none';document.getElementById('emptyMsg').style.display='none';}
+    
+    function buildDynamicColumns(enabledMetrics) {
+      // 总是包含基本信息字段
+      const basicFields = ['deptName', 'userName', 'deviceSn'];
+      const columns = [...basicFields];
+      
+      // 添加启用的指标字段
+      enabledMetrics.forEach(metric => {
+        if (metric === 'location') {
+          // location指标展开为具体的位置字段
+          ['latitude', 'longitude', 'altitude'].forEach(locField => {
+            if (fieldMapping[locField] && !columns.includes(locField)) {
+              columns.push(locField);
+            }
+          });
+        } else if (fieldMapping[metric] && !basicFields.includes(metric)) {
+          columns.push(metric);
+        }
+      });
+      
+      // 总是包含时间字段
+      if (!columns.includes('timestamp')) {
+        columns.push('timestamp');
+      }
+      
+      return columns;
+    }
+    
+    function getOrderedColumns(columns) {
+      // 定义分组顺序，确保血压/压力分组正确排序
+      const groupOrder = ['基本信息', '基础体征', '血压/压力', '运动', '健康状态', '设备状态', '位置信息', '时间', '其他'];
+      
+      // 按分组收集字段
+      const groupedColumns = {};
+      columns.forEach(col => {
+        const field = fieldMapping[col];
+        if (field) {
+          const group = field.group || '其他';
+          if (!groupedColumns[group]) {
+            groupedColumns[group] = [];
+          }
+          groupedColumns[group].push(col);
+        }
+      });
+      
+      // 按预定义顺序重新排列列
+      const orderedColumns = [];
+      groupOrder.forEach(group => {
+        if (groupedColumns[group] && groupedColumns[group].length > 0) {
+          orderedColumns.push(...groupedColumns[group]);
+        }
+      });
+      
+      return orderedColumns;
+    }
+
+    function generateTableHeader(columns) {
+      const orderedColumns = getOrderedColumns(columns);
+      
+      // 按分组统计列数
+      const groupCounts = {};
+      orderedColumns.forEach(col => {
+        const field = fieldMapping[col];
+        if (field) {
+          const group = field.group || '其他';
+          groupCounts[group] = (groupCounts[group] || 0) + 1;
+        }
+      });
+      
+      // 定义分组顺序
+      const groupOrder = ['基本信息', '基础体征', '血压/压力', '运动', '健康状态', '设备状态', '位置信息', '时间', '其他'];
+      
+      // 生成分组表头
+      const groupHeaderRow = groupOrder.filter(group => groupCounts[group]).map(group => 
+        `<th colspan="${groupCounts[group]}">${group}</th>`
+      ).join('');
+      
+      // 生成字段表头
+      const fieldHeaderRow = orderedColumns.map(col => {
+        const field = fieldMapping[col];
+        return field ? `<th>${field.title}</th>` : `<th>${col}</th>`;
+      }).join('');
+      
+      return `
+        <tr style="background:#181c2f;font-size:15px;">
+          ${groupHeaderRow}
+        </tr>
+        <tr>
+          ${fieldHeaderRow}
+        </tr>
+      `;
+    }
+    
+    async function loadHealthData(page=1,size=100){
+      try{
+        showLoading();
+        const startDate=document.getElementById('startDate').value||'',endDate=document.getElementById('endDate').value||'';
+        const url=`/health_data/page?orgId=${deptId}&userId=${userId}&startDate=${startDate}&endDate=${endDate}&page=${page}&pageSize=${size}`;
+        const res=await fetch(url);
+        if(!res.ok)throw new Error(`HTTP ${res.status}`);
+        const json=await res.json();
+        console.log('API响应:',json);
+        
+        if(json.success&&json.data){
+          // 更新启用的指标
+          enabledMetrics = json.data.enabledMetrics || [];
+          console.log('启用的指标:', enabledMetrics);
+          
+          // 构建动态列
+          currentColumns = buildDynamicColumns(enabledMetrics);
+          console.log('当前显示列:', currentColumns);
+          
+          // 生成动态表头并获取排序后的列
+          const headerHtml = generateTableHeader(currentColumns);
+          document.getElementById('tableHead').innerHTML = headerHtml;
+          
+          // 更新currentColumns为排序后的顺序
+          currentColumns = getOrderedColumns(currentColumns);
+          
+          allData=json.data.healthData||[];
+          if(allData.length===0){showEmpty();return;}
+          renderHealthData(allData);
+          const pg=json.data.pagination||{};
+          currentPage=pg.currentPage||1;totalPages=pg.totalPages||1;pageSize=pg.pageSize||size;
+          syncPaginationData();
+          showTable();
+        }else{
+          console.error('接口错误:',json);
+          showError(json.error||'数据加载失败');
+        }
+      }catch(err){
+        console.error('请求失败:',err);
+        showError(`网络错误: ${err.message}`);
+      }
+    }
+    
+    function renderHealthData(data){
+      const tbody=document.getElementById('healthDataBody');
+      tbody.innerHTML=data.map(d=>{
+        return `<tr>
+          ${currentColumns.map(col => {
+            const field = fieldMapping[col];
+            // 使用兼容映射获取字段值
+            let value = getFieldValue(d, col);
+            if (value === null || value === undefined) {
+              value = d[col] || '-'; // 回退到直接字段访问
+            }
+            let cellClass = '';
+            
+            // 处理数值字段
+            if (field && field.isNum && value !== '-' && value !== null) {
+              const numValue = +value;
+              cellClass = 'num';
+              
+              // 检查警告条件
+              if (field.warn && field.warn(numValue)) {
+                cellClass += ' warn';
+              }
+              
+              // 格式化数值显示
+              if (numValue !== 0) {
+                value = numValue;
+              }
+            } else if (field && field.isNum) {
+              cellClass = 'num';
+            }
+            
+            return `<td class="${cellClass}">${value}</td>`;
+          }).join('')}
+        </tr>`;
+      }).join('');
+    }
+    
+    function syncPagination(isTop){
+      const suffix=isTop?'Top':'';
+      document.getElementById(`prevPage${suffix}`).onclick=()=>{if(currentPage>1)loadHealthData(currentPage-1,pageSize);};
+      document.getElementById(`nextPage${suffix}`).onclick=()=>{if(currentPage<totalPages)loadHealthData(currentPage+1,pageSize);};
+      document.getElementById(`pageSizeSelect${suffix}`).onchange=e=>{pageSize=+e.target.value;loadHealthData(1,pageSize);};
+      document.getElementById(`currentPage${suffix}`).onchange=e=>{const v=+e.target.value;if(v>=1&&v<=totalPages)loadHealthData(v,pageSize);};
+      document.getElementById(`jumpBtn${suffix}`).onclick=()=>{const v=+document.getElementById(`jumpPage${suffix}`).value;if(v>=1&&v<=totalPages)loadHealthData(v,pageSize);};
+      document.getElementById(`jumpPage${suffix}`).onkeydown=e=>{if(e.key==='Enter'){const v=+e.target.value;if(v>=1&&v<=totalPages)loadHealthData(v,pageSize);}};
+    }
+    syncPagination(true);syncPagination(false);
+    
+    function syncPaginationData(){
+      ['','Top'].forEach(suffix=>{
+        document.getElementById(`currentPage${suffix}`).value=currentPage;
+        document.getElementById(`totalPages${suffix}`).innerText=`/ ${totalPages}`;
+        document.getElementById(`pageSizeSelect${suffix}`).value=pageSize;
+        document.getElementById(`prevPage${suffix}`).disabled=currentPage<=1;
+        document.getElementById(`nextPage${suffix}`).disabled=currentPage>=totalPages;
+      });
+    }
+    
+    document.getElementById('dateSearchBtn').onclick=()=>loadHealthData(1,pageSize);
+    
+    document.getElementById('exportExcelBtn').onclick=function(){
+      console.log('🔄 开始导出Excel...');
+      console.log('📊 当前数据量:', allData.length);
+      console.log('📋 当前列:', currentColumns);
+      
+      if(allData.length===0){
+        console.log('❌ 无数据可导出');
+        showCustomAlert('暂无数据可导出');
+        return;
+      }
+      
+      // 检查XLSX库是否加载
+      if(typeof XLSX === 'undefined'){
+        console.error('❌ XLSX库未加载');
+        showCustomAlert('Excel导出库未加载，请刷新页面重试');
+        return;
+      }
+      console.log('✅ XLSX库已加载');
+      
+      try{
+        console.log('🔧 开始构建Excel数据...');
+        
+        // 使用动态列构建Excel表头和数据
+        const headers = currentColumns.map(col => {
+          const field = fieldMapping[col];
+          return field ? field.title.replace(/<[^>]*>/g, '') : col; // 移除HTML标签
+        });
+        console.log('📑 表头:', headers);
+        
+        const rows = allData.map(d => 
+          currentColumns.map(col => {
+            // 使用兼容映射获取字段值
+            let value = getFieldValue(d, col);
+            if (value === null || value === undefined) {
+              value = d[col] || ''; // 回退到直接字段访问
+            }
+            return value;
+          })
+        );
+        console.log('📊 数据行数:', rows.length);
+        
+        console.log('🔧 创建工作表...');
+        const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+        console.log('📋 工作表创建成功');
+        
+        console.log('🔧 创建工作簿...');
+        const wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,'健康数据');
+        console.log('📚 工作簿创建成功');
+        
+        const now=new Date();
+        const fileName=`健康数据_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}.xlsx`;
+        console.log('💾 开始写入文件:', fileName);
+        
+        XLSX.writeFile(wb,fileName);
+        console.log('✅ 导出成功:', fileName);
+        showCustomAlert('导出成功!');
+      }catch(err){
+        console.error('❌ 导出失败:', err);
+        console.error('❌ 错误详情:', err.message);
+        console.error('❌ 错误堆栈:', err.stack);
+        showCustomAlert(`导出失败: ${err.message}`);
+      }
+    };
+    
+    window.onload=function(){
+      console.log('📄 页面加载完成');
+      
+      // 检查XLSX库是否加载成功
+      if(typeof XLSX !== 'undefined'){
+        console.log('✅ XLSX库加载成功, 版本:', XLSX.version || 'unknown');
+      } else {
+        console.error('❌ XLSX库未加载');
+      }
+      
+      // 检查jQuery是否加载
+      if(typeof $ !== 'undefined'){
+        console.log('✅ jQuery加载成功');
+      } else {
+        console.error('❌ jQuery未加载');
+      }
+      
+      const today=new Date(),y=today.getFullYear(),m=(today.getMonth()+1).toString().padStart(2,'0'),d=today.getDate().toString().padStart(2,'0');
+      document.getElementById('startDate').value=`${y}-${m}-01`;
+      document.getElementById('endDate').value=`${y}-${m}-${d}`;
+      loadHealthData(1,pageSize);
+    };
+  </script>
+</body>
+</html>
