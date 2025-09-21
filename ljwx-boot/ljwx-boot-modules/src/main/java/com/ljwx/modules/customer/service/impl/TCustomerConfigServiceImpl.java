@@ -34,6 +34,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  *  Service 服务接口实现层
@@ -44,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
  * @CreateTime 2024-12-29 - 15:33:30
  */
 
+@Slf4j
 @Service
 public class TCustomerConfigServiceImpl extends ServiceImpl<TCustomerConfigMapper, TCustomerConfig> implements ITCustomerConfigService {
 
@@ -55,15 +57,27 @@ public class TCustomerConfigServiceImpl extends ServiceImpl<TCustomerConfigMappe
 
     @Override
     public IPage<TCustomerConfig> listTCustomerConfigPage(PageQuery pageQuery, TCustomerConfigBO tCustomerConfigBO) {
+        log.info("查询t_customer_config参数: id={}, customerId={}, customerName={}", 
+                tCustomerConfigBO.getId(), tCustomerConfigBO.getCustomerId(), tCustomerConfigBO.getCustomerName());
+        
         LambdaQueryWrapper<TCustomerConfig> queryWrapper = new LambdaQueryWrapper<TCustomerConfig>()
-                .eq(ObjectUtils.isNotEmpty(tCustomerConfigBO.getId()), TCustomerConfig::getId, tCustomerConfigBO.getId());
+                .eq(ObjectUtils.isNotEmpty(tCustomerConfigBO.getId()) && tCustomerConfigBO.getId() > 0, 
+                    TCustomerConfig::getId, tCustomerConfigBO.getId());
         
-        // 简化查询，移除租户逻辑暂时 - 暂时注释掉getCustomerName调用避免编译错误
-        // if (ObjectUtils.isNotEmpty(tCustomerConfigBO.getCustomerName())) {
-        //     queryWrapper.like(TCustomerConfig::getCustomerName, tCustomerConfigBO.getCustomerName());
-        // }
+        // URL参数customerId是顶级部门ID，应该按customer_id字段查询
+        if (ObjectUtils.isNotEmpty(tCustomerConfigBO.getCustomerId())) {
+            log.info("按customer_id查询: {}", tCustomerConfigBO.getCustomerId());
+            queryWrapper.eq(TCustomerConfig::getCustomerId, tCustomerConfigBO.getCustomerId());
+        }
         
-        return baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
+        if (ObjectUtils.isNotEmpty(tCustomerConfigBO.getCustomerName())) {
+            queryWrapper.like(TCustomerConfig::getCustomerName, tCustomerConfigBO.getCustomerName());
+        }
+        
+        IPage<TCustomerConfig> result = baseMapper.selectPage(pageQuery.buildPage(), queryWrapper);
+        log.info("查询结果: total={}, records={}", result.getTotal(), result.getRecords().size());
+        
+        return result;
     }
 
     @Override
@@ -76,35 +90,39 @@ public class TCustomerConfigServiceImpl extends ServiceImpl<TCustomerConfigMappe
         if (entity.getIsSupportLicense() == null) {
             entity.setIsSupportLicense(false);
         }
-        if (entity.getCustomerId() == null) {
-            entity.setCustomerId(0L);
-        }
         if (entity.getCustomerName() == null) {
             entity.setCustomerName("");
         }
         
+        // 创建顶级部门作为customer的根组织
+        SysOrgUnits topOrg = new SysOrgUnits();
+        topOrg.setName(entity.getCustomerName());
+        topOrg.setParentId(0L);
+        topOrg.setAncestors("0");
+        topOrg.setSort(1);
+        topOrg.setStatus("1");
+        topOrg.setIsDeleted(0);
+        
+        // 先保存顶级部门，获取生成的ID
+        boolean orgSaved = sysOrgUnitsService.save(topOrg);
+        if (!orgSaved) {
+            throw new RuntimeException("创建顶级部门失败");
+        }
+        
+        Long customerId = topOrg.getId();
+        
+        // 更新部门的customer_id为自己的ID（标识这是顶级customer部门）
+        topOrg.setCustomerId(customerId);
+        sysOrgUnitsService.updateById(topOrg);
+        
+        // 设置customer配置的customer_id指向顶级部门
+        entity.setCustomerId(customerId);
+        
+        // 保存customer配置
         boolean result = super.save(entity);
         
-        if (result && entity.getId() != null) {
-            // 检查是否已存在对应的组织机构，避免重复创建
-            SysOrgUnits existingOrg = sysOrgUnitsService.getById(entity.getId());
-            if (existingOrg == null) {
-                // 同步创建顶级组织机构
-                SysOrgUnits orgUnit = new SysOrgUnits();
-                orgUnit.setId(entity.getId());
-                orgUnit.setName(entity.getCustomerName());
-                orgUnit.setParentId(0L);
-                orgUnit.setAncestors("0");
-                orgUnit.setSort(1);
-                orgUnit.setStatus("1");
-                orgUnit.setIsDeleted(0);
-                orgUnit.setCustomerId(entity.getId());
-                
-                sysOrgUnitsService.save(orgUnit);
-                
-                // 注意：这里不发布事件，因为SysOrgUnitsServiceImpl.save()方法已经会发布CREATE事件
-                // 避免重复触发监听器
-            }
+        if (!result) {
+            throw new RuntimeException("保存customer配置失败");
         }
         
         return result;

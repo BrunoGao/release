@@ -104,10 +104,8 @@ public class TCustomerConfigFacadeImpl implements ITCustomerConfigFacade {
         
         boolean result = tCustomerConfigService.save(tCustomerConfigBO);
         
-        if (result && tCustomerConfigBO.getId() != null) {
-            // 同步到 sys_org_units 表
-            syncToSysOrgUnits(tCustomerConfigBO.getId(), tCustomerConfigBO.getCustomerName(), "CREATE");
-        }
+        // 注意：不再需要手动同步到 sys_org_units，Service层已经处理了创建逻辑
+        // 避免重复创建和重复事件触发
         
         return result;
     }

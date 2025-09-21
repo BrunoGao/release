@@ -429,10 +429,11 @@ public class TCustomerConfigController {
                     .filter(config -> config.getIsDeleted() == null || config.getIsDeleted() == 0) // 过滤未删除的
                     .map(config -> {
                         Map<String, Object> customer = new HashMap<>();
-                        customer.put("customerId", config.getId());
+                        customer.put("customerId", config.getCustomerId()); // 返回顶级部门ID，用于前端选择
                         customer.put("customerName", config.getCustomerName());
-                        log.debug("Customer: id={}, name={}, isDeleted={}", 
-                                config.getId(), config.getCustomerName(), config.getIsDeleted());
+                        customer.put("configId", config.getId()); // 添加配置记录ID，备用
+                        log.debug("Customer: configId={}, customerId={}, name={}, isDeleted={}", 
+                                config.getId(), config.getCustomerId(), config.getCustomerName(), config.getIsDeleted());
                         return customer;
                     })
                     .collect(Collectors.toList());

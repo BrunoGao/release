@@ -40,5 +40,7 @@ public class TCustomerConfigSearchDTO implements Serializable {
     private String customerName;
 
     private Long id;
+    
+    private Long customerId;
 
 }
