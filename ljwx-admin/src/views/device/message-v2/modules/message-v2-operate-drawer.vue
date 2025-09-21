@@ -305,8 +305,8 @@ watch(
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" :width="800" :closable="false">
-    <NDrawerContent :title="title" closable @close="closeDrawer">
+  <NDrawer v-model:show="visible" :width="800" :closable="false" class="enhanced-drawer device-theme">
+    <NDrawerContent :title="title" closable @close="closeDrawer" class="enhanced-drawer device-theme">
       <NForm ref="formRef" :model="model" :rules="rules" label-placement="left" :label-width="120">
         <div class="space-y-16px">
           <!-- 基本信息 -->

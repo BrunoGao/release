@@ -1,0 +1,511 @@
+/**
+ * 统一的 Drawer 组件美化样式
+ * 适用于所有 *-operate-drawer.vue 组件
+ */
+
+/* ==========================================================================
+   Drawer 整体样式
+   ========================================================================== */
+
+.enhanced-drawer {
+  /* Drawer 内容区域 */
+  :deep(.n-drawer-content) {
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Drawer 头部样式 */
+  :deep(.n-drawer-header) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  :deep(.n-drawer-header)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.05)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.08)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  :deep(.n-drawer-header__main) {
+    position: relative;
+    z-index: 1;
+  }
+
+  :deep(.n-drawer-title) {
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  :deep(.n-drawer-title)::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 2px;
+  }
+
+  /* 关闭按钮样式 */
+  :deep(.n-drawer-close) {
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  :deep(.n-drawer-close):hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    transform: rotate(90deg);
+  }
+
+  /* Drawer 内容区域 */
+  :deep(.n-drawer-body) {
+    padding: 24px;
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  }
+
+  /* Drawer 底部区域 */
+  :deep(.n-drawer-footer) {
+    background: #fafafa;
+    border-top: 1px solid #e5e7eb;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+}
+
+/* ==========================================================================
+   表单样式优化
+   ========================================================================== */
+
+.enhanced-drawer {
+  /* 表单整体样式 */
+  :deep(.n-form) {
+    .n-form-item {
+      margin-bottom: 20px;
+      
+      /* 表单项标签 */
+      .n-form-item-label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 14px;
+        margin-bottom: 6px;
+        
+        /* 必填标记 */
+        .n-form-item-label__asterisk {
+          color: #ef4444;
+          margin-right: 4px;
+        }
+      }
+
+      /* 表单项反馈 */
+      .n-form-item-feedback {
+        color: #ef4444;
+        font-size: 12px;
+        margin-top: 4px;
+      }
+    }
+  }
+
+  /* 输入框样式 */
+  :deep(.n-input) {
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+    transition: all 0.3s ease;
+    background: white;
+
+    &:hover {
+      border-color: #d1d5db;
+    }
+
+    &:focus,
+    &.n-input--focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .n-input__input-el {
+      font-size: 14px;
+      color: #374151;
+      
+      &::placeholder {
+        color: #9ca3af;
+      }
+    }
+  }
+
+  /* 选择框样式 */
+  :deep(.n-select) {
+    .n-base-selection {
+      border-radius: 8px;
+      border: 2px solid #e5e7eb;
+      transition: all 0.3s ease;
+      background: white;
+
+      &:hover {
+        border-color: #d1d5db;
+      }
+
+      &.n-base-selection--focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+    }
+
+    .n-base-selection-placeholder {
+      color: #9ca3af;
+    }
+  }
+
+  /* 单选按钮组样式 */
+  :deep(.n-radio-group) {
+    .n-radio {
+      margin-right: 16px;
+      
+      .n-radio__dot {
+        border: 2px solid #d1d5db;
+        
+        &::before {
+          background: #667eea;
+        }
+      }
+
+      &.n-radio--checked {
+        .n-radio__dot {
+          border-color: #667eea;
+        }
+      }
+
+      .n-radio__label {
+        color: #374151;
+        font-weight: 500;
+      }
+    }
+  }
+
+  /* 动态输入组件样式 */
+  :deep(.n-dynamic-input) {
+    .n-dynamic-input-item {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+
+      .n-input {
+        border: 1px solid #d1d5db;
+      }
+    }
+
+    .n-dynamic-input-preset-pair {
+      .n-dynamic-input-pair-input:first-child {
+        .n-input {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+          border-right: none;
+        }
+      }
+
+      .n-dynamic-input-pair-input:last-child {
+        .n-input {
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+        }
+      }
+    }
+  }
+}
+
+/* ==========================================================================
+   按钮样式优化
+   ========================================================================== */
+
+.enhanced-drawer {
+  /* 主要按钮 */
+  :deep(.n-button--primary-type) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0 20px;
+    height: 36px;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  /* 次要按钮 */
+  :deep(.n-button--default-type),
+  :deep(.n-button--quaternary-type) {
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0 20px;
+    height: 36px;
+    background: white;
+    color: #6b7280;
+    transition: all 0.3s ease;
+
+    &:hover {
+      border-color: #d1d5db;
+      color: #374151;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  /* 小按钮样式 */
+  :deep(.n-button--medium-type) {
+    border-radius: 6px;
+    font-weight: 500;
+    
+    &.n-button--primary-type {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 1px 4px rgba(16, 185, 129, 0.3);
+    }
+  }
+
+  /* 图标按钮 */
+  :deep(.n-button) {
+    .text-icon {
+      font-size: 16px;
+    }
+  }
+}
+
+/* ==========================================================================
+   分组和分隔样式
+   ========================================================================== */
+
+.enhanced-drawer {
+  /* 表单分组 */
+  .form-section {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      &::before {
+        content: '';
+        width: 4px;
+        height: 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 2px;
+      }
+    }
+  }
+
+  /* 分隔线 */
+  .form-divider {
+    margin: 24px 0;
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
+  }
+}
+
+/* ==========================================================================
+   状态和提示样式
+   ========================================================================== */
+
+.enhanced-drawer {
+  /* 成功状态 */
+  .status-success {
+    color: #10b981;
+    background: #ecfdf5;
+    border: 1px solid #d1fae5;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* 警告状态 */
+  .status-warning {
+    color: #f59e0b;
+    background: #fffbeb;
+    border: 1px solid #fed7aa;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* 错误状态 */
+  .status-error {
+    color: #ef4444;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* 帮助提示 */
+  .help-text {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+}
+
+/* ==========================================================================
+   响应式设计
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .enhanced-drawer {
+    :deep(.n-drawer) {
+      .n-drawer-content {
+        width: 100vw !important;
+      }
+    }
+
+    :deep(.n-drawer-body) {
+      padding: 16px;
+    }
+
+    :deep(.n-drawer-footer) {
+      padding: 12px 16px;
+      flex-direction: column-reverse;
+      gap: 8px;
+
+      .n-button {
+        width: 100%;
+        height: 40px;
+      }
+    }
+
+    .form-section {
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+  }
+}
+
+/* ==========================================================================
+   动画效果
+   ========================================================================== */
+
+.enhanced-drawer {
+  /* 打开动画 */
+  :deep(.n-drawer-content) {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  /* 表单项动画 */
+  :deep(.n-form-item) {
+    animation: fadeInUp 0.4s ease-out;
+  }
+
+  :deep(.n-form-item:nth-child(2)) { animation-delay: 0.1s; }
+  :deep(.n-form-item:nth-child(3)) { animation-delay: 0.15s; }
+  :deep(.n-form-item:nth-child(4)) { animation-delay: 0.2s; }
+  :deep(.n-form-item:nth-child(5)) { animation-delay: 0.25s; }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   暗色主题支持
+   ========================================================================== */
+
+.dark {
+  .enhanced-drawer {
+    :deep(.n-drawer-content) {
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    }
+
+    :deep(.n-drawer-body) {
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    }
+
+    :deep(.n-drawer-footer) {
+      background: #374151;
+      border-color: #4b5563;
+    }
+
+    .form-section {
+      background: #374151;
+      border-color: #4b5563;
+    }
+
+    :deep(.n-form-item-label) {
+      color: #e5e7eb;
+    }
+
+    :deep(.n-input) {
+      background: #4b5563;
+      border-color: #6b7280;
+      color: #e5e7eb;
+    }
+  }
+}

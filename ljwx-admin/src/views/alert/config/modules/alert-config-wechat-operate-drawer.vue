@@ -101,8 +101,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="480">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" :width="480" class="enhanced-drawer alert-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer alert-theme">
       <NForm ref="formRef" :model="model" label-placement="left" :label-width="100">
         <!-- 企业微信配置 -->
         <template v-if="props.type === 'enterprise'">

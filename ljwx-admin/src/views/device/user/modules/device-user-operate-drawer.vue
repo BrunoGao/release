@@ -94,8 +94,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="360">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" :width="360" class="enhanced-drawer user-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer user-theme">
       <NForm ref="formRef" :model="model">
         <NFormItemGi span="24 s:8 m:6" :label="$t('page.health.device.user.deviceId')" path="deviceId">
           <NInput v-model:value="model.deviceId" size="small" :placeholder="$t('page.health.device.user.form.deviceId')" />

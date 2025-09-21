@@ -107,8 +107,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="360">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" :width="360" class="enhanced-drawer user-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer user-theme">
       <NForm ref="formRef" :model="model" :rules="rules">
         <NFormItem :label="$t('page.manage.dictItem.value')" path="value">
           <NInput v-model:value="model.value" :placeholder="$t('page.manage.dictItem.form.value')" />

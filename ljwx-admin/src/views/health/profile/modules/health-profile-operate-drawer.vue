@@ -14,8 +14,8 @@ defineEmits<{
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" width="600">
-    <NDrawerContent title="健康档案操作">
+  <NDrawer v-model:show="visible" width="600" class="enhanced-drawer health-theme">
+    <NDrawerContent title="健康档案操作" class="enhanced-drawer health-theme">
       <div class="p-8 text-center">
         <NIcon size="48" class="mb-4 text-primary">
           <icon-ic:baseline-construction />

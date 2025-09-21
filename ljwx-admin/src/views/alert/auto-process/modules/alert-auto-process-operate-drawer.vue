@@ -237,8 +237,8 @@ function getActionText(action: string) {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" :width="600" :mask-closable="false">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" :width="600" :mask-closable="false" class="enhanced-drawer alert-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer alert-theme">
       <!-- 查看模式 -->
       <template v-if="isView">
         <NCard>

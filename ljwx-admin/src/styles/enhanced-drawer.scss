@@ -1,0 +1,702 @@
+/**
+ * 高级 Drawer 美化样式 v2.0
+ * 现代化、科技感、专业的界面设计
+ * 设计理念：简洁、现代、高效、专业
+ */
+
+/* ==========================================================================
+   CSS 变量定义 - 统一的设计令牌
+   ========================================================================== */
+
+.enhanced-drawer {
+  /* 基础色彩系统 */
+  --primary: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+  --secondary: #8b5cf6;
+  --accent: #06b6d4;
+  
+  /* 中性色调 */
+  --white: #ffffff;
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+  
+  /* 功能色彩 */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+  
+  /* 阴影系统 */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  
+  /* 间距系统 */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  
+  /* 圆角系统 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  
+  /* 字体系统 */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* 过渡动画 */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 250ms ease-out;
+  --transition-slow: 350ms ease-out;
+}
+
+/* ==========================================================================
+   Drawer 容器样式 - 现代化设计
+   ========================================================================== */
+
+.enhanced-drawer {
+  /* Drawer 内容区域 */
+  .n-drawer-content {
+    background: var(--white) !important;
+    border-radius: 0 !important;
+    box-shadow: var(--shadow-2xl) !important;
+    border-left: 1px solid var(--gray-200) !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  /* 顶部装饰线 */
+  .n-drawer-content::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 3px !important;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%) !important;
+    z-index: 10 !important;
+  }
+
+  /* Drawer 头部 - 简洁专业 */
+  .n-drawer-header {
+    background: var(--white) !important;
+    color: var(--gray-900) !important;
+    border: none !important;
+    border-bottom: 1px solid var(--gray-200) !important;
+    padding: var(--space-xl) !important;
+    position: relative !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  .n-drawer-title {
+    font-size: 20px !important;
+    font-weight: var(--font-weight-semibold) !important;
+    color: var(--gray-900) !important;
+    font-family: var(--font-sans) !important;
+    letter-spacing: -0.025em !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: var(--space-md) !important;
+  }
+
+  .n-drawer-title::before {
+    content: '' !important;
+    width: 4px !important;
+    height: 20px !important;
+    background: linear-gradient(180deg, var(--primary) 0%, var(--secondary) 100%) !important;
+    border-radius: var(--radius-sm) !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* 关闭按钮优化 */
+  .n-drawer-close {
+    color: var(--gray-500) !important;
+    background: var(--gray-100) !important;
+    border: 1px solid var(--gray-200) !important;
+    border-radius: var(--radius-md) !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all var(--transition-base) !important;
+  }
+
+  .n-drawer-close:hover {
+    background: var(--gray-200) !important;
+    border-color: var(--gray-300) !important;
+    color: var(--gray-700) !important;
+    transform: scale(1.05) !important;
+  }
+
+  /* Drawer 内容区域 */
+  .n-drawer-body {
+    padding: var(--space-xl) !important;
+    background: var(--gray-50) !important;
+    min-height: 100% !important;
+  }
+
+  /* Drawer 底部区域 */
+  .n-drawer-footer {
+    background: var(--white) !important;
+    border-top: 1px solid var(--gray-200) !important;
+    padding: var(--space-lg) var(--space-xl) !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: var(--space-md) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+}
+
+/* ==========================================================================
+   表单分组 - 卡片式设计
+   ========================================================================== */
+
+.enhanced-drawer .form-section {
+  background: var(--white) !important;
+  border: 1px solid var(--gray-200) !important;
+  border-radius: var(--radius-xl) !important;
+  padding: var(--space-xl) !important;
+  margin-bottom: var(--space-lg) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all var(--transition-base) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.enhanced-drawer .form-section:hover {
+  box-shadow: var(--shadow-md) !important;
+  border-color: var(--gray-300) !important;
+}
+
+.enhanced-drawer .form-section::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 2px !important;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%) !important;
+  opacity: 0 !important;
+  transition: opacity var(--transition-base) !important;
+}
+
+.enhanced-drawer .form-section:hover::before {
+  opacity: 1 !important;
+}
+
+.enhanced-drawer .section-title {
+  font-size: 16px !important;
+  font-weight: var(--font-weight-semibold) !important;
+  color: var(--gray-800) !important;
+  margin-bottom: var(--space-lg) !important;
+  padding-bottom: var(--space-md) !important;
+  border-bottom: 1px solid var(--gray-200) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--space-md) !important;
+  font-family: var(--font-sans) !important;
+}
+
+.enhanced-drawer .section-title i {
+  font-size: 18px !important;
+  color: var(--primary) !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* ==========================================================================
+   表单控件优化 - 现代化输入体验
+   ========================================================================== */
+
+/* 表单项间距 */
+.enhanced-drawer .n-form-item {
+  margin-bottom: var(--space-lg) !important;
+}
+
+.enhanced-drawer .n-form-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* 标签样式 */
+.enhanced-drawer .n-form-item-label {
+  font-weight: var(--font-weight-medium) !important;
+  color: var(--gray-700) !important;
+  font-size: 14px !important;
+  margin-bottom: var(--space-sm) !important;
+  font-family: var(--font-sans) !important;
+}
+
+.enhanced-drawer .n-form-item-label__asterisk {
+  color: var(--error) !important;
+  margin-right: var(--space-xs) !important;
+}
+
+/* 输入框样式 */
+.enhanced-drawer .n-input {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--gray-300) !important;
+  transition: all var(--transition-base) !important;
+  background: var(--white) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.enhanced-drawer .n-input:hover {
+  border-color: var(--gray-400) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.enhanced-drawer .n-input:focus,
+.enhanced-drawer .n-input.n-input--focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1), var(--shadow-md) !important;
+}
+
+.enhanced-drawer .n-input .n-input__input-el {
+  font-size: 14px !important;
+  color: var(--gray-800) !important;
+  font-family: var(--font-sans) !important;
+}
+
+.enhanced-drawer .n-input .n-input__input-el::placeholder {
+  color: var(--gray-400) !important;
+}
+
+.enhanced-drawer .n-input .n-input__prefix {
+  color: var(--gray-500) !important;
+  margin-right: var(--space-sm) !important;
+}
+
+/* 选择框样式 */
+.enhanced-drawer .n-select .n-base-selection {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--gray-300) !important;
+  transition: all var(--transition-base) !important;
+  background: var(--white) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.enhanced-drawer .n-select .n-base-selection:hover {
+  border-color: var(--gray-400) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.enhanced-drawer .n-select .n-base-selection.n-base-selection--focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1), var(--shadow-md) !important;
+}
+
+/* 数字输入框 */
+.enhanced-drawer .n-input-number .n-input {
+  border-radius: var(--radius-md) !important;
+}
+
+/* 文本域 */
+.enhanced-drawer .n-input--textarea {
+  border-radius: var(--radius-md) !important;
+}
+
+/* ==========================================================================
+   按钮系统 - 现代化交互
+   ========================================================================== */
+
+/* 主要按钮 */
+.enhanced-drawer .n-button--primary-type {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%) !important;
+  border: none !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: var(--font-weight-medium) !important;
+  padding: 0 var(--space-lg) !important;
+  height: 40px !important;
+  box-shadow: var(--shadow-md) !important;
+  transition: all var(--transition-base) !important;
+  font-family: var(--font-sans) !important;
+  letter-spacing: 0.025em !important;
+}
+
+.enhanced-drawer .n-button--primary-type:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-lg) !important;
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%) !important;
+}
+
+.enhanced-drawer .n-button--primary-type:active {
+  transform: translateY(0) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* 次要按钮 */
+.enhanced-drawer .n-button--default-type,
+.enhanced-drawer .n-button--quaternary-type {
+  border: 1px solid var(--gray-300) !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: var(--font-weight-medium) !important;
+  padding: 0 var(--space-lg) !important;
+  height: 40px !important;
+  background: var(--white) !important;
+  color: var(--gray-700) !important;
+  transition: all var(--transition-base) !important;
+  font-family: var(--font-sans) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.enhanced-drawer .n-button--default-type:hover,
+.enhanced-drawer .n-button--quaternary-type:hover {
+  border-color: var(--gray-400) !important;
+  color: var(--gray-800) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-md) !important;
+  background: var(--gray-50) !important;
+}
+
+/* 底部按钮容器 */
+.enhanced-drawer .drawer-footer {
+  display: flex !important;
+  gap: var(--space-md) !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+}
+
+.enhanced-drawer .cancel-btn {
+  min-width: 100px !important;
+}
+
+.enhanced-drawer .submit-btn {
+  min-width: 120px !important;
+}
+
+/* ==========================================================================
+   操作横幅 - 信息化设计
+   ========================================================================== */
+
+.enhanced-drawer .operation-banner {
+  background: linear-gradient(135deg, var(--gray-50) 0%, var(--white) 100%) !important;
+  border: 1px solid var(--gray-200) !important;
+  border-radius: var(--radius-xl) !important;
+  padding: var(--space-xl) !important;
+  margin: calc(-1 * var(--space-xl)) calc(-1 * var(--space-xl)) var(--space-xl) calc(-1 * var(--space-xl)) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--space-lg) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.enhanced-drawer .operation-banner::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 2px !important;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%) !important;
+}
+
+.enhanced-drawer .banner-icon {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: var(--radius-lg) !important;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--white) !important;
+  font-size: 20px !important;
+  box-shadow: var(--shadow-lg) !important;
+  flex-shrink: 0 !important;
+}
+
+.enhanced-drawer .banner-content {
+  flex: 1 !important;
+}
+
+.enhanced-drawer .banner-title {
+  font-size: 18px !important;
+  font-weight: var(--font-weight-semibold) !important;
+  color: var(--gray-900) !important;
+  margin: 0 0 var(--space-xs) 0 !important;
+  font-family: var(--font-sans) !important;
+  letter-spacing: -0.025em !important;
+}
+
+.enhanced-drawer .banner-desc {
+  font-size: 14px !important;
+  color: var(--gray-600) !important;
+  margin: 0 !important;
+  line-height: 1.5 !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* ==========================================================================
+   帮助文本和状态指示器
+   ========================================================================== */
+
+.enhanced-drawer .help-text {
+  font-size: 12px !important;
+  color: var(--gray-500) !important;
+  margin-top: var(--space-xs) !important;
+  line-height: 1.4 !important;
+  font-family: var(--font-sans) !important;
+}
+
+.enhanced-drawer .status-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  display: inline-block !important;
+  margin-right: var(--space-xs) !important;
+}
+
+.enhanced-drawer .status-dot.active {
+  background: var(--success) !important;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4) !important;
+}
+
+.enhanced-drawer .status-dot.inactive {
+  background: var(--error) !important;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4) !important;
+}
+
+.enhanced-drawer .radio-label {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--space-sm) !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* ==========================================================================
+   动态输入组件
+   ========================================================================== */
+
+.enhanced-drawer .dynamic-input-wrapper {
+  border: 1px solid var(--gray-200) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--space-lg) !important;
+  background: var(--gray-50) !important;
+  margin-top: var(--space-sm) !important;
+}
+
+.enhanced-drawer .dynamic-input-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: var(--space-md) !important;
+  padding-bottom: var(--space-sm) !important;
+  border-bottom: 1px solid var(--gray-200) !important;
+}
+
+.enhanced-drawer .input-label {
+  font-weight: var(--font-weight-medium) !important;
+  color: var(--gray-800) !important;
+  font-size: 14px !important;
+  font-family: var(--font-sans) !important;
+}
+
+.enhanced-drawer .input-desc {
+  font-size: 12px !important;
+  color: var(--gray-500) !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* ==========================================================================
+   主题变体 - 精致的色彩系统
+   ========================================================================== */
+
+/* 调度任务主题 - 橙色 */
+.enhanced-drawer.scheduler-theme {
+  --primary: #f59e0b;
+  --primary-light: #fbbf24;
+  --primary-dark: #d97706;
+  --secondary: #f97316;
+}
+
+/* 设备管理主题 - 紫色 */
+.enhanced-drawer.device-theme {
+  --primary: #8b5cf6;
+  --primary-light: #a78bfa;
+  --primary-dark: #7c3aed;
+  --secondary: #a855f7;
+}
+
+/* 告警管理主题 - 红色 */
+.enhanced-drawer.alert-theme {
+  --primary: #ef4444;
+  --primary-light: #f87171;
+  --primary-dark: #dc2626;
+  --secondary: #f43f5e;
+}
+
+/* 健康数据主题 - 绿色 */
+.enhanced-drawer.health-theme {
+  --primary: #10b981;
+  --primary-light: #34d399;
+  --primary-dark: #059669;
+  --secondary: #06b6d4;
+}
+
+/* 用户管理主题 - 蓝色 */
+.enhanced-drawer.user-theme {
+  --primary: #3b82f6;
+  --primary-light: #60a5fa;
+  --primary-dark: #2563eb;
+  --secondary: #6366f1;
+}
+
+/* ==========================================================================
+   响应式设计
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .enhanced-drawer {
+    .n-drawer .n-drawer-content {
+      width: 100vw !important;
+    }
+
+    .n-drawer-header,
+    .n-drawer-body,
+    .n-drawer-footer {
+      padding-left: var(--space-lg) !important;
+      padding-right: var(--space-lg) !important;
+    }
+
+    .n-drawer-footer {
+      flex-direction: column-reverse !important;
+      gap: var(--space-sm) !important;
+    }
+
+    .n-drawer-footer .n-button {
+      width: 100% !important;
+      height: 44px !important;
+    }
+
+    .form-section {
+      padding: var(--space-lg) !important;
+      margin-bottom: var(--space-md) !important;
+    }
+
+    .operation-banner {
+      flex-direction: column !important;
+      text-align: center !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   高级动画效果
+   ========================================================================== */
+
+.enhanced-drawer {
+  /* Drawer 打开动画 */
+  .n-drawer-content {
+    animation: slideInRight 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  }
+
+  /* 表单项渐入动画 */
+  .n-form-item {
+    animation: fadeInUp 0.5s ease-out !important;
+    animation-fill-mode: both !important;
+  }
+
+  .n-form-item:nth-child(1) { animation-delay: 0.1s !important; }
+  .n-form-item:nth-child(2) { animation-delay: 0.15s !important; }
+  .n-form-item:nth-child(3) { animation-delay: 0.2s !important; }
+  .n-form-item:nth-child(4) { animation-delay: 0.25s !important; }
+  .n-form-item:nth-child(5) { animation-delay: 0.3s !important; }
+  .n-form-item:nth-child(6) { animation-delay: 0.35s !important; }
+
+  /* 表单分组动画 */
+  .form-section {
+    animation: fadeInUp 0.6s ease-out !important;
+    animation-fill-mode: both !important;
+  }
+
+  .form-section:nth-child(1) { animation-delay: 0.2s !important; }
+  .form-section:nth-child(2) { animation-delay: 0.3s !important; }
+  .form-section:nth-child(3) { animation-delay: 0.4s !important; }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%) !important;
+    opacity: 0 !important;
+  }
+  to {
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    transform: translateY(20px) !important;
+    opacity: 0 !important;
+  }
+  to {
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+  }
+}
+
+/* ==========================================================================
+   暗色主题支持
+   ========================================================================== */
+
+.dark .enhanced-drawer {
+  --white: #1e293b;
+  --gray-50: #0f172a;
+  --gray-100: #1e293b;
+  --gray-200: #334155;
+  --gray-300: #475569;
+  --gray-400: #64748b;
+  --gray-500: #94a3b8;
+  --gray-600: #cbd5e1;
+  --gray-700: #e2e8f0;
+  --gray-800: #f1f5f9;
+  --gray-900: #f8fafc;
+}
+
+/* ==========================================================================
+   自定义滚动条
+   ========================================================================== */
+
+.enhanced-drawer .n-drawer-body::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.enhanced-drawer .n-drawer-body::-webkit-scrollbar-track {
+  background: var(--gray-100) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.enhanced-drawer .n-drawer-body::-webkit-scrollbar-thumb {
+  background: var(--gray-300) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: background var(--transition-base) !important;
+}
+
+.enhanced-drawer .n-drawer-body::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400) !important;
+}

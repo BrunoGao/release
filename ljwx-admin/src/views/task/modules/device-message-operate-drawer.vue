@@ -148,8 +148,8 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="360">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" :width="360" class="enhanced-drawer device-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer device-theme">
       <NForm ref="formRef" :model="model">
         <NFormItem :label="$t('page.health.device.message.departmentName')" path="departmentName">
           <NTreeSelect

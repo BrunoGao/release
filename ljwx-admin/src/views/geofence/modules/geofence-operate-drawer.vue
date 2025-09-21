@@ -99,8 +99,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="360">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" :width="360" class="enhanced-drawer">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer">
       <NForm ref="formRef" :model="model" :rules="rules">
         <NFormItem :label="$t('page.geofence.geofence.name')" path="name">
           <NInput v-model:value="model.name" :placeholder="$t('page.geofence.geofence.form.name')" />

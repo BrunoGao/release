@@ -102,8 +102,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="360">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" :width="360" class="enhanced-drawer device-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer device-theme">
       <NForm ref="formRef" :model="model">
         <NFormItem :label="$t('page.customer.interface.name')" path="name">
           <NInput v-model:value="model.name" :placeholder="$t('page.customer.interface.form.name')" :disabled="!isAdd" />

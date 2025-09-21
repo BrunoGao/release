@@ -112,8 +112,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="360">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" :width="360" class="enhanced-drawer alert-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer alert-theme">
       <NForm ref="formRef" :model="model">
         <NFormItem span="24 s:8 m:12" :label="$t('page.health.device.message.departmentName')" path="departmentName">
           <NTreeSelect

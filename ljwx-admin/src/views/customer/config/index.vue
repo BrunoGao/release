@@ -192,7 +192,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           );
         }
 
-        if (hasAuth('t:customer:config:delete') && isAdmin.value) {
+        // 删除按钮 - 根据权限控制
+        if (hasAuth('t:customer:config:delete')) {
           buttons.push(
             h(
               NPopconfirm,
@@ -207,7 +208,8 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
                     {
                       type: 'error',
                       quaternary: true,
-                      size: 'small'
+                      size: 'small',
+                      disabled: !isAdmin.value // 非admin用户按钮禁用但可见
                     },
                     () => $t('common.delete')
                   )
@@ -225,37 +227,21 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
 const { drawerVisible, openDrawer, checkedRowKeys, onDeleted, onBatchDeleted } = useTableOperate(data, getData);
 
 function handleAdd() {
-  if (!isAdmin.value) {
-    window.$message?.warning('只有管理员才能添加租户配置');
-    return;
-  }
   operateType.value = 'add';
   openDrawer();
 }
 
 function edit(item: Api.Customer.CustomerConfig) {
-  if (!isAdmin.value) {
-    window.$message?.warning('只有管理员才能编辑租户配置');
-    return;
-  }
   operateType.value = 'edit';
   editingData.value = { ...item };
   openDrawer();
 }
 
 async function handleDelete(id: string) {
-  if (!isAdmin.value) {
-    window.$message?.warning('只有管理员才能删除租户配置');
-    return;
-  }
   await handleDeleteWithPrecheck([id]);
 }
 
 async function handleBatchDelete() {
-  if (!isAdmin.value) {
-    window.$message?.warning('只有管理员才能批量删除租户配置');
-    return;
-  }
   await handleDeleteWithPrecheck(checkedRowKeys.value);
 }
 
@@ -614,8 +600,8 @@ function formatDateTime(dateTime: string | null): string {
         v-model:columns="columnChecks"
         :checked-row-keys="checkedRowKeys"
         :loading="loading"
-        :add-auth="isAdmin ? 't:customer:config:add' : ''"
-        :delete-auth="isAdmin ? 't:customer:config:delete' : ''"
+        :add-auth="'t:customer:config:add'"
+        :delete-auth="'t:customer:config:delete'"
         @add="handleAdd"
         @delete="handleBatchDelete"
         @refresh="getData"

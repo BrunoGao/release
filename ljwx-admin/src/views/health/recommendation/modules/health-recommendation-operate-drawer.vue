@@ -337,8 +337,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" width="800">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" width="800" class="enhanced-drawer health-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer health-theme">
       <NForm ref="formRef" :model="formModel" :rules="rules" label-placement="top" label-width="auto">
         <div class="grid grid-cols-1 gap-4">
           <!-- 基本信息 -->

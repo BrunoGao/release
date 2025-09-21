@@ -272,8 +272,8 @@ function beforeUpload(data: { file: UploadFileInfo; fileList: UploadFileInfo[] }
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="360">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" :width="360" class="enhanced-drawer">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer">
       <NForm ref="formRef" :model="model">
         <NFormItem :label="$t('page.customer.config.customerName')" path="customerName">
           <NInput v-model:value="model.customerName" :placeholder="$t('page.customer.config.form.customerName')" :disabled="!isAdd" />

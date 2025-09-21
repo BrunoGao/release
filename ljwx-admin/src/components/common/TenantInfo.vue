@@ -146,7 +146,7 @@ onMounted(() => {
       trigger="click"
       size="medium"
       :show-arrow="false"
-      @show="handleDropdownShow"
+      @update:show="(show: boolean) => show && handleDropdownShow()"
       @select="handleSelect"
     >
       <template #default>

@@ -238,8 +238,8 @@ watch(
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" width="sm:450 s:360">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" width="sm:450 s:360" class="enhanced-drawer user-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer user-theme">
       <NForm ref="formRef" :model="model" :rules="rules" label-placement="left" :label-width="80">
         <NGrid>
           <NFormItemGi span="12" :label="$t('page.manage.menu.type')" path="type">

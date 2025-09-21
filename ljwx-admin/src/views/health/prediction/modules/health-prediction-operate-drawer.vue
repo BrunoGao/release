@@ -241,8 +241,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" width="720">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable>
+  <NDrawer v-model:show="visible" display-directive="show" width="720" class="enhanced-drawer user-theme">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer user-theme">
       <NForm ref="formRef" :model="formModel" :rules="rules" label-placement="top" label-width="auto">
         <div class="grid grid-cols-1 gap-4">
           <!-- 基本信息 -->
