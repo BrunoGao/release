@@ -2,15 +2,9 @@
 API v1 路由模块
 """
 
-from . import auth, alert, health, device, dashboard, main_bigscreen, personal_bigscreen, message
+from . import main_bigscreen, personal_bigscreen
 
 __all__ = [
-    "auth",
-    "alert",
-    "health", 
-    "device",
-    "dashboard",
     "main_bigscreen",
-    "personal_bigscreen",
-    "message"
+    "personal_bigscreen"
 ]
