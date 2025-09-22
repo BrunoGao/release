@@ -12,3 +12,41 @@ body,
 html {
   overflow-x: hidden;
 }
+
+/* 全局修复：确保所有 Drawer 底部按钮正常显示 */
+.n-drawer-footer {
+  background: #ffffff !important;
+  border-top: 1px solid #e5e7eb !important;
+  padding: 16px 24px !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: static !important;
+  z-index: 1000 !important;
+  height: auto !important;
+  min-height: 60px !important;
+}
+
+.n-drawer-footer .n-space {
+  display: flex !important;
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+.n-drawer-footer .n-button {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: inline-flex !important;
+  z-index: 1001 !important;
+  position: relative !important;
+  min-width: 80px !important;
+  height: 32px !important;
+}
+
+/* 暗色主题下的样式修复 */
+.dark .n-drawer-footer {
+  background: #374151 !important;
+  border-color: #4b5563 !important;
+}

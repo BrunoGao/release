@@ -1137,13 +1137,15 @@ const local: App.I18n.Schema = {
         menuAuth: '菜单权限',
         buttonAuth: '按钮权限',
         isAdmin: '是否管理员',
+        adminLevel: '管理员级别',
         form: {
           roleName: '请输入角色名称',
           roleCode: '请输入角色编码',
           status: '请选择角色状态',
           sort: '请填写角色排序',
           description: '请输入角色描述',
-          isAdmin: '请选择角色类型'
+          isAdmin: '请选择角色类型',
+          adminLevel: '请选择管理员级别'
         },
         addRole: '新增角色',
         editRole: '编辑角色',

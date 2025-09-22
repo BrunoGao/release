@@ -41,6 +41,9 @@ public class SysRoleAddDTO implements Serializable {
     @Schema(description = "是否为管理员角色(0:普通角色,1:管理员角色)")
     private Integer isAdmin;
 
+    @Schema(description = "管理员级别(0:超级管理员,1:租户管理员,2:部门管理员)")
+    private Integer adminLevel;
+
     @Schema(description = "租户ID")
     private Long customerId;
 }

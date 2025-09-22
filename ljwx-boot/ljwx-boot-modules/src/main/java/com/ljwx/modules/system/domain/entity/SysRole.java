@@ -64,6 +64,11 @@ public class SysRole extends BaseEntity {
     private Integer isAdmin;
 
     /**
+     * 管理员级别(0:超级管理员,1:租户管理员,2:部门管理员)
+     */
+    private Integer adminLevel;
+
+    /**
      * 租户ID (0表示全局角色，所有租户可见)
      */
     private Long customerId;

@@ -231,7 +231,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             
             // 根据用户角色设置用户类型和管理级别
             Integer userType = 0; // 默认普通用户
-            Integer adminLevel = 0; // 默认非管理员
+            Integer adminLevel = null; // 默认非管理员，无管理级别
             
             // 获取用户角色信息
             List<SysRoleBO> userRoles = sysRoleService.queryRoleListWithUserId(sysUserBO.getId());
@@ -243,22 +243,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 if (hasAdminRole) {
                     userType = 1; // 管理员
                     
-                    // 根据组织层级设置管理级别
-                    if (orgUnit != null && orgUnit.getLevel() != null) {
-                        switch (orgUnit.getLevel()) {
-                            case 1: // 租户级
-                                adminLevel = 2; // 租户级管理员
-                                break;
-                            case 2: // 部门级
-                                adminLevel = 1; // 部门级管理员
-                                break;
-                            default:
-                                adminLevel = 1; // 默认部门级管理员
-                                break;
-                        }
-                    } else {
-                        adminLevel = 1; // 默认部门级管理员
-                    }
+                    // 获取最高级别的管理员级别（数值越小级别越高）
+                    adminLevel = userRoles.stream()
+                        .filter(role -> role.getIsAdmin() != null && role.getIsAdmin() == 1)
+                        .mapToInt(role -> role.getAdminLevel() != null ? role.getAdminLevel() : 2)
+                        .min()
+                        .orElse(2); // 默认部门管理员
+                    
+                    log.info("✅ 用户具有管理员角色: userId={}, 最高管理级别={}", sysUserBO.getId(), adminLevel);
+                } else {
+                    log.info("✅ 用户为普通用户: userId={}", sysUserBO.getId());
                 }
             }
             
@@ -337,9 +331,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 Long primaryOrgId = sysUserBO.getOrgIds().get(0); // 取第一个作为主要组织
                 SysOrgUnits primaryOrg = sysOrgUnitsService.getById(primaryOrgId);
                 if (primaryOrg != null) {
-                    // 根据用户角色和组织层级重新计算user_type和admin_level
+                    // 根据用户角色重新计算user_type和admin_level
                     Integer userType = 0; // 默认普通用户
-                    Integer adminLevel = 0; // 默认非管理员
+                    Integer adminLevel = null; // 默认非管理员，无管理级别
                     
                     // 获取用户角色信息
                     List<SysRoleBO> userRoles = sysRoleService.queryRoleListWithUserId(sysUserBO.getId());
@@ -351,22 +345,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                         if (hasAdminRole) {
                             userType = 1; // 管理员
                             
-                            // 根据组织层级设置管理级别
-                            if (primaryOrg.getLevel() != null) {
-                                switch (primaryOrg.getLevel()) {
-                                    case 1: // 租户级
-                                        adminLevel = 2; // 租户级管理员
-                                        break;
-                                    case 2: // 部门级
-                                        adminLevel = 1; // 部门级管理员
-                                        break;
-                                    default:
-                                        adminLevel = 1; // 默认部门级管理员
-                                        break;
-                                }
-                            } else {
-                                adminLevel = 1; // 默认部门级管理员
-                            }
+                            // 获取最高级别的管理员级别（数值越小级别越高）
+                            adminLevel = userRoles.stream()
+                                .filter(role -> role.getIsAdmin() != null && role.getIsAdmin() == 1)
+                                .mapToInt(role -> role.getAdminLevel() != null ? role.getAdminLevel() : 2)
+                                .min()
+                                .orElse(2); // 默认部门管理员
+                            
+                            log.info("✅ 更新用户管理员信息: userId={}, 最高管理级别={}", sysUserBO.getId(), adminLevel);
+                        } else {
+                            log.info("✅ 更新用户为普通用户: userId={}", sysUserBO.getId());
                         }
                     }
                     
@@ -896,17 +884,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             return false;
         }
         
-        // 直接使用user_type字段判断
+        // 超级管理员判断：user_type = 1 且 admin_level = 0
         Integer userType = user.getUserType();
-        boolean isSuperAdmin = userType != null && userType.equals(UserType.SUPER_ADMIN.getCode());
+        Integer adminLevel = user.getAdminLevel();
+        boolean isSuperAdmin = userType != null && userType == 1 && adminLevel != null && adminLevel == 0;
         
-        log.debug("✅ 超级管理员判断结果: userId={}, userType={}, isSuperAdmin={}", userId, userType, isSuperAdmin);
+        log.debug("✅ 超级管理员判断结果: userId={}, userType={}, adminLevel={}, isSuperAdmin={}", userId, userType, adminLevel, isSuperAdmin);
         return isSuperAdmin;
     }
 
     @Override
     public boolean isTopLevelDeptAdmin(Long userId) {
-        log.debug("🔍 查询用户是否为顶级管理员（优化版本）: userId={}", userId);
+        log.debug("🔍 查询用户是否为租户级别管理员（优化版本）: userId={}", userId);
         
         if (userId == null) {
             return false;
@@ -917,17 +906,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             return false;
         }
         
-        // 直接使用admin_level字段判断，租户级及以上为顶级管理员
+        // 租户级别管理员判断：user_type = 1 且 admin_level = 1
+        Integer userType = user.getUserType();
         Integer adminLevel = user.getAdminLevel();
-        boolean isTopLevel = adminLevel != null && adminLevel >= AdminLevel.TENANT_LEVEL.getCode();
+        boolean isTopLevel = userType != null && userType == 1 && adminLevel != null && adminLevel == 1;
         
-        log.debug("✅ 顶级管理员判断结果: userId={}, adminLevel={}, isTopLevel={}", userId, adminLevel, isTopLevel);
+        log.debug("✅ 租户级别管理员判断结果: userId={}, userType={}, adminLevel={}, isTopLevel={}", userId, userType, adminLevel, isTopLevel);
         return isTopLevel;
     }
 
     @Override
     public boolean isSubDeptAdmin(Long userId) {
-        log.debug("🔍 查询用户是否为下级部门管理员（优化版本）: userId={}", userId);
+        log.debug("🔍 查询用户是否为部门管理员（优化版本）: userId={}", userId);
         
         if (userId == null) {
             return false;
@@ -938,11 +928,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             return false;
         }
         
-        // 直接使用admin_level字段判断，仅部门级为下级部门管理员
+        // 部门管理员判断：user_type = 1 且 admin_level = 2
+        Integer userType = user.getUserType();
         Integer adminLevel = user.getAdminLevel();
-        boolean isSubDept = adminLevel != null && adminLevel.equals(AdminLevel.DEPT_LEVEL.getCode());
+        boolean isSubDept = userType != null && userType == 1 && adminLevel != null && adminLevel == 2;
         
-        log.debug("✅ 下级部门管理员判断结果: userId={}, adminLevel={}, isSubDept={}", userId, adminLevel, isSubDept);
+        log.debug("✅ 部门管理员判断结果: userId={}, userType={}, adminLevel={}, isSubDept={}", userId, userType, adminLevel, isSubDept);
         return isSubDept;
     }
 

@@ -14,6 +14,8 @@ declare namespace Api {
       status: Common.EnableStatus | null;
       /** is admin role */
       isAdmin?: number;
+      /** admin level (0:super admin, 1:tenant admin, 2:dept admin) */
+      adminLevel?: number;
       /** customer id for multi-tenant */
       customerId?: number | null;
     }>;
@@ -24,7 +26,7 @@ declare namespace Api {
     >;
 
     /** role edit model */
-    type RoleEdit = Pick<Api.SystemManage.Role, 'id' | 'roleName' | 'roleCode' | 'description' | 'status' | 'sort' | 'isAdmin' | 'customerId'>;
+    type RoleEdit = Pick<Api.SystemManage.Role, 'id' | 'roleName' | 'roleCode' | 'description' | 'status' | 'sort' | 'isAdmin' | 'adminLevel' | 'customerId'>;
 
     /** role list */
     type RoleList = Common.PaginatingQueryRecord<Role>;

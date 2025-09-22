@@ -483,13 +483,15 @@ const local: App.I18n.Schema = {
         menuAuth: 'Menu Auth',
         buttonAuth: 'Button Auth',
         isAdmin: 'Is Admin',
+        adminLevel: 'Admin Level',
         form: {
           roleName: 'Please enter role name',
           roleCode: 'Please enter role code',
           status: 'Please select role status',
           sort: 'Please enter role sort',
           description: 'Please enter role description',
-          isAdmin: 'Please select role type'
+          isAdmin: 'Please select role type',
+          adminLevel: 'Please select admin level'
         },
         addRole: 'Add Role',
         editRole: 'Edit Role',

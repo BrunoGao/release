@@ -72,18 +72,6 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       align: 'center',
       minWidth: 120
     },
-    // 只有admin用户才显示租户列
-    ...(isAdmin.value
-      ? [
-          {
-            key: 'customerId',
-            title: '租户ID',
-            align: 'center',
-            width: 100,
-            render: row => row.customerId || '全局'
-          }
-        ]
-      : []),
     {
       key: 'isAdmin',
       title: $t('page.manage.role.isAdmin'),
@@ -96,17 +84,33 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       )
     },
     {
+      key: 'adminLevel',
+      title: $t('page.manage.role.adminLevel'),
+      align: 'center',
+      width: 120,
+      render: row => {
+        if (!row.isAdmin) {
+          return '-';
+        }
+        const levelMap = {
+          0: { text: '超级管理员', type: 'error' },
+          1: { text: '租户管理员', type: 'warning' },
+          2: { text: '部门管理员', type: 'info' }
+        };
+        const level = levelMap[row.adminLevel] || { text: '未知', type: 'default' };
+        return (
+          <NTag type={level.type} size="small">
+            {level.text}
+          </NTag>
+        );
+      }
+    },
+    {
       key: 'status',
       title: $t('page.manage.role.status'),
       align: 'center',
       width: 100,
       render: row => dictTag('status', row.status)
-    },
-    {
-      key: 'sort',
-      title: $t('page.manage.role.sort'),
-      align: 'center',
-      width: 64
     },
     {
       key: 'description',

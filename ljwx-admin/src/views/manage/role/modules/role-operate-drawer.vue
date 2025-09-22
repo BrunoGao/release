@@ -4,6 +4,7 @@ import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { $t } from '@/locales';
 import { fetchAddRole, fetchUpdateRoleInfo } from '@/service/api';
 import { useDict } from '@/hooks/business/dict';
+import { useAuthStore } from '@/store/modules/auth';
 
 defineOptions({
   name: 'RoleOperateDrawer'
@@ -29,6 +30,44 @@ interface Emits {
 const emit = defineEmits<Emits>();
 
 const { dictOptions } = useDict();
+const authStore = useAuthStore();
+
+// 获取当前用户的管理员级别
+const currentUserAdminLevel = computed(() => {
+  return authStore.userInfo?.adminLevel || 0;
+});
+
+// 根据当前用户权限决定可选择的管理员级别
+const availableAdminLevels = computed(() => {
+  const currentUser = authStore.userInfo;
+  const isAdmin = currentUser?.userName === 'admin'; // 超级管理员
+  
+  if (isAdmin) {
+    // 超级管理员可以创建所有级别的管理员
+    return [
+      { value: 0, label: '超级管理员' },
+      { value: 1, label: '租户管理员' },
+      { value: 2, label: '部门管理员' }
+    ];
+  } else if (currentUser?.userType === 1 && currentUser?.adminLevel === 1) {
+    // 租户管理员只能创建部门管理员
+    return [
+      { value: 2, label: '部门管理员' }
+    ];
+  } else {
+    // 部门管理员不能创建管理员
+    return [];
+  }
+});
+
+// 是否可以创建管理员角色
+const canCreateAdmin = computed(() => {
+  const currentUser = authStore.userInfo;
+  const isAdmin = currentUser?.userName === 'admin';
+  const isTenantAdmin = currentUser?.userType === 1 && currentUser?.adminLevel === 1;
+  
+  return isAdmin || isTenantAdmin;
+});
 
 const visible = defineModel<boolean>('visible', {
   default: false
@@ -58,6 +97,7 @@ function createDefaultModel(): Model {
     status: '1',
     sort: 1,
     isAdmin: 0,
+    adminLevel: 2, // 默认为部门管理员
     // 非 admin 用户创建的角色自动关联到当前租户
     customerId: props.isAdmin ? null : props.currentCustomerId
   };
@@ -104,8 +144,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" display-directive="show" :width="360" class="enhanced-drawer user-theme">
-    <NDrawerContent :title="title" :native-scrollbar="false" closable class="enhanced-drawer user-theme">
+  <NDrawer v-model:show="visible" display-directive="show" :width="360">
+    <NDrawerContent :title="title" :native-scrollbar="false" closable>
       <NForm ref="formRef" :model="model" :rules="rules">
         <NFormItem :label="$t('page.manage.role.roleName')" path="roleName">
           <NInput v-model:value="model.roleName" :placeholder="$t('page.manage.role.form.roleName')" />
@@ -118,15 +158,23 @@ watch(visible, () => {
             <NRadio v-for="item in dictOptions('status')" :key="item.value" :value="item.value" :label="item.label" />
           </NRadioGroup>
         </NFormItem>
-        <!-- 只有admin用户才能选择租户 -->
-        <NFormItem v-if="isAdmin" label="租户" path="customerId">
-          <NInputNumber v-model:value="model.customerId" placeholder="留空为全局角色" :show-button="false" clearable />
-        </NFormItem>
         <NFormItem :label="$t('page.manage.role.isAdmin')" path="isAdmin">
           <NRadioGroup v-model:value="model.isAdmin">
             <NRadio :value="0" :label="$t('page.manage.role.normalRole')" />
-            <NRadio :value="1" :label="$t('page.manage.role.adminRole')" />
+            <NRadio v-if="canCreateAdmin" :value="1" :label="$t('page.manage.role.adminRole')" />
           </NRadioGroup>
+        </NFormItem>
+        <!-- 管理员级别选择，只有当角色为管理员且用户有权限时才显示 -->
+        <NFormItem 
+          v-if="model.isAdmin && canCreateAdmin" 
+          :label="$t('page.manage.role.adminLevel')" 
+          path="adminLevel"
+        >
+          <NSelect 
+            v-model:value="model.adminLevel" 
+            :options="availableAdminLevels" 
+            :placeholder="$t('page.manage.role.form.adminLevel')"
+          />
         </NFormItem>
         <NFormItem :label="$t('page.manage.role.description')" path="description">
           <NInput v-model:value="model.description" :placeholder="$t('page.manage.role.form.description')" />
