@@ -1379,6 +1379,7 @@ const local: App.I18n.Schema = {
         addOrgUnits: '新增租户',
         editOrgUnits: '编辑租户',
         addChildOrgUnits: '新增部门',
+        addChildDepartment: '添加子部门',
         unassigned: '未分配租户',
         // 部门相关字段
         dept: {

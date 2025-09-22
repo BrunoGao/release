@@ -4,6 +4,7 @@ import type { Ref } from 'vue';
 import { computed, ref } from 'vue';
 import { useAuth } from '@/hooks/business/auth';
 import { useAuthStore } from '@/store/modules/auth';
+import { useCustomer } from '@/hooks/business/customer';
 import { useTable, useTableOperate } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import { fetchDeleteOrgUnits, fetchGetOrgUnitsPageList, fetchOrgUnitsDeletePrecheck, fetchOrgUnitsCascadeDelete } from '@/service/api';
@@ -23,17 +24,31 @@ const appStore = useAppStore();
 const { hasAuth } = useAuth();
 
 const authStore = useAuthStore();
+const { currentCustomerId: globalCustomerId, currentCustomer } = useCustomer();
 
 const { dictTag } = useDict();
 
-// 判断是否是超级管理员（admin用户，可以管理所有租户）
-const isAdmin = computed(() => {
-  return authStore.userInfo?.userName === 'admin';
+// 基于全局选择的租户判断权限
+// 所有用户在选择租户后都只能管理该租户下的部门
+const currentCustomerId = computed(() => {
+  const id = globalCustomerId.value || '0';
+  console.log('[Debug] currentCustomerId from globalCustomerId:', id, 'globalCustomerId:', globalCustomerId.value);
+  return id;
 });
 
-// 判断是否是租户管理员（只能管理自己租户）
-const isTenantAdmin = computed(() => {
-  return authStore.userInfo?.roleIds?.includes('R_ADMIN') && !isAdmin.value;
+// 判断是否可以管理当前租户的部门（所有用户都可以管理选择的租户下的部门）
+const canManageDepartments = computed(() => {
+  const canManage = currentCustomerId.value && currentCustomerId.value !== '0';
+  console.log('[Debug] canManageDepartments:', canManage, 'currentCustomerId:', currentCustomerId.value);
+  return canManage; // 只要选择了具体租户就可以管理部门
+});
+
+// 租户信息显示
+const currentTenantInfo = computed(() => {
+  return {
+    customerId: currentCustomerId.value,
+    customerName: currentCustomer.value?.name || '未选择租户'
+  };
 });
 
 const operateType = ref<OperateType>('add');
@@ -46,8 +61,8 @@ const deletePreCheckData = ref<Api.SystemManage.DepartmentDeletePreCheck | null>
 const deletePreCheckLoading = ref(false);
 const pendingDeleteIds = ref<string[]>([]);
 
-// 获取customerId
-const customerId = computed(() => authStore.userInfo?.customerId || 0);
+// 获取当前租户ID（由TenantInfo组件控制）
+const customerId = computed(() => currentCustomerId.value);
 
 const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagination, searchParams, resetSearchParams } = useTable({
   apiFn: fetchGetOrgUnitsPageList,
@@ -72,7 +87,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     },
     {
       key: 'name',
-      title: isAdmin.value ? $t('page.manage.orgUnits.name') : $t('page.manage.orgUnits.dept.name'),
+      title: $t('page.manage.orgUnits.dept.name'),
       align: 'center',
       width: 150,
       minWidth: 150,
@@ -80,7 +95,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     },
     {
       key: 'code',
-      title: isAdmin.value ? $t('page.manage.orgUnits.code') : $t('page.manage.orgUnits.dept.code'),
+      title: $t('page.manage.orgUnits.dept.code'),
       align: 'center',
       width: 100,
       minWidth: 100,
@@ -88,7 +103,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     },
     {
       key: 'abbr',
-      title: isAdmin.value ? $t('page.manage.orgUnits.abbr') : $t('page.manage.orgUnits.dept.abbr'),
+      title: $t('page.manage.orgUnits.dept.abbr'),
       align: 'center',
       width: 100,
       minWidth: 100,
@@ -96,7 +111,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     },
     {
       key: 'description',
-      title: isAdmin.value ? $t('page.manage.orgUnits.description') : $t('page.manage.orgUnits.dept.description'),
+      title: $t('page.manage.orgUnits.dept.description'),
       align: 'center',
       width: 120,
       minWidth: 120,
@@ -112,7 +127,7 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
     },
     {
       key: 'status',
-      title: isAdmin.value ? $t('page.manage.orgUnits.status') : $t('page.manage.orgUnits.dept.status'),
+      title: $t('page.manage.orgUnits.dept.status'),
       align: 'center',
       width: 60,
       minWidth: 60,
@@ -126,28 +141,22 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       minWidth: 240,
       render: row => (
         <div class="flex-center gap-8px">
-          {hasAuth('sys:org:units:add') && (
-            <NButton type="primary" quaternary size="small" onClick={() => handleAddChildOrgUnits(row)}>
-              {$t('page.manage.orgUnits.addChildOrgUnits')}
-            </NButton>
-          )}
-          {hasAuth('sys:org:units:update') && (
-            <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
-              {$t('common.edit')}
-            </NButton>
-          )}
-          {hasAuth('sys:org:units:delete') && (
-            <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
-              {{
-                default: () => $t('common.confirmDelete'),
-                trigger: () => (
-                  <NButton type="error" quaternary size="small">
-                    {$t('common.delete')}
-                  </NButton>
-                )
-              }}
-            </NPopconfirm>
-          )}
+          <NButton type="primary" quaternary size="small" onClick={() => handleAddChildOrgUnits(row)}>
+            {$t('page.manage.orgUnits.addChildDepartment')}
+          </NButton>
+          <NButton type="primary" quaternary size="small" onClick={() => edit(row)}>
+            {$t('common.edit')}
+          </NButton>
+          <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
+            {{
+              default: () => $t('common.confirmDelete'),
+              trigger: () => (
+                <NButton type="error" quaternary size="small">
+                  {$t('common.delete')}
+                </NButton>
+              )
+            }}
+          </NPopconfirm>
         </div>
       )
     }
@@ -157,11 +166,20 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
 const { drawerVisible, openDrawer, checkedRowKeys, onDeleted, onBatchDeleted } = useTableOperate(data, getData);
 
 function handleAdd() {
+  // 只能添加部门，检查是否选择了租户
+  if (!canManageDepartments.value) {
+    window.$message?.warning('请先选择租户后再添加部门');
+    return;
+  }
   operateType.value = 'add';
   openDrawer();
 }
 
 function edit(item: Api.SystemManage.OrgUnits) {
+  if (!canManageDepartments.value) {
+    window.$message?.warning('请先选择租户后再编辑部门');
+    return;
+  }
   operateType.value = 'edit';
   editingData.value = { ...item };
   openDrawer();
@@ -255,6 +273,10 @@ function handleDeleteCancel() {
 }
 
 async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
+  if (!canManageDepartments.value) {
+    window.$message?.warning('请先选择租户后再添加子部门');
+    return;
+  }
   operateType.value = 'addChild';
   editingData.value = { ...item };
   openDrawer();
@@ -280,9 +302,9 @@ async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
               </svg>
             </div>
             <div class="header-text">
-              <h1 class="header-title">{{ isAdmin ? '租户与部门管理' : '部门管理' }}</h1>
+              <h1 class="header-title">部门管理</h1>
               <p class="header-subtitle">
-                {{ isAdmin ? '超级管理员可以创建租户和管理所有部门' : '租户管理员只能管理本租户下的部门' }}
+                {{ currentCustomerId > 0 ? `当前租户：${currentTenantInfo.customerName} (ID: ${currentCustomerId})` : '请先在右上角选择租户，然后管理该租户下的部门' }}
               </p>
             </div>
           </div>
@@ -290,7 +312,7 @@ async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
             <div class="stats-mini">
               <div class="stat-item">
                 <span class="stat-number">{{ data?.length || 0 }}</span>
-                <span class="stat-label">{{ isAdmin ? '组织数量' : '部门数量' }}</span>
+                <span class="stat-label">部门数量</span>
               </div>
             </div>
           </div>
@@ -311,7 +333,7 @@ async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
             v-model:columns="columnChecks"
             :checked-row-keys="checkedRowKeys"
             :loading="loading"
-            :add-auth="isAdmin ? 'sys:org:units:add' : false"
+            add-auth="sys:org:units:add"
             delete-auth="sys:org:units:delete"
             @add="handleAdd"
             @delete="handleBatchDelete"
@@ -320,7 +342,9 @@ async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
         </div>
 
         <div class="table-container">
+          <!-- 数据表格 -->
           <NDataTable
+            v-if="data && data.length > 0"
             v-model:checked-row-keys="checkedRowKeys"
             striped
             size="small"
@@ -332,6 +356,51 @@ async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
             :single-line="false"
             :row-key="row => row.id"
           />
+          
+          <!-- 空状态提示 -->
+          <div v-else-if="!loading && canManageDepartments" class="empty-state">
+            <div class="empty-content">
+              <div class="empty-icon">
+                <svg viewBox="0 0 64 64" class="icon">
+                  <path d="M32 8C18.7 8 8 18.7 8 32s10.7 24 24 24 24-10.7 24-24S45.3 8 32 8zM32 52c-11 0-20-9-20-20s9-20 20-20 20 9 20 20-9 20-20 20z" fill="#e2e8f0" />
+                  <path d="M32 20c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2s2-.9 2-2v-8c0-1.1-.9-2-2-2zM32 36c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2s2-.9 2-2v-2c0-1.1-.9-2-2-2z" fill="#94a3b8" />
+                </svg>
+              </div>
+              <h3 class="empty-title">该租户下暂无部门</h3>
+              <p class="empty-description">
+                当前租户：{{ currentTenantInfo.customerName }}<br>
+                您可以为该租户创建第一个部门
+              </p>
+              <NButton 
+                type="primary" 
+                size="large" 
+                @click="handleAdd"
+                class="add-department-btn"
+              >
+                <template #icon>
+                  <i class="i-material-symbols:add"></i>
+                </template>
+                添加部门
+              </NButton>
+            </div>
+          </div>
+          
+          <!-- 未选择租户的提示 -->
+          <div v-else-if="!loading && !canManageDepartments" class="no-tenant-state">
+            <div class="empty-content">
+              <div class="empty-icon">
+                <svg viewBox="0 0 64 64" class="icon">
+                  <path d="M32 8l8 8H56v32H8V16h16l8-8z" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M24 28h16M24 36h16M24 44h12" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <h3 class="empty-title">请选择租户</h3>
+              <p class="empty-description">
+                请在右上角的租户选择器中选择一个租户，<br>
+                然后就可以管理该租户下的部门了
+              </p>
+            </div>
+          </div>
         </div>
 
         <OrgUnitsOperateDrawer v-model:visible="drawerVisible" :operate-type="operateType" :row-data="editingData" @submitted="getDataByPage" />
@@ -543,6 +612,69 @@ async function handleAddChildOrgUnits(item: Api.SystemManage.OrgUnits) {
             background: rgba(248, 250, 252, 0.5);
           }
         }
+      }
+    }
+  }
+
+  // 空状态样式
+  .empty-state,
+  .no-tenant-state {
+    padding: 60px 20px;
+    text-align: center;
+    
+    .empty-content {
+      max-width: 400px;
+      margin: 0 auto;
+      
+      .empty-icon {
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: center;
+        
+        .icon {
+          width: 80px;
+          height: 80px;
+          opacity: 0.6;
+        }
+      }
+      
+      .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #475569;
+        margin: 0 0 12px 0;
+      }
+      
+      .empty-description {
+        font-size: 14px;
+        color: #64748b;
+        line-height: 1.6;
+        margin: 0 0 32px 0;
+      }
+      
+      .add-department-btn {
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .i-material-symbols\:add {
+          font-size: 18px;
+        }
+      }
+    }
+  }
+  
+  .no-tenant-state {
+    .empty-content {
+      .empty-icon .icon {
+        fill: none;
       }
     }
   }

@@ -69,6 +69,32 @@ export function fetchCheckUserDeviceBinding(data: Api.Common.DeleteParams) {
   });
 }
 
+/** check phone uniqueness (only check active users with is_deleted=0) */
+export function fetchCheckPhoneExists(phone: string, excludeUserId?: string) {
+  return request<boolean>({
+    url: '/sys_user/check_phone',
+    method: 'GET',
+    params: { 
+      phone, 
+      excludeUserId,
+      isDeleted: 0  // 只检查未删除的用户
+    }
+  });
+}
+
+/** check device_sn uniqueness (only check active users with is_deleted=0) */
+export function fetchCheckDeviceSnExists(deviceSn: string, excludeUserId?: string) {
+  return request<boolean>({
+    url: '/sys_user/check_device_sn',
+    method: 'GET',
+    params: { 
+      deviceSn, 
+      excludeUserId,
+      isDeleted: 0  // 只检查未删除的用户
+    }
+  });
+}
+
 /** edit delete user */
 export function fetchResetUserPassword(userId: string) {
   return request<string>({

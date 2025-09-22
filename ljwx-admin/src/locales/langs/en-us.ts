@@ -712,6 +712,7 @@ const local: App.I18n.Schema = {
         addOrgUnits: 'Add Organization',
         editOrgUnits: 'Edit Organization',
         addChildOrgUnits: 'Add Child Organization',
+        addChildDepartment: 'Add Sub Department',
         unassigned: 'Unassigned Organization'
       },
       notice: {
