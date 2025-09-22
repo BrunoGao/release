@@ -506,4 +506,30 @@ public interface ISysUserService extends IService<SysUser> {
      * @CreateTime 2025-09-12
      */
     List<SysUser> getUsersByType(Integer userType, Long orgId, Long customerId);
+
+    /**
+     * 检查手机号是否已存在（仅检查未删除用户）
+     * <p>用于用户创建/更新时的手机号唯一性验证</p>
+     *
+     * @param phone 手机号
+     * @param excludeUserId 排除的用户ID（编辑时用）
+     * @param isDeleted 是否删除标识(0-未删除,1-已删除)
+     * @return true-已存在，false-不存在
+     * @author bruno.gao
+     * @CreateTime 2025-09-22
+     */
+    boolean checkPhoneExists(String phone, Long excludeUserId, Integer isDeleted);
+
+    /**
+     * 检查设备序列号是否已存在（仅检查未删除用户）
+     * <p>用于用户创建/更新时的设备唯一性验证</p>
+     *
+     * @param deviceSn 设备序列号
+     * @param excludeUserId 排除的用户ID（编辑时用）
+     * @param isDeleted 是否删除标识(0-未删除,1-已删除)
+     * @return true-已存在，false-不存在
+     * @author bruno.gao
+     * @CreateTime 2025-09-22
+     */
+    boolean checkDeviceSnExists(String deviceSn, Long excludeUserId, Integer isDeleted);
 }

@@ -179,11 +179,20 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             String password = DigestUtils.sha256Hex(sha256HexPwd + sysUserBO.getSalt());
             sysUserBO.setPassword(password);
 
-            // 生成用户卡号
+            // 设置组织信息
+            SysOrgUnits orgUnit = null;
             if (ObjectUtils.isNotEmpty(sysUserBO.getOrgIds())) {
-                // 获取部门code
-                SysOrgUnits orgUnit = sysOrgUnitsService.getById(sysUserBO.getOrgIds().get(0));
+                // 获取第一个组织作为主要组织
+                orgUnit = sysOrgUnitsService.getById(sysUserBO.getOrgIds().get(0));
                 if (orgUnit != null) {
+                    // 设置组织信息（冗余字段，优化查询性能）
+                    sysUserBO.setOrgId(orgUnit.getId());
+                    sysUserBO.setOrgName(orgUnit.getName());
+                    sysUserBO.setCustomerId(orgUnit.getCustomerId());
+                    
+                    log.info("✅ 新增用户设置组织信息: orgId={}, orgName={}, customerId={}", 
+                            orgUnit.getId(), orgUnit.getName(), orgUnit.getCustomerId());
+                    
                     // 查询该部门现有用户数
                     Long userCount = sysUserOrgService.count(new LambdaQueryWrapper<SysUserOrg>()
                         .eq(SysUserOrg::getOrgId, orgUnit.getId()));
@@ -191,10 +200,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                     // 生成卡号：部门code-序号
                     String cardNumber = orgUnit.getCode() + "-" + String.format("%03d", userCount + 1);
                     sysUserBO.setUserCardNumber(cardNumber);
+                } else {
+                    log.warn("⚠️ 未找到组织信息: orgId={}", sysUserBO.getOrgIds().get(0));
                 }
+            } else {
+                log.warn("⚠️ 新增用户时未指定组织ID");
             }
 
-            // 保存用户基本信息
+            // 保存用户基本信息（先保存，获取用户ID）
             boolean saved = super.save(sysUserBO);
             if (!saved) {
                 throw new RuntimeException("保存用户基本信息失败");
@@ -215,6 +228,50 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                     throw new RuntimeException("保存用户部门关系失败");
                 }
             }
+            
+            // 根据用户角色设置用户类型和管理级别
+            Integer userType = 0; // 默认普通用户
+            Integer adminLevel = 0; // 默认非管理员
+            
+            // 获取用户角色信息
+            List<SysRoleBO> userRoles = sysRoleService.queryRoleListWithUserId(sysUserBO.getId());
+            if (ObjectUtils.isNotEmpty(userRoles)) {
+                // 检查是否有管理员角色
+                boolean hasAdminRole = userRoles.stream()
+                    .anyMatch(role -> role.getIsAdmin() != null && role.getIsAdmin() == 1);
+                
+                if (hasAdminRole) {
+                    userType = 1; // 管理员
+                    
+                    // 根据组织层级设置管理级别
+                    if (orgUnit != null && orgUnit.getLevel() != null) {
+                        switch (orgUnit.getLevel()) {
+                            case 1: // 租户级
+                                adminLevel = 2; // 租户级管理员
+                                break;
+                            case 2: // 部门级
+                                adminLevel = 1; // 部门级管理员
+                                break;
+                            default:
+                                adminLevel = 1; // 默认部门级管理员
+                                break;
+                        }
+                    } else {
+                        adminLevel = 1; // 默认部门级管理员
+                    }
+                }
+            }
+            
+            // 更新用户类型和管理级别
+            sysUserBO.setUserType(userType);
+            sysUserBO.setAdminLevel(adminLevel);
+            boolean typeUpdated = super.updateById(sysUserBO);
+            if (!typeUpdated) {
+                log.warn("⚠️ 更新用户类型和管理级别失败");
+            }
+            
+            log.info("✅ 新增用户设置用户类型: userType={}, adminLevel={}, 角色数量={}", 
+                    userType, adminLevel, userRoles.size());
 
             // 处理设备绑定
             if (StringUtils.hasText(sysUserBO.getDeviceSn())) {
@@ -280,17 +337,53 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 Long primaryOrgId = sysUserBO.getOrgIds().get(0); // 取第一个作为主要组织
                 SysOrgUnits primaryOrg = sysOrgUnitsService.getById(primaryOrgId);
                 if (primaryOrg != null) {
+                    // 根据用户角色和组织层级重新计算user_type和admin_level
+                    Integer userType = 0; // 默认普通用户
+                    Integer adminLevel = 0; // 默认非管理员
+                    
+                    // 获取用户角色信息
+                    List<SysRoleBO> userRoles = sysRoleService.queryRoleListWithUserId(sysUserBO.getId());
+                    if (ObjectUtils.isNotEmpty(userRoles)) {
+                        // 检查是否有管理员角色
+                        boolean hasAdminRole = userRoles.stream()
+                            .anyMatch(role -> role.getIsAdmin() != null && role.getIsAdmin() == 1);
+                        
+                        if (hasAdminRole) {
+                            userType = 1; // 管理员
+                            
+                            // 根据组织层级设置管理级别
+                            if (primaryOrg.getLevel() != null) {
+                                switch (primaryOrg.getLevel()) {
+                                    case 1: // 租户级
+                                        adminLevel = 2; // 租户级管理员
+                                        break;
+                                    case 2: // 部门级
+                                        adminLevel = 1; // 部门级管理员
+                                        break;
+                                    default:
+                                        adminLevel = 1; // 默认部门级管理员
+                                        break;
+                                }
+                            } else {
+                                adminLevel = 1; // 默认部门级管理员
+                            }
+                        }
+                    }
+                    
                     SysUser userToUpdate = new SysUser();
                     userToUpdate.setId(sysUserBO.getId());
                     userToUpdate.setOrgId(primaryOrgId);
                     userToUpdate.setOrgName(primaryOrg.getName());
                     userToUpdate.setCustomerId(primaryOrg.getCustomerId()); // 同时更新租户ID
+                    userToUpdate.setUserType(userType); // 更新用户类型
+                    userToUpdate.setAdminLevel(adminLevel); // 更新管理级别
+                    
                     boolean orgInfoUpdated = super.updateById(userToUpdate);
                     if (!orgInfoUpdated) {
                         log.warn("⚠️ 同步更新用户组织信息失败: userId={}, orgId={}", sysUserBO.getId(), primaryOrgId);
                     } else {
-                        log.info("✅ 已同步更新用户组织信息: userId={}, orgId={}, orgName={}, customerId={}", 
-                                sysUserBO.getId(), primaryOrgId, primaryOrg.getName(), primaryOrg.getCustomerId());
+                        log.info("✅ 已同步更新用户信息: userId={}, orgId={}, orgName={}, customerId={}, userType={}, adminLevel={}", 
+                                sysUserBO.getId(), primaryOrgId, primaryOrg.getName(), primaryOrg.getCustomerId(), userType, adminLevel);
                     }
                 }
             }
@@ -1697,5 +1790,53 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         
         return this.list(queryWrapper);
+    }
+
+    @Override
+    public boolean checkPhoneExists(String phone, Long excludeUserId, Integer isDeleted) {
+        log.info("🔍 检查手机号唯一性，phone: {}, excludeUserId: {}, isDeleted: {}", phone, excludeUserId, isDeleted);
+        
+        if (phone == null || phone.trim().isEmpty()) {
+            return false;
+        }
+        
+        LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(SysUser::getPhone, phone)
+                   .eq(SysUser::getDeleted, isDeleted); // 只检查指定删除状态的用户
+        
+        // 排除当前用户（编辑时用）
+        if (excludeUserId != null) {
+            queryWrapper.ne(SysUser::getId, excludeUserId);
+        }
+        
+        long count = this.count(queryWrapper);
+        boolean exists = count > 0;
+        
+        log.info("📱 手机号 {} 检查结果: {}", phone, exists ? "已存在" : "可用");
+        return exists;
+    }
+
+    @Override
+    public boolean checkDeviceSnExists(String deviceSn, Long excludeUserId, Integer isDeleted) {
+        log.info("🔍 检查设备序列号唯一性，deviceSn: {}, excludeUserId: {}, isDeleted: {}", deviceSn, excludeUserId, isDeleted);
+        
+        if (deviceSn == null || deviceSn.trim().isEmpty()) {
+            return false;
+        }
+        
+        LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(SysUser::getDeviceSn, deviceSn)
+                   .eq(SysUser::getDeleted, isDeleted); // 只检查指定删除状态的用户
+        
+        // 排除当前用户（编辑时用）
+        if (excludeUserId != null) {
+            queryWrapper.ne(SysUser::getId, excludeUserId);
+        }
+        
+        long count = this.count(queryWrapper);
+        boolean exists = count > 0;
+        
+        log.info("📱 设备序列号 {} 检查结果: {}", deviceSn, exists ? "已存在" : "可用");
+        return exists;
     }
 }

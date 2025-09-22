@@ -209,5 +209,25 @@ public class SysUserController {
         return Result.data(sysUserFacade.batchImportUsers(file, orgIds));
     }
 
+    @GetMapping("/check_phone")
+    @Operation(operationId = "11", summary = "检查手机号是否已存在(仅检查未删除用户)")
+    public Result<Boolean> checkPhoneExists(
+            @Parameter(description = "手机号") @RequestParam("phone") String phone,
+            @Parameter(description = "排除的用户ID", required = false) @RequestParam(value = "excludeUserId", required = false) Long excludeUserId,
+            @Parameter(description = "是否删除标识(0-未删除,1-已删除)", required = false) @RequestParam(value = "isDeleted", defaultValue = "0") Integer isDeleted) {
+        boolean exists = sysUserService.checkPhoneExists(phone, excludeUserId, isDeleted);
+        return Result.data(exists);
+    }
+
+    @GetMapping("/check_device_sn")
+    @Operation(operationId = "12", summary = "检查设备序列号是否已存在(仅检查未删除用户)")
+    public Result<Boolean> checkDeviceSnExists(
+            @Parameter(description = "设备序列号") @RequestParam("deviceSn") String deviceSn,
+            @Parameter(description = "排除的用户ID", required = false) @RequestParam(value = "excludeUserId", required = false) Long excludeUserId,
+            @Parameter(description = "是否删除标识(0-未删除,1-已删除)", required = false) @RequestParam(value = "isDeleted", defaultValue = "0") Integer isDeleted) {
+        boolean exists = sysUserService.checkDeviceSnExists(deviceSn, excludeUserId, isDeleted);
+        return Result.data(exists);
+    }
+
 
 }
