@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { NButton, NCard, NDataTable, NIcon, NModal, NP, NSpin, NTag, NText, NUpload, NUploadDragger, useModal } from 'naive-ui';
+import { NButton, NCard, NDataTable, NIcon, NModal, NP, NSpin, NTag, NText, NUpload, NUploadDragger, useModal, NDropdown, NSpace, NDivider, NPopconfirm } from 'naive-ui';
 import { computed, h, reactive, ref, watch } from 'vue';
 import SvgIcon from '@/components/custom/svg-icon.vue';
 import {
@@ -65,33 +65,74 @@ const getApiFn = (mode: Api.SystemManage.ViewMode) => {
 };
 type ButtonDropdownKey = 'delete' | 'resetPassword' | 'userResponsibilities';
 
-// 根据视图模式和用户类型动态生成操作选项
-const getOperationOptions = (user: Api.SystemManage.User) => {
-  const baseOptions: CommonType.ButtonDropdown<ButtonDropdownKey, Api.SystemManage.User>[] = [
-    {
-      key: 'delete',
-      label: $t('common.delete'),
-      show: hasAuth('sys:user:delete') && (!user.isAdmin || hasAuth('sys:user:manage:admin')),
-      handler: (_key, row) => handleDelete(row.id)
-    },
-    {
-      key: 'resetPassword',
-      label: $t('page.manage.user.resetPwd'),
-      show: hasAuth('sys:user:resetPassword'),
-      handler: (_key, row) => handleResetPassword(row.id)
-    },
-    {
-      key: 'userResponsibilities',
-      show: hasAuth('sys:user:responsibilities'),
-      label: $t('page.manage.user.responsibilities'),
-      handler: (_key, row) => handleResponsibilities(row.id)
+// 管理操作下拉菜单选项
+function getManageMenuOptions(row: Api.SystemManage.User) {
+  if (!row || !row.id) {
+    console.warn('用户行数据无效:', row);
+    return [];
+  }
+  
+  const options: any[] = [];
+  
+  try {
+    // 编辑操作
+    if (hasAuth('sys:user:update') && (!row.isAdmin || hasAuth('sys:user:manage:admin'))) {
+      options.push({
+        label: '编辑',
+        key: 'edit',
+        icon: renderIcon('material-symbols:edit')
+      });
     }
-  ];
+    
+    if (hasAuth('sys:user:resetPassword')) {
+      options.push({
+        label: '重置密码',
+        key: 'resetPassword',
+        icon: renderIcon('material-symbols:lock-reset')
+      });
+    }
+    
+    if (hasAuth('sys:user:responsibilities')) {
+      options.push({
+        label: '权责设置',
+        key: 'responsibilities',
+        icon: renderIcon('material-symbols:admin-panel-settings')
+      });
+    }
+    
+    // 添加分隔线（如果有删除权限）
+    if (hasAuth('sys:user:delete') && (!row.isAdmin || hasAuth('sys:user:manage:admin')) && options.length > 0) {
+      options.push({
+        type: 'divider',
+        key: 'divider'
+      });
+    }
+    
+    // 删除操作
+    if (hasAuth('sys:user:delete') && (!row.isAdmin || hasAuth('sys:user:manage:admin'))) {
+      options.push({
+        label: '删除',
+        key: 'delete',
+        icon: renderIcon('material-symbols:delete')
+      });
+    }
+    
+    console.log('生成的管理选项:', options, '用户:', row.userName);
+  } catch (error) {
+    console.error('生成管理菜单选项时出错:', error);
+  }
+  
+  return options;
+}
 
-  return baseOptions;
-};
+// 图标渲染辅助函数
+function renderIcon(icon: string) {
+  return () => h(SvgIcon, { icon, class: 'text-16px' });
+}
 
-const { renderDropdown } = useButtonAuthDropdown(getOperationOptions({} as Api.SystemManage.User));
+// 移除危险操作下拉菜单选项（已整合到管理菜单中）
+
+// 移除旧的下拉菜单逻辑
 
 // API参数
 const apiParams = reactive({
@@ -225,26 +266,78 @@ const getDynamicColumns = (mode: Api.SystemManage.ViewMode) => {
       align: 'center',
       fixed: 'right',
       width: 200,
-      render: (row: Api.SystemManage.User) => (
-        <div class="flex-center gap-8px">
-          {hasAuth('sys:user:update') && (!row.isAdmin || hasAuth('sys:user:manage:admin')) && (
-            <NButton type="primary" quaternary size="small" onClick={() => edit(row.id)}>
-              {$t('common.edit')}
-            </NButton>
-          )}
-          <NButton
-            type="success"
-            secondary
-            size="small"
-            class="permission-btn health-permission-btn"
-            onClick={() => handleDeviceSubmitted(row.deviceSn)}
-            renderIcon={() => <SvgIcon icon="material-symbols:health-and-safety" class="text-14px" />}
-          >
-            {$t('route.health_profile')}
-          </NButton>
-          <div class="operation-more-btn">{renderDropdown(row)}</div>
-        </div>
-      )
+      render: (row: Api.SystemManage.User) => {
+        try {
+          if (!row) {
+            console.warn('用户行数据为空');
+            return h('div', '数据错误');
+          }
+          
+          const manageOptions = getManageMenuOptions(row);
+          
+          return h(NSpace, { 
+            size: 'small', 
+            justify: 'center', 
+            wrap: false 
+          }, {
+            default: () => [
+              // 健康档案按钮
+              h(NButton, {
+                type: 'success',
+                size: 'small',
+                class: 'user-action-btn health-btn',
+                onClick: () => handleDeviceSubmitted(row.deviceSn || ''),
+                renderIcon: () => h(SvgIcon, { icon: 'material-symbols:health-and-safety', class: 'text-14px' })
+              }, {
+                default: () => '健康档案'
+              }),
+              
+              // 管理操作下拉菜单（包含编辑、重置密码、权责设置、删除）
+              manageOptions.length > 0 ? h(NDropdown, {
+                trigger: 'click',
+                options: manageOptions,
+                size: 'small',
+                placement: 'bottom-start',
+                showArrow: false,
+                onSelect: (key: string) => {
+                  console.log('下拉菜单选择:', key, '用户ID:', row.id);
+                  switch (key) {
+                    case 'edit':
+                      edit(row.id);
+                      break;
+                    case 'resetPassword':
+                      handleResetPassword(row.id);
+                      break;
+                    case 'responsibilities':
+                      handleResponsibilities(row.id);
+                      break;
+                    case 'delete':
+                      handleDelete(row.id);
+                      break;
+                    default:
+                      console.warn('未知的菜单选项:', key);
+                  }
+                }
+              }, {
+                default: () => h(NButton, {
+                  type: 'primary',
+                  size: 'small',
+                  class: 'user-action-btn manage-btn',
+                  renderIcon: () => h(SvgIcon, { icon: 'material-symbols:settings', class: 'text-14px' })
+                }, {
+                  default: () => [
+                    '管理',
+                    h(SvgIcon, { icon: 'material-symbols:arrow-drop-down', class: 'text-12px ml-4px' })
+                  ]
+                })
+              }) : null
+            ].filter(Boolean)
+          });
+        } catch (error) {
+          console.error('渲染操作列时出错:', error);
+          return h('div', '渲染错误');
+        }
+      }
     }
   );
 
@@ -719,88 +812,183 @@ watch(viewMode, () => {
   gap: 8px;
 }
 
-/* 企业级权限按钮样式 */
-:deep(.permission-btn) {
-  border-radius: 6px;
+/* 用户操作按钮通用样式 */
+.user-action-btn {
+  border-radius: 8px;
   font-weight: 500;
-  transition: all 0.3s ease;
-  min-width: 100px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 68px;
+  height: 28px;
+  font-size: 12px;
 }
 
-:deep(.health-permission-btn) {
+.user-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* 移除已不使用的编辑和危险操作按钮样式 */
+
+/* 健康档案按钮样式 */
+.health-btn {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: 1px solid #10b981;
   color: white;
 }
 
-:deep(.health-permission-btn:hover) {
+.health-btn:hover {
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
 }
 
-:deep(.permission-btn .n-button__icon) {
-  margin-right: 6px;
-}
-
-.operation-more-btn {
-  display: inline-flex;
-  align-items: center;
-}
-
-/* 更多按钮下拉菜单美化 */
-:deep(.operation-more-btn .n-dropdown-trigger) {
-  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
-  border: none;
+/* 管理按钮样式（调整为蓝色系） */
+.manage-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border: 1px solid #3b82f6;
   color: white;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(229, 62, 62, 0.3);
-  border-radius: 4px;
-  padding: 4px 12px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
-:deep(.operation-more-btn .n-dropdown-trigger:hover) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(229, 62, 62, 0.4);
-  background: linear-gradient(135deg, #c53030 0%, #9c2626 100%);
+.manage-btn:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
 }
 
-/* 下拉菜单项美化 */
-:deep(.n-dropdown-menu .n-dropdown-option) {
+/* 移除危险操作按钮样式（已不使用） */
+
+/* 按钮图标样式 */
+.user-action-btn :deep(.n-button__icon) {
+  margin-right: 4px;
+}
+
+/* 下拉菜单样式优化 */
+:deep(.n-dropdown-menu) {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e5e7eb;
+  min-width: 140px;
+}
+
+:deep(.n-dropdown-option) {
+  padding: 12px 16px;
   transition: all 0.2s ease;
+  border-radius: 0;
 }
 
-:deep(.n-dropdown-menu .n-dropdown-option:hover) {
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-  transform: translateX(2px);
+:deep(.n-dropdown-option:hover) {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  transform: translateX(4px);
 }
 
-/* 操作列宽度调整 */
+:deep(.n-dropdown-option .n-dropdown-option__icon) {
+  margin-right: 8px;
+}
+
+/* 表格整体优化 */
+:deep(.n-data-table-th) {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+:deep(.n-data-table-td) {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+:deep(.n-data-table-tr:hover .n-data-table-td) {
+  background-color: #f8fafc;
+}
+
+/* 用户类型标签样式优化 */
+:deep(.n-tag) {
+  border-radius: 6px;
+  font-weight: 500;
+  padding: 4px 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 卡片样式优化 */
+.card-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.card-wrapper :deep(.n-card__content) {
+  padding: 20px;
+}
+
+/* 视图模式选择器美化 */
+.view-mode-selector {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .user-action-btn {
+    min-width: 60px;
+    padding: 0 8px;
+  }
+  
+  .user-action-btn span {
+    display: none;
+  }
+  
+  .user-action-btn :deep(.n-button__icon) {
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .user-action-btn {
+    min-width: 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  
+  .manage-btn .n-button__content span:last-child {
+    display: none;
+  }
+}
+
+/* 操作列固定优化 */
 :deep(.n-data-table-td:last-child) {
   padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
 }
 
-/* 按钮容器间距优化 */
-.flex-center > * + * {
-  margin-left: 6px;
+/* 批量选择优化 */
+:deep(.n-data-table-th:first-child),
+:deep(.n-data-table-td:first-child) {
+  background: rgba(248, 250, 252, 0.95);
+  backdrop-filter: blur(8px);
 }
 
-/* 响应式优化 */
-@media (max-width: 768px) {
-  :deep(.operation-btn-edit),
-  :deep(.operation-btn-health) {
-    padding: 2px 6px;
-    font-size: 12px;
-  }
+/* 加载状态优化 */
+:deep(.n-data-table--loading) {
+  position: relative;
+}
 
-  .flex-center > * + * {
-    margin-left: 4px;
-  }
+:deep(.n-data-table--loading::after) {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(2px);
+  z-index: 1;
 }
 </style>

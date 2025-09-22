@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { computed } from 'vue';
-import { NButton, NPopconfirm, NTag } from 'naive-ui';
+import { NButton, NPopconfirm, NTag, NDropdown, NSpace, NDivider } from 'naive-ui';
 import { useBoolean } from '@sa/hooks';
 import { fetchDeleteRole, fetchGetRoleList } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
@@ -122,52 +122,55 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
       key: 'operate',
       title: $t('common.operate'),
       align: 'center',
-      width: 300,
-      render: row => (
-        <div class="flex-center gap-12px">
-          {hasAuth('sys:role:menu:add') && (
-            <NButton
-              type="info"
-              secondary
-              size="small"
-              class="permission-btn menu-permission-btn"
-              onClick={() => handleMenuAuth(row.id)}
-              renderIcon={() => <SvgIcon icon="material-symbols:menu-book" class="text-14px" />}
-            >
-              {$t('page.manage.role.menuAuth')}
-            </NButton>
-          )}
-          {hasAuth('sys:role:permission:add') && (
-            <NButton
-              type="warning"
-              secondary
-              size="small"
-              class="permission-btn button-permission-btn"
-              onClick={() => handleButtonAuth(row.id)}
-              renderIcon={() => <SvgIcon icon="material-symbols:smart-button" class="text-14px" />}
-            >
-              {$t('page.manage.role.buttonAuth')}
-            </NButton>
-          )}
-          {hasAuth('sys:role:update') && (
-            <NButton type="primary" quaternary size="small" onClick={() => edit(row.id)}>
-              {$t('common.edit')}
-            </NButton>
-          )}
-          {hasAuth('sys:role:delete') && (
-            <NPopconfirm onPositiveClick={() => handleDelete(row.id)}>
-              {{
-                default: () => $t('common.confirmDelete'),
-                trigger: () => (
-                  <NButton type="error" quaternary size="small">
-                    {$t('common.delete')}
-                  </NButton>
-                )
-              }}
-            </NPopconfirm>
-          )}
-        </div>
-      )
+      width: 200,
+      render: row => {
+        const permissionOptions = getPermissionMenuOptions(row);
+        const operateOptions = getOperateMenuOptions(row);
+        
+        return (
+          <NSpace size="small" justify="center">
+            {/* 权限管理下拉菜单 */}
+            {permissionOptions.length > 0 && (
+              <NDropdown
+                trigger="click"
+                options={permissionOptions}
+                size="small"
+                placement="bottom-start"
+              >
+                <NButton
+                  type="primary"
+                  size="small"
+                  class="permission-dropdown-btn"
+                  renderIcon={() => <SvgIcon icon="material-symbols:security" class="text-14px" />}
+                >
+                  权限管理
+                  <SvgIcon icon="material-symbols:arrow-drop-down" class="text-12px ml-4px" />
+                </NButton>
+              </NDropdown>
+            )}
+            
+            {/* 操作下拉菜单 */}
+            {operateOptions.length > 0 && (
+              <NDropdown
+                trigger="click"
+                options={operateOptions}
+                size="small"
+                placement="bottom-start"
+              >
+                <NButton
+                  type="default"
+                  size="small" 
+                  class="operate-dropdown-btn"
+                  renderIcon={() => <SvgIcon icon="material-symbols:more-vert" class="text-14px" />}
+                >
+                  更多
+                  <SvgIcon icon="material-symbols:arrow-drop-down" class="text-12px ml-4px" />
+                </NButton>
+              </NDropdown>
+            )}
+          </NSpace>
+        );
+      }
     }
   ]
 });
@@ -203,6 +206,68 @@ function handleMenuAuth(id: string) {
 function handleButtonAuth(id: string) {
   handleId(id);
   openButtonModal();
+}
+
+// 权限管理下拉菜单选项
+function getPermissionMenuOptions(row: any) {
+  const options = [];
+  
+  if (hasAuth('sys:role:menu:add')) {
+    options.push({
+      label: $t('page.manage.role.menuAuth'),
+      key: 'menu',
+      icon: () => <SvgIcon icon="material-symbols:menu-book" class="text-16px text-blue-500" />,
+      props: {
+        onClick: () => handleMenuAuth(row.id)
+      }
+    });
+  }
+  
+  if (hasAuth('sys:role:permission:add')) {
+    options.push({
+      label: $t('page.manage.role.buttonAuth'),
+      key: 'button',
+      icon: () => <SvgIcon icon="material-symbols:smart-button" class="text-16px text-orange-500" />,
+      props: {
+        onClick: () => handleButtonAuth(row.id)
+      }
+    });
+  }
+  
+  return options;
+}
+
+// 操作下拉菜单选项
+function getOperateMenuOptions(row: any) {
+  const options = [];
+  
+  if (hasAuth('sys:role:update')) {
+    options.push({
+      label: $t('common.edit'),
+      key: 'edit',
+      icon: () => <SvgIcon icon="material-symbols:edit" class="text-16px text-blue-500" />,
+      props: {
+        onClick: () => edit(row.id)
+      }
+    });
+  }
+  
+  if (hasAuth('sys:role:delete')) {
+    options.push({
+      type: 'divider',
+      key: 'divider'
+    });
+    options.push({
+      label: $t('common.delete'),
+      key: 'delete',
+      icon: () => <SvgIcon icon="material-symbols:delete" class="text-16px text-red-500" />,
+      props: {
+        onClick: () => handleDelete(row.id)
+      }
+    });
+  }
+  
+  return options;
 }
 </script>
 
@@ -250,39 +315,123 @@ function handleButtonAuth(id: string) {
 </template>
 
 <style scoped>
-.permission-btn {
-  border-radius: 6px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  min-width: 100px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.menu-permission-btn {
+/* 下拉按钮样式 */
+.permission-dropdown-btn {
   background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   border: 1px solid #3b82f6;
   color: white;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+  min-width: 90px;
 }
 
-.menu-permission-btn:hover {
+.permission-dropdown-btn:hover {
   background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
 }
 
-.button-permission-btn {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  border: 1px solid #f59e0b;
-  color: white;
+.operate-dropdown-btn {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(71, 85, 105, 0.1);
+  min-width: 70px;
 }
 
-.button-permission-btn:hover {
-  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+.operate-dropdown-btn:hover {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  border-color: #94a3b8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(71, 85, 105, 0.15);
 }
 
-.permission-btn :deep(.n-button__icon) {
-  margin-right: 6px;
+/* 图标样式优化 */
+.permission-dropdown-btn :deep(.n-button__icon),
+.operate-dropdown-btn :deep(.n-button__icon) {
+  margin-right: 4px;
+}
+
+/* 下拉菜单样式优化 */
+:deep(.n-dropdown-menu) {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+:deep(.n-dropdown-option) {
+  padding: 10px 16px;
+  transition: all 0.2s ease;
+}
+
+:deep(.n-dropdown-option:hover) {
+  background-color: #f8fafc;
+}
+
+:deep(.n-dropdown-option .n-dropdown-option__icon) {
+  margin-right: 8px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .permission-dropdown-btn,
+  .operate-dropdown-btn {
+    min-width: 60px;
+    font-size: 12px;
+    padding: 0 8px;
+  }
+  
+  .permission-dropdown-btn span,
+  .operate-dropdown-btn span {
+    display: none;
+  }
+  
+  .permission-dropdown-btn :deep(.n-button__icon),
+  .operate-dropdown-btn :deep(.n-button__icon) {
+    margin-right: 0;
+  }
+}
+
+/* 表格整体优化 */
+:deep(.n-data-table-th) {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+:deep(.n-data-table-td) {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+:deep(.n-data-table-tr:hover .n-data-table-td) {
+  background-color: #f8fafc;
+}
+
+/* 角色标签样式优化 */
+:deep(.n-tag) {
+  border-radius: 6px;
+  font-weight: 500;
+  padding: 4px 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 卡片样式优化 */
+.card-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.card-wrapper :deep(.n-card__content) {
+  padding: 20px;
 }
 </style>
