@@ -20,7 +20,7 @@
 package com.ljwx.modules.health.controller;
 
 import com.ljwx.common.api.vo.Result;
-import com.ljwx.modules.health.optimizer.HealthDataOptimizer;
+import com.ljwx.modules.health.upload.DataUpload;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +45,7 @@ import java.util.Map;
 public class DataUploadController {
 
     @Autowired
-    private HealthDataOptimizer healthDataOptimizer;
+    private DataUpload dataUpload;
 
     /**
      * 健康数据上传 (替换upload_health_data)
@@ -59,7 +59,7 @@ public class DataUploadController {
         
         try {
             // 使用完整迁移的Python系统功能
-            return healthDataOptimizer.optimizedUploadHealthDataWithSeparation(healthData);
+            return dataUpload.optimizedUploadHealthDataWithSeparation(healthData);
             
         } catch (Exception e) {
             log.error("❌ 优化健康数据上传失败", e);
@@ -77,7 +77,7 @@ public class DataUploadController {
         log.info("🚀 收到健康数据批量上传请求，数据量: {}", healthDataList.size());
         
         try {
-            return healthDataOptimizer.uploadHealthData(healthDataList);
+            return dataUpload.uploadHealthData(healthDataList);
             
         } catch (Exception e) {
             log.error("❌ 传统批量健康数据上传失败", e);
@@ -95,7 +95,7 @@ public class DataUploadController {
         log.info("🚀 收到设备信息批量上传请求，数据量: {}", deviceDataList.size());
         
         try {
-            return healthDataOptimizer.uploadDeviceInfo(deviceDataList);
+            return dataUpload.uploadDeviceInfo(deviceDataList);
             
         } catch (Exception e) {
             log.error("❌ 设备信息批量上传失败", e);
@@ -113,7 +113,7 @@ public class DataUploadController {
         log.info("🚀 收到通用事件上传请求");
         
         try {
-            return healthDataOptimizer.uploadCommonEvent(eventData);
+            return dataUpload.uploadCommonEvent(eventData);
             
         } catch (Exception e) {
             log.error("❌ 通用事件上传失败", e);
@@ -122,17 +122,17 @@ public class DataUploadController {
     }
 
     /**
-     * 获取优化器统计信息
+     * 获取数据上传统计信息
      */
     @GetMapping("/stats")
-    @Operation(summary = "获取优化器统计信息", description = "查看健康数据优化器的运行统计信息")
-    public Result<Map<String, Object>> getOptimizerStats() {
+    @Operation(summary = "获取数据上传统计信息", description = "查看数据上传处理器的运行统计信息")
+    public Result<Map<String, Object>> getUploadStats() {
         try {
-            Map<String, Object> stats = healthDataOptimizer.getOptimizerStats();
+            Map<String, Object> stats = dataUpload.getOptimizerStats();
             return Result.ok(stats);
             
         } catch (Exception e) {
-            log.error("❌ 获取优化器统计信息失败", e);
+            log.error("❌ 获取数据上传统计信息失败", e);
             return Result.error("获取统计信息失败: " + e.getMessage());
         }
     }
@@ -141,10 +141,10 @@ public class DataUploadController {
      * 获取性能统计信息
      */
     @GetMapping("/performance")
-    @Operation(summary = "获取性能统计信息", description = "查看健康数据处理的性能统计信息")
+    @Operation(summary = "获取性能统计信息", description = "查看数据处理的性能统计信息")
     public Result<Map<String, Object>> getPerformanceStats() {
         try {
-            Map<String, Object> stats = healthDataOptimizer.getPerformanceStats();
+            Map<String, Object> stats = dataUpload.getPerformanceStats();
             return Result.ok(stats);
             
         } catch (Exception e) {

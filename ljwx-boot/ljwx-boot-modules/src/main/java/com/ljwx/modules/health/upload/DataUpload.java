@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.ljwx.modules.health.optimizer;
+package com.ljwx.modules.health.upload;
 
 import com.ljwx.common.api.vo.Result;
 import com.ljwx.modules.health.domain.entity.TDeviceInfo;
@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
- * 健康数据性能优化器
+ * 数据上传处理器
  * 
  * 基于ljwx-bigscreen的HealthDataOptimizer优化算法，提供：
  * - CPU自适应批处理
@@ -59,12 +59,12 @@ import java.util.stream.Collectors;
  *
  * @Author jjgao
  * @ProjectName ljwx-boot
- * @ClassName HealthDataOptimizer
+ * @ClassName DataUpload
  * @CreateTime 2024-12-16
  */
 @Slf4j
 @Component
-public class HealthDataOptimizer {
+public class DataUpload {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -116,7 +116,7 @@ public class HealthDataOptimizer {
     private final List<Long> performanceWindow = Collections.synchronizedList(new ArrayList<>());
     private volatile long lastAdjustmentTime = System.currentTimeMillis();
 
-    public HealthDataOptimizer(RedisTemplate<String, Object> redisTemplate) {
+    public DataUpload(RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
         
         // 初始化线程池
@@ -126,10 +126,10 @@ public class HealthDataOptimizer {
             60L,             // 空闲时间
             TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(1000),
-            r -> new Thread(r, "health-data-optimizer-" + System.currentTimeMillis())
+            r -> new Thread(r, "data-upload-" + System.currentTimeMillis())
         );
         
-        log.info("🚀 HealthDataOptimizer 初始化:");
+        log.info("🚀 DataUpload 初始化:");
         log.info("   CPU核心: {}, 内存: {}MB", cpuCores, memoryMb);
         log.info("   批次大小: {}, 工作线程: {}", batchSize, maxWorkers);
         
@@ -1095,7 +1095,7 @@ public class HealthDataOptimizer {
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
-        log.info("🔒 HealthDataOptimizer 已关闭");
+        log.info("🔒 DataUpload 已关闭");
     }
 
     /**
