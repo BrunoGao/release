@@ -66,6 +66,9 @@ public class AlertRuleEngineService {
     @Autowired
     private TAlertRulesMapper alertRulesMapper;
     
+    @Autowired
+    private AlertRulesCacheManager alertRulesCacheManager;
+    
     // JVM本地缓存
     private final Map<String, CacheEntry> localCache = new ConcurrentHashMap<>();
     
@@ -124,36 +127,41 @@ public class AlertRuleEngineService {
     }
     
     /**
-     * 三层缓存获取规则
+     * 三层缓存获取规则 - 集成AlertRulesCacheManager
      */
     private List<TAlertRules> getCachedRules(String customerId) {
         String cacheKey = "alert_rules:" + customerId;
         
         try {
-            // L1: JVM缓存 (5分钟)
+            // L1: JVM本地缓存 (5分钟) - 最快响应
             CacheEntry cacheEntry = localCache.get(cacheKey);
             if (cacheEntry != null && !cacheEntry.isExpired()) {
                 log.debug("L1缓存命中: {}", customerId);
                 return cacheEntry.getRules();
             }
             
-            // L2: Redis缓存 (24小时)
+            // L2: Redis缓存 (24小时) - 通过AlertRulesCacheManager管理
             @SuppressWarnings("unchecked")
             List<TAlertRules> rules = (List<TAlertRules>) redisTemplate.opsForValue().get(cacheKey);
             if (rules != null && !rules.isEmpty()) {
                 log.debug("L2缓存命中: {}", customerId);
+                // 回填L1缓存
                 localCache.put(cacheKey, new CacheEntry(rules, System.currentTimeMillis()));
                 return rules;
             }
             
-            // L3: 数据库
+            // L3: 数据库 + 异步缓存更新
             rules = loadRulesFromDatabase(Long.valueOf(customerId));
             
-            // 回填缓存
+            // 使用AlertRulesCacheManager异步更新缓存，避免阻塞
             if (!rules.isEmpty()) {
-                redisTemplate.opsForValue().set(cacheKey, rules, REDIS_CACHE_TTL);
+                // 立即更新本地缓存
                 localCache.put(cacheKey, new CacheEntry(rules, System.currentTimeMillis()));
-                log.debug("从数据库加载规则并缓存: customer={}, count={}", customerId, rules.size());
+                
+                // 异步通过缓存管理器更新Redis缓存和同步状态
+                alertRulesCacheManager.updateAlertRulesCacheAsync(Long.valueOf(customerId));
+                
+                log.debug("从数据库加载规则，已触发异步缓存更新: customer={}, count={}", customerId, rules.size());
             }
             
             return rules;
@@ -667,24 +675,41 @@ public class AlertRuleEngineService {
     }
     
     /**
-     * 清空指定客户的缓存
+     * 清空指定客户的缓存 - 集成AlertRulesCacheManager
      */
     public void clearCustomerCache(String customerId) {
         String cacheKey = "alert_rules:" + customerId;
+        
+        // 清空本地缓存
         localCache.remove(cacheKey);
-        redisTemplate.delete(cacheKey);
-        log.info("客户{}的缓存已清空", customerId);
+        
+        // 通过AlertRulesCacheManager清空Redis缓存和同步状态
+        alertRulesCacheManager.clearCustomerCache(Long.valueOf(customerId));
+        
+        log.info("客户{}的缓存已清空(通过缓存管理器)", customerId);
     }
     
     /**
-     * 获取缓存统计信息
+     * 获取缓存统计信息 - 集成AlertRulesCacheManager统计
      */
     public Map<String, Object> getCacheStats() {
         Map<String, Object> stats = new HashMap<>();
+        
+        // AlertRuleEngineService统计
         stats.put("localCacheSize", localCache.size());
         stats.put("threadPoolSize", ((ThreadPoolExecutor) ruleExecutorPool).getPoolSize());
         stats.put("activeThreads", ((ThreadPoolExecutor) ruleExecutorPool).getActiveCount());
         stats.put("queueSize", ((ThreadPoolExecutor) ruleExecutorPool).getQueue().size());
+        
+        // AlertRulesCacheManager统计
+        try {
+            Map<String, Object> cacheManagerStats = alertRulesCacheManager.getCacheStats();
+            stats.put("cacheManager", cacheManagerStats);
+        } catch (Exception e) {
+            log.warn("获取缓存管理器统计失败", e);
+            stats.put("cacheManager", "unavailable");
+        }
+        
         return stats;
     }
     

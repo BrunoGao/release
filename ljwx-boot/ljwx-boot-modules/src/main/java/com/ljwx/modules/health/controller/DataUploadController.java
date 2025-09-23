@@ -152,4 +152,21 @@ public class DataUploadController {
             return Result.error("获取性能统计信息失败: " + e.getMessage());
         }
     }
+    
+    /**
+     * 获取告警规则缓存统计信息
+     */
+    @GetMapping("/cache/stats")
+    @Operation(summary = "获取告警规则缓存统计信息", description = "查看告警规则缓存管理器的详细统计信息")
+    public Result<Map<String, Object>> getAlertCacheStats() {
+        try {
+            // 通过DataUpload获取BatchAlertProcessor的缓存统计
+            Map<String, Object> stats = dataUpload.getOptimizerStats();
+            return Result.ok(stats);
+            
+        } catch (Exception e) {
+            log.error("❌ 获取告警缓存统计信息失败", e);
+            return Result.error("获取告警缓存统计信息失败: " + e.getMessage());
+        }
+    }
 }

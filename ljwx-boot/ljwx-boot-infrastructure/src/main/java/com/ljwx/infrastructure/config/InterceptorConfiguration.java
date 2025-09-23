@@ -73,6 +73,7 @@ public class InterceptorConfiguration implements WebMvcConfigurer
             "/api/alert/upload",              // 通用事件上传
             "/api/stats",                     // 优化器统计信息
             "/api/performance",               // 性能统计信息
+            "/api/cache/stats",               // 告警规则缓存统计信息
             
             // ========== 其他设备相关接口 ==========
             "/device/api/**",                 // 设备相关API

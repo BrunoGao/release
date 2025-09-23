@@ -60,6 +60,9 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
 
     @NonNull
     private ITAlertRulesService tAlertRulesService;
+    
+    @NonNull 
+    private com.ljwx.modules.health.service.AlertRulesCacheManager alertRulesCacheManager;
 
     @Override
     public RPage<TAlertRulesVO> listTAlertRulesPage(PageQuery pageQuery, TAlertRulesSearchDTO tAlertRulesSearchDTO) {
@@ -96,6 +99,9 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
     @Override
     @Transactional
     public boolean update(TAlertRulesUpdateDTO tAlertRulesUpdateDTO) {
+        // 预处理和验证 - 与AddDTO类似的处理逻辑
+        preprocessAlertRuleForUpdate(tAlertRulesUpdateDTO);
+        
         TAlertRulesBO tAlertRulesBO = CglibUtil.convertObj(tAlertRulesUpdateDTO, TAlertRulesBO::new);
         boolean result = tAlertRulesService.updateById(tAlertRulesBO);
         if (result) {
@@ -119,46 +125,86 @@ public class TAlertRulesFacadeImpl implements ITAlertRulesFacade {
     }
     
     /**
-     * 更新告警规则缓存 - 支持版本控制和24小时TTL
+     * 更新告警规则缓存 - 使用AlertRulesCacheManager
      * @param customerId 客户ID
      */
     private void updateAlertRulesCache(Long customerId) {
-        String versionKey = "alert_rules_version_" + customerId;
+        if (customerId == null) {
+            return;
+        }
         
         try {
-            // 增加版本号
-            Long version = RedisUtil.incr(versionKey, 1L);
+            // 使用AlertRulesCacheManager进行异步缓存更新
+            alertRulesCacheManager.updateAlertRulesCacheAsync(customerId);
             
-            // 查询最新的告警规则
-            List<TAlertRules> rules = tAlertRulesService.list(
-                new QueryWrapper<TAlertRules>().eq("customer_id", customerId)
-            );
+            // 发布规则变更事件
+            alertRulesCacheManager.publishRuleChangeEvent(customerId, "update");
             
-            // 构建缓存数据（包含版本信息）
-            java.util.Map<String, Object> cacheData = new java.util.HashMap<>();
-            cacheData.put("version", version);
-            cacheData.put("rules", rules);
-            cacheData.put("updateTime", System.currentTimeMillis());
-            
-            String cacheKey = "alert_rules_" + customerId;
-            String jsonString = JSON.toJSONString(cacheData);
-            
-            // 设置24小时TTL
-            RedisUtil.set(cacheKey, jsonString, 86400L);
-            
-            // 发布更新通知（包含版本号）
-            RedisUtil.publish("alert_rules_channel", "update:" + customerId + ":" + version);
-            
-            System.out.println("告警规则缓存更新成功: customerId=" + customerId + ", version=" + version + ", rules=" + rules.size());
+            System.out.println("✅ 触发告警规则缓存更新: customerId=" + customerId + " (通过AlertRulesCacheManager)");
             
         } catch (Exception e) {
-            System.err.println("更新告警规则缓存失败: customerId=" + customerId + ", error=" + e.getMessage());
+            System.err.println("❌ 触发告警规则缓存更新失败: customerId=" + customerId + ", error=" + e.getMessage());
             e.printStackTrace();
         }
     }
     
     /**
-     * 预处理告警规则数据
+     * 预处理告警规则数据 - 用于更新
+     */
+    private void preprocessAlertRuleForUpdate(TAlertRulesUpdateDTO dto) {
+        // 如果是复合规则，设置正确的ruleType
+        if ("COMPOSITE".equals(dto.getRuleCategory())) {
+            dto.setRuleType("composite");
+            // 对于复合规则，physicalSign应该为空或者为"composite"
+            if (dto.getPhysicalSign() == null || dto.getPhysicalSign().trim().isEmpty()) {
+                dto.setPhysicalSign("composite");
+            }
+        }
+        
+        // 处理严重级别字段的映射
+        if (dto.getLevel() != null && dto.getSeverityLevel() == null) {
+            // 将前端的level字段映射到severityLevel
+            switch (dto.getLevel().toUpperCase()) {
+                case "LOW": case "MINOR":
+                    dto.setSeverityLevel("minor");
+                    break;
+                case "MEDIUM": case "MODERATE":
+                    dto.setSeverityLevel("moderate");
+                    break;
+                case "HIGH": case "MAJOR":
+                    dto.setSeverityLevel("major");
+                    break;
+                case "CRITICAL": case "SEVERE":
+                    dto.setSeverityLevel("critical");
+                    break;
+                default:
+                    dto.setSeverityLevel("moderate");
+            }
+        }
+        
+        // 设置默认值
+        if (dto.getIsEnabled() == null) {
+            dto.setIsEnabled(true);
+        }
+        
+        // 为复合规则生成唯一的物理指标标识
+        if ("COMPOSITE".equals(dto.getRuleCategory()) && dto.getConditions() != null) {
+            // 基于条件内容生成唯一标识，避免重复
+            String conditionHash = String.valueOf(dto.getConditions().hashCode());
+            dto.setPhysicalSign("composite_" + Math.abs(conditionHash.hashCode() % 10000));
+        }
+        
+        // 处理时间字段转换 - 从ISO datetime字符串提取时间部分
+        if (dto.getEffectiveTimeStart() != null) {
+            dto.setEffectiveTimeStart(extractTimeFromDateTimeString(dto.getEffectiveTimeStart()));
+        }
+        if (dto.getEffectiveTimeEnd() != null) {
+            dto.setEffectiveTimeEnd(extractTimeFromDateTimeString(dto.getEffectiveTimeEnd()));
+        }
+    }
+    
+    /**
+     * 预处理告警规则数据 - 用于新增
      */
     private void preprocessAlertRule(TAlertRulesAddDTO dto) {
         // 如果是复合规则，设置正确的ruleType

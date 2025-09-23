@@ -30,6 +30,7 @@ import com.ljwx.modules.health.service.ITDeviceInfoHistoryService;
 import com.ljwx.modules.health.service.ITUserHealthDataService;
 import com.ljwx.modules.health.service.ITUserHealthDataDailyService;
 import com.ljwx.modules.health.service.ITUserHealthDataWeeklyService;
+import com.ljwx.modules.health.service.BatchAlertProcessor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -84,6 +85,9 @@ public class DataUpload {
     @Autowired
     private ITUserHealthDataWeeklyService userHealthDataWeeklyService;
     
+    @Autowired
+    private BatchAlertProcessor batchAlertProcessor;
+    
     // JSON处理器
     private final ObjectMapper objectMapper = new ObjectMapper();
     
@@ -108,6 +112,7 @@ public class DataUpload {
     private final AtomicLong batchCount = new AtomicLong(0);
     private final AtomicLong errorCount = new AtomicLong(0);
     private final AtomicLong duplicateCount = new AtomicLong(0);
+    private final AtomicLong alertTriggeredCount = new AtomicLong(0);
     
     // 已处理记录键值集合（防重复）
     private final Set<String> processedKeys = ConcurrentHashMap.newKeySet();
@@ -487,16 +492,34 @@ public class DataUpload {
      * 获取优化器统计信息 (兼容Python接口)
      */
     public Map<String, Object> getOptimizerStats() {
-        return Map.of(
-            "processed", processedCount.get(),
-            "batches", batchCount.get(),
-            "errors", errorCount.get(),
-            "duplicates", duplicateCount.get(),
-            "queue_size", executor.getQueue().size(),
-            "active_threads", executor.getActiveCount(),
-            "cpu_cores", cpuCores,
-            "batch_size", batchSize
-        );
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("processed", processedCount.get());
+        stats.put("batches", batchCount.get());
+        stats.put("errors", errorCount.get());
+        stats.put("duplicates", duplicateCount.get());
+        stats.put("alerts_triggered", alertTriggeredCount.get());
+        stats.put("queue_size", executor.getQueue().size());
+        stats.put("active_threads", executor.getActiveCount());
+        stats.put("cpu_cores", cpuCores);
+        stats.put("batch_size", batchSize);
+        
+        // 告警相关统计
+        long totalProcessed = processedCount.get();
+        if (totalProcessed > 0) {
+            stats.put("alert_rate_percent", (alertTriggeredCount.get() * 100.0) / totalProcessed);
+        } else {
+            stats.put("alert_rate_percent", 0.0);
+        }
+        
+        // 集成批量告警处理器统计
+        try {
+            Map<String, Object> alertStats = batchAlertProcessor.getStatistics();
+            stats.put("alert_processor_stats", alertStats);
+        } catch (Exception e) {
+            log.warn("获取告警处理器统计失败", e);
+        }
+        
+        return stats;
     }
     
     // ============= 辅助方法 =============
@@ -862,9 +885,30 @@ public class DataUpload {
     
     private void processSingleShard(List<TUserHealthData> shardData) {
         try {
-            // 批量插入到数据库
+            // 1. 批量插入到数据库
             userHealthDataService.saveBatch(shardData, batchSize);
             log.debug("分片处理完成，数据量: {}", shardData.size());
+            
+            // 2. 异步执行告警检查（不阻塞数据插入）
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Map<String, Object> alertResult = batchAlertProcessor.processBatchAlerts(shardData);
+                    
+                    // 更新告警统计
+                    if (alertResult != null && alertResult.containsKey("alerts_triggered")) {
+                        int alertsTriggered = (Integer) alertResult.get("alerts_triggered");
+                        alertTriggeredCount.addAndGet(alertsTriggered);
+                        
+                        if (alertsTriggered > 0) {
+                            log.info("🚨 分片告警检查完成: 数据{}条，触发告警{}个", 
+                                shardData.size(), alertsTriggered);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("分片告警检查失败", e);
+                }
+            }, executor);
+            
         } catch (Exception e) {
             log.error("分片处理失败", e);
             errorCount.addAndGet(shardData.size());
