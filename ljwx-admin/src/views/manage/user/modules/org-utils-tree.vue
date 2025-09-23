@@ -154,7 +154,13 @@ onMounted(() => init());
 
 <template>
   <div class="h-full-hidden">
-    <NCard :title="$t('page.manage.orgUnits.title')" :bordered="false" size="small" class="h-full sm:flex-1-hidden" content-class="h-full-hidden">
+    <NCard :bordered="false" size="small" class="h-full sm:flex-1-hidden department-tree-card" content-class="h-full-hidden">
+      <template #header>
+        <div class="department-header">
+          <SvgIcon icon="material-symbols:corporate-fare" class="text-18px text-blue-500" />
+          <span class="department-title">部门列表</span>
+        </div>
+      </template>
       <template #header-extra>
         <NFlex>
           <NButton v-if="hasAuth('sys:org:units:add')" ghost type="primary" @click="handleAdd()">
@@ -167,7 +173,7 @@ onMounted(() => init());
           </NButton>
         </NFlex>
       </template>
-      <NInput v-model:value="name" clearable :placeholder="$t('common.keywordSearch')" />
+      <NInput v-model:value="name" clearable placeholder="搜索部门名称" />
       <NTree
         :pattern="name"
         :data="orgUnitsTreeData"
@@ -187,12 +193,144 @@ onMounted(() => init());
 </template>
 
 <style lang="scss" scoped>
+/* 部门树卡片样式 */
+.department-tree-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.department-tree-card :deep(.n-card__header) {
+  padding: 16px 20px 12px 20px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+/* 部门头部样式 */
+.department-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.department-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* 搜索框样式 */
+.department-tree-card :deep(.n-input) {
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.department-tree-card :deep(.n-input__input-el) {
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.department-tree-card :deep(.n-input:hover .n-input__input-el) {
+  border-color: #3b82f6;
+}
+
+.department-tree-card :deep(.n-input.n-input--focus .n-input__input-el) {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 树节点样式优化 */
 :deep(.n-tree) {
   .n-tree-node-content__suffix {
     display: none;
   }
   .n-tree-node-content:hover .n-tree-node-content__suffix {
     display: inline-flex;
+  }
+  
+  .n-tree-node {
+    border-radius: 6px;
+    margin: 2px 0;
+    transition: all 0.2s ease;
+  }
+  
+  .n-tree-node:hover {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  }
+  
+  .n-tree-node--selected {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border: 1px solid #3b82f6;
+  }
+  
+  .n-tree-node-content {
+    padding: 8px 12px;
+    border-radius: 6px;
+  }
+  
+  .n-tree-node-content__text {
+    font-weight: 500;
+    color: #374151;
+  }
+  
+  .n-tree-node--selected .n-tree-node-content__text {
+    color: #1d4ed8;
+    font-weight: 600;
+  }
+}
+
+/* 操作按钮样式 */
+:deep(.n-button-group .n-button) {
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+:deep(.n-button-group .n-button:hover) {
+  transform: scale(1.1);
+}
+
+/* 头部按钮样式 */
+.department-tree-card :deep(.n-card__header-extra .n-button) {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.department-tree-card :deep(.n-card__header-extra .n-button:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+/* 刷新按钮特殊样式 */
+.department-tree-card :deep(.n-card__header-extra .n-button[quaternary]) {
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.department-tree-card :deep(.n-card__header-extra .n-button[quaternary]:hover) {
+  color: #3b82f6;
+  border-color: #3b82f6;
+  background: #f0f9ff;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .department-tree-card :deep(.n-card__header) {
+    padding: 12px 16px 8px 16px;
+  }
+  
+  .department-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .department-title {
+    font-size: 14px;
+  }
+  
+  :deep(.n-tree .n-tree-node-content) {
+    padding: 6px 8px;
   }
 }
 </style>

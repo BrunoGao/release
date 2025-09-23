@@ -387,16 +387,17 @@ watch(visible, () => {
             <NInput v-model:value="model.ruleTags" placeholder="规则标签 (可选)" />
           </NFormItem>
         </NForm>
-      </div>
 
-      <template #footer>
-        <NSpace class="w-full justify-end">
-          <NButton quaternary @click="closeDrawer">取消</NButton>
-          <NButton type="primary" :loading="submitLoading" @click="handleSubmit">
-            {{ isAdd ? '创建' : '更新' }}
-          </NButton>
-        </NSpace>
-      </template>
+        <!-- 内联操作按钮 -->
+        <div class="form-actions">
+          <NSpace class="w-full justify-end">
+            <NButton quaternary @click="closeDrawer">取消</NButton>
+            <NButton type="primary" :loading="submitLoading" @click="handleSubmit">
+              {{ isAdd ? '创建' : '更新' }}
+            </NButton>
+          </NSpace>
+        </div>
+      </div>
     </NDrawerContent>
   </NDrawer>
 </template>
@@ -404,6 +405,31 @@ watch(visible, () => {
 <style scoped>
 .form-container {
   padding: 16px 0;
+  min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
+.form-actions {
+  margin-top: 32px;
+  padding: 20px 0 24px;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+/* 确保抽屉内容区域正确布局 */
+:deep(.n-drawer-content) {
+  height: 100vh;
+  overflow: hidden;
+}
+
+:deep(.n-drawer-body-content-wrapper) {
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+  padding: 0 24px;
 }
 
 :deep(.n-divider .n-divider__title) {
@@ -440,9 +466,5 @@ watch(visible, () => {
 
 :deep(.n-time-picker .n-input .n-input-wrapper) {
   border-radius: 6px;
-}
-
-.form-container :deep(.n-drawer-body-content-wrapper) {
-  padding: 0 24px;
 }
 </style>

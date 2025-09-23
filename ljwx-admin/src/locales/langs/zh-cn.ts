@@ -1198,7 +1198,7 @@ const local: App.I18n.Schema = {
           male: '男',
           female: '女'
         },
-        selectTreeIsEmptyTip: '请选择组织查看员工列表'
+        selectTreeIsEmptyTip: '请选择部门查看员工列表'
       },
       menu: {
         home: '首页',

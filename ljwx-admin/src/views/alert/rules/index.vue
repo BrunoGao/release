@@ -99,11 +99,31 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
                   多指标组合 ({indicators.length})
                 </NTag>
                 <div class="composite-indicators flex flex-wrap gap-1">
-                  {indicators.slice(0, 3).map((indicator, index) => (
-                    <NTag key={index} type="info" size="tiny" class="text-xs">
-                      {dictTag('health_data_type', indicator)?.props?.children || indicator}
-                    </NTag>
-                  ))}
+                  {indicators.slice(0, 3).map((indicator, index) => {
+                    const getIndicatorConfig = (physicalSign) => {
+                      const configs = {
+                        'heart_rate': { text: '心率', type: 'error' },
+                        'blood_oxygen': { text: '血氧', type: 'success' },
+                        'temperature': { text: '体温', type: 'warning' },
+                        'pressure_high': { text: '收缩压', type: 'error' },
+                        'pressure_low': { text: '舒张压', type: 'info' },
+                        'blood_pressure': { text: '血压', type: 'error' },
+                        'step': { text: '步数', type: 'success' },
+                        'calorie': { text: '卡路里', type: 'warning' },
+                        'distance': { text: '距离', type: 'info' },
+                        'sleep': { text: '睡眠', type: 'primary' },
+                        'stress': { text: '压力', type: 'error' },
+                        'event': { text: '事件告警', type: 'warning' }
+                      };
+                      return configs[physicalSign] || { text: physicalSign, type: 'default' };
+                    };
+                    const config = getIndicatorConfig(indicator);
+                    return (
+                      <NTag key={index} type={config.type} size="tiny" class="text-xs">
+                        {config.text}
+                      </NTag>
+                    );
+                  })}
                   {indicators.length > 3 && (
                     <NTooltip trigger="hover">
                       {{
@@ -114,11 +134,30 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
                         ),
                         default: () => (
                           <div class="flex flex-col gap-1">
-                            {indicators.slice(3).map((indicator, index) => (
-                              <span key={index} class="text-xs">
-                                {dictTag('health_data_type', indicator)?.props?.children || indicator}
-                              </span>
-                            ))}
+                            {indicators.slice(3).map((indicator, index) => {
+                              const getIndicatorText = (physicalSign) => {
+                                const configs = {
+                                  'heart_rate': '心率',
+                                  'blood_oxygen': '血氧',
+                                  'temperature': '体温',
+                                  'pressure_high': '收缩压',
+                                  'pressure_low': '舒张压',
+                                  'blood_pressure': '血压',
+                                  'step': '步数',
+                                  'calorie': '卡路里',
+                                  'distance': '距离',
+                                  'sleep': '睡眠',
+                                  'stress': '压力',
+                                  'event': '事件告警'
+                                };
+                                return configs[physicalSign] || physicalSign;
+                              };
+                              return (
+                                <span key={index} class="text-xs">
+                                  {getIndicatorText(indicator)}
+                                </span>
+                              );
+                            })}
                           </div>
                         )
                       }}
@@ -148,23 +187,35 @@ const { columns, columnChecks, data, loading, getData, getDataByPage, mobilePagi
           );
         }
         // 单体征规则：显示具体指标
-        const indicator = dictTag('health_data_type', row.physicalSign);
-        if (indicator) {
+        if (row.physicalSign) {
+          const getIndicatorConfig = (physicalSign) => {
+            const configs = {
+              'heart_rate': { text: '心率', type: 'error' },
+              'blood_oxygen': { text: '血氧', type: 'success' },
+              'temperature': { text: '体温', type: 'warning' },
+              'pressure_high': { text: '收缩压', type: 'error' },
+              'pressure_low': { text: '舒张压', type: 'info' },
+              'blood_pressure': { text: '血压', type: 'error' },
+              'step': { text: '步数', type: 'success' },
+              'calorie': { text: '卡路里', type: 'warning' },
+              'distance': { text: '距离', type: 'info' },
+              'sleep': { text: '睡眠', type: 'primary' },
+              'stress': { text: '压力', type: 'error' },
+              'event': { text: '事件告警', type: 'warning' }
+            };
+            return configs[physicalSign] || { text: physicalSign, type: 'default' };
+          };
+          
+          const config = getIndicatorConfig(row.physicalSign);
           return (
-            <NTag type="primary" size="small">
-              <NIcon size="12" class="mr-1">
-                <i class="i-material-symbols:monitor-heart"></i>
-              </NIcon>
-              {indicator}
+            <NTag type={config.type} size="small">
+              {config.text}
             </NTag>
           );
         }
         return (
           <NTag type="default" size="small">
-            <NIcon size="12" class="mr-1">
-              <i class="i-material-symbols:help"></i>
-            </NIcon>
-            {row.physicalSign || '未设置'}
+            未设置
           </NTag>
         );
       }
@@ -816,7 +867,7 @@ function onWizardSuccess() {
 
         <div class="flex items-center gap-3">
           <!-- 智能向导按钮 -->
-          <NButton v-if="hasAuth('t:alert:rules:add')" size="small" type="primary" ghost @click="openWizard">
+          <NButton v-if="hasAuth('t:alert:rules:add')" size="medium" type="primary" @click="openWizard">
             <template #icon>
               <NIcon>
                 <i class="i-material-symbols:auto-awesome"></i>
@@ -1037,17 +1088,6 @@ function onWizardSuccess() {
   align-items: center;
 }
 
-/* 多指标组合显示样式优化 */
-.composite-indicators {
-  max-width: 160px;
-}
-
-.composite-indicators .n-tag {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .composite-conditions {
   max-width: 140px;
@@ -1079,6 +1119,7 @@ function onWizardSuccess() {
   border-color: #3b82f6;
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
 }
+
 
 /* 监控指标图标美化 */
 .indicator-icon {

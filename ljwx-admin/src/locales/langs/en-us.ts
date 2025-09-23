@@ -533,7 +533,7 @@ const local: App.I18n.Schema = {
           male: 'Male',
           female: 'Female'
         },
-        selectTreeIsEmptyTip: 'Please select the organization to view user items'
+        selectTreeIsEmptyTip: 'Please select a department to view employee list'
       },
       menu: {
         home: 'Home',
