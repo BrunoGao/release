@@ -62,6 +62,12 @@ public class TDeviceInfoServiceImpl extends ServiceImpl<TDeviceInfoMapper, TDevi
         IPage<TDeviceInfo> page = pageQuery.buildPage();
         return baseMapper.listDeviceInfoWithUserName(page, tDeviceInfoBO);
     }
+    
+    @Override
+    public TDeviceInfo getBySerialNumber(String serialNumber) {
+        return this.getOne(new LambdaQueryWrapper<TDeviceInfo>()
+                .eq(TDeviceInfo::getSerialNumber, serialNumber));
+    }
 
 }
 

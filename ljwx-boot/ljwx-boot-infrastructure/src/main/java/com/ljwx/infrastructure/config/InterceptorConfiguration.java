@@ -66,6 +66,14 @@ public class InterceptorConfiguration implements WebMvcConfigurer
             "/batch/performance-test",        // 性能测试（调试用）
             "/batch/health",                  // 批处理服务健康检查
             
+            // ========== 统一数据上传接口（设备端，免认证） ==========
+            "/api/health/upload",             // 健康数据上传（快慢字段分离）
+            "/api/health/batch",              // 健康数据批量上传（兼容模式）
+            "/api/device/upload",             // 设备信息上传
+            "/api/alert/upload",              // 通用事件上传
+            "/api/stats",                     // 优化器统计信息
+            "/api/performance",               // 性能统计信息
+            
             // ========== 其他设备相关接口 ==========
             "/device/api/**",                 // 设备相关API
             "/health/device/**",              // 设备健康数据API

@@ -17,38 +17,21 @@
  * limitations under the License.
  */
 
-package com.ljwx.modules.alert.domain.dto;
+package com.ljwx.modules.health.repository.mapper;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.ljwx.modules.health.domain.entity.TDeviceInfoHistory;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
- * 告警处理响应DTO
+ * 设备信息历史记录 Mapper 接口
  *
- * @Author bruno.gao
+ * @Author jjgao
  * @ProjectName ljwx-boot
- * @ClassName com.ljwx.modules.alert.domain.dto.AlertProcessingResponse
- * @CreateTime 2024-08-30 - 15:15:00
+ * @ClassName TDeviceInfoHistoryMapper
+ * @CreateTime 2024-12-16
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AlertProcessingResponse {
+@Mapper
+public interface TDeviceInfoHistoryMapper extends BaseMapper<TDeviceInfoHistory> {
 
-    private Long alertId;
-    private boolean success;
-    private long processingTime;
-    private String distributionId;
-    private int totalRecipients;
-    private long estimatedDeliveryTime;
-    private String trackingUrl;
-    private Double confidenceScore;
-    private Integer priority;
-    private LocalDateTime processedAt;
-    private String errorMessage;
 }

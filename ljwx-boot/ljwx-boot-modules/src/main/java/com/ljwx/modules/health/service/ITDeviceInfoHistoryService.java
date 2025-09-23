@@ -19,39 +19,45 @@
 
 package com.ljwx.modules.health.service;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.ljwx.infrastructure.page.PageQuery;
-import com.ljwx.modules.health.domain.bo.TDeviceInfoBO;
-import com.ljwx.modules.health.domain.entity.TDeviceInfo;
+import com.ljwx.modules.health.domain.entity.TDeviceInfoHistory;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
- *  Service 服务接口层
+ * 设备信息历史记录 Service 接口
  *
  * @Author jjgao
  * @ProjectName ljwx-boot
- * @ClassName com.ljwx.modules.health.service.ITDeviceInfoService
- * @CreateTime 2024-12-14 - 21:31:16
+ * @ClassName ITDeviceInfoHistoryService
+ * @CreateTime 2024-12-16
  */
-
-public interface ITDeviceInfoService extends IService<TDeviceInfo> {
+public interface ITDeviceInfoHistoryService extends IService<TDeviceInfoHistory> {
 
     /**
-     *  - 分页查询
-     *
-     * @param pageQuery 分页对象
-     * @param tDeviceInfoBO BO 查询对象
-     * @return {@link IPage} 分页结果
-     * @author payne.zhuang
-     * @CreateTime 2024-12-14 - 21:31:16
-     */
-    IPage<TDeviceInfo> listTDeviceInfoPage(PageQuery pageQuery, TDeviceInfoBO tDeviceInfoBO);
-    
-    /**
-     * 根据设备序列号查询设备信息
+     * 根据设备序列号查询历史记录
      *
      * @param serialNumber 设备序列号
-     * @return 设备信息
+     * @return 历史记录列表
      */
-    TDeviceInfo getBySerialNumber(String serialNumber);
+    List<TDeviceInfoHistory> listBySerialNumber(String serialNumber);
+
+    /**
+     * 根据设备序列号和时间范围查询历史记录
+     *
+     * @param serialNumber 设备序列号
+     * @param startTime    开始时间
+     * @param endTime      结束时间
+     * @return 历史记录列表
+     */
+    List<TDeviceInfoHistory> listBySerialNumberAndTimeRange(String serialNumber, LocalDateTime startTime, LocalDateTime endTime);
+
+    /**
+     * 批量保存设备历史记录
+     *
+     * @param historyList 历史记录列表
+     * @return 是否成功
+     */
+    boolean saveBatch(List<TDeviceInfoHistory> historyList);
 }

@@ -21,9 +21,15 @@ package com.ljwx.modules.health.optimizer;
 
 import com.ljwx.common.api.vo.Result;
 import com.ljwx.modules.health.domain.entity.TDeviceInfo;
+import com.ljwx.modules.health.domain.entity.TDeviceInfoHistory;
 import com.ljwx.modules.health.domain.entity.TUserHealthData;
+import com.ljwx.modules.health.domain.entity.TUserHealthDataDaily;
+import com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly;
 import com.ljwx.modules.health.service.ITDeviceInfoService;
+import com.ljwx.modules.health.service.ITDeviceInfoHistoryService;
 import com.ljwx.modules.health.service.ITUserHealthDataService;
+import com.ljwx.modules.health.service.ITUserHealthDataDailyService;
+import com.ljwx.modules.health.service.ITUserHealthDataWeeklyService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -31,9 +37,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -65,6 +74,18 @@ public class HealthDataOptimizer {
     
     @Autowired
     private ITDeviceInfoService deviceInfoService;
+    
+    @Autowired
+    private ITDeviceInfoHistoryService deviceInfoHistoryService;
+    
+    @Autowired
+    private ITUserHealthDataDailyService userHealthDataDailyService;
+    
+    @Autowired
+    private ITUserHealthDataWeeklyService userHealthDataWeeklyService;
+    
+    // JSON处理器
+    private final ObjectMapper objectMapper = new ObjectMapper();
     
     // CPU自适应配置
     private final int cpuCores = Runtime.getRuntime().availableProcessors();
@@ -116,6 +137,33 @@ public class HealthDataOptimizer {
         startBatchProcessor();
     }
     
+    // ============= Python功能迁移 - 快慢字段分离策略 =============
+    
+    /**
+     * 快字段列表 (对应Python中的fast_fields)
+     * 存储在主表 t_user_health_data 中，用于实时查询和快速更新
+     */
+    private static final Set<String> FAST_FIELDS = Set.of(
+        "heart_rate", "blood_oxygen", "temperature", "pressure_high", "pressure_low",
+        "stress", "step", "distance", "calorie", "latitude", "longitude", "altitude", "sleep"
+    );
+    
+    /**
+     * 慢字段-日报列表 (对应Python中的slow_daily_fields)
+     * 存储在日报表 t_user_health_data_daily 中，用于每日统计分析
+     */
+    private static final Set<String> SLOW_DAILY_FIELDS = Set.of(
+        "sleep_data", "exercise_daily_data", "workout_data", "scientific_sleep_data"
+    );
+    
+    /**
+     * 慢字段-周报列表 (对应Python中的slow_weekly_fields)
+     * 存储在周报表 t_user_health_data_weekly 中，用于每周统计分析
+     */
+    private static final Set<String> SLOW_WEEKLY_FIELDS = Set.of(
+        "exercise_week_data"
+    );
+
     // ============= Python功能迁移 =============
     
     /**
@@ -281,23 +329,101 @@ public class HealthDataOptimizer {
         try {
             TUserHealthData healthData = new TUserHealthData();
             
-            // 基础字段映射 (修正字段类型)
-            healthData.setDeviceSn(getStringValue(data, "device_id"));
-            healthData.setUserId(parseLong(data.get("user_id")));
-            healthData.setOrgId(parseLong(data.get("org_id")));
-            healthData.setCustomerId(parseLong(data.get("customer_id")));
+            // 基础字段映射 (支持手表端字段格式)
+            String deviceSn = getStringValue(data, "deviceSn", "device_sn", "device_id");
+            log.debug("设备序列号映射: deviceSn={}", deviceSn);
+            healthData.setDeviceSn(deviceSn);
             
-            // 健康指标字段映射 (使用Python的mapping逻辑)
-            for (Map.Entry<String, String> mapping : PYTHON_FIELD_MAPPING.entrySet()) {
-                String pythonField = mapping.getKey();
-                Object value = data.get(pythonField);
-                if (value != null) {
-                    setHealthDataField(healthData, pythonField, value);
-                }
+            // 验证必要字段
+            if (deviceSn == null || deviceSn.trim().isEmpty()) {
+                log.warn("设备序列号为空，跳过此条数据: {}", data);
+                return null;
             }
             
-            // 时间字段处理
-            healthData.setCreateTime(parseDateTime(data.get("create_time")));
+            // 用户ID - 支持字符串和数字格式
+            Long userId = parseLong(data.get("userId"), data.get("user_id"));
+            healthData.setUserId(userId);
+            
+            // 组织ID - 支持超大数字
+            Long orgId = parseLong(data.get("orgId"), data.get("org_id"));
+            healthData.setOrgId(orgId);
+            
+            // 客户ID - 支持超大数字
+            Long customerId = parseLong(data.get("customerId"), data.get("customer_id"));
+            healthData.setCustomerId(customerId);
+            
+            // 健康指标字段映射 (支持手表端字段格式)
+            
+            // 心率
+            if (data.get("heart_rate") != null) {
+                healthData.setHeartRate(parseInt(data.get("heart_rate")));
+            }
+            
+            // 血氧
+            if (data.get("blood_oxygen") != null) {
+                healthData.setBloodOxygen(parseInt(data.get("blood_oxygen")));
+            }
+            
+            // 体温 - 支持body_temperature字段
+            if (data.get("body_temperature") != null) {
+                healthData.setTemperature(parseDouble(data.get("body_temperature")));
+            }
+            
+            // 步数
+            if (data.get("step") != null) {
+                healthData.setStep(parseInt(data.get("step")));
+            }
+            
+            // 距离
+            if (data.get("distance") != null) {
+                healthData.setDistance(parseDouble(data.get("distance")));
+            }
+            
+            // 卡路里
+            if (data.get("calorie") != null) {
+                healthData.setCalorie(parseDouble(data.get("calorie")));
+            }
+            
+            // 位置信息
+            if (data.get("latitude") != null) {
+                healthData.setLatitude(parseDouble(data.get("latitude")));
+            }
+            if (data.get("longitude") != null) {
+                healthData.setLongitude(parseDouble(data.get("longitude")));
+            }
+            if (data.get("altitude") != null) {
+                healthData.setAltitude(parseDouble(data.get("altitude")));
+            }
+            
+            // 压力指数
+            if (data.get("stress") != null) {
+                healthData.setStress(parseInt(data.get("stress")));
+            }
+            
+            // 血压 - 支持手表端字段名
+            if (data.get("blood_pressure_systolic") != null) {
+                healthData.setPressureHigh(parseInt(data.get("blood_pressure_systolic")));
+            }
+            if (data.get("blood_pressure_diastolic") != null) {
+                healthData.setPressureLow(parseInt(data.get("blood_pressure_diastolic")));
+            }
+            
+            // 扩展数据字段处理 - 处理慢字段数据到分表
+            processExtendedDataFields(data, healthData);
+            
+            // 时间字段处理 - 支持timestamp字段
+            String timestampStr = getStringValue(data, "timestamp", "create_time");
+            if (timestampStr != null) {
+                try {
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                    healthData.setCreateTime(LocalDateTime.parse(timestampStr, formatter));
+                } catch (Exception e) {
+                    log.warn("时间戳解析失败: {}", timestampStr);
+                    healthData.setCreateTime(LocalDateTime.now());
+                }
+            } else {
+                healthData.setCreateTime(LocalDateTime.now());
+            }
             
             return healthData;
             
@@ -340,6 +466,7 @@ public class HealthDataOptimizer {
     private void processDataInAdaptiveShards(List<TUserHealthData> dataList) {
         // 按设备ID分片 (Python算法)
         Map<Integer, List<TUserHealthData>> shards = dataList.stream()
+            .filter(data -> data.getDeviceSn() != null) // 过滤掉deviceSn为null的数据
             .collect(Collectors.groupingBy(data -> 
                 Math.abs(data.getDeviceSn().hashCode()) % cpuCores
             ));
@@ -376,7 +503,7 @@ public class HealthDataOptimizer {
     
     private String generateDuplicateKey(TUserHealthData data) {
         return String.format("%s_%s_%s", 
-            data.getDeviceSn(), 
+            data.getDeviceSn() != null ? data.getDeviceSn() : "UNKNOWN", 
             data.getCreateTime(), 
             data.getHeartRate()
         );
@@ -449,6 +576,40 @@ public class HealthDataOptimizer {
         }
     }
     
+    // 支持多个值的查找
+    private Long parseLong(Object... values) {
+        for (Object value : values) {
+            if (value != null) {
+                try {
+                    return Long.parseLong(value.toString());
+                } catch (NumberFormatException e) {
+                    // 继续尝试下一个值
+                }
+            }
+        }
+        return null;
+    }
+    
+    private Integer parseInteger(Object value) {
+        if (value == null) return null;
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+    
+    // 支持多字段名的字符串值获取
+    private String getStringValue(Map<String, Object> data, String... keys) {
+        for (String key : keys) {
+            Object value = data.get(key);
+            if (value != null) {
+                return value.toString();
+            }
+        }
+        return null;
+    }
+    
     private LocalDateTime parseDateTime(Object value) {
         if (value == null) return LocalDateTime.now();
         try {
@@ -471,15 +632,117 @@ public class HealthDataOptimizer {
     }
     
     private TDeviceInfo transformSingleDeviceData(Map<String, Object> data) {
-        // 简化的设备数据转换
+        // 完整的设备数据转换，支持多种字段格式
         try {
             TDeviceInfo deviceInfo = new TDeviceInfo();
-            deviceInfo.setSerialNumber(getStringValue(data, "device_id"));
-            deviceInfo.setDeviceName(getStringValue(data, "device_name"));
-            deviceInfo.setCustomerId(parseLong(data.get("customer_id")));
+            
+            // 系统软件版本
+            deviceInfo.setSystemSoftwareVersion(getStringValue(data, "System Software Version", "system_software_version"));
+            
+            // WiFi地址
+            deviceInfo.setWifiAddress(getStringValue(data, "Wifi Address", "wifi_address"));
+            
+            // 蓝牙地址
+            deviceInfo.setBluetoothAddress(getStringValue(data, "Bluetooth Address", "bluetooth_address"));
+            
+            // IP地址
+            deviceInfo.setIpAddress(getStringValue(data, "IP Address", "ip_address"));
+            
+            // 网络访问模式
+            deviceInfo.setNetworkAccessMode(getStringValue(data, "Network Access Mode", "network_access_mode"));
+            
+            // 设备序列号 - 支持多种字段名
+            String serialNumber = getStringValue(data, "SerialNumber", "serialNumber", "device_id", "serial_number");
+            deviceInfo.setSerialNumber(serialNumber);
+            
+            // 设备名称
+            deviceInfo.setDeviceName(getStringValue(data, "Device Name", "device_name", "deviceName"));
+            
+            // IMEI
+            deviceInfo.setImei(getStringValue(data, "IMEI", "imei"));
+            
+            // 电池电量
+            Integer batteryLevel = parseInteger(data.get("batteryLevel"));
+            if (batteryLevel == null) {
+                batteryLevel = parseInteger(data.get("battery_level"));
+            }
+            deviceInfo.setBatteryLevel(batteryLevel);
+            
+            // 电压
+            deviceInfo.setVoltage(parseInteger(data.get("voltage")));
+            
+            // 充电状态 - 枚举值：NONE(没有充电), CHARGING(充电)
+            deviceInfo.setChargingStatus(getStringValue(data, "chargingStatus", "charging_status"));
+            
+            // 设备状态
+            deviceInfo.setStatus(getStringValue(data, "status"));
+            
+            // 佩戴状态 - 映射数字值到枚举：0/NOT_WORN(未佩戴), 1/WORN(佩戴)
+            String wearState = getStringValue(data, "wearState", "wear_state");
+            if (wearState != null) {
+                if ("1".equals(wearState) || "WORN".equalsIgnoreCase(wearState)) {
+                    deviceInfo.setWearableStatus("WORN");
+                } else if ("0".equals(wearState) || "NOT_WORN".equalsIgnoreCase(wearState)) {
+                    deviceInfo.setWearableStatus("NOT_WORN");
+                } else {
+                    deviceInfo.setWearableStatus(wearState); // 保持原值
+                }
+            }
+            
+            // 时间戳处理
+            String timestampStr = getStringValue(data, "timestamp");
+            if (timestampStr != null) {
+                try {
+                    // 支持多种时间格式
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                    deviceInfo.setTimestamp(LocalDateTime.parse(timestampStr, formatter));
+                } catch (Exception e) {
+                    log.warn("时间戳解析失败: {}", timestampStr);
+                    deviceInfo.setTimestamp(LocalDateTime.now());
+                }
+            } else {
+                deviceInfo.setTimestamp(LocalDateTime.now());
+            }
+            
+            // 租户ID (支持字符串形式的大数字)
+            Long customerId = parseLong(data.get("customerId"));
+            if (customerId == null) {
+                customerId = parseLong(data.get("customer_id"));
+            }
+            deviceInfo.setCustomerId(customerId != null ? customerId : 8L);
+            
+            // 组织ID
+            Long orgId = parseLong(data.get("orgId"));
+            if (orgId == null) {
+                orgId = parseLong(data.get("org_id"));
+            }
+            deviceInfo.setOrgId(orgId != null ? orgId : 1L);
+            
+            // 用户ID
+            Long userId = parseLong(data.get("userId"));
+            if (userId == null) {
+                userId = parseLong(data.get("user_id"));
+            }
+            deviceInfo.setUserId(userId != null ? userId : 101L);
+            
+            // 设置创建时间和更新时间
+            LocalDateTime now = LocalDateTime.now();
+            deviceInfo.setCreatedAt(now);
+            deviceInfo.setUpdateTime(now);
+            
+            // 验证必要字段
+            if (deviceInfo.getSerialNumber() == null || deviceInfo.getSerialNumber().trim().isEmpty()) {
+                log.warn("设备序列号为空，跳过该设备: {}", data);
+                return null;
+            }
+            
+            log.debug("设备数据转换成功: 序列号={}, 设备名={}", 
+                deviceInfo.getSerialNumber(), deviceInfo.getDeviceName());
+            
             return deviceInfo;
+            
         } catch (Exception e) {
-            log.warn("设备数据转换失败: {}", data, e);
+            log.error("设备数据转换失败: {}", data, e);
             return null;
         }
     }
@@ -498,8 +761,98 @@ public class HealthDataOptimizer {
     }
     
     private void processDeviceDataInBatches(List<TDeviceInfo> devices) {
-        // 批量处理设备数据
-        deviceInfoService.saveBatch(devices);
+        try {
+            // 1. 处理设备信息更新和历史记录插入
+            List<TDeviceInfoHistory> historyRecords = new ArrayList<>();
+            
+            for (TDeviceInfo device : devices) {
+                // 更新或插入设备主表记录
+                processDeviceMainTable(device);
+                
+                // 创建历史记录
+                TDeviceInfoHistory history = createDeviceHistoryFromDevice(device);
+                historyRecords.add(history);
+            }
+            
+            // 2. 批量插入历史记录
+            if (!historyRecords.isEmpty()) {
+                boolean historySuccess = deviceInfoHistoryService.saveBatch(historyRecords);
+                if (historySuccess) {
+                    log.debug("✅ 设备历史记录批量插入成功，数量: {}", historyRecords.size());
+                } else {
+                    log.warn("⚠️ 设备历史记录批量插入失败");
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("❌ 设备数据批量处理失败", e);
+            throw e;
+        }
+    }
+    
+    /**
+     * 处理设备主表更新逻辑
+     * 如果设备存在则更新，不存在则插入
+     */
+    private void processDeviceMainTable(TDeviceInfo device) {
+        try {
+            // 根据序列号查询是否存在
+            TDeviceInfo existingDevice = deviceInfoService.getBySerialNumber(device.getSerialNumber());
+            
+            LocalDateTime now = LocalDateTime.now();
+            
+            if (existingDevice != null) {
+                // 更新现有设备记录
+                device.setId(existingDevice.getId());
+                device.setCreatedAt(existingDevice.getCreatedAt()); // 保持原创建时间
+                device.setUpdateTime(now);
+                
+                boolean updateSuccess = deviceInfoService.updateById(device);
+                if (updateSuccess) {
+                    log.debug("✅ 设备信息更新成功: serialNumber={}", device.getSerialNumber());
+                } else {
+                    log.warn("⚠️ 设备信息更新失败: serialNumber={}", device.getSerialNumber());
+                }
+            } else {
+                // 插入新设备记录
+                device.setCreatedAt(now);
+                device.setUpdateTime(now);
+                
+                boolean insertSuccess = deviceInfoService.save(device);
+                if (insertSuccess) {
+                    log.debug("✅ 新设备信息插入成功: serialNumber={}", device.getSerialNumber());
+                } else {
+                    log.warn("⚠️ 新设备信息插入失败: serialNumber={}", device.getSerialNumber());
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("❌ 处理设备主表失败: serialNumber={}", device.getSerialNumber(), e);
+            throw e;
+        }
+    }
+    
+    /**
+     * 从设备信息创建历史记录
+     */
+    private TDeviceInfoHistory createDeviceHistoryFromDevice(TDeviceInfo device) {
+        return TDeviceInfoHistory.builder()
+                .serialNumber(device.getSerialNumber())
+                .timestamp(device.getTimestamp() != null ? device.getTimestamp() : LocalDateTime.now())
+                .systemSoftwareVersion(device.getSystemSoftwareVersion())
+                .batteryLevel(device.getBatteryLevel())
+                .wearableStatus(device.getWearableStatus())
+                .chargingStatus(device.getChargingStatus())
+                .voltage(device.getVoltage())
+                .ipAddress(device.getIpAddress())
+                .networkAccessMode(device.getNetworkAccessMode())
+                .status(device.getStatus())
+                .userId(device.getUserId())
+                .orgId(device.getOrgId())
+                .customerId(device.getCustomerId())
+                .createTime(LocalDateTime.now())
+                .updateTime(LocalDateTime.now())
+                .build();
     }
     
     private void processAlertEvents(Object alertData) {
@@ -682,7 +1035,7 @@ public class HealthDataOptimizer {
     private String generateDataKey(TUserHealthData data) {
         return String.format("%s_%s_%s", 
             data.getUserId(), 
-            data.getDeviceSn(), 
+            data.getDeviceSn() != null ? data.getDeviceSn() : "UNKNOWN", 
             data.getCreateTime());
     }
 
@@ -827,5 +1180,319 @@ public class HealthDataOptimizer {
         public long getBatchCount() { return batchCount; }
         public long getProcessingTimeMs() { return processingTimeMs; }
         public String getErrorMessage() { return errorMessage; }
+    }
+
+    // ============= 快慢字段分离处理 (Python系统完整迁移) =============
+
+    /**
+     * 扩展数据字段处理 - 完整实现Python的快慢字段分离策略
+     * 参照Python: health_data_batch_processor.py:585-640行
+     */
+    private void processExtendedDataFields(Map<String, Object> data, TUserHealthData healthData) {
+        try {
+            log.debug("🔧 开始处理快慢字段分离: deviceSn={}", healthData.getDeviceSn());
+
+            // 获取时间戳，用于确定日期和周
+            LocalDateTime timestamp = healthData.getCreateTime() != null ? 
+                healthData.getCreateTime() : LocalDateTime.now();
+            LocalDate date = timestamp.toLocalDate();
+
+            // ========== 处理日报慢字段 (slow_daily_fields) ==========
+            Map<String, Object> dailyFields = extractSlowDailyFields(data);
+            if (!dailyFields.isEmpty()) {
+                processDailySlowFields(dailyFields, healthData, date);
+            }
+
+            // ========== 处理周报慢字段 (slow_weekly_fields) ==========
+            Map<String, Object> weeklyFields = extractSlowWeeklyFields(data);
+            if (!weeklyFields.isEmpty()) {
+                processWeeklySlowFields(weeklyFields, healthData, date);
+            }
+
+            log.debug("✅ 快慢字段分离处理完成: deviceSn={}", healthData.getDeviceSn());
+
+        } catch (Exception e) {
+            log.error("❌ 扩展数据字段处理失败: deviceSn={}", healthData.getDeviceSn(), e);
+        }
+    }
+
+    /**
+     * 提取日报慢字段数据
+     * 对应Python: slow_daily_fields=['sleep_data','exercise_daily_data','workout_data','scientific_sleep_data']
+     */
+    private Map<String, Object> extractSlowDailyFields(Map<String, Object> data) {
+        Map<String, Object> dailyFields = new HashMap<>();
+
+        // 映射Python字段名到Java字段名
+        Map<String, String> fieldMapping = Map.of(
+            "sleepData", "sleep_data",
+            "exerciseDailyData", "exercise_daily_data", 
+            "workoutData", "workout_data",
+            "scientificSleepData", "scientific_sleep_data"
+        );
+
+        for (Map.Entry<String, String> entry : fieldMapping.entrySet()) {
+            String javaField = entry.getKey();
+            String pythonField = entry.getValue();
+            
+            Object value = data.get(javaField);
+            if (value != null) {
+                // 确保JSON数据是字符串格式
+                if (value instanceof String) {
+                    dailyFields.put(pythonField, value);
+                } else {
+                    try {
+                        dailyFields.put(pythonField, objectMapper.writeValueAsString(value));
+                    } catch (JsonProcessingException e) {
+                        log.warn("JSON序列化失败: field={}, value={}", javaField, value);
+                    }
+                }
+            }
+        }
+
+        return dailyFields;
+    }
+
+    /**
+     * 提取周报慢字段数据
+     * 对应Python: slow_weekly_fields=['exercise_week_data']
+     */
+    private Map<String, Object> extractSlowWeeklyFields(Map<String, Object> data) {
+        Map<String, Object> weeklyFields = new HashMap<>();
+
+        Object exerciseWeekData = data.get("exerciseWeekData");
+        if (exerciseWeekData != null) {
+            if (exerciseWeekData instanceof String) {
+                weeklyFields.put("exercise_week_data", exerciseWeekData);
+            } else {
+                try {
+                    weeklyFields.put("exercise_week_data", objectMapper.writeValueAsString(exerciseWeekData));
+                } catch (JsonProcessingException e) {
+                    log.warn("JSON序列化失败: exerciseWeekData={}", exerciseWeekData);
+                }
+            }
+        }
+
+        return weeklyFields;
+    }
+
+    /**
+     * 处理日报慢字段数据
+     * 对应Python: health_data_batch_processor.py:614-625行
+     */
+    private void processDailySlowFields(Map<String, Object> dailyFields, TUserHealthData healthData, LocalDate date) {
+        try {
+            log.debug("📅 处理日报慢字段: deviceSn={}, date={}, fields={}", 
+                healthData.getDeviceSn(), date, dailyFields.keySet());
+
+            // 构建日报数据对象
+            TUserHealthDataDaily dailyData = TUserHealthDataDaily.builder()
+                .deviceSn(healthData.getDeviceSn())
+                .userId(healthData.getUserId())
+                .orgId(healthData.getOrgId())
+                .customerId(healthData.getCustomerId())
+                .timestamp(date) // 使用LocalDate作为日期
+                .build();
+
+            // 设置慢字段数据
+            if (dailyFields.containsKey("sleep_data")) {
+                dailyData.setSleepData((String) dailyFields.get("sleep_data"));
+            }
+            if (dailyFields.containsKey("exercise_daily_data")) {
+                dailyData.setExerciseDailyData((String) dailyFields.get("exercise_daily_data"));
+            }
+            if (dailyFields.containsKey("workout_data")) {
+                dailyData.setWorkoutData((String) dailyFields.get("workout_data"));
+            }
+            if (dailyFields.containsKey("scientific_sleep_data")) {
+                dailyData.setScientificSleepData((String) dailyFields.get("scientific_sleep_data"));
+            }
+
+            // 异步保存到日报表
+            CompletableFuture.runAsync(() -> {
+                try {
+                    boolean success = userHealthDataDailyService.saveOrUpdate(dailyData);
+                    if (success) {
+                        log.debug("✅ 日报数据保存成功: deviceSn={}, date={}", healthData.getDeviceSn(), date);
+                    } else {
+                        log.warn("⚠️ 日报数据保存失败: deviceSn={}, date={}", healthData.getDeviceSn(), date);
+                    }
+                } catch (Exception e) {
+                    log.error("❌ 异步保存日报数据失败: deviceSn={}, date={}", healthData.getDeviceSn(), date, e);
+                }
+            }, executor);
+
+        } catch (Exception e) {
+            log.error("❌ 处理日报慢字段失败: deviceSn={}, date={}", healthData.getDeviceSn(), date, e);
+        }
+    }
+
+    /**
+     * 处理周报慢字段数据
+     * 对应Python: health_data_batch_processor.py:627-639行
+     */
+    private void processWeeklySlowFields(Map<String, Object> weeklyFields, TUserHealthData healthData, LocalDate date) {
+        try {
+            // 获取周开始日期 (周一)
+            LocalDate weekStart = userHealthDataWeeklyService.getWeekStart(date);
+            
+            log.debug("📊 处理周报慢字段: deviceSn={}, weekStart={}, fields={}", 
+                healthData.getDeviceSn(), weekStart, weeklyFields.keySet());
+
+            // 构建周报数据对象
+            TUserHealthDataWeekly weeklyData = TUserHealthDataWeekly.builder()
+                .deviceSn(healthData.getDeviceSn())
+                .userId(healthData.getUserId())
+                .orgId(healthData.getOrgId())
+                .customerId(healthData.getCustomerId())
+                .timestamp(weekStart) // 使用周开始日期
+                .build();
+
+            // 设置慢字段数据
+            if (weeklyFields.containsKey("exercise_week_data")) {
+                weeklyData.setExerciseWeekData((String) weeklyFields.get("exercise_week_data"));
+            }
+
+            // 异步保存到周报表
+            CompletableFuture.runAsync(() -> {
+                try {
+                    boolean success = userHealthDataWeeklyService.saveOrUpdate(weeklyData);
+                    if (success) {
+                        log.debug("✅ 周报数据保存成功: deviceSn={}, weekStart={}", healthData.getDeviceSn(), weekStart);
+                    } else {
+                        log.warn("⚠️ 周报数据保存失败: deviceSn={}, weekStart={}", healthData.getDeviceSn(), weekStart);
+                    }
+                } catch (Exception e) {
+                    log.error("❌ 异步保存周报数据失败: deviceSn={}, weekStart={}", healthData.getDeviceSn(), weekStart, e);
+                }
+            }, executor);
+
+        } catch (Exception e) {
+            log.error("❌ 处理周报慢字段失败: deviceSn={}, date={}", healthData.getDeviceSn(), date, e);
+        }
+    }
+
+    /**
+     * 优化的健康数据上传 - 完整实现Python系统架构
+     * 对应Python: health_data_batch_processor.py:optimized_upload_health_data
+     */
+    public Result<Map<String, Object>> optimizedUploadHealthDataWithSeparation(Map<String, Object> healthData) {
+        long startTime = System.currentTimeMillis();
+        log.info("🚀 开始优化健康数据上传 (快慢字段分离)");
+
+        try {
+            Object dataObj = healthData.get("data");
+            List<Map<String, Object>> dataList;
+
+            // 处理不同的数据格式
+            if (dataObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> tempList = (List<Map<String, Object>>) dataObj;
+                dataList = tempList;
+            } else if (dataObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> singleData = (Map<String, Object>) dataObj;
+                dataList = List.of(singleData);
+            } else {
+                return Result.error("无效的数据格式");
+            }
+
+            log.info("📊 检测到数据量: {}", dataList.size());
+
+            // 使用Python同样的批量处理策略
+            if (dataList.size() > 10) {
+                return processBatchHealthDataWithSeparation(dataList, startTime);
+            } else {
+                return processSmallBatchHealthDataWithSeparation(dataList, startTime);
+            }
+
+        } catch (Exception e) {
+            long errorTime = System.currentTimeMillis() - startTime;
+            log.error("❌ 优化健康数据上传失败，耗时{}ms", errorTime, e);
+            return Result.error("上传失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 大批量数据处理 (对应Python中的大批量处理逻辑)
+     */
+    private Result<Map<String, Object>> processBatchHealthDataWithSeparation(List<Map<String, Object>> dataList, long startTime) {
+        log.info("🏥 大批量处理模式: {}条数据", dataList.size());
+        
+        int successCount = 0;
+        int duplicateCount = 0;
+        int errorCount = 0;
+
+        for (int i = 0; i < dataList.size(); i++) {
+            Map<String, Object> item = dataList.get(i);
+            String deviceSn = getStringValue(item, "deviceSn", "id");
+            
+            if (deviceSn != null) {
+                try {
+                    List<TUserHealthData> healthDataList = List.of(transformSingleHealthData(item));
+                    if (!healthDataList.isEmpty() && healthDataList.get(0) != null) {
+                        List<TUserHealthData> processedData = performDuplicateDetection(healthDataList);
+                        if (!processedData.isEmpty()) {
+                            processDataInAdaptiveShards(processedData);
+                            successCount++;
+                        } else {
+                            duplicateCount++;
+                        }
+                    } else {
+                        errorCount++;
+                    }
+                } catch (Exception e) {
+                    log.warn("处理第{}条数据失败: deviceSn={}", i + 1, deviceSn, e);
+                    errorCount++;
+                }
+            } else {
+                log.warn("第{}条数据缺少设备SN", i + 1);
+                errorCount++;
+            }
+        }
+
+        long processingTime = System.currentTimeMillis() - startTime;
+        String message = String.format("批量处理完成，成功%d条，重复%d条，失败%d条", successCount, duplicateCount, errorCount);
+        
+        Map<String, Object> result = Map.of(
+            "success", true,
+            "message", message,
+            "details", Map.of(
+                "success", successCount,
+                "duplicate", duplicateCount,
+                "error", errorCount,
+                "processing_time_ms", processingTime
+            )
+        );
+
+        log.info("✅ {}, 耗时{}ms", message, processingTime);
+        return Result.ok(result);
+    }
+
+    /**
+     * 小批量数据处理 (对应Python中的小批量直接处理)
+     */
+    private Result<Map<String, Object>> processSmallBatchHealthDataWithSeparation(List<Map<String, Object>> dataList, long startTime) {
+        log.info("🏥 小批量处理模式: {}条数据", dataList.size());
+        
+        try {
+            List<TUserHealthData> validatedData = validateAndTransformHealthData(dataList);
+            List<TUserHealthData> deduplicatedData = performDuplicateDetection(validatedData);
+            processDataInAdaptiveShards(deduplicatedData);
+
+            long processingTime = System.currentTimeMillis() - startTime;
+            long processed = deduplicatedData.size();
+            long duplicates = validatedData.size() - processed;
+
+            Map<String, Object> result = buildSuccessResponse(processed, duplicates, processingTime);
+            
+            log.info("✅ 小批量处理完成: 处理{}条，去重{}条，耗时{}ms", processed, duplicates, processingTime);
+            return Result.ok(result);
+
+        } catch (Exception e) {
+            long errorTime = System.currentTimeMillis() - startTime;
+            log.error("❌ 小批量处理失败，耗时{}ms", errorTime, e);
+            return Result.error("小批量处理失败: " + e.getMessage());
+        }
     }
 }
