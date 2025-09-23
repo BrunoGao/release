@@ -124,18 +124,21 @@ const columns = computed(() => [
     fixed: 'left'
   },
   {
-    key: 'id',
-    title: 'ID',
-    align: 'center',
-    width: 80,
-    render: (row: any) => h(NTag, { size: 'small', type: 'info' }, { default: () => row.id })
-  },
-  {
     key: 'orgName',
     title: '部门名称',
     align: 'center',
-    width: 150,
-    render: (row: any) => row.orgName || '-'
+    width: 120,
+    render: (row: any) => {
+      const orgName = row.orgName || '未知部门';
+      return h(
+        NTag,
+        {
+          size: 'small',
+          type: orgName === '未知部门' ? 'default' : 'info'
+        },
+        { default: () => orgName }
+      );
+    }
   },
   {
     key: 'userName',
@@ -154,32 +157,6 @@ const columns = computed(() => [
       );
     }
   },
-  {
-    key: 'deviceSn',
-    title: '设备序列号',
-    align: 'center',
-    width: 120,
-    render: (row: any) => {
-      if (!row.deviceSn) return '-';
-      return h(
-        NTooltip,
-        {
-          trigger: 'hover'
-        },
-        {
-          trigger: () =>
-            h(
-              'span',
-              {
-                class: 'cursor-pointer text-blue-600 font-mono text-sm'
-              },
-              `${row.deviceSn.substring(0, 8)}...`
-            ),
-          default: () => row.deviceSn
-        }
-      );
-    }
-  },
   // 生理指标列
   {
     key: 'vitalSigns',
@@ -191,17 +168,20 @@ const columns = computed(() => [
 
       // 心率
       if (row.heartRate) {
-        const color = getHeartRateColor(row.heartRate);
+        const getType = (heartRate: number) => {
+          if (heartRate < 60 || heartRate > 100) return 'error';
+          return 'success';
+        };
         indicators.push(
           h(
             NTag,
             {
               size: 'small',
-              color: { color, textColor: '#fff' },
+              type: getType(row.heartRate),
               class: 'mr-1 mb-1'
             },
             {
-              default: () => `❤️ ${row.heartRate}bpm`
+              default: () => `${row.heartRate}bpm`
             }
           )
         );
@@ -209,17 +189,21 @@ const columns = computed(() => [
 
       // 血氧
       if (row.bloodOxygen) {
-        const color = getBloodOxygenColor(row.bloodOxygen);
+        const getType = (oxygen: number) => {
+          if (oxygen >= 95) return 'success';
+          if (oxygen >= 90) return 'warning';
+          return 'error';
+        };
         indicators.push(
           h(
             NTag,
             {
               size: 'small',
-              color: { color, textColor: '#fff' },
+              type: getType(row.bloodOxygen),
               class: 'mr-1 mb-1'
             },
             {
-              default: () => `🫁 ${row.bloodOxygen}%`
+              default: () => `${row.bloodOxygen}%`
             }
           )
         );
@@ -227,17 +211,21 @@ const columns = computed(() => [
 
       // 血压
       if (row.pressureHigh && row.pressureLow) {
-        const color = getBloodPressureColor(row.pressureHigh, row.pressureLow);
+        const getType = (systolic: number, diastolic: number) => {
+          if (systolic <= 120 && diastolic <= 80) return 'success';
+          if (systolic <= 140 && diastolic <= 90) return 'warning';
+          return 'error';
+        };
         indicators.push(
           h(
             NTag,
             {
               size: 'small',
-              color: { color, textColor: '#fff' },
+              type: getType(row.pressureHigh, row.pressureLow),
               class: 'mr-1 mb-1'
             },
             {
-              default: () => `🩸 ${row.pressureHigh}/${row.pressureLow}`
+              default: () => `${row.pressureHigh}/${row.pressureLow}`
             }
           )
         );
@@ -245,23 +233,27 @@ const columns = computed(() => [
 
       // 体温
       if (row.temperature) {
-        const color = getTemperatureColor(row.temperature);
+        const getType = (temp: number) => {
+          if (temp >= 36.1 && temp <= 37.2) return 'success';
+          if (temp < 36.1 || temp > 38.0) return 'error';
+          return 'warning';
+        };
         indicators.push(
           h(
             NTag,
             {
               size: 'small',
-              color: { color, textColor: '#fff' },
+              type: getType(row.temperature),
               class: 'mr-1 mb-1'
             },
             {
-              default: () => `🌡️ ${row.temperature}°C`
+              default: () => `${row.temperature}°C`
             }
           )
         );
       }
 
-      return h('div', { class: 'flex flex-wrap' }, indicators);
+      return h('div', { class: 'flex flex-wrap gap-1' }, indicators);
     }
   },
   // 活动指标列
@@ -278,14 +270,18 @@ const columns = computed(() => [
         const progress = Math.min((row.step / 10000) * 100, 100);
         metrics.push(
           h('div', { class: 'mb-2' }, [
-            h('div', { class: 'flex items-center gap-2 mb-1' }, [
-              h('span', { class: 'text-xs text-gray-600' }, '🚶 步数'),
-              h('span', { class: 'text-sm font-medium' }, row.step.toLocaleString())
+            h('div', { class: 'flex items-center justify-between gap-2 mb-1' }, [
+              h('div', { class: 'flex items-center gap-1' }, [
+                h('span', { class: 'text-xs text-gray-600' }, '🚶 步数'),
+                h('span', { class: 'text-sm font-medium' }, row.step.toLocaleString())
+              ]),
+              h('span', { class: 'text-xs text-gray-500 whitespace-nowrap' }, `${progress.toFixed(1)}%`)
             ]),
             h(NProgress, {
               percentage: progress,
               color: progress >= 80 ? '#52c41a' : progress >= 60 ? '#faad14' : '#ff4d4f',
-              height: 4
+              height: 4,
+              showIndicator: false
             })
           ])
         );
@@ -336,11 +332,19 @@ const columns = computed(() => [
     key: 'coordinates',
     title: '位置信息',
     align: 'center',
-    width: 180,
+    width: 150,
     render: (row: any) => {
-      if (!row.latitude || !row.longitude) return '-';
+      if (!row.latitude || !row.longitude) {
+        return h(
+          NTag,
+          {
+            size: 'small',
+            type: 'default'
+          },
+          { default: () => '未定位' }
+        );
+      }
 
-      const coordStr = `${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}`;
       return h(
         NTooltip,
         {
@@ -349,17 +353,20 @@ const columns = computed(() => [
         {
           trigger: () =>
             h(
-              'span',
+              NTag,
               {
-                class: 'cursor-pointer text-blue-600 font-mono text-xs'
+                size: 'small',
+                type: 'info',
+                class: 'cursor-pointer'
               },
-              coordStr
+              { default: () => '📍 查看位置' }
             ),
           default: () =>
-            h('div', {}, [
-              h('div', {}, `纬度: ${row.latitude}`),
-              h('div', {}, `经度: ${row.longitude}`),
-              row.altitude ? h('div', {}, `海拔: ${row.altitude}m`) : null
+            h('div', { class: 'space-y-1' }, [
+              h('div', { class: 'text-sm font-medium' }, '📍 位置坐标'),
+              h('div', { class: 'text-xs text-gray-600' }, `纬度: ${row.latitude.toFixed(6)}`),
+              h('div', { class: 'text-xs text-gray-600' }, `经度: ${row.longitude.toFixed(6)}`),
+              row.altitude ? h('div', { class: 'text-xs text-gray-600' }, `海拔: ${row.altitude}m`) : null
             ])
         }
       );
@@ -371,7 +378,47 @@ const columns = computed(() => [
     title: '时间戳',
     align: 'center',
     width: 160,
-    render: (row: any) => convertToBeijingTime(row.timestamp)
+    render: (row: any) => {
+      if (!row.timestamp) {
+        return h(
+          NTag,
+          {
+            size: 'small',
+            type: 'default'
+          },
+          { default: () => '无时间' }
+        );
+      }
+      
+      const timeStr = convertToBeijingTime(row.timestamp);
+      const [dateStr, timeOnlyStr] = timeStr.split(' ');
+      
+      return h(
+        NTooltip,
+        {
+          trigger: 'hover'
+        },
+        {
+          trigger: () =>
+            h(
+              NTag,
+              {
+                size: 'small',
+                type: 'primary',
+                class: 'cursor-pointer'
+              },
+              { default: () => `🕐 ${timeOnlyStr}` }
+            ),
+          default: () =>
+            h('div', { class: 'space-y-1' }, [
+              h('div', { class: 'text-sm font-medium' }, '📅 完整时间'),
+              h('div', { class: 'text-xs text-gray-600' }, `日期: ${dateStr}`),
+              h('div', { class: 'text-xs text-gray-600' }, `时间: ${timeOnlyStr}`),
+              h('div', { class: 'text-xs text-gray-500' }, `时间戳: ${row.timestamp}`)
+            ])
+        }
+      );
+    }
   }
 ]);
 
@@ -490,7 +537,7 @@ const exportHealthData = () => {
   }
 
   try {
-    // 构建CSV数据
+    // 构建CSV数据 - 包含所有字段用于导出
     const headers = [
       'ID',
       '部门名称',
@@ -508,7 +555,8 @@ const exportHealthData = () => {
       '纬度',
       '经度',
       '海拔(m)',
-      '时间戳'
+      '时间戳',
+      '原始时间戳'
     ];
 
     const csvData = tableData.value.map(row => [
@@ -528,7 +576,8 @@ const exportHealthData = () => {
       row.latitude || '',
       row.longitude || '',
       row.altitude || '',
-      convertToBeijingTime(row.timestamp) || ''
+      convertToBeijingTime(row.timestamp) || '',
+      row.timestamp || ''
     ]);
 
     // 添加表头
