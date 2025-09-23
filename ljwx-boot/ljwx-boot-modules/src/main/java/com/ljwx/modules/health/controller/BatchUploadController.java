@@ -20,7 +20,7 @@
 package com.ljwx.modules.health.controller;
 
 import com.ljwx.common.api.vo.Result;
-import com.ljwx.modules.health.optimizer.HealthDataOptimizer;
+import com.ljwx.modules.health.upload.DataUpload;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -54,7 +54,7 @@ import java.util.Map;
 public class BatchUploadController {
     
     @Autowired
-    private HealthDataOptimizer healthDataOptimizer;
+    private DataUpload dataUpload;
     
     /**
      * 健康数据批量上传 (完全兼容Python接口)
@@ -76,7 +76,7 @@ public class BatchUploadController {
         try {
             log.info("🚀 [API] 健康数据批量上传开始，数据量: {}", healthDataList.size());
             
-            Result<Map<String, Object>> result = healthDataOptimizer.uploadHealthData(healthDataList);
+            Result<Map<String, Object>> result = dataUpload.uploadHealthData(healthDataList);
             
             log.info("✅ [API] 健康数据批量上传完成: {}", 
                 result.isSuccess() ? "成功" : result.getMessage());
@@ -117,7 +117,7 @@ public class BatchUploadController {
         try {
             log.info("🚀 [API] 设备信息批量上传开始，数据量: {}", deviceDataList.size());
             
-            Result<Map<String, Object>> result = healthDataOptimizer.uploadDeviceInfo(deviceDataList);
+            Result<Map<String, Object>> result = dataUpload.uploadDeviceInfo(deviceDataList);
             
             log.info("✅ [API] 设备信息批量上传完成: {}", 
                 result.isSuccess() ? "成功" : result.getMessage());
@@ -160,7 +160,7 @@ public class BatchUploadController {
         try {
             log.info("🚀 [API] 通用事件上传开始");
             
-            Result<Map<String, Object>> result = healthDataOptimizer.uploadCommonEvent(eventData);
+            Result<Map<String, Object>> result = dataUpload.uploadCommonEvent(eventData);
             
             log.info("✅ [API] 通用事件上传完成: {}", 
                 result.isSuccess() ? "成功" : result.getMessage());
@@ -193,7 +193,7 @@ public class BatchUploadController {
     @Operation(summary = "获取批处理统计信息", description = "获取批量上传的性能统计和处理状态")
     public Result<Map<String, Object>> getBatchStats() {
         try {
-            Map<String, Object> stats = healthDataOptimizer.getOptimizerStats();
+            Map<String, Object> stats = dataUpload.getOptimizerStats();
             
             // 添加额外的状态信息
             stats.put("service_status", "running");
@@ -227,7 +227,7 @@ public class BatchUploadController {
             List<Map<String, Object>> testData = generateTestHealthData(dataSize);
             
             // 执行批量上传
-            Result<Map<String, Object>> uploadResult = healthDataOptimizer.uploadHealthData(testData);
+            Result<Map<String, Object>> uploadResult = dataUpload.uploadHealthData(testData);
             
             long totalTime = System.currentTimeMillis() - startTime;
             
@@ -267,7 +267,7 @@ public class BatchUploadController {
                     "performance_test", "available",
                     "python_compatibility", "100%"
                 ),
-                "optimizer_stats", healthDataOptimizer.getOptimizerStats(),
+                "optimizer_stats", dataUpload.getOptimizerStats(),
                 "timestamp", System.currentTimeMillis()
             );
             
