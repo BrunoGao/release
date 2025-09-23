@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.2">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Monthly Health Data Performance Test" enabled="true">
+      <stringProp name="TestPlan.comments">一个月健康数据上传性能测试 - 模拟真实用户场景</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.arguments" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      
+      <!-- 用户自定义变量 -->
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="base_url" elementType="Argument">
+            <stringProp name="Argument.name">base_url</stringProp>
+            <stringProp name="Argument.value">localhost:9998</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="test_duration_days" elementType="Argument">
+            <stringProp name="Argument.name">test_duration_days</stringProp>
+            <stringProp name="Argument.value">30</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </Arguments>
+      <hashTree/>
+      
+      <!-- HTTP Request Defaults -->
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults" enabled="true">
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+          <collectionProp name="Arguments.arguments"/>
+        </elementProp>
+        <stringProp name="HTTPSampler.domain">localhost</stringProp>
+        <stringProp name="HTTPSampler.port">9998</stringProp>
+        <stringProp name="HTTPSampler.protocol">http</stringProp>
+        <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+        <stringProp name="HTTPSampler.path"></stringProp>
+        <stringProp name="HTTPSampler.concurrentPool">6</stringProp>
+        <stringProp name="HTTPSampler.connect_timeout">30000</stringProp>
+        <stringProp name="HTTPSampler.response_timeout">60000</stringProp>
+      </ConfigTestElement>
+      <hashTree/>
+      
+      <!-- HTTP Header Manager -->
+      <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+        <collectionProp name="HeaderManager.headers">
+          <elementProp name="" elementType="Header">
+            <stringProp name="Header.name">Content-Type</stringProp>
+            <stringProp name="Header.value">application/json</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Header">
+            <stringProp name="Header.name">User-Agent</stringProp>
+            <stringProp name="Header.value">HealthDevice/1.0</stringProp>
+          </elementProp>
+        </collectionProp>
+      </HeaderManager>
+      <hashTree/>
+
+      <!-- 场景1：月度数据批量导入测试 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="1. Monthly Data Bulk Import Test" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">30</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">50</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">60</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">600</stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Daily Health Data Upload" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{
+  "data": {
+    "deviceSn": "DEVICE${__threadNum}_${__Random(100000,999999)}",
+    "customerId": "1969767962803757058",
+    "orgId": "1969969505868005378",
+    "userId": "USER${__threadNum}_${__Random(100000,999999)}",
+    "heart_rate": ${__Random(60,100)},
+    "blood_oxygen": ${__Random(95,100)},
+    "body_temperature": ${__Random(360,375,)}/10,
+    "step": ${__Random(5000,15000)},
+    "distance": ${__Random(30,100,)}/10,
+    "calorie": ${__Random(200,600,)}/10,
+    "latitude": ${__Random(22000,23000,)}/1000,
+    "longitude": ${__Random(113000,114000,)}/1000,
+    "altitude": ${__Random(0,100)},
+    "stress": ${__Random(30,80)},
+    "upload_method": "wifi",
+    "blood_pressure_systolic": ${__Random(110,140)},
+    "blood_pressure_diastolic": ${__Random(70,90)},
+    "sleepData": "{\"code\":0,\"data\":[{\"endTimeStamp\":${__timeShift(,,-${__Random(21600000,28800000)},)},\"startTimeStamp\":${__timeShift(,,-${__Random(28800000,36000000)},)},\"type\":2}],\"name\":\"sleep\",\"type\":\"history\"}",
+    "exerciseDailyData": "{\"data\":[{\"data\":${__Random(50,200)},\"timeStamp\":${__timeShift(,,-${__Random(86400000,172800000)},)}},{\"data\":${__Random(50,200)},\"timeStamp\":${__timeShift(,,-${__Random(172800000,259200000)},)}},{\"data\":${__Random(50,200)},\"timeStamp\":${__timeShift(,,-${__Random(259200000,345600000)},)}}],\"name\":\"calorie\",\"type\":\"history\",\"code\":0}",
+    "exerciseWeekData": "{\"data\":[{\"timeStamps\":${__timeShift(,,-${__Random(604800000,1209600000)},)},\"totalSteps\":${__Random(8000,15000)},\"strengthTimes\":${__Random(500,1500)},\"totalTime\":${__Random(5,20)}},{\"timeStamps\":${__timeShift(,,-${__Random(518400000,604800000)},)},\"totalSteps\":${__Random(8000,15000)},\"strengthTimes\":${__Random(500,1500)},\"totalTime\":${__Random(5,20)}},{\"timeStamps\":${__timeShift(,,-${__Random(432000000,518400000)},)},\"totalSteps\":${__Random(8000,15000)},\"strengthTimes\":${__Random(500,1500)},\"totalTime\":${__Random(5,20)}},{\"timeStamps\":${__timeShift(,,-${__Random(345600000,432000000)},)},\"totalSteps\":${__Random(8000,15000)},\"strengthTimes\":${__Random(500,1500)},\"totalTime\":${__Random(5,20)}},{\"timeStamps\":${__timeShift(,,-${__Random(259200000,345600000)},)},\"totalSteps\":${__Random(8000,15000)},\"strengthTimes\":${__Random(500,1500)},\"totalTime\":${__Random(5,20)}},{\"timeStamps\":${__timeShift(,,-${__Random(172800000,259200000)},)},\"totalSteps\":${__Random(8000,15000)},\"strengthTimes\":${__Random(500,1500)},\"totalTime\":${__Random(5,20)}},{\"timeStamps\":${__timeShift(,,-${__Random(86400000,172800000)},)},\"totalSteps\":${__Random(8000,15000)},\"strengthTimes\":${__Random(500,1500)},\"totalTime\":${__Random(5,20)}}],\"name\":\"daily\",\"type\":\"history\",\"code\":0}",
+    "scientificSleepData": "null",
+    "workoutData": "{\"code\":0,\"data\":[{\"calorie\":${__Random(150,350)},\"distance\":${__Random(3000,8000)},\"startTimeStamp\":${__timeShift(,,-${__Random(86400000,172800000)},)},\"endTimeStamp\":${__timeShift(,,-${__Random(82800000,169200000)},)},\"workoutType\":10,\"recordId\":${__Random(1,100)}},{\"calorie\":${__Random(200,400)},\"distance\":${__Random(4000,7000)},\"startTimeStamp\":${__timeShift(,,-${__Random(172800000,259200000)},)},\"endTimeStamp\":${__timeShift(,,-${__Random(169200000,255600000)},)},\"workoutType\":20,\"recordId\":${__Random(101,500)}},{\"calorie\":${__Random(180,320)},\"distance\":${__Random(3500,6500)},\"startTimeStamp\":${__timeShift(,,-${__Random(259200000,345600000)},)},\"endTimeStamp\":${__timeShift(,,-${__Random(255600000,342000000)},)},\"workoutType\":10,\"recordId\":${__Random(501,1000)}}],\"name\":\"workout\",\"type\":\"history\"}",
+    "timestamp": "${__time(yyyy-MM-dd HH:mm:ss)}"
+  }
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain"></stringProp>
+          <stringProp name="HTTPSampler.port"></stringProp>
+          <stringProp name="HTTPSampler.protocol"></stringProp>
+          <stringProp name="HTTPSampler.contentEncoding"></stringProp>
+          <stringProp name="HTTPSampler.path">/api/health/upload</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+          <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
+          <stringProp name="HTTPSampler.connect_timeout"></stringProp>
+          <stringProp name="HTTPSampler.response_timeout"></stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <!-- Response Assertion -->
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Response Status Check" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message"></stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+          
+          <!-- Random Timer for realistic intervals -->
+          <UniformRandomTimer guiclass="UniformRandomTimerGui" testclass="UniformRandomTimer" testname="Random Timer" enabled="true">
+            <stringProp name="ConstantTimer.delay">1000</stringProp>
+            <stringProp name="RandomTimer.range">3000</stringProp>
+          </UniformRandomTimer>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+
+      <!-- 场景2：高频数据流测试 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="2. High Frequency Data Stream Test" enabled="false">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">true</boolProp>
+          <stringProp name="LoopController.loops">-1</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">100</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">30</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">1800</stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Real-time Health Streaming" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{
+  "data": {
+    "deviceSn": "STREAM${__threadNum}${__Random(1000,9999)}",
+    "customerId": "1969767962803757058",
+    "orgId": "1969969505868005378",
+    "userId": "STREAM_USER${__threadNum}${__Random(100000,999999)}",
+    "heart_rate": ${__Random(65,95)},
+    "blood_oxygen": ${__Random(96,100)},
+    "body_temperature": ${__Random(365,370,)}/10,
+    "step": ${__Random(0,50)},
+    "distance": ${__Random(0,5,)}/10,
+    "calorie": ${__Random(0,10,)}/10,
+    "latitude": ${__Random(22500,22600,)}/1000,
+    "longitude": ${__Random(113900,114000,)}/1000,
+    "altitude": ${__Random(0,50)},
+    "stress": ${__Random(20,60)},
+    "upload_method": "realtime",
+    "blood_pressure_systolic": ${__Random(115,135)},
+    "blood_pressure_diastolic": ${__Random(75,85)},
+    "sleepData": "null",
+    "exerciseDailyData": "null",
+    "exerciseWeekData": "null",
+    "scientificSleepData": "null",
+    "workoutData": "null",
+    "timestamp": "${__time(yyyy-MM-dd HH:mm:ss)}"
+  }
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain"></stringProp>
+          <stringProp name="HTTPSampler.port"></stringProp>
+          <stringProp name="HTTPSampler.protocol"></stringProp>
+          <stringProp name="HTTPSampler.contentEncoding"></stringProp>
+          <stringProp name="HTTPSampler.path">/api/health/upload</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+          <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
+          <stringProp name="HTTPSampler.connect_timeout"></stringProp>
+          <stringProp name="HTTPSampler.response_timeout"></stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <!-- Constant Timer for high frequency -->
+          <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="High Frequency Timer" enabled="true">
+            <stringProp name="ConstantTimer.delay">500</stringProp>
+          </ConstantTimer>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+
+      <!-- 场景3：历史数据大批量导入 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="3. Historical Data Bulk Import" enabled="false">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">100</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">20</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">120</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Historical Health Data Import" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{
+  "data": {
+    "deviceSn": "HIST${__threadNum}${__Random(10000,99999)}",
+    "customerId": "1969767962803757058",
+    "orgId": "1969969505868005378",
+    "userId": "HIST_USER${__threadNum}${__Random(100000,999999)}",
+    "heart_rate": ${__Random(55,105)},
+    "blood_oxygen": ${__Random(94,100)},
+    "body_temperature": ${__Random(360,380,)}/10,
+    "step": ${__Random(0,20000)},
+    "distance": ${__Random(0,150,)}/10,
+    "calorie": ${__Random(100,800,)}/10,
+    "latitude": ${__Random(22000,24000,)}/1000,
+    "longitude": ${__Random(113000,115000,)}/1000,
+    "altitude": ${__Random(0,200)},
+    "stress": ${__Random(10,90)},
+    "upload_method": "batch",
+    "blood_pressure_systolic": ${__Random(100,160)},
+    "blood_pressure_diastolic": ${__Random(60,100)},
+    "sleepData": "{\"code\":0,\"data\":[{\"endTimeStamp\":${__timeShift(,,-${__Random(2592000000,7776000000)},)},\"startTimeStamp\":${__timeShift(,,-${__Random(2620800000,7804800000)},)},\"type\":2},{\"endTimeStamp\":${__timeShift(,,-${__Random(7776000000,15552000000)},)},\"startTimeStamp\":${__timeShift(,,-${__Random(7804800000,15580800000)},)},\"type\":1}],\"name\":\"sleep\",\"type\":\"history\"}",
+    "exerciseDailyData": "{\"data\":[{\"data\":${__Random(50,300)},\"timeStamp\":${__timeShift(,,-${__Random(2592000000,7776000000)},)}},{\"data\":${__Random(50,300)},\"timeStamp\":${__timeShift(,,-${__Random(7776000000,15552000000)},)}},{\"data\":${__Random(50,300)},\"timeStamp\":${__timeShift(,,-${__Random(15552000000,23328000000)},)}}],\"name\":\"calorie\",\"type\":\"history\",\"code\":0}",
+    "exerciseWeekData": "{\"data\":[{\"timeStamps\":${__timeShift(,,-${__Random(2592000000,7776000000)},)},\"totalSteps\":${__Random(30000,70000)},\"strengthTimes\":${__Random(2000,5000)},\"totalTime\":${__Random(60,200)}},{\"timeStamps\":${__timeShift(,,-${__Random(7776000000,15552000000)},)},\"totalSteps\":${__Random(30000,70000)},\"strengthTimes\":${__Random(2000,5000)},\"totalTime\":${__Random(60,200)}}],\"name\":\"daily\",\"type\":\"history\",\"code\":0}",
+    "scientificSleepData": "null",
+    "workoutData": "{\"code\":0,\"data\":[{\"calorie\":${__Random(200,500)},\"distance\":${__Random(5000,15000)},\"startTimeStamp\":${__timeShift(,,-${__Random(2592000000,7776000000)},)},\"endTimeStamp\":${__timeShift(,,-${__Random(2588400000,7772400000)},)},\"workoutType\":${__Random(10,30)},\"recordId\":${__Random(1000,9999)}}],\"name\":\"workout\",\"type\":\"history\"}",
+    "timestamp": "${__timeShift(yyyy-MM-dd HH:mm:ss,,-${__Random(2592000000,7776000000)},)}"
+  }
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain"></stringProp>
+          <stringProp name="HTTPSampler.port"></stringProp>
+          <stringProp name="HTTPSampler.protocol"></stringProp>
+          <stringProp name="HTTPSampler.contentEncoding"></stringProp>
+          <stringProp name="HTTPSampler.path">/api/health/upload</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+          <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
+          <stringProp name="HTTPSampler.connect_timeout"></stringProp>
+          <stringProp name="HTTPSampler.response_timeout"></stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <!-- Constant Timer for batch processing -->
+          <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="Batch Processing Timer" enabled="true">
+            <stringProp name="ConstantTimer.delay">2000</stringProp>
+          </ConstantTimer>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+
+      <!-- 结果监听器 -->
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename">monthly-health-results.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+      <!-- Summary Report -->
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+      <!-- Aggregate Report -->
+      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan></stringProp>
