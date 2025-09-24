@@ -157,4 +157,212 @@ onMounted(() => {
   </NCard>
 </template>
 
-<style scoped></style>
+<style scoped>
+.card-wrapper {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 20px !important;
+  backdrop-filter: blur(25px) !important;
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  position: relative;
+  overflow: visible;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 245, 255, 0.03) 0%, rgba(255, 0, 170, 0.03) 100%);
+  border-radius: 20px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card-wrapper:hover {
+  border-color: rgba(0, 245, 255, 0.4) !important;
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 30px rgba(0, 245, 255, 0.15) !important;
+}
+
+.card-wrapper:hover::before {
+  background: linear-gradient(135deg, rgba(0, 245, 255, 0.08) 0%, rgba(255, 0, 170, 0.08) 100%);
+}
+
+/* 覆盖卡片头部样式 */
+:deep(.n-card-header) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(10px) !important;
+  position: relative;
+  z-index: 1;
+}
+
+:deep(.n-card-header__main) {
+  color: rgba(255, 255, 255, 0.95) !important;
+  font-weight: 700 !important;
+  font-size: 18px !important;
+  letter-spacing: 0.5px !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* 卡片内容区域 */
+:deep(.n-card__content) {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+/* 表单标签样式增强 */
+:deep(.n-form-item-label__text) {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  letter-spacing: 0.3px !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 输入框和选择器样式 */
+:deep(.n-input),
+:deep(.n-select),
+:deep(.n-tree-select),
+:deep(.n-date-picker) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px) !important;
+  transition: all 0.3s ease !important;
+}
+
+:deep(.n-input:hover),
+:deep(.n-select:hover),
+:deep(.n-tree-select:hover),
+:deep(.n-date-picker:hover) {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(0, 245, 255, 0.5) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+:deep(.n-input:focus-within),
+:deep(.n-select:focus-within),
+:deep(.n-tree-select:focus-within),
+:deep(.n-date-picker:focus-within) {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(0, 245, 255, 0.8) !important;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    0 0 0 2px rgba(0, 245, 255, 0.2) !important;
+}
+
+/* 输入框文字样式 */
+:deep(.n-input__input-el),
+:deep(.n-base-selection-input-tag),
+:deep(.n-base-selection-placeholder),
+:deep(.n-base-selection-single-value),
+:deep(.n-date-picker-trigger__input) {
+  color: rgba(255, 255, 255, 0.95) !important;
+  font-weight: 500 !important;
+}
+
+:deep(.n-input__placeholder) {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* 选择器箭头图标 */
+:deep(.n-base-selection-suffix),
+:deep(.n-base-suffix) {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* 按钮样式增强 */
+:deep(.n-button) {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+:deep(.n-button--default-type) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+:deep(.n-button--default-type:hover) {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(0, 245, 255, 0.5) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+:deep(.n-button--primary-type) {
+  background: linear-gradient(135deg, rgba(0, 245, 255, 0.8), rgba(255, 0, 170, 0.8)) !important;
+  border: 1px solid rgba(0, 245, 255, 0.6) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 4px 15px rgba(0, 245, 255, 0.3) !important;
+}
+
+:deep(.n-button--primary-type:hover) {
+  background: linear-gradient(135deg, rgba(0, 245, 255, 0.9), rgba(255, 0, 170, 0.9)) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 25px rgba(0, 245, 255, 0.4) !important;
+}
+
+/* 图标样式 */
+:deep(.text-icon) {
+  color: inherit !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  :deep(.n-form-item-label__text) {
+    font-size: 13px !important;
+  }
+  
+  :deep(.n-card-header__main) {
+    font-size: 16px !important;
+  }
+  
+  .card-wrapper {
+    border-radius: 16px !important;
+    margin: 0 -8px;
+  }
+  
+  .card-wrapper::before {
+    border-radius: 16px;
+  }
+}
+
+/* 下拉面板样式 */
+:deep(.n-base-select-menu) {
+  background: rgba(30, 30, 60, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(20px) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+
+:deep(.n-base-select-option) {
+  color: rgba(255, 255, 255, 0.9) !important;
+  transition: all 0.2s ease !important;
+}
+
+:deep(.n-base-select-option:hover) {
+  background: rgba(0, 245, 255, 0.15) !important;
+  color: rgba(255, 255, 255, 1) !important;
+}
+
+:deep(.n-base-select-option--selected) {
+  background: rgba(0, 245, 255, 0.25) !important;
+  color: rgba(255, 255, 255, 1) !important;
+}
+</style>

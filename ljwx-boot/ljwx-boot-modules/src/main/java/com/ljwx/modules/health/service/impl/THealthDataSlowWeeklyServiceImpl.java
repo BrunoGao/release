@@ -21,9 +21,9 @@ package com.ljwx.modules.health.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly;
-import com.ljwx.modules.health.repository.mapper.TUserHealthDataWeeklyMapper;
-import com.ljwx.modules.health.service.ITUserHealthDataWeeklyService;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowWeekly;
+import com.ljwx.modules.health.repository.mapper.THealthDataSlowWeeklyMapper;
+import com.ljwx.modules.health.service.ITHealthDataSlowWeeklyService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,27 +39,27 @@ import java.util.List;
  *
  * @Author jjgao
  * @ProjectName ljwx-boot
- * @ClassName TUserHealthDataWeeklyServiceImpl
+ * @ClassName THealthDataSlowWeeklyServiceImpl
  * @CreateTime 2024-12-16
  */
 @Slf4j
 @Service
-public class TUserHealthDataWeeklyServiceImpl extends ServiceImpl<TUserHealthDataWeeklyMapper, TUserHealthDataWeekly> 
-    implements ITUserHealthDataWeeklyService {
+public class THealthDataSlowWeeklyServiceImpl extends ServiceImpl<THealthDataSlowWeeklyMapper, THealthDataSlowWeekly> 
+    implements ITHealthDataSlowWeeklyService {
 
     @Override
-    public TUserHealthDataWeekly getByDeviceSnAndWeekStart(String deviceSn, LocalDate weekStart) {
-        return this.getOne(new LambdaQueryWrapper<TUserHealthDataWeekly>()
-                .eq(TUserHealthDataWeekly::getDeviceSn, deviceSn)
-                .eq(TUserHealthDataWeekly::getTimestamp, weekStart));
+    public THealthDataSlowWeekly getByDeviceSnAndWeekStart(String deviceSn, LocalDate weekStart) {
+        return this.getOne(new LambdaQueryWrapper<THealthDataSlowWeekly>()
+                .eq(THealthDataSlowWeekly::getDeviceSn, deviceSn)
+                .eq(THealthDataSlowWeekly::getTimestamp, weekStart));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean saveOrUpdate(TUserHealthDataWeekly weeklyData) {
+    public boolean saveOrUpdate(THealthDataSlowWeekly weeklyData) {
         try {
             // 查找是否存在
-            TUserHealthDataWeekly existing = getByDeviceSnAndWeekStart(weeklyData.getDeviceSn(), weeklyData.getTimestamp());
+            THealthDataSlowWeekly existing = getByDeviceSnAndWeekStart(weeklyData.getDeviceSn(), weeklyData.getTimestamp());
             
             LocalDateTime now = LocalDateTime.now();
             
@@ -84,9 +84,9 @@ public class TUserHealthDataWeeklyServiceImpl extends ServiceImpl<TUserHealthDat
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean batchSaveOrUpdate(List<TUserHealthDataWeekly> weeklyDataList) {
+    public boolean batchSaveOrUpdate(List<THealthDataSlowWeekly> weeklyDataList) {
         try {
-            for (TUserHealthDataWeekly weeklyData : weeklyDataList) {
+            for (THealthDataSlowWeekly weeklyData : weeklyDataList) {
                 if (!saveOrUpdate(weeklyData)) {
                     return false;
                 }
@@ -99,21 +99,21 @@ public class TUserHealthDataWeeklyServiceImpl extends ServiceImpl<TUserHealthDat
     }
 
     @Override
-    public List<TUserHealthDataWeekly> listByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate) {
-        return this.list(new LambdaQueryWrapper<TUserHealthDataWeekly>()
-                .eq(TUserHealthDataWeekly::getUserId, userId)
-                .ge(TUserHealthDataWeekly::getTimestamp, startDate)
-                .le(TUserHealthDataWeekly::getTimestamp, endDate)
-                .orderByDesc(TUserHealthDataWeekly::getTimestamp));
+    public List<THealthDataSlowWeekly> listByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate) {
+        return this.list(new LambdaQueryWrapper<THealthDataSlowWeekly>()
+                .eq(THealthDataSlowWeekly::getUserId, userId)
+                .ge(THealthDataSlowWeekly::getTimestamp, startDate)
+                .le(THealthDataSlowWeekly::getTimestamp, endDate)
+                .orderByDesc(THealthDataSlowWeekly::getTimestamp));
     }
 
     @Override
-    public List<TUserHealthDataWeekly> listByOrgIdAndDateRange(Long orgId, LocalDate startDate, LocalDate endDate) {
-        return this.list(new LambdaQueryWrapper<TUserHealthDataWeekly>()
-                .eq(TUserHealthDataWeekly::getOrgId, orgId)
-                .ge(TUserHealthDataWeekly::getTimestamp, startDate)
-                .le(TUserHealthDataWeekly::getTimestamp, endDate)
-                .orderByDesc(TUserHealthDataWeekly::getTimestamp));
+    public List<THealthDataSlowWeekly> listByOrgIdAndDateRange(Long orgId, LocalDate startDate, LocalDate endDate) {
+        return this.list(new LambdaQueryWrapper<THealthDataSlowWeekly>()
+                .eq(THealthDataSlowWeekly::getOrgId, orgId)
+                .ge(THealthDataSlowWeekly::getTimestamp, startDate)
+                .le(THealthDataSlowWeekly::getTimestamp, endDate)
+                .orderByDesc(THealthDataSlowWeekly::getTimestamp));
     }
 
     @Override

@@ -32,11 +32,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * 用户健康数据每日表 Entity 实体类
+ * 健康数据日报慢字段表 Entity 实体类
+ * 存储睡眠、运动等JSON格式的慢字段数据
  *
  * @Author jjgao
  * @ProjectName ljwx-boot
- * @ClassName com.ljwx.modules.health.domain.entity.TUserHealthDataDaily
+ * @ClassName com.ljwx.modules.health.domain.entity.THealthDataSlowDaily
  * @CreateTime 2024-12-15 - 22:04:51
  */
 
@@ -44,8 +45,8 @@ import java.time.LocalDateTime;
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("t_user_health_data_daily")
-public class TUserHealthDataDaily { // #不继承BaseEntity，避免字段不匹配
+@TableName("t_health_data_slow_daily")
+public class THealthDataSlowDaily { // #不继承BaseEntity，避免字段不匹配
 
     @TableId(type = IdType.AUTO)
     private Long id; // #主键ID

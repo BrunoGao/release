@@ -14,6 +14,7 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -102,6 +103,30 @@ public class GlobalExceptionHandler {
         
         // 其他重复键错误的通用处理
         return Result.failure(ResultCode.BAD_REQUEST.getCode(), "数据重复，请检查输入信息是否与现有记录冲突");
+    }
+
+    /**
+     * JSON解析异常处理
+     *
+     * @param exception 异常信息
+     * @return {@link Result} 统一返回结果
+     * @author bruno.gao
+     * @CreateTime 2025-09-23
+     */
+    @ResponseBody
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public Result<Object> handleHttpMessageNotReadableException(@NonNull HttpMessageNotReadableException exception) {
+        String message = exception.getMessage();
+        log.error("[JSON解析异常]{}", message, exception);
+        
+        // 检查是否是由于JSON中包含注释导致的错误
+        if (message != null && message.contains("Unexpected character ('/' (code 47))") && 
+            message.contains("maybe a (non-standard) comment")) {
+            return Result.failure(ResultCode.BAD_REQUEST.getCode(), "JSON格式错误：请移除JSON中的注释内容（// 或 /* */）");
+        }
+        
+        // 其他JSON解析错误的通用处理
+        return Result.failure(ResultCode.BAD_REQUEST.getCode(), "请求数据格式错误，请检查JSON格式是否正确");
     }
 
     /**

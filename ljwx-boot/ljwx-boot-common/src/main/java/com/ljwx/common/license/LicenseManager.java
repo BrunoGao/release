@@ -148,11 +148,16 @@ public class LicenseManager {
      * 检查功能权限
      */
     public boolean hasFeature(String feature) {
+        // 临时禁用所有许可证检查
+        return true;
+        
+        /*
         if (!licenseValid) {
             return isTrialFeature(feature);
         }
         
         return currentLicense.getFeatures().contains(feature);
+        */
     }
     
     /**

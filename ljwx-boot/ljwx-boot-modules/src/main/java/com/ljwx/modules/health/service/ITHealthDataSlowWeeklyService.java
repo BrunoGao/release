@@ -20,7 +20,7 @@
 package com.ljwx.modules.health.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowWeekly;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -31,10 +31,10 @@ import java.util.List;
  *
  * @Author jjgao
  * @ProjectName ljwx-boot
- * @ClassName ITUserHealthDataWeeklyService
+ * @ClassName ITHealthDataSlowWeeklyService
  * @CreateTime 2024-12-16
  */
-public interface ITUserHealthDataWeeklyService extends IService<TUserHealthDataWeekly> {
+public interface ITHealthDataSlowWeeklyService extends IService<THealthDataSlowWeekly> {
 
     /**
      * 根据设备SN和周开始日期查询每周数据
@@ -43,7 +43,7 @@ public interface ITUserHealthDataWeeklyService extends IService<TUserHealthDataW
      * @param weekStart 周开始日期
      * @return 每周健康数据
      */
-    TUserHealthDataWeekly getByDeviceSnAndWeekStart(String deviceSn, LocalDate weekStart);
+    THealthDataSlowWeekly getByDeviceSnAndWeekStart(String deviceSn, LocalDate weekStart);
 
     /**
      * 保存或更新每周数据
@@ -52,7 +52,7 @@ public interface ITUserHealthDataWeeklyService extends IService<TUserHealthDataW
      * @param weeklyData 每周数据
      * @return 是否成功
      */
-    boolean saveOrUpdate(TUserHealthDataWeekly weeklyData);
+    boolean saveOrUpdate(THealthDataSlowWeekly weeklyData);
 
     /**
      * 批量保存或更新每周数据
@@ -60,7 +60,7 @@ public interface ITUserHealthDataWeeklyService extends IService<TUserHealthDataW
      * @param weeklyDataList 每周数据列表
      * @return 是否成功
      */
-    boolean batchSaveOrUpdate(List<TUserHealthDataWeekly> weeklyDataList);
+    boolean batchSaveOrUpdate(List<THealthDataSlowWeekly> weeklyDataList);
 
     /**
      * 根据用户ID和日期范围查询每周数据
@@ -70,7 +70,7 @@ public interface ITUserHealthDataWeeklyService extends IService<TUserHealthDataW
      * @param endDate 结束日期
      * @return 每周数据列表
      */
-    List<TUserHealthDataWeekly> listByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
+    List<THealthDataSlowWeekly> listByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
 
     /**
      * 根据组织ID和日期范围查询每周数据
@@ -80,7 +80,7 @@ public interface ITUserHealthDataWeeklyService extends IService<TUserHealthDataW
      * @param endDate 结束日期
      * @return 每周数据列表
      */
-    List<TUserHealthDataWeekly> listByOrgIdAndDateRange(Long orgId, LocalDate startDate, LocalDate endDate);
+    List<THealthDataSlowWeekly> listByOrgIdAndDateRange(Long orgId, LocalDate startDate, LocalDate endDate);
 
     /**
      * 获取指定日期所在周的周一日期

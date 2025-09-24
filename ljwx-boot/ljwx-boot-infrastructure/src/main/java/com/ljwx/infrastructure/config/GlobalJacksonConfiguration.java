@@ -47,6 +47,8 @@ public class GlobalJacksonConfiguration {
                                 JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES,
                                 // 忽略未定义的字段，解决反序列化时输入 JSON 中包含未定义字段导致的异常问题
                                 JsonParser.Feature.IGNORE_UNDEFINED,
+                                // 允许 JSON 中包含注释 (// 和 /* */)
+                                JsonParser.Feature.ALLOW_COMMENTS,
                                 // 当序列化完成后自动关闭生成器的目标输出流，防止资源泄漏
                                 JsonGenerator.Feature.AUTO_CLOSE_TARGET,
                                 // 序列化枚举时使用 toUpperCase() 方法输出大写字母

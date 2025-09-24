@@ -20,18 +20,18 @@
 package com.ljwx.modules.health.repository.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowDaily;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
- * TUserHealthDataWeekly Mapper 接口
+ * THealthDataSlowDaily Mapper 接口
  *
  * @Author jjgao
  * @ProjectName ljwx-boot
- * @ClassName com.ljwx.modules.health.repository.mapper.TUserHealthDataWeeklyMapper
+ * @ClassName com.ljwx.modules.health.repository.mapper.THealthDataSlowDailyMapper
  * @CreateTime 2024-12-15 - 22:04:51
  */
 
 @Mapper
-public interface TUserHealthDataWeeklyMapper extends BaseMapper<TUserHealthDataWeekly> {
+public interface THealthDataSlowDailyMapper extends BaseMapper<THealthDataSlowDaily> {
 } 

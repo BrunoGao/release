@@ -10,12 +10,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ljwx.common.api.Result;
 import com.ljwx.modules.health.domain.entity.TUserHealthData;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataDaily;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowDaily;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowWeekly;
 import com.ljwx.modules.health.domain.vo.analytics.*;
-import com.ljwx.modules.health.repository.mapper.TUserHealthDataDailyMapper;
+import com.ljwx.modules.health.repository.mapper.THealthDataSlowDailyMapper;
 import com.ljwx.modules.health.repository.mapper.TUserHealthDataMapper;
-import com.ljwx.modules.health.repository.mapper.TUserHealthDataWeeklyMapper;
+import com.ljwx.modules.health.repository.mapper.THealthDataSlowWeeklyMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -47,10 +47,10 @@ public class HealthAnalyticsAggregationService {
     private TUserHealthDataMapper healthDataMapper;
     
     @Autowired
-    private TUserHealthDataDailyMapper dailyMapper;
+    private THealthDataSlowDailyMapper dailyMapper;
     
     @Autowired
-    private TUserHealthDataWeeklyMapper weeklyMapper;
+    private THealthDataSlowWeeklyMapper weeklyMapper;
     
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -151,13 +151,13 @@ public class HealthAnalyticsAggregationService {
             log.info("🔍 查询睡眠数据: userIds={}, 时间范围={} ~ {}", userIdLongs, startDate.toLocalDate(), endDate.toLocalDate());
             
             // 查询daily表的睡眠数据
-            LambdaQueryWrapper<TUserHealthDataDaily> wrapper = new LambdaQueryWrapper<>();
-            wrapper.in(TUserHealthDataDaily::getUserId, userIdLongs)
-                   .ge(TUserHealthDataDaily::getTimestamp, startDate.toLocalDate())
-                   .le(TUserHealthDataDaily::getTimestamp, endDate.toLocalDate())
-                   .isNotNull(TUserHealthDataDaily::getSleepData);
+            LambdaQueryWrapper<THealthDataSlowDaily> wrapper = new LambdaQueryWrapper<>();
+            wrapper.in(THealthDataSlowDaily::getUserId, userIdLongs)
+                   .ge(THealthDataSlowDaily::getTimestamp, startDate.toLocalDate())
+                   .le(THealthDataSlowDaily::getTimestamp, endDate.toLocalDate())
+                   .isNotNull(THealthDataSlowDaily::getSleepData);
             
-            List<TUserHealthDataDaily> dailyList = dailyMapper.selectList(wrapper);
+            List<THealthDataSlowDaily> dailyList = dailyMapper.selectList(wrapper);
             log.info("📊 查询到睡眠数据记录: {} 条", dailyList.size());
             
             SleepAnalyticsData sleepData = new SleepAnalyticsData();
@@ -172,7 +172,7 @@ public class HealthAnalyticsAggregationService {
             double totalEfficiency = 0;
             int validDays = 0;
             
-            for (TUserHealthDataDaily daily : dailyList) {
+            for (THealthDataSlowDaily daily : dailyList) {
                 try {
                     if (daily.getSleepData() != null) {
                         String sleepDataJson = daily.getSleepData();
@@ -305,15 +305,15 @@ public class HealthAnalyticsAggregationService {
         
         try {
             // 查询daily表的运动数据
-            LambdaQueryWrapper<TUserHealthDataDaily> wrapper = new LambdaQueryWrapper<>();
-            wrapper.in(TUserHealthDataDaily::getUserId, userIds)
-                   .ge(TUserHealthDataDaily::getTimestamp, startDate.toLocalDate())
-                   .le(TUserHealthDataDaily::getTimestamp, endDate.toLocalDate())
-                   .and(w -> w.isNotNull(TUserHealthDataDaily::getExerciseDailyData)
+            LambdaQueryWrapper<THealthDataSlowDaily> wrapper = new LambdaQueryWrapper<>();
+            wrapper.in(THealthDataSlowDaily::getUserId, userIds)
+                   .ge(THealthDataSlowDaily::getTimestamp, startDate.toLocalDate())
+                   .le(THealthDataSlowDaily::getTimestamp, endDate.toLocalDate())
+                   .and(w -> w.isNotNull(THealthDataSlowDaily::getExerciseDailyData)
                             .or()
-                            .isNotNull(TUserHealthDataDaily::getWorkoutData));
+                            .isNotNull(THealthDataSlowDaily::getWorkoutData));
             
-            List<TUserHealthDataDaily> dailyList = dailyMapper.selectList(wrapper);
+            List<THealthDataSlowDaily> dailyList = dailyMapper.selectList(wrapper);
             
             ExerciseAnalyticsData exerciseData = new ExerciseAnalyticsData();
             

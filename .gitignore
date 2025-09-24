@@ -176,6 +176,9 @@ performance_*.json
 performance_*.log
 *_report.json
 *_report.html
+*.jtl
+performance-test/**/*.jtl
+performance-test/results/*.jtl
 
 # ================================
 # 媒体和压缩文件 - 确实需要忽略

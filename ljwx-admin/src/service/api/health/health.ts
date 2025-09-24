@@ -74,3 +74,90 @@ export function fetchGetExerciseAnalytics(params?: Api.Health.HealthAnalyticsSea
     params: filteredParams
   });
 }
+
+// =============== 健康分析API ===============
+
+/** 获取健康指标统计信息 */
+export function fetchHealthMetrics(params?: Api.Health.HealthChartSearchParams) {
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  if (!filteredParams.orgId) {
+    filteredParams.orgId = '';
+  }
+
+  return request<any>({
+    url: '/health/analytics/metrics',
+    method: 'GET',
+    params: filteredParams
+  });
+}
+
+/** 获取健康评分 */
+export function fetchHealthScore(params?: Api.Health.HealthChartSearchParams) {
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  if (!filteredParams.orgId) {
+    filteredParams.orgId = '';
+  }
+
+  return request<any>({
+    url: '/health/analytics/score',
+    method: 'GET',
+    params: filteredParams
+  });
+}
+
+/** 获取健康建议 */
+export function fetchHealthRecommendations(params?: Api.Health.HealthChartSearchParams) {
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  if (!filteredParams.orgId) {
+    filteredParams.orgId = '';
+  }
+
+  return request<any>({
+    url: '/health/analytics/recommendations',
+    method: 'GET',
+    params: filteredParams
+  });
+}
+
+/** 获取健康趋势分析 */
+export function fetchHealthTrends(params?: Api.Health.HealthChartSearchParams & { metricType?: string }) {
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  if (!filteredParams.orgId) {
+    filteredParams.orgId = '';
+  }
+
+  return request<any>({
+    url: '/health/analytics/trends',
+    method: 'GET',
+    params: filteredParams
+  });
+}
+
+/** 获取综合健康分析 */
+export function fetchComprehensiveAnalysis(params?: Api.Health.HealthChartSearchParams) {
+  const filteredParams = { ...params };
+  if (filteredParams?.userId === 'all') {
+    delete filteredParams.userId;
+  }
+  if (!filteredParams.orgId) {
+    filteredParams.orgId = '';
+  }
+
+  return request<any>({
+    url: '/health/analytics/comprehensive',
+    method: 'GET',
+    params: filteredParams
+  });
+}

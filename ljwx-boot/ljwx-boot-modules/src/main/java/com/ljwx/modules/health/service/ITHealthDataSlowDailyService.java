@@ -20,7 +20,7 @@
 package com.ljwx.modules.health.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataDaily;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowDaily;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -31,10 +31,10 @@ import java.util.List;
  *
  * @Author jjgao
  * @ProjectName ljwx-boot
- * @ClassName ITUserHealthDataDailyService
+ * @ClassName ITHealthDataSlowDailyService
  * @CreateTime 2024-12-16
  */
-public interface ITUserHealthDataDailyService extends IService<TUserHealthDataDaily> {
+public interface ITHealthDataSlowDailyService extends IService<THealthDataSlowDaily> {
 
     /**
      * 根据设备SN和日期查询每日数据
@@ -43,7 +43,7 @@ public interface ITUserHealthDataDailyService extends IService<TUserHealthDataDa
      * @param date 日期
      * @return 每日健康数据
      */
-    TUserHealthDataDaily getByDeviceSnAndDate(String deviceSn, LocalDate date);
+    THealthDataSlowDaily getByDeviceSnAndDate(String deviceSn, LocalDate date);
 
     /**
      * 保存或更新每日数据
@@ -52,7 +52,7 @@ public interface ITUserHealthDataDailyService extends IService<TUserHealthDataDa
      * @param dailyData 每日数据
      * @return 是否成功
      */
-    boolean saveOrUpdate(TUserHealthDataDaily dailyData);
+    boolean saveOrUpdate(THealthDataSlowDaily dailyData);
 
     /**
      * 批量保存或更新每日数据
@@ -60,7 +60,7 @@ public interface ITUserHealthDataDailyService extends IService<TUserHealthDataDa
      * @param dailyDataList 每日数据列表
      * @return 是否成功
      */
-    boolean batchSaveOrUpdate(List<TUserHealthDataDaily> dailyDataList);
+    boolean batchSaveOrUpdate(List<THealthDataSlowDaily> dailyDataList);
 
     /**
      * 根据用户ID和日期范围查询每日数据
@@ -70,7 +70,7 @@ public interface ITUserHealthDataDailyService extends IService<TUserHealthDataDa
      * @param endDate 结束日期
      * @return 每日数据列表
      */
-    List<TUserHealthDataDaily> listByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
+    List<THealthDataSlowDaily> listByUserIdAndDateRange(Long userId, LocalDate startDate, LocalDate endDate);
 
     /**
      * 根据组织ID和日期范围查询每日数据
@@ -80,5 +80,5 @@ public interface ITUserHealthDataDailyService extends IService<TUserHealthDataDa
      * @param endDate 结束日期
      * @return 每日数据列表
      */
-    List<TUserHealthDataDaily> listByOrgIdAndDateRange(Long orgId, LocalDate startDate, LocalDate endDate);
+    List<THealthDataSlowDaily> listByOrgIdAndDateRange(Long orgId, LocalDate startDate, LocalDate endDate);
 }

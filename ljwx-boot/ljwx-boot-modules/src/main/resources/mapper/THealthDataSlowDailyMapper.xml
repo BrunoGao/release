@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.ljwx.modules.health.repository.mapper.TUserHealthDataDailyMapper">
+<mapper namespace="com.ljwx.modules.health.repository.mapper.THealthDataSlowDailyMapper">
 
     <!-- 通用查询映射结果 -->
-    <resultMap id="TUserHealthDataDailyResultMap" type="com.ljwx.modules.health.domain.entity.TUserHealthDataDaily">
+    <resultMap id="THealthDataSlowDailyResultMap" type="com.ljwx.modules.health.domain.entity.THealthDataSlowDaily">
         <result column="id" property="id"/>
         <result column="device_sn" property="deviceSn"/>
         <result column="org_id" property="orgId"/>
@@ -19,7 +19,7 @@
     </resultMap>
 
     <!-- 通用查询结果列 -->
-    <sql id="TUserHealthDataDailyColumnList">
+    <sql id="THealthDataSlowDailyColumnList">
         id, device_sn, org_id, user_id, customer_id, date, sleep_data, exercise_daily_data, scientific_sleep_data, workout_data, create_time, update_time
     </sql>
 

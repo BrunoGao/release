@@ -136,44 +136,133 @@ const renderSleepChart = () => {
 
   const option = {
     title: {
-      text: '睡眠质量分析 - 多用户对比',
+      text: '睡眠质量分析',
+      subtext: '多用户睡眠时长趋势对比',
       left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' }
+      textStyle: { 
+        fontSize: 18, 
+        fontWeight: 'bold',
+        color: '#2c3e50'
+      },
+      subtextStyle: {
+        fontSize: 12,
+        color: '#7f8c8d'
+      }
     },
     tooltip: {
       trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#409EFF',
+      borderWidth: 1,
+      textStyle: {
+        color: '#fff',
+        fontSize: 12
+      },
       formatter: (params: any) => {
-        let result = `日期: ${params[0].name}<br/>`;
+        let result = `<div style="padding: 8px;">`;
+        result += `<div style="margin-bottom: 6px; font-weight: bold; color: #409EFF;">📅 ${params[0].name}</div>`;
         params.forEach((param: any) => {
-          result += `${param.seriesName}: ${param.value.toFixed(1)}小时<br/>`;
+          const qualityScore = param.value >= 7 ? '优质' : param.value >= 6 ? '良好' : param.value >= 5 ? '一般' : '较差';
+          const qualityColor = param.value >= 7 ? '#67C23A' : param.value >= 6 ? '#E6A23C' : param.value >= 5 ? '#F56C6C' : '#909399';
+          result += `<div style="margin: 4px 0; display: flex; align-items: center;">`;
+          result += `<span style="display: inline-block; width: 10px; height: 10px; background: ${param.color}; border-radius: 50%; margin-right: 8px;"></span>`;
+          result += `<span style="margin-right: 8px;">${param.seriesName}:</span>`;
+          result += `<span style="font-weight: bold; margin-right: 8px;">${param.value.toFixed(1)}小时</span>`;
+          result += `<span style="color: ${qualityColor}; font-size: 10px; padding: 1px 4px; background: rgba(255,255,255,0.1); border-radius: 3px;">${qualityScore}</span>`;
+          result += `</div>`;
         });
+        result += `</div>`;
         return result;
       }
     },
     legend: {
       data: series.map(s => s.name),
-      top: '10%',
-      type: 'scroll'
+      top: '12%',
+      type: 'scroll',
+      textStyle: {
+        fontSize: 12,
+        color: '#606266'
+      },
+      itemWidth: 14,
+      itemHeight: 8
     },
     xAxis: {
       type: 'category',
       data: allDates,
       axisLabel: {
-        rotate: 45,
+        rotate: 30,
+        color: '#606266',
+        fontSize: 11,
         formatter: (value: string) => {
-          // 格式化日期显示
-          return value.substring(5); // 只显示月-日
+          return value.substring(5);
         }
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#E4E7ED'
+        }
+      },
+      axisTick: {
+        show: false
       }
     },
     yAxis: {
       type: 'value',
       name: '睡眠时长(小时)',
+      nameTextStyle: {
+        color: '#606266',
+        fontSize: 12
+      },
       min: 0,
-      max: 12
+      max: 12,
+      splitNumber: 6,
+      axisLabel: {
+        color: '#606266',
+        fontSize: 11,
+        formatter: (value: number) => `${value}h`
+      },
+      axisLine: {
+        show: false
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#F5F7FA',
+          type: 'dashed'
+        }
+      }
     },
-    series,
-    grid: { left: '10%', right: '10%', bottom: '20%', top: '20%' }
+    series: series.map(s => ({
+      ...s,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 8,
+      lineStyle: {
+        width: 3,
+        shadowColor: 'rgba(0,0,0,0.1)',
+        shadowBlur: 4,
+        shadowOffsetY: 2
+      },
+      areaStyle: {
+        opacity: 0.1
+      }
+    })),
+    grid: { 
+      left: '8%', 
+      right: '5%', 
+      bottom: '15%', 
+      top: '25%',
+      containLabel: true
+    },
+    graphic: allDates.length === 0 ? {
+      type: 'text',
+      left: 'center',
+      top: 'middle',
+      style: {
+        text: '🌙 暂无睡眠数据',
+        fontSize: 16,
+        fill: '#C0C4CC'
+      }
+    } : null
   };
 
   sleepChart.setOption(option);
@@ -261,48 +350,107 @@ const renderExerciseChart = () => {
 
   const option = {
     title: {
-      text: '运动类型分布 - 用户对比',
+      text: '运动类型分布',
+      subtext: '用户运动偏好统计分析',
       left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' }
+      textStyle: { 
+        fontSize: 18, 
+        fontWeight: 'bold',
+        color: '#2c3e50'
+      },
+      subtextStyle: {
+        fontSize: 12,
+        color: '#7f8c8d'
+      }
     },
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: {c}次 ({d}%)'
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#67C23A',
+      borderWidth: 1,
+      textStyle: {
+        color: '#fff',
+        fontSize: 12
+      },
+      formatter: (params: any) => {
+        return `<div style="padding: 8px;">
+          <div style="margin-bottom: 6px; font-weight: bold; color: #67C23A;">🏃 ${params.name}</div>
+          <div style="display: flex; align-items: center;">
+            <span style="display: inline-block; width: 10px; height: 10px; background: ${params.color}; border-radius: 50%; margin-right: 8px;"></span>
+            <span>运动次数: <strong>${params.value}次</strong></span>
+          </div>
+          <div style="margin-top: 4px; color: #E6A23C;">占比: <strong>${params.percent}%</strong></div>
+        </div>`;
+      }
     },
     legend: {
       orient: 'vertical',
-      left: 'left',
-      top: '15%',
+      left: '5%',
+      top: '20%',
       type: 'scroll',
-      textStyle: { fontSize: 12 }
+      textStyle: { 
+        fontSize: 11,
+        color: '#606266'
+      },
+      itemWidth: 12,
+      itemHeight: 8,
+      itemGap: 8
     },
     series: [
       {
         name: '运动统计',
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['60%', '55%'],
+        radius: ['45%', '75%'],
+        center: ['65%', '55%'],
         avoidLabelOverlap: false,
         itemStyle: {
-          borderRadius: 8,
+          borderRadius: 6,
           borderColor: '#fff',
-          borderWidth: 2
+          borderWidth: 3,
+          shadowColor: 'rgba(0,0,0,0.1)',
+          shadowBlur: 8,
+          shadowOffsetY: 2
         },
         label: {
-          show: false,
-          position: 'center'
-        },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: '14',
-            fontWeight: 'bold'
+          show: true,
+          position: 'outside',
+          fontSize: 11,
+          color: '#606266',
+          formatter: (params: any) => {
+            return params.percent >= 5 ? `${params.percent}%` : '';
           }
         },
-        labelLine: { show: false },
-        data: pieData
+        labelLine: {
+          show: true,
+          length: 15,
+          length2: 8,
+          lineStyle: {
+            color: '#C0C4CC'
+          }
+        },
+        emphasis: {
+          scale: true,
+          scaleSize: 5,
+          itemStyle: {
+            shadowBlur: 15,
+            shadowColor: 'rgba(0,0,0,0.3)'
+          }
+        },
+        data: pieData.length > 0 ? pieData : [
+          { name: '暂无数据', value: 1, itemStyle: { color: '#E4E7ED' } }
+        ]
       }
-    ]
+    ],
+    graphic: pieData.length === 0 ? {
+      type: 'text',
+      left: 'center',
+      top: 'middle',
+      style: {
+        text: '🏃 暂无运动数据',
+        fontSize: 16,
+        fill: '#C0C4CC'
+      }
+    } : null
   };
 
   exerciseChart.setOption(option);
@@ -408,55 +556,162 @@ const renderCardioChart = () => {
 
   const option = {
     title: {
-      text: '心血管健康监测 - 多用户对比',
+      text: '心血管健康监测',
+      subtext: '心率与血压趋势分析',
       left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' }
+      textStyle: { 
+        fontSize: 18, 
+        fontWeight: 'bold',
+        color: '#2c3e50'
+      },
+      subtextStyle: {
+        fontSize: 12,
+        color: '#7f8c8d'
+      }
     },
     tooltip: {
       trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#F56C6C',
+      borderWidth: 1,
+      textStyle: {
+        color: '#fff',
+        fontSize: 12
+      },
       formatter: (params: any) => {
-        let result = `日期: ${params[0].name}<br/>`;
+        let result = `<div style="padding: 8px;">`;
+        result += `<div style="margin-bottom: 6px; font-weight: bold; color: #F56C6C;">❤️ ${params[0].name}</div>`;
         params.forEach((param: any) => {
           if (param.value !== null) {
             const unit = param.seriesName.includes('心率') ? 'bpm' : 'mmHg';
-            result += `${param.seriesName}: ${param.value}${unit}<br/>`;
+            const isHeartRate = param.seriesName.includes('心率');
+            const status = isHeartRate 
+              ? (param.value >= 60 && param.value <= 100 ? '正常' : '异常')
+              : (param.value <= 120 ? '正常' : param.value <= 140 ? '偏高' : '高血压');
+            const statusColor = isHeartRate
+              ? (param.value >= 60 && param.value <= 100 ? '#67C23A' : '#F56C6C')
+              : (param.value <= 120 ? '#67C23A' : param.value <= 140 ? '#E6A23C' : '#F56C6C');
+            
+            result += `<div style="margin: 4px 0; display: flex; align-items: center;">`;
+            result += `<span style="display: inline-block; width: 10px; height: 10px; background: ${param.color}; border-radius: 50%; margin-right: 8px;"></span>`;
+            result += `<span style="margin-right: 8px;">${param.seriesName}:</span>`;
+            result += `<span style="font-weight: bold; margin-right: 8px;">${param.value}${unit}</span>`;
+            result += `<span style="color: ${statusColor}; font-size: 10px; padding: 1px 4px; background: rgba(255,255,255,0.1); border-radius: 3px;">${status}</span>`;
+            result += `</div>`;
           }
         });
+        result += `</div>`;
         return result;
       }
     },
     legend: {
       data: allSeries.map(s => s.name),
-      top: '10%',
+      top: '12%',
       type: 'scroll',
-      textStyle: { fontSize: 12 }
+      textStyle: { 
+        fontSize: 11,
+        color: '#606266'
+      },
+      itemWidth: 14,
+      itemHeight: 8
     },
     xAxis: {
       type: 'category',
       data: sortedDates,
       axisLabel: {
-        rotate: 45,
-        formatter: (value: string) => value.substring(5) // 只显示月-日
+        rotate: 30,
+        color: '#606266',
+        fontSize: 11,
+        formatter: (value: string) => value.substring(5)
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#E4E7ED'
+        }
+      },
+      axisTick: {
+        show: false
       }
     },
     yAxis: [
       {
         type: 'value',
         name: '心率(bpm)',
+        nameTextStyle: {
+          color: '#F56C6C',
+          fontSize: 12
+        },
         position: 'left',
         min: 50,
-        max: 120
+        max: 120,
+        splitNumber: 7,
+        axisLabel: {
+          color: '#606266',
+          fontSize: 11,
+          formatter: (value: number) => `${value}`
+        },
+        axisLine: {
+          show: false
+        },
+        splitLine: {
+          lineStyle: {
+            color: '#F5F7FA',
+            type: 'dashed'
+          }
+        }
       },
       {
         type: 'value',
         name: '血压(mmHg)',
+        nameTextStyle: {
+          color: '#E6A23C',
+          fontSize: 12
+        },
         position: 'right',
         min: 80,
-        max: 160
+        max: 160,
+        splitNumber: 8,
+        axisLabel: {
+          color: '#606266',
+          fontSize: 11,
+          formatter: (value: number) => `${value}`
+        },
+        axisLine: {
+          show: false
+        },
+        splitLine: {
+          show: false
+        }
       }
     ],
-    series: allSeries,
-    grid: { left: '10%', right: '10%', bottom: '20%', top: '25%' }
+    series: allSeries.map(s => ({
+      ...s,
+      smooth: true,
+      symbolSize: s.name.includes('心率') ? 6 : 8,
+      lineStyle: {
+        width: s.name.includes('心率') ? 3 : 2,
+        shadowColor: 'rgba(0,0,0,0.1)',
+        shadowBlur: 4,
+        shadowOffsetY: 2
+      }
+    })),
+    grid: { 
+      left: '8%', 
+      right: '8%', 
+      bottom: '15%', 
+      top: '25%',
+      containLabel: true
+    },
+    graphic: sortedDates.length === 0 ? {
+      type: 'text',
+      left: 'center',
+      top: 'middle',
+      style: {
+        text: '❤️ 暂无心血管数据',
+        fontSize: 16,
+        fill: '#C0C4CC'
+      }
+    } : null
   };
 
   cardioChart.setOption(option);
@@ -573,56 +828,181 @@ const renderActivityChart = () => {
 
   const option = {
     title: {
-      text: '日常活动量统计 - 多用户对比',
+      text: '日常活动量统计',
+      subtext: '步数与卡路里消耗分析',
       left: 'center',
-      textStyle: { fontSize: 16, fontWeight: 'bold' }
+      textStyle: { 
+        fontSize: 18, 
+        fontWeight: 'bold',
+        color: '#2c3e50'
+      },
+      subtextStyle: {
+        fontSize: 12,
+        color: '#7f8c8d'
+      }
     },
     tooltip: {
       trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: '#67C23A',
+      borderWidth: 1,
+      textStyle: {
+        color: '#fff',
+        fontSize: 12
+      },
       formatter: (params: any) => {
-        let result = `日期: ${params[0].name}<br/>`;
+        let result = `<div style="padding: 8px;">`;
+        result += `<div style="margin-bottom: 6px; font-weight: bold; color: #67C23A;">🚶 ${params[0].name}</div>`;
         params.forEach((param: any) => {
           if (param.value > 0) {
             const unit = param.seriesName.includes('步数') ? '步' : 'kcal';
-            result += `${param.seriesName}: ${param.value.toLocaleString()}${unit}<br/>`;
+            const isSteps = param.seriesName.includes('步数');
+            const target = isSteps ? 10000 : 2000; // 目标步数10000步，目标卡路里2000kcal
+            const achievement = Math.min((param.value / target) * 100, 100);
+            const achievementColor = achievement >= 80 ? '#67C23A' : achievement >= 60 ? '#E6A23C' : '#F56C6C';
+            
+            result += `<div style="margin: 4px 0; display: flex; align-items: center;">`;
+            result += `<span style="display: inline-block; width: 10px; height: 10px; background: ${param.color}; border-radius: 50%; margin-right: 8px;"></span>`;
+            result += `<span style="margin-right: 8px;">${param.seriesName}:</span>`;
+            result += `<span style="font-weight: bold; margin-right: 8px;">${param.value.toLocaleString()}${unit}</span>`;
+            if (isSteps) {
+              result += `<span style="color: ${achievementColor}; font-size: 10px; padding: 1px 4px; background: rgba(255,255,255,0.1); border-radius: 3px;">${achievement.toFixed(0)}%目标</span>`;
+            }
+            result += `</div>`;
           }
         });
+        result += `</div>`;
         return result;
       }
     },
     legend: {
       data: allSeries.map(s => s.name),
-      top: '10%',
+      top: '12%',
       type: 'scroll',
-      textStyle: { fontSize: 12 }
+      textStyle: { 
+        fontSize: 11,
+        color: '#606266'
+      },
+      itemWidth: 14,
+      itemHeight: 8
     },
     xAxis: {
       type: 'category',
       data: sortedDates,
       axisLabel: {
-        rotate: 45,
-        formatter: (value: string) => value.substring(5) // 只显示月-日
+        rotate: 30,
+        color: '#606266',
+        fontSize: 11,
+        formatter: (value: string) => value.substring(5)
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#E4E7ED'
+        }
+      },
+      axisTick: {
+        show: false
       }
     },
     yAxis: [
       {
         type: 'value',
         name: '步数',
+        nameTextStyle: {
+          color: '#67C23A',
+          fontSize: 12
+        },
         position: 'left',
         min: 0,
         axisLabel: {
+          color: '#606266',
+          fontSize: 11,
           formatter: (value: number) => (value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value)
+        },
+        axisLine: {
+          show: false
+        },
+        splitLine: {
+          lineStyle: {
+            color: '#F5F7FA',
+            type: 'dashed'
+          }
         }
       },
       {
         type: 'value',
         name: '卡路里(kcal)',
+        nameTextStyle: {
+          color: '#E6A23C',
+          fontSize: 12
+        },
         position: 'right',
-        min: 0
+        min: 0,
+        axisLabel: {
+          color: '#606266',
+          fontSize: 11,
+          formatter: (value: number) => `${value}`
+        },
+        axisLine: {
+          show: false
+        },
+        splitLine: {
+          show: false
+        }
       }
     ],
-    series: allSeries,
-    grid: { left: '12%', right: '12%', bottom: '20%', top: '25%' }
+    series: allSeries.map(s => {
+      if (s.name.includes('步数')) {
+        return {
+          ...s,
+          itemStyle: {
+            ...s.itemStyle,
+            borderRadius: [4, 4, 0, 0],
+            shadowColor: 'rgba(0,0,0,0.1)',
+            shadowBlur: 4,
+            shadowOffsetY: 2
+          },
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 8,
+              shadowColor: 'rgba(0,0,0,0.3)'
+            }
+          }
+        };
+      } else {
+        return {
+          ...s,
+          smooth: true,
+          symbolSize: 8,
+          lineStyle: {
+            width: 3,
+            shadowColor: 'rgba(0,0,0,0.1)',
+            shadowBlur: 4,
+            shadowOffsetY: 2
+          },
+          areaStyle: {
+            opacity: 0.1
+          }
+        };
+      }
+    }),
+    grid: { 
+      left: '8%', 
+      right: '8%', 
+      bottom: '15%', 
+      top: '25%',
+      containLabel: true
+    },
+    graphic: sortedDates.length === 0 ? {
+      type: 'text',
+      left: 'center',
+      top: 'middle',
+      style: {
+        text: '🚶 暂无活动数据',
+        fontSize: 16,
+        fill: '#C0C4CC'
+      }
+    } : null
   };
 
   activityChart.setOption(option);

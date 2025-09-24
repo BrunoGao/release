@@ -27,12 +27,12 @@ import com.ljwx.modules.customer.domain.entity.THealthDataConfig;
 import com.ljwx.modules.health.domain.dto.UnifiedHealthQueryDTO;
 import com.ljwx.modules.health.domain.dto.user.health.data.TUserHealthDataSearchDTO;
 import com.ljwx.modules.health.domain.entity.TUserHealthData;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataDaily;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowDaily;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowWeekly;
 import com.ljwx.modules.health.domain.vo.HealthDataPageVO;
 import com.ljwx.modules.health.repository.mapper.TUserHealthDataMapper;
-import com.ljwx.modules.health.repository.mapper.TUserHealthDataDailyMapper;
-import com.ljwx.modules.health.repository.mapper.TUserHealthDataWeeklyMapper;
+import com.ljwx.modules.health.repository.mapper.THealthDataSlowDailyMapper;
+import com.ljwx.modules.health.repository.mapper.THealthDataSlowWeeklyMapper;
 import com.ljwx.modules.system.domain.entity.SysUser;
 import com.ljwx.modules.system.service.ISysUserService;
 import lombok.Data;
@@ -70,10 +70,10 @@ public class UnifiedHealthDataQueryService {
     private TUserHealthDataMapper healthDataMapper;
     
     @Autowired
-    private TUserHealthDataDailyMapper dailyMapper;
+    private THealthDataSlowDailyMapper dailyMapper;
     
     @Autowired
-    private TUserHealthDataWeeklyMapper weeklyMapper;
+    private THealthDataSlowWeeklyMapper weeklyMapper;
     
     @Autowired
     private HealthDataConfigQueryService healthDataConfigQueryService;
@@ -214,17 +214,19 @@ public class UnifiedHealthDataQueryService {
         combinedData.addAll(shardedData);
         combinedData.sort(Comparator.comparing(TUserHealthData::getTimestamp).reversed());
         
-        // 5. 应用分页到基础数据
+        // 5. 应用分页到基础数据 - 使用高性能批量转换
         List<Map<String, Object>> basicDataList = new ArrayList<>();
         int start = (queryDTO.getPage() - 1) * queryDTO.getPageSize();
         int end = Math.min(start + queryDTO.getPageSize(), combinedData.size());
         
-        for (int i = start; i < end; i++) {
-            TUserHealthData data = combinedData.get(i);
-            Map<String, Object> dataMap = convertToMap(data, supportedFields);
-            filterSupportedFields(dataMap, supportedFields);
-            basicDataList.add(dataMap);
-        }
+        // 获取分页数据子集
+        List<TUserHealthData> pageDataList = combinedData.subList(start, end);
+        
+        // 批量转换，大幅提升性能
+        basicDataList = batchConvertToMap(pageDataList, supportedFields);
+        
+        // 批量应用字段过滤
+        basicDataList.forEach(dataMap -> filterSupportedFields(dataMap, supportedFields));
         
         // 6. 独立查询daily数据（不合并到每条记录）
         Map<String, Object> dailyDataCollection = new HashMap<>();
@@ -584,36 +586,36 @@ public class UnifiedHealthDataQueryService {
             Map<String, String> supportedFields = getSupportedHealthFields(queryDTO.getCustomerId());
             log.info("🔍 支持的字段配置(Full): customerId={}, fields={}", queryDTO.getCustomerId(), supportedFields);
             
-            List<Map<String, Object>> pageData = new ArrayList<>();
-            for (TUserHealthData data : sortedData) {
-                Map<String, Object> dataMap = convertToMap(data, supportedFields);
-                log.info("📊 转换后数据字段: {}", dataMap.keySet());
-                log.info("📊 转换后数据样例: heartRate={}, heart_rate={}, bloodOxygen={}, blood_oxygen={}", 
-                    dataMap.get("heartRate"), dataMap.get("heart_rate"), 
-                    dataMap.get("bloodOxygen"), dataMap.get("blood_oxygen"));
+            // 批量转换数据 - 高性能优化
+            List<Map<String, Object>> pageData = batchConvertToMap(sortedData, supportedFields);
+            
+            // 批量合并daily和weekly数据
+            for (int i = 0; i < sortedData.size() && i < pageData.size(); i++) {
+                TUserHealthData data = sortedData.get(i);
+                Map<String, Object> dataMap = pageData.get(i);
                 
                 // 根据配置决定是否合并daily数据
                 if (needsDailyData(supportedFields)) {
-                    log.info("🔄 需要合并daily数据: userId={}, timestamp={}", data.getUserId(), data.getTimestamp());
+                    if (log.isDebugEnabled()) {
+                        log.debug("🔄 合并daily数据: userId={}, timestamp={}", data.getUserId(), data.getTimestamp());
+                    }
                     mergeDailyData(dataMap, data.getUserId(), data.getTimestamp(), supportedFields);
-                    log.info("📊 合并daily后数据字段: {}", dataMap.keySet());
                 }
                 
                 // 根据配置决定是否合并weekly数据
                 if (needsWeeklyData(supportedFields)) {
-                    log.info("🔄 需要合并weekly数据: userId={}, timestamp={}", data.getUserId(), data.getTimestamp());
+                    if (log.isDebugEnabled()) {
+                        log.debug("🔄 合并weekly数据: userId={}, timestamp={}", data.getUserId(), data.getTimestamp());
+                    }
                     mergeWeeklyData(dataMap, data.getUserId(), data.getTimestamp(), supportedFields);
-                    log.info("📊 合并weekly后数据字段: {}", dataMap.keySet());
                 }
                 
                 // 只返回支持的字段
                 filterSupportedFields(dataMap, supportedFields);
-                log.info("📊 最终返回数据字段: {}", dataMap.keySet());
-                log.info("📊 最终返回数据样例: heartRate={}, bloodOxygen={}, pressureHigh={}, pressureLow={}", 
-                    dataMap.get("heartRate"), dataMap.get("bloodOxygen"), 
-                    dataMap.get("pressureHigh"), dataMap.get("pressureLow"));
-                
-                pageData.add(dataMap);
+            }
+            
+            if (log.isDebugEnabled()) {
+                log.debug("📊 用户查询完成: {} 条记录转换完成", pageData.size());
             }
             
             // 6. 生成columns配置
@@ -662,31 +664,31 @@ public class UnifiedHealthDataQueryService {
             Map<Long, Map<String, Object>> latestByUser = new HashMap<>();
             Map<Long, LocalDateTime> latestTimeByUser = new HashMap<>();
             
-            for (TUserHealthData data : combinedData) {
-                Map<String, Object> dataMap = convertToMap(data, supportedFields);
-                log.info("📊 部门查询 - 转换后数据字段: {}", dataMap.keySet());
-                log.info("📊 部门查询 - 转换后数据样例: heartRate={}, bloodOxygen={}, pressureHigh={}, pressureLow={}", 
-                    dataMap.get("heartRate"), dataMap.get("bloodOxygen"), 
-                    dataMap.get("pressureHigh"), dataMap.get("pressureLow"));
+            // 批量转换数据 - 高性能优化
+            List<Map<String, Object>> batchConvertedData = batchConvertToMap(combinedData, supportedFields);
+            
+            for (int i = 0; i < combinedData.size() && i < batchConvertedData.size(); i++) {
+                TUserHealthData data = combinedData.get(i);
+                Map<String, Object> dataMap = batchConvertedData.get(i);
                 
                 // 根据配置决定是否合并daily数据
                 if (needsDailyData(supportedFields)) {
-                    log.info("🔄 部门查询 - 需要合并daily数据: userId={}, timestamp={}", data.getUserId(), data.getTimestamp());
+                    if (log.isDebugEnabled()) {
+                        log.debug("🔄 部门查询 - 合并daily数据: userId={}, timestamp={}", data.getUserId(), data.getTimestamp());
+                    }
                     mergeDailyData(dataMap, data.getUserId(), data.getTimestamp(), supportedFields);
                 }
                 
                 // 根据配置决定是否合并weekly数据
                 if (needsWeeklyData(supportedFields)) {
-                    log.info("🔄 部门查询 - 需要合并weekly数据: userId={}, timestamp={}", data.getUserId(), data.getTimestamp());
+                    if (log.isDebugEnabled()) {
+                        log.debug("🔄 部门查询 - 合并weekly数据: userId={}, timestamp={}", data.getUserId(), data.getTimestamp());
+                    }
                     mergeWeeklyData(dataMap, data.getUserId(), data.getTimestamp(), supportedFields);
                 }
                 
                 // 只返回支持的字段
                 filterSupportedFields(dataMap, supportedFields);
-                log.info("📊 部门查询 - 最终返回数据字段: {}", dataMap.keySet());
-                log.info("📊 部门查询 - 最终返回数据样例: heartRate={}, bloodOxygen={}, pressureHigh={}, pressureLow={}", 
-                    dataMap.get("heartRate"), dataMap.get("bloodOxygen"), 
-                    dataMap.get("pressureHigh"), dataMap.get("pressureLow"));
                 
                 // 按用户分组，保留最新数据
                 Long userId = data.getUserId();
@@ -755,10 +757,96 @@ public class UnifiedHealthDataQueryService {
         return queryDTO;
     }
 
+    // 字段配置缓存 - 避免重复查询配置
+    private static class FieldConfigCache {
+        private final Map<String, String> supportedFields;
+        private final boolean locationEnabled;
+        private final Set<String> fieldNames;
+        
+        public FieldConfigCache(Map<String, String> supportedFields) {
+            this.supportedFields = supportedFields;
+            this.locationEnabled = supportedFields.containsKey("location");
+            this.fieldNames = supportedFields.keySet();
+        }
+        
+        public Map<String, String> getSupportedFields() { return supportedFields; }
+        public boolean isLocationEnabled() { return locationEnabled; }
+        public Set<String> getFieldNames() { return fieldNames; }
+    }
+    
     /**
-     * 转换实体为Map - 基于字段配置应用映射规则
+     * 批量转换实体为Map - 高性能版本，避免重复配置查询
+     */
+    private List<Map<String, Object>> batchConvertToMap(List<TUserHealthData> dataList, Map<String, String> supportedFields) {
+        if (dataList == null || dataList.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        long startTime = System.currentTimeMillis();
+        
+        // 缓存字段配置，避免重复处理
+        FieldConfigCache configCache = new FieldConfigCache(supportedFields);
+        
+        // 预先查询用户信息缓存，避免重复数据库查询
+        Set<Long> userIds = dataList.stream().map(TUserHealthData::getUserId).collect(Collectors.toSet());
+        long cacheStartTime = System.currentTimeMillis();
+        Map<Long, String> userNameCache = getUserNameCache(userIds);
+        Map<Long, String> orgNameCache = getOrgNameCache(userIds);
+        long cacheTime = System.currentTimeMillis() - cacheStartTime;
+        
+        List<Map<String, Object>> results = new ArrayList<>(dataList.size());
+        
+        for (TUserHealthData data : dataList) {
+            Map<String, Object> map = convertToMapOptimized(data, configCache, userNameCache, orgNameCache);
+            results.add(map);
+        }
+        
+        long totalTime = System.currentTimeMillis() - startTime;
+        
+        if (log.isInfoEnabled()) {
+            log.info("🚀 批量转换性能统计 - 记录数: {}, 总耗时: {}ms, 缓存查询: {}ms, 平均每条: {}ms, 支持字段数: {}", 
+                dataList.size(), totalTime, cacheTime, 
+                dataList.size() > 0 ? totalTime / dataList.size() : 0, 
+                configCache.getFieldNames().size());
+        }
+        
+        return results;
+    }
+    
+    /**
+     * 转换实体为Map - 优化版本，减少重复计算和日志
+     */
+    private Map<String, Object> convertToMapOptimized(TUserHealthData data, FieldConfigCache configCache, 
+                                                      Map<Long, String> userNameCache, Map<Long, String> orgNameCache) {
+        Map<String, Object> map = new HashMap<>();
+        
+        // 基础字段
+        map.put("id", data.getId());
+        map.put("userId", data.getUserId());
+        map.put("customerId", data.getCustomerId());
+        map.put("orgId", data.getOrgId());
+        map.put("deviceSn", data.getDeviceSn());
+        map.put("timestamp", data.getTimestamp());
+        
+        // 用户信息（从缓存获取）
+        map.put("userName", userNameCache.getOrDefault(data.getUserId(), "未知用户"));
+        map.put("orgName", orgNameCache.getOrDefault(data.getUserId(), "未知部门"));
+        
+        // 批量添加健康指标字段
+        addHealthFieldsBatch(map, data, configCache);
+        
+        return map;
+    }
+    
+    /**
+     * 传统的转换方法 - 保持向后兼容，但添加性能日志
      */
     private Map<String, Object> convertToMap(TUserHealthData data, Map<String, String> supportedFields) {
+        if (log.isDebugEnabled()) {
+            log.debug("🔧 单条转换 - heartRate={}, bloodOxygen={}, temperature={}", 
+                data.getHeartRate(), data.getBloodOxygen(), data.getTemperature());
+        }
+        
         Map<String, Object> map = new HashMap<>();
         map.put("id", data.getId());
         map.put("userId", data.getUserId());
@@ -767,33 +855,13 @@ public class UnifiedHealthDataQueryService {
         map.put("deviceSn", data.getDeviceSn());
         map.put("timestamp", data.getTimestamp());
         
-        log.info("🔧 convertToMap - 输入数据: heartRate={}, bloodOxygen={}, temperature={}, latitude={}, longitude={}, altitude={}", 
-            data.getHeartRate(), data.getBloodOxygen(), data.getTemperature(),
-            data.getLatitude(), data.getLongitude(), data.getAltitude());
-        log.info("🔧 convertToMap - 支持字段: {}", supportedFields.keySet());
-        log.info("🔧 convertToMap - 是否包含location字段: {}", supportedFields.containsKey("location"));
-        
         // 根据支持的字段配置来添加健康指标
         for (String fieldName : supportedFields.keySet()) {
-            log.info("🔧 convertToMap - 处理字段: {}", fieldName);
             addHealthField(map, data, fieldName);
         }
         
-        log.info("🔧 convertToMap - 输出Map字段: {}", map.keySet());
-        log.info("🔧 convertToMap - 输出Map样例: heartRate={}, heart_rate={}, bloodOxygen={}, blood_oxygen={}", 
-            map.get("heartRate"), map.get("heart_rate"), 
-            map.get("bloodOxygen"), map.get("blood_oxygen"));
-        
         // 用户信息（从sys_user获取）
         addUserInfo(map, data.getUserId());
-        
-        // 调试：检查是否有坐标数据但未被处理
-        if (data.getLatitude() != null || data.getLongitude() != null || data.getAltitude() != null) {
-            if (!map.containsKey("latitude") && !map.containsKey("longitude") && !map.containsKey("altitude")) {
-                log.info("🔧 数据库有坐标数据但未处理: latitude={}, longitude={}, altitude={} (可能location未启用)", 
-                    data.getLatitude(), data.getLongitude(), data.getAltitude());
-            }
-        }
         
         return map;
     }
@@ -890,6 +958,124 @@ public class UnifiedHealthDataQueryService {
     }
 
     /**
+     * 批量获取用户名缓存
+     */
+    private Map<Long, String> getUserNameCache(Set<Long> userIds) {
+        Map<Long, String> cache = new HashMap<>();
+        if (userIds.isEmpty()) {
+            return cache;
+        }
+        
+        try {
+            // 批量查询用户信息，减少数据库访问
+            List<SysUser> users = sysUserService.listByIds(userIds);
+            for (SysUser user : users) {
+                cache.put(user.getId(), user.getUserName());
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ 批量获取用户名失败: error={}", e.getMessage());
+        }
+        
+        return cache;
+    }
+    
+    /**
+     * 批量获取部门名缓存
+     */
+    private Map<Long, String> getOrgNameCache(Set<Long> userIds) {
+        Map<Long, String> cache = new HashMap<>();
+        if (userIds.isEmpty()) {
+            return cache;
+        }
+        
+        try {
+            // 批量查询用户信息，减少数据库访问
+            List<SysUser> users = sysUserService.listByIds(userIds);
+            for (SysUser user : users) {
+                cache.put(user.getId(), user.getOrgName());
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ 批量获取部门名失败: error={}", e.getMessage());
+        }
+        
+        return cache;
+    }
+    
+    /**
+     * 批量添加健康字段 - 高性能版本
+     */
+    private void addHealthFieldsBatch(Map<String, Object> map, TUserHealthData data, FieldConfigCache configCache) {
+        // 预设置所有可能的字段，避免重复判断
+        Map<String, String> supportedFields = configCache.getSupportedFields();
+        
+        for (String fieldName : configCache.getFieldNames()) {
+            switch (fieldName) {
+                // 规则2: heart_rate 同时包含 pressure_low 和 pressure_high
+                case "heart_rate", "heartRate" -> {
+                    map.put("heartRate", data.getHeartRate());
+                    map.put("pressureHigh", data.getPressureHigh());
+                    map.put("pressureLow", data.getPressureLow());
+                    map.put("heart_rate", data.getHeartRate());
+                    map.put("pressure_high", data.getPressureHigh());
+                    map.put("pressure_low", data.getPressureLow());
+                }
+                
+                // 规则1: location 映射为经纬度高度
+                case "location" -> {
+                    Double lat = data.getLatitude() != null ? data.getLatitude() : 0.0;
+                    Double lng = data.getLongitude() != null ? data.getLongitude() : 0.0;
+                    Double alt = data.getAltitude() != null ? data.getAltitude() : 0.0;
+                    
+                    map.put("latitude", lat);
+                    map.put("longitude", lng);
+                    map.put("altitude", alt);
+                }
+                
+                // 基础健康指标 - 批量处理
+                case "blood_oxygen", "bloodOxygen" -> {
+                    map.put("bloodOxygen", data.getBloodOxygen());
+                    map.put("blood_oxygen", data.getBloodOxygen());
+                }
+                case "body_temperature", "temperature" -> {
+                    map.put("temperature", data.getTemperature());
+                    map.put("body_temperature", data.getTemperature());
+                }
+                case "pressure_high", "pressureHigh" -> {
+                    map.put("pressureHigh", data.getPressureHigh());
+                    map.put("pressure_high", data.getPressureHigh());
+                }
+                case "pressure_low", "pressureLow" -> {
+                    map.put("pressureLow", data.getPressureLow());
+                    map.put("pressure_low", data.getPressureLow());
+                }
+                case "step" -> {
+                    map.put("step", data.getStep());
+                }
+                case "stress" -> {
+                    map.put("stress", data.getStress());
+                }
+                case "calorie" -> {
+                    map.put("calorie", data.getCalorie());
+                }
+                case "distance" -> {
+                    map.put("distance", data.getDistance());
+                }
+                
+                // 慢字段不在这里处理，在mergeDailyData/mergeWeeklyData中处理
+                case "sleep", "sleepData", "exerciseDailyData", "scientificSleepData", "workoutData",
+                     "work_out", "exercise_daily", "scientific_sleep", "exerciseWeekData", "exercise_week" -> {
+                    // 慢字段标记，实际数据在后续合并
+                }
+                
+                // 规则3: 忽略的字段
+                case "ecg", "wear" -> {
+                    // 不添加这些字段
+                }
+            }
+        }
+    }
+    
+    /**
      * 添加用户信息
      */
     private void addUserInfo(Map<String, Object> dataMap, Long userId) {
@@ -940,11 +1126,11 @@ public class UnifiedHealthDataQueryService {
             LocalDate date = timestamp.toLocalDate();
             log.debug("🔍 查询daily数据: userId={}, date={}", userId, date);
             
-            LambdaQueryWrapper<TUserHealthDataDaily> query = new LambdaQueryWrapper<>();
-            query.eq(TUserHealthDataDaily::getUserId, userId)
-                 .eq(TUserHealthDataDaily::getTimestamp, date);
+            LambdaQueryWrapper<THealthDataSlowDaily> query = new LambdaQueryWrapper<>();
+            query.eq(THealthDataSlowDaily::getUserId, userId)
+                 .eq(THealthDataSlowDaily::getTimestamp, date);
                  
-            TUserHealthDataDaily daily = dailyMapper.selectOne(query);
+            THealthDataSlowDaily daily = dailyMapper.selectOne(query);
             log.debug("📊 Daily查询结果: {}", daily != null ? "找到数据" : "未找到数据");
             if (daily != null) {
                 // 处理睡眠数据 - 使用前端驼峰命名格式
@@ -1002,13 +1188,13 @@ public class UnifiedHealthDataQueryService {
         try {
             LocalDate date = timestamp.toLocalDate();
             
-            LambdaQueryWrapper<TUserHealthDataWeekly> query = new LambdaQueryWrapper<>();
-            query.eq(TUserHealthDataWeekly::getUserId, userId)
-                 .le(TUserHealthDataWeekly::getTimestamp, date)
-                 .orderByDesc(TUserHealthDataWeekly::getTimestamp)
+            LambdaQueryWrapper<THealthDataSlowWeekly> query = new LambdaQueryWrapper<>();
+            query.eq(THealthDataSlowWeekly::getUserId, userId)
+                 .le(THealthDataSlowWeekly::getTimestamp, date)
+                 .orderByDesc(THealthDataSlowWeekly::getTimestamp)
                  .last("LIMIT 1");
                  
-            TUserHealthDataWeekly weekly = weeklyMapper.selectOne(query);
+            THealthDataSlowWeekly weekly = weeklyMapper.selectOne(query);
             if (weekly != null) {
                 // 处理周运动数据 - 使用前端驼峰命名格式
                 if ((supportedFields.containsKey("exercise_week") || supportedFields.containsKey("exerciseWeekData")) 
@@ -1698,29 +1884,32 @@ public class UnifiedHealthDataQueryService {
     private Map<String, Object> queryDailyDataCollection(UnifiedHealthQueryDTO queryDTO, Map<String, String> supportedFields) {
         Map<String, Object> dailyCollection = new HashMap<>();
         
+        // 添加调试日志：显示支持的字段配置
+        log.info("🔍 Daily数据查询 - 客户{}: supportedFields={}", queryDTO.getCustomerId(), supportedFields.keySet());
+        
         try {
             // 构建查询条件
-            LambdaQueryWrapper<TUserHealthDataDaily> wrapper = new LambdaQueryWrapper<>();
+            LambdaQueryWrapper<THealthDataSlowDaily> wrapper = new LambdaQueryWrapper<>();
             
             // 层级查询逻辑
             if (queryDTO.getUserId() != null) {
-                wrapper.eq(TUserHealthDataDaily::getUserId, queryDTO.getUserId());
+                wrapper.eq(THealthDataSlowDaily::getUserId, queryDTO.getUserId());
             } else if (queryDTO.getOrgId() != null) {
-                wrapper.eq(TUserHealthDataDaily::getOrgId, queryDTO.getOrgId());
+                wrapper.eq(THealthDataSlowDaily::getOrgId, queryDTO.getOrgId());
             } else if (queryDTO.getCustomerId() != null && queryDTO.getCustomerId() != 0L) {
-                wrapper.eq(TUserHealthDataDaily::getCustomerId, queryDTO.getCustomerId());
+                wrapper.eq(THealthDataSlowDaily::getCustomerId, queryDTO.getCustomerId());
             }
             
             // 时间范围
             if (queryDTO.getStartDate() != null) {
-                wrapper.ge(TUserHealthDataDaily::getTimestamp, queryDTO.getStartDate().toLocalDate());
+                wrapper.ge(THealthDataSlowDaily::getTimestamp, queryDTO.getStartDate().toLocalDate());
             }
             if (queryDTO.getEndDate() != null) {
-                wrapper.le(TUserHealthDataDaily::getTimestamp, queryDTO.getEndDate().toLocalDate());
+                wrapper.le(THealthDataSlowDaily::getTimestamp, queryDTO.getEndDate().toLocalDate());
             }
             
             // 查询所有daily数据
-            List<TUserHealthDataDaily> dailyList = dailyMapper.selectList(wrapper);
+            List<THealthDataSlowDaily> dailyList = dailyMapper.selectList(wrapper);
             log.info("📊 查询到daily数据: {} 条", dailyList.size());
             
             // 按字段类型分组收集数据
@@ -1729,7 +1918,7 @@ public class UnifiedHealthDataQueryService {
             List<Map<String, Object>> workoutDataList = new ArrayList<>();
             List<Map<String, Object>> scientificSleepDataList = new ArrayList<>();
             
-            for (TUserHealthDataDaily daily : dailyList) {
+            for (THealthDataSlowDaily daily : dailyList) {
                 // 获取用户和组织信息
                 Map<String, Object> userInfo = getUserOrgInfo(daily.getUserId(), daily.getOrgId(), daily.getCustomerId());
                 
@@ -1742,39 +1931,59 @@ public class UnifiedHealthDataQueryService {
                 dailyRecord.put("date", daily.getTimestamp());
                 
                 // 收集睡眠数据
-                if ((supportedFields.containsKey("sleepData") || supportedFields.containsKey("sleep")) 
-                    && daily.getSleepData() != null) {
+                boolean hasSleepConfig = supportedFields.containsKey("sleepData") || supportedFields.containsKey("sleep");
+                boolean hasSleepData = daily.getSleepData() != null;
+                if (hasSleepConfig && hasSleepData) {
                     Map<String, Object> sleepRecord = new HashMap<>(dailyRecord);
                     sleepRecord.put("rawData", daily.getSleepData()); // 原始JSON
                     sleepRecord.put("processed", processSleepData(daily.getSleepData())); // 解析后数据
                     sleepDataList.add(sleepRecord);
+                    log.debug("✅ 收集到睡眠数据: userId={}, dataLength={}", daily.getUserId(), daily.getSleepData().length());
+                } else {
+                    log.debug("❌ 跳过睡眠数据: hasSleepConfig={}, hasSleepData={}, userId={}", 
+                            hasSleepConfig, hasSleepData, daily.getUserId());
                 }
                 
                 // 收集运动日常数据
-                if ((supportedFields.containsKey("exerciseDailyData") || supportedFields.containsKey("exercise_daily")) 
-                    && daily.getExerciseDailyData() != null) {
+                boolean hasExerciseConfig = supportedFields.containsKey("exerciseDailyData") || supportedFields.containsKey("exercise_daily");
+                boolean hasExerciseData = daily.getExerciseDailyData() != null;
+                if (hasExerciseConfig && hasExerciseData) {
                     Map<String, Object> exerciseRecord = new HashMap<>(dailyRecord);
                     exerciseRecord.put("rawData", daily.getExerciseDailyData());
                     exerciseRecord.put("processed", processExerciseDailyData(daily.getExerciseDailyData()));
                     exerciseDataList.add(exerciseRecord);
+                    log.debug("✅ 收集到运动日常数据: userId={}, dataLength={}", daily.getUserId(), daily.getExerciseDailyData().length());
+                } else {
+                    log.debug("❌ 跳过运动日常数据: hasExerciseConfig={}, hasExerciseData={}, userId={}", 
+                            hasExerciseConfig, hasExerciseData, daily.getUserId());
                 }
                 
                 // 收集运动数据
-                if ((supportedFields.containsKey("workoutData") || supportedFields.containsKey("work_out")) 
-                    && daily.getWorkoutData() != null) {
+                boolean hasWorkoutConfig = supportedFields.containsKey("workoutData") || supportedFields.containsKey("work_out");
+                boolean hasWorkoutData = daily.getWorkoutData() != null;
+                if (hasWorkoutConfig && hasWorkoutData) {
                     Map<String, Object> workoutRecord = new HashMap<>(dailyRecord);
                     workoutRecord.put("rawData", daily.getWorkoutData());
                     workoutRecord.put("processed", processWorkoutData(daily.getWorkoutData()));
                     workoutDataList.add(workoutRecord);
+                    log.debug("✅ 收集到运动数据: userId={}, dataLength={}", daily.getUserId(), daily.getWorkoutData().length());
+                } else {
+                    log.debug("❌ 跳过运动数据: hasWorkoutConfig={}, hasWorkoutData={}, userId={}", 
+                            hasWorkoutConfig, hasWorkoutData, daily.getUserId());
                 }
                 
                 // 收集科学睡眠数据
-                if ((supportedFields.containsKey("scientificSleepData") || supportedFields.containsKey("scientific_sleep")) 
-                    && daily.getScientificSleepData() != null) {
+                boolean hasScientificConfig = supportedFields.containsKey("scientificSleepData") || supportedFields.containsKey("scientific_sleep");
+                boolean hasScientificData = daily.getScientificSleepData() != null;
+                if (hasScientificConfig && hasScientificData) {
                     Map<String, Object> sciRecord = new HashMap<>(dailyRecord);
                     sciRecord.put("rawData", daily.getScientificSleepData());
                     sciRecord.put("processed", daily.getScientificSleepData()); // 简化处理
                     scientificSleepDataList.add(sciRecord);
+                    log.debug("✅ 收集到科学睡眠数据: userId={}, dataLength={}", daily.getUserId(), daily.getScientificSleepData().length());
+                } else {
+                    log.debug("❌ 跳过科学睡眠数据: hasScientificConfig={}, hasScientificData={}, userId={}", 
+                            hasScientificConfig, hasScientificData, daily.getUserId());
                 }
             }
             
@@ -1809,37 +2018,41 @@ public class UnifiedHealthDataQueryService {
     private Map<String, Object> queryWeeklyDataCollection(UnifiedHealthQueryDTO queryDTO, Map<String, String> supportedFields) {
         Map<String, Object> weeklyCollection = new HashMap<>();
         
+        // 添加调试日志：显示支持的字段配置
+        log.info("🔍 Weekly数据查询 - 客户{}: supportedFields={}", queryDTO.getCustomerId(), supportedFields.keySet());
+        
         try {
             // 构建查询条件
-            LambdaQueryWrapper<TUserHealthDataWeekly> wrapper = new LambdaQueryWrapper<>();
+            LambdaQueryWrapper<THealthDataSlowWeekly> wrapper = new LambdaQueryWrapper<>();
             
             // 层级查询逻辑
             if (queryDTO.getUserId() != null) {
-                wrapper.eq(TUserHealthDataWeekly::getUserId, queryDTO.getUserId());
+                wrapper.eq(THealthDataSlowWeekly::getUserId, queryDTO.getUserId());
             } else if (queryDTO.getOrgId() != null) {
-                wrapper.eq(TUserHealthDataWeekly::getOrgId, queryDTO.getOrgId());
+                wrapper.eq(THealthDataSlowWeekly::getOrgId, queryDTO.getOrgId());
             } else if (queryDTO.getCustomerId() != null && queryDTO.getCustomerId() != 0L) {
-                wrapper.eq(TUserHealthDataWeekly::getCustomerId, queryDTO.getCustomerId());
+                wrapper.eq(THealthDataSlowWeekly::getCustomerId, queryDTO.getCustomerId());
             }
             
             // 时间范围
             if (queryDTO.getStartDate() != null) {
-                wrapper.ge(TUserHealthDataWeekly::getTimestamp, queryDTO.getStartDate().toLocalDate());
+                wrapper.ge(THealthDataSlowWeekly::getTimestamp, queryDTO.getStartDate().toLocalDate());
             }
             if (queryDTO.getEndDate() != null) {
-                wrapper.le(TUserHealthDataWeekly::getTimestamp, queryDTO.getEndDate().toLocalDate());
+                wrapper.le(THealthDataSlowWeekly::getTimestamp, queryDTO.getEndDate().toLocalDate());
             }
             
             // 查询所有weekly数据
-            List<TUserHealthDataWeekly> weeklyList = weeklyMapper.selectList(wrapper);
+            List<THealthDataSlowWeekly> weeklyList = weeklyMapper.selectList(wrapper);
             log.info("📊 查询到weekly数据: {} 条", weeklyList.size());
             
             // 收集周运动数据
             List<Map<String, Object>> exerciseWeekDataList = new ArrayList<>();
             
-            for (TUserHealthDataWeekly weekly : weeklyList) {
-                if ((supportedFields.containsKey("exerciseWeekData") || supportedFields.containsKey("exercise_week")) 
-                    && weekly.getExerciseWeekData() != null) {
+            for (THealthDataSlowWeekly weekly : weeklyList) {
+                boolean hasWeekConfig = supportedFields.containsKey("exerciseWeekData") || supportedFields.containsKey("exercise_week");
+                boolean hasWeekData = weekly.getExerciseWeekData() != null;
+                if (hasWeekConfig && hasWeekData) {
                     
                     // 获取用户和组织信息
                     Map<String, Object> userInfo = getUserOrgInfo(weekly.getUserId(), weekly.getOrgId(), weekly.getCustomerId());
@@ -1854,6 +2067,10 @@ public class UnifiedHealthDataQueryService {
                     weeklyRecord.put("rawData", weekly.getExerciseWeekData()); // 原始JSON
                     weeklyRecord.put("processed", processExerciseWeekData(weekly.getExerciseWeekData())); // 解析后数据
                     exerciseWeekDataList.add(weeklyRecord);
+                    log.debug("✅ 收集到周运动数据: userId={}, dataLength={}", weekly.getUserId(), weekly.getExerciseWeekData().length());
+                } else {
+                    log.debug("❌ 跳过周运动数据: hasWeekConfig={}, hasWeekData={}, userId={}", 
+                            hasWeekConfig, hasWeekData, weekly.getUserId());
                 }
             }
             

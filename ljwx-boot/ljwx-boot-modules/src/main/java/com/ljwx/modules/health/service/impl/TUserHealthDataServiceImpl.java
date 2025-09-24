@@ -29,12 +29,12 @@ import com.ljwx.modules.customer.domain.entity.THealthDataConfig;
 import com.ljwx.modules.customer.service.ITHealthDataConfigService;
 import com.ljwx.modules.health.domain.dto.user.health.data.TUserHealthDataSearchDTO;
 import com.ljwx.modules.health.domain.entity.TUserHealthData;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataDaily;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowDaily;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowWeekly;
 import com.ljwx.modules.health.domain.vo.HealthDataPageVO;
 import com.ljwx.modules.health.repository.mapper.TUserHealthDataMapper;
-import com.ljwx.modules.health.repository.mapper.TUserHealthDataDailyMapper;
-import com.ljwx.modules.health.repository.mapper.TUserHealthDataWeeklyMapper;
+import com.ljwx.modules.health.repository.mapper.THealthDataSlowDailyMapper;
+import com.ljwx.modules.health.repository.mapper.THealthDataSlowWeeklyMapper;
 import com.ljwx.modules.health.service.ITUserHealthDataService;
 import com.ljwx.modules.health.service.UnifiedHealthDataQueryService;
 import com.ljwx.modules.system.service.ISysUserService;
@@ -78,10 +78,10 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
     private ITHealthDataConfigService healthDataConfigService;  // 从 customer 模块注入
 
     @Autowired
-    private TUserHealthDataDailyMapper dailyMapper; // #每日数据Mapper
+    private THealthDataSlowDailyMapper dailyMapper; // #每日数据Mapper
 
     @Autowired
-    private TUserHealthDataWeeklyMapper weeklyMapper; // #每周数据Mapper
+    private THealthDataSlowWeeklyMapper weeklyMapper; // #每周数据Mapper
 
     @Autowired
     private ISysUserService sysUserService;
@@ -602,21 +602,21 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             log.info("🔍 查询每日数据: deviceSn={}, date={}, timestamp={}", deviceSn, date, timestamp); // #改为info级别便于调试
             
             // 尝试多种查询方式
-            LambdaQueryWrapper<TUserHealthDataDaily> query = new LambdaQueryWrapper<>();
-            query.eq(TUserHealthDataDaily::getDeviceSn, deviceSn);
+            LambdaQueryWrapper<THealthDataSlowDaily> query = new LambdaQueryWrapper<>();
+            query.eq(THealthDataSlowDaily::getDeviceSn, deviceSn);
             
             // 方式1: 精确日期匹配
-            query.eq(TUserHealthDataDaily::getTimestamp, date);
-            TUserHealthDataDaily daily = dailyMapper.selectOne(query);
+            query.eq(THealthDataSlowDaily::getTimestamp, date);
+            THealthDataSlowDaily daily = dailyMapper.selectOne(query);
             
             // 方式2: 如果精确匹配失败，尝试日期范围查询
             if (daily == null) {
                 log.info("🔍 精确匹配失败，尝试范围查询: deviceSn={}, date={}", deviceSn, date);
                 query.clear();
-                query.eq(TUserHealthDataDaily::getDeviceSn, deviceSn)
-                     .ge(TUserHealthDataDaily::getTimestamp, date.atStartOfDay()) // #日期开始
-                     .lt(TUserHealthDataDaily::getTimestamp, date.plusDays(1).atStartOfDay()) // #日期结束
-                     .orderByDesc(TUserHealthDataDaily::getTimestamp)
+                query.eq(THealthDataSlowDaily::getDeviceSn, deviceSn)
+                     .ge(THealthDataSlowDaily::getTimestamp, date.atStartOfDay()) // #日期开始
+                     .lt(THealthDataSlowDaily::getTimestamp, date.plusDays(1).atStartOfDay()) // #日期结束
+                     .orderByDesc(THealthDataSlowDaily::getTimestamp)
                      .last("LIMIT 1");
                 daily = dailyMapper.selectOne(query);
             }
@@ -625,8 +625,8 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             if (daily == null) {
                 log.info("🔍 范围查询失败，查询最近数据: deviceSn={}", deviceSn);
                 query.clear();
-                query.eq(TUserHealthDataDaily::getDeviceSn, deviceSn)
-                     .orderByDesc(TUserHealthDataDaily::getTimestamp)
+                query.eq(THealthDataSlowDaily::getDeviceSn, deviceSn)
+                     .orderByDesc(THealthDataSlowDaily::getTimestamp)
                      .last("LIMIT 1");
                 daily = dailyMapper.selectOne(query);
                 if (daily != null) {
@@ -675,21 +675,21 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             log.info("🔍 查询每周数据: deviceSn={}, date={}, weekStart={}, timestamp={}", deviceSn, date, weekStart, timestamp);
             
             // 尝试多种查询方式
-            LambdaQueryWrapper<TUserHealthDataWeekly> query = new LambdaQueryWrapper<>();
-            query.eq(TUserHealthDataWeekly::getDeviceSn, deviceSn);
+            LambdaQueryWrapper<THealthDataSlowWeekly> query = new LambdaQueryWrapper<>();
+            query.eq(THealthDataSlowWeekly::getDeviceSn, deviceSn);
             
             // 方式1: 精确周开始日期匹配
-            query.eq(TUserHealthDataWeekly::getTimestamp, weekStart);
-            TUserHealthDataWeekly weekly = weeklyMapper.selectOne(query);
+            query.eq(THealthDataSlowWeekly::getTimestamp, weekStart);
+            THealthDataSlowWeekly weekly = weeklyMapper.selectOne(query);
             
             // 方式2: 如果精确匹配失败，尝试范围查询
             if (weekly == null) {
                 log.info("🔍 精确匹配失败，尝试范围查询: deviceSn={}, weekStart={}", deviceSn, weekStart);
                 query.clear();
-                query.eq(TUserHealthDataWeekly::getDeviceSn, deviceSn)
-                     .ge(TUserHealthDataWeekly::getTimestamp, weekStart.minusDays(7)) // #前一周
-                     .le(TUserHealthDataWeekly::getTimestamp, weekStart.plusDays(7)) // #后一周
-                     .orderByDesc(TUserHealthDataWeekly::getTimestamp)
+                query.eq(THealthDataSlowWeekly::getDeviceSn, deviceSn)
+                     .ge(THealthDataSlowWeekly::getTimestamp, weekStart.minusDays(7)) // #前一周
+                     .le(THealthDataSlowWeekly::getTimestamp, weekStart.plusDays(7)) // #后一周
+                     .orderByDesc(THealthDataSlowWeekly::getTimestamp)
                      .last("LIMIT 1");
                 weekly = weeklyMapper.selectOne(query);
             }
@@ -698,8 +698,8 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             if (weekly == null) {
                 log.info("🔍 范围查询失败，查询最近数据: deviceSn={}", deviceSn);
                 query.clear();
-                query.eq(TUserHealthDataWeekly::getDeviceSn, deviceSn)
-                     .orderByDesc(TUserHealthDataWeekly::getTimestamp)
+                query.eq(THealthDataSlowWeekly::getDeviceSn, deviceSn)
+                     .orderByDesc(THealthDataSlowWeekly::getTimestamp)
                      .last("LIMIT 1");
                 weekly = weeklyMapper.selectOne(query);
                 if (weekly != null) {
@@ -843,16 +843,16 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             if (userIds.isEmpty() || dates.isEmpty()) return result;
 
             // 批量查询每日数据
-            LambdaQueryWrapper<TUserHealthDataDaily> query = new LambdaQueryWrapper<>();
-            query.in(TUserHealthDataDaily::getUserId, userIds);
+            LambdaQueryWrapper<THealthDataSlowDaily> query = new LambdaQueryWrapper<>();
+            query.in(THealthDataSlowDaily::getUserId, userIds);
             
             LocalDate minDate = dates.stream().min(LocalDate::compareTo).orElse(LocalDate.now());
             LocalDate maxDate = dates.stream().max(LocalDate::compareTo).orElse(LocalDate.now());
             
-            query.ge(TUserHealthDataDaily::getTimestamp, minDate.atStartOfDay())
-                 .lt(TUserHealthDataDaily::getTimestamp, maxDate.plusDays(1).atStartOfDay());
+            query.ge(THealthDataSlowDaily::getTimestamp, minDate.atStartOfDay())
+                 .lt(THealthDataSlowDaily::getTimestamp, maxDate.plusDays(1).atStartOfDay());
 
-            List<TUserHealthDataDaily> dailyDataList = dailyMapper.selectList(query);
+            List<THealthDataSlowDaily> dailyDataList = dailyMapper.selectList(query);
             log.info("✅ 批量查询每日数据: 条件用户数={}, 日期数={}, 查询结果数={}", 
                 userIds.size(), dates.size(), dailyDataList.size());
 
@@ -861,7 +861,7 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
                 String recordCacheKey = record.getUserId() + "_" + record.getTimestamp().toLocalDate();
                 
                 // 在批量查询结果中找到匹配的每日数据
-                for (TUserHealthDataDaily daily : dailyDataList) {
+                for (THealthDataSlowDaily daily : dailyDataList) {
                     if (record.getUserId().equals(daily.getUserId())) {
                         LocalDate recordDate = record.getTimestamp().toLocalDate();
                         // 假设daily的timestamp字段是LocalDate类型
@@ -912,21 +912,21 @@ public class TUserHealthDataServiceImpl extends ServiceImpl<TUserHealthDataMappe
             if (userIds.isEmpty() || weekStarts.isEmpty()) return result;
 
             // 批量查询每周数据
-            LambdaQueryWrapper<TUserHealthDataWeekly> query = new LambdaQueryWrapper<>();
-            query.in(TUserHealthDataWeekly::getUserId, userIds);
+            LambdaQueryWrapper<THealthDataSlowWeekly> query = new LambdaQueryWrapper<>();
+            query.in(THealthDataSlowWeekly::getUserId, userIds);
             
             LocalDate minWeekStart = weekStarts.stream().min(LocalDate::compareTo).orElse(LocalDate.now());
             LocalDate maxWeekStart = weekStarts.stream().max(LocalDate::compareTo).orElse(LocalDate.now());
             
-            query.ge(TUserHealthDataWeekly::getTimestamp, minWeekStart.minusDays(7))
-                 .le(TUserHealthDataWeekly::getTimestamp, maxWeekStart.plusDays(7));
+            query.ge(THealthDataSlowWeekly::getTimestamp, minWeekStart.minusDays(7))
+                 .le(THealthDataSlowWeekly::getTimestamp, maxWeekStart.plusDays(7));
 
-            List<TUserHealthDataWeekly> weeklyDataList = weeklyMapper.selectList(query);
+            List<THealthDataSlowWeekly> weeklyDataList = weeklyMapper.selectList(query);
             log.info("✅ 批量查询每周数据: 条件用户数={}, 周数={}, 查询结果数={}", 
                 userIds.size(), weekStarts.size(), weeklyDataList.size());
 
             // 组装结果 - 使用日期作为缓存键，因为周数据需要匹配到具体日期
-            for (TUserHealthDataWeekly weekly : weeklyDataList) {
+            for (THealthDataSlowWeekly weekly : weeklyDataList) {
                 for (TUserHealthData record : records) {
                     if (record.getUserId().equals(weekly.getUserId())) {
                         String cacheKey = record.getUserId() + "_" + record.getTimestamp().toLocalDate();

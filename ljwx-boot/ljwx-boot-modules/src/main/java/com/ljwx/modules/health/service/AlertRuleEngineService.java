@@ -198,6 +198,8 @@ public class AlertRuleEngineService {
      */
     private CompiledRuleSet compileRules(List<TAlertRules> rules) {
         CompiledRuleSet compiledRules = new CompiledRuleSet();
+        int skippedRules = 0;
+        int totalRules = rules.size();
         
         for (TAlertRules rule : rules) {
             if (!isRuleEnabled(rule)) {
@@ -213,6 +215,8 @@ public class AlertRuleEngineService {
                         CompiledSingleRule singleRule = compileSingleRule(rule);
                         if (singleRule != null) {
                             compiledRules.addSingleRule(singleRule);
+                        } else {
+                            skippedRules++;
                         }
                         break;
                         
@@ -220,6 +224,8 @@ public class AlertRuleEngineService {
                         CompiledCompositeRule compositeRule = compileCompositeRule(rule);
                         if (compositeRule != null) {
                             compiledRules.addCompositeRule(compositeRule);
+                        } else {
+                            skippedRules++;
                         }
                         break;
                         
@@ -227,6 +233,8 @@ public class AlertRuleEngineService {
                         CompiledComplexRule complexRule = compileComplexRule(rule);
                         if (complexRule != null) {
                             compiledRules.addComplexRule(complexRule);
+                        } else {
+                            skippedRules++;
                         }
                         break;
                         
@@ -236,7 +244,20 @@ public class AlertRuleEngineService {
                 
             } catch (Exception e) {
                 log.error("编译规则失败: ruleId={}, error={}", rule.getId(), e.getMessage());
+                skippedRules++;
             }
+        }
+        
+        // 编译统计信息
+        int compiledCount = compiledRules.getSingleRules().size() + 
+                           compiledRules.getCompositeRules().size() + 
+                           compiledRules.getComplexRules().size();
+        
+        log.info("规则编译完成: 总数={}, 成功编译={}, 跳过={}", 
+                totalRules, compiledCount, skippedRules);
+        
+        if (skippedRules > 0) {
+            log.warn("存在{}个无效规则被跳过，建议检查数据库中的规则配置", skippedRules);
         }
         
         return compiledRules;
@@ -288,7 +309,9 @@ public class AlertRuleEngineService {
      */
     private CompiledSingleRule compileSingleRule(TAlertRules rule) {
         if (rule.getPhysicalSign() == null) {
-            log.warn("单体征规则缺少physical_sign: ruleId={}", rule.getId());
+            log.warn("单体征规则缺少physical_sign，跳过规则: ruleId={}, ruleType={}, category={}", 
+                    rule.getId(), rule.getRuleType(), rule.getRuleCategory());
+            log.debug("建议检查规则配置并设置physical_sign字段，或将规则类型改为COMPOSITE/COMPLEX");
             return null;
         }
         

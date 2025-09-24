@@ -23,13 +23,13 @@ import com.ljwx.common.api.vo.Result;
 import com.ljwx.modules.health.domain.entity.TDeviceInfo;
 import com.ljwx.modules.health.domain.entity.TDeviceInfoHistory;
 import com.ljwx.modules.health.domain.entity.TUserHealthData;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataDaily;
-import com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowDaily;
+import com.ljwx.modules.health.domain.entity.THealthDataSlowWeekly;
 import com.ljwx.modules.health.service.ITDeviceInfoService;
 import com.ljwx.modules.health.service.ITDeviceInfoHistoryService;
 import com.ljwx.modules.health.service.ITUserHealthDataService;
-import com.ljwx.modules.health.service.ITUserHealthDataDailyService;
-import com.ljwx.modules.health.service.ITUserHealthDataWeeklyService;
+import com.ljwx.modules.health.service.ITHealthDataSlowDailyService;
+import com.ljwx.modules.health.service.ITHealthDataSlowWeeklyService;
 import com.ljwx.modules.health.service.BatchAlertProcessor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,10 +80,10 @@ public class DataUpload {
     private ITDeviceInfoHistoryService deviceInfoHistoryService;
     
     @Autowired
-    private ITUserHealthDataDailyService userHealthDataDailyService;
+    private ITHealthDataSlowDailyService userHealthDataDailyService;
     
     @Autowired
-    private ITUserHealthDataWeeklyService userHealthDataWeeklyService;
+    private ITHealthDataSlowWeeklyService userHealthDataWeeklyService;
     
     @Autowired
     private BatchAlertProcessor batchAlertProcessor;
@@ -1330,7 +1330,7 @@ public class DataUpload {
                 healthData.getDeviceSn(), date, dailyFields.keySet());
 
             // 构建日报数据对象
-            TUserHealthDataDaily dailyData = TUserHealthDataDaily.builder()
+            THealthDataSlowDaily dailyData = THealthDataSlowDaily.builder()
                 .deviceSn(healthData.getDeviceSn())
                 .userId(healthData.getUserId())
                 .orgId(healthData.getOrgId())
@@ -1384,7 +1384,7 @@ public class DataUpload {
                 healthData.getDeviceSn(), weekStart, weeklyFields.keySet());
 
             // 构建周报数据对象
-            TUserHealthDataWeekly weeklyData = TUserHealthDataWeekly.builder()
+            THealthDataSlowWeekly weeklyData = THealthDataSlowWeekly.builder()
                 .deviceSn(healthData.getDeviceSn())
                 .userId(healthData.getUserId())
                 .orgId(healthData.getOrgId())

@@ -69,11 +69,13 @@ public class HealthDataConfigQueryService {
 
     /**
      * 基础健康指标定义 - 对应 t_user_health_data 快字段，用于数据分析
+     * 包括主表快字段和daily/weekly慢字段
      */
     private static final Set<String> BASIC_METRICS = Set.of(
+        // 主表快字段
         "heart_rate",         // 心率
         "blood_oxygen",       // 血氧
-        "temperature",   // 体温
+        "temperature",        // 体温
         "step",              // 步数
         "distance",          // 距离
         "calorie",           // 卡路里
@@ -81,7 +83,20 @@ public class HealthDataConfigQueryService {
         "pressure_high",     // 收缩压
         "pressure_low",      // 舒张压
         "location",          // 位置坐标
-        "sleepData"          // 睡眠数据
+        
+        // Daily表慢字段 - 支持多种命名方式
+        "sleepData",         // 睡眠数据（驼峰命名）
+        "sleep",             // 睡眠数据（下划线命名）
+        "exerciseDailyData", // 日常运动数据（驼峰命名）
+        "exercise_daily",    // 日常运动数据（下划线命名）
+        "workoutData",       // 锻炼数据（驼峰命名）  
+        "work_out",          // 锻炼数据（下划线命名）
+        "scientificSleepData", // 科学睡眠数据（驼峰命名）
+        "scientific_sleep",  // 科学睡眠数据（下划线命名）
+        
+        // Weekly表慢字段
+        "exerciseWeekData",  // 周运动数据（驼峰命名）
+        "exercise_week"      // 周运动数据（下划线命名）
     );
 
     /**
@@ -298,7 +313,15 @@ public class HealthDataConfigQueryService {
         
         // 2. 计算基础启用的指标（Basic Enabled Metrics = Basic ∩ Full Enabled）
         Set<String> basicEnabledMetrics = new HashSet<>(BASIC_METRICS);
+        
+        // 添加调试日志：显示交集计算前的状态
+        log.info("🔍 字段匹配调试 - 客户{}: BASIC_METRICS={}, fullEnabledMetrics={}", 
+                customerId, BASIC_METRICS, fullEnabledMetrics);
+        
         basicEnabledMetrics.retainAll(fullEnabledMetrics); // 取交集
+        
+        // 添加调试日志：显示交集计算后的结果
+        log.info("🔍 字段匹配结果 - 客户{}: basicEnabledMetrics={}", customerId, basicEnabledMetrics);
         
         // 如果没有任何配置，返回空结果
         if (fullEnabledMetrics.isEmpty()) {

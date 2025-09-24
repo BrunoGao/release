@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.ljwx.modules.health.repository.mapper.TUserHealthDataWeeklyMapper">
+<mapper namespace="com.ljwx.modules.health.repository.mapper.THealthDataSlowWeeklyMapper">
 
     <!-- 通用查询映射结果 -->
-    <resultMap id="TUserHealthDataWeeklyResultMap" type="com.ljwx.modules.health.domain.entity.TUserHealthDataWeekly">
+    <resultMap id="THealthDataSlowWeeklyResultMap" type="com.ljwx.modules.health.domain.entity.THealthDataSlowWeekly">
         <result column="id" property="id"/>
         <result column="device_sn" property="deviceSn"/>
         <result column="org_id" property="orgId"/>
@@ -16,7 +16,7 @@
     </resultMap>
 
     <!-- 通用查询结果列 -->
-    <sql id="TUserHealthDataWeeklyColumnList">
+    <sql id="THealthDataSlowWeeklyColumnList">
         id, device_sn, org_id, user_id, customer_id, week_start, exercise_week_data, create_time, update_time
     </sql>
 
