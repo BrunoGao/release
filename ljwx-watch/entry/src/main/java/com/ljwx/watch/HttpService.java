@@ -102,7 +102,7 @@ public class HttpService extends Ability {
     // 定时器
     private Timer masterHttpTimer; // 统一主定时器
     private long httpTick = 0; // HTTP计数器
-    private final int baseHttpPeriod = 5; // 基础周期60秒
+    private final int baseHttpPeriod = 5; // 基础周期5秒
 
     private static String lastHealthInfo;
 
@@ -207,24 +207,29 @@ public class HttpService extends Ability {
                 public void run() {
                     httpTick++;
                     // 上传健康数据 - 每10分钟执行
-                    if (uploadHealthInterval > 0 && httpTick % (uploadHealthInterval / baseHttpPeriod) == 0) {
+                    if (uploadHealthInterval > 0 && uploadHealthInterval >= baseHttpPeriod && 
+                        httpTick % (uploadHealthInterval / baseHttpPeriod) == 0) {
                         HiLog.info(LABEL_LOG, "HttpService::masterTimer 执行健康数据批量上传");
                         uploadHealthData();
                     }
                     // 上传设备信息 - 根据配置周期执行
-                    if (uploadDeviceInterval> 0 && httpTick % (uploadDeviceInterval / baseHttpPeriod) == 0) {
+                    if (uploadDeviceInterval > 0 && uploadDeviceInterval >= baseHttpPeriod && 
+                        httpTick % (uploadDeviceInterval / baseHttpPeriod) == 0) {
                         uploadDeviceInfo();
                     }
                     // 获取消息 - 根据配置周期执行
-                    if (fetchMessageInterval > 0 && httpTick % (fetchMessageInterval / baseHttpPeriod) == 0) {
+                    if (fetchMessageInterval > 0 && fetchMessageInterval >= baseHttpPeriod && 
+                        httpTick % (fetchMessageInterval / baseHttpPeriod) == 0) {
                         fetchMessageFromServer();
                     }
                     // 缓存数据重传检查 - 每2分钟执行一次
-                    if (httpTick % (120 / baseHttpPeriod) == 0) {
+                    final int cacheRetryInterval = 120; // 2分钟
+                    if (cacheRetryInterval >= baseHttpPeriod && 
+                        httpTick % (cacheRetryInterval / baseHttpPeriod) == 0) {
                         checkAndRetryCachedData();
                     }
-                    // 防止计数器溢出
-                    if (httpTick >= 1440) httpTick = 0; // 24小时重置
+                    // 防止计数器溢出 - 24小时重置 (24*60*60/5 = 17280次tick)
+                    if (httpTick >= 17280) httpTick = 0; // 24小时重置
                 }
             }, 0, baseHttpPeriod * 1000);
         } else {
