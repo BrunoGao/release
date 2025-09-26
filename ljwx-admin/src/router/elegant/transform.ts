@@ -210,6 +210,7 @@ const routeMap: RouteMap = {
   "function_tab": "/function/tab",
   "function_toggle-auth": "/function/toggle-auth",
   "geofence": "/geofence",
+  "geofence_alert": "/geofence/alert",
   "health": "/health",
   "health_ai": "/health/ai",
   "health_alert-rules": "/health/alert-rules",
@@ -263,6 +264,7 @@ const routeMap: RouteMap = {
   "tenant_license": "/tenant/license",
   "tools": "/tools",
   "tools_generate-table": "/tools/generate-table",
+  "track": "/track",
   "user-center": "/user-center"
 };
 

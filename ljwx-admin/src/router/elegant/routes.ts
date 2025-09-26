@@ -377,11 +377,22 @@ export const generatedRoutes: GeneratedRoute[] = [
   {
     name: 'geofence',
     path: '/geofence',
-    component: 'layout.base$view.geofence',
+    component: 'layout.base',
     meta: {
       title: 'geofence',
       i18nKey: 'route.geofence'
-    }
+    },
+    children: [
+      {
+        name: 'geofence_alert',
+        path: '/geofence/alert',
+        component: 'view.geofence_alert',
+        meta: {
+          title: 'geofence_alert',
+          i18nKey: 'route.geofence_alert'
+        }
+      }
+    ]
   },
   {
     name: 'health',
@@ -906,6 +917,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       }
     ]
+  },
+  {
+    name: 'track',
+    path: '/track',
+    component: 'layout.base$view.track',
+    meta: {
+      title: 'track',
+      i18nKey: 'route.track'
+    }
   },
   {
     name: 'user-center',

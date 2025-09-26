@@ -64,6 +64,7 @@ declare module "@elegant-router/types" {
     "function_tab": "/function/tab";
     "function_toggle-auth": "/function/toggle-auth";
     "geofence": "/geofence";
+    "geofence_alert": "/geofence/alert";
     "health": "/health";
     "health_ai": "/health/ai";
     "health_alert-rules": "/health/alert-rules";
@@ -117,6 +118,7 @@ declare module "@elegant-router/types" {
     "tenant_license": "/tenant/license";
     "tools": "/tools";
     "tools_generate-table": "/tools/generate-table";
+    "track": "/track";
     "user-center": "/user-center";
   };
 
@@ -184,6 +186,7 @@ declare module "@elegant-router/types" {
     | "task"
     | "tenant"
     | "tools"
+    | "track"
     | "user-center"
   >;
 
@@ -234,6 +237,7 @@ declare module "@elegant-router/types" {
     | "function_super-page"
     | "function_tab"
     | "function_toggle-auth"
+    | "geofence_alert"
     | "geofence"
     | "health_ai"
     | "health_alert-rules"
@@ -275,6 +279,7 @@ declare module "@elegant-router/types" {
     | "task"
     | "tenant_license"
     | "tools_generate-table"
+    | "track"
     | "user-center"
   >;
 

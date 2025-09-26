@@ -46,6 +46,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "function_super-page": () => import("@/views/function/super-page/index.vue"),
   function_tab: () => import("@/views/function/tab/index.vue"),
   "function_toggle-auth": () => import("@/views/function/toggle-auth/index.vue"),
+  geofence_alert: () => import("@/views/geofence/alert/index.vue"),
   geofence: () => import("@/views/geofence/index.vue"),
   health_ai: () => import("@/views/health/ai/index.vue"),
   "health_alert-rules": () => import("@/views/health/alert-rules/index.vue"),
@@ -87,5 +88,6 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   task: () => import("@/views/task/index.vue"),
   tenant_license: () => import("@/views/tenant/license/index.vue"),
   "tools_generate-table": () => import("@/views/tools/generate-table/index.vue"),
+  track: () => import("@/views/track/index.vue"),
   "user-center": () => import("@/views/user-center/index.vue"),
 };
