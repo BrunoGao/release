@@ -28,6 +28,7 @@ import com.ljwx.modules.geofence.domain.entity.TGeofence;
 import com.ljwx.modules.geofence.repository.mapper.TGeofenceMapper;
 import com.ljwx.modules.geofence.service.ITGeofenceService;
 import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 /**
@@ -40,6 +41,7 @@ import org.springframework.stereotype.Service;
  */
 
 @Service
+@Primary
 public class TGeofenceServiceImpl extends ServiceImpl<TGeofenceMapper, TGeofence> implements ITGeofenceService {
 
 

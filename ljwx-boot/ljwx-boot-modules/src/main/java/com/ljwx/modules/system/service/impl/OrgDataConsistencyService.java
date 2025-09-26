@@ -29,6 +29,7 @@ import org.springframework.util.StopWatch;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 组织架构数据一致性检查服务
@@ -172,21 +173,87 @@ public class OrgDataConsistencyService {
         try {
             log.info("🔍 开始定时数据一致性检查...");
             
-            // 检查所有租户的数据一致性
-            Map<String, Object> globalReport = checkDataConsistency(null);
+            // 获取所有租户ID
+            List<Long> allCustomerIds = getAllCustomerIds();
+            log.info("📋 发现 {} 个租户，开始逐一检查数据一致性", allCustomerIds.size());
             
-            Boolean hasIssues = (Boolean) globalReport.get("hasIssues");
-            if (hasIssues != null && hasIssues) {
-                log.warn("⚠️ 发现数据一致性问题，建议手动检查修复");
+            boolean globalHasIssues = false;
+            int checkedTenants = 0;
+            int tenantsWithIssues = 0;
+            
+            // 逐个检查每个租户的数据一致性
+            for (Long customerId : allCustomerIds) {
+                try {
+                    Map<String, Object> tenantReport = checkDataConsistency(customerId);
+                    Boolean hasIssues = (Boolean) tenantReport.get("hasIssues");
+                    
+                    if (hasIssues != null && hasIssues) {
+                        globalHasIssues = true;
+                        tenantsWithIssues++;
+                        log.warn("⚠️ 租户 {} 发现数据一致性问题: {}", customerId, tenantReport);
+                    } else {
+                        log.debug("✅ 租户 {} 数据一致性检查通过", customerId);
+                    }
+                    
+                    checkedTenants++;
+                    
+                } catch (Exception e) {
+                    log.error("❌ 租户 {} 数据一致性检查失败", customerId, e);
+                    globalHasIssues = true;
+                }
+            }
+            
+            // 汇总报告
+            if (globalHasIssues) {
+                log.warn("⚠️ 定时数据一致性检查完成: 已检查 {} 个租户，{} 个租户存在问题，建议手动检查修复", 
+                    checkedTenants, tenantsWithIssues);
                 
                 // 可以在这里发送告警通知
-                // alertService.sendDataConsistencyAlert(globalReport);
+                // alertService.sendDataConsistencyAlert(checkedTenants, tenantsWithIssues);
             } else {
-                log.info("✅ 定时数据一致性检查通过");
+                log.info("✅ 定时数据一致性检查通过: 已检查 {} 个租户，全部正常", checkedTenants);
             }
             
         } catch (Exception e) {
             log.error("❌ 定时数据一致性检查失败", e);
+        }
+    }
+
+    /**
+     * 获取系统中所有的租户ID
+     * 
+     * @return 租户ID列表
+     */
+    private List<Long> getAllCustomerIds() {
+        if (jdbcTemplate == null) {
+            return Collections.emptyList();
+        }
+        
+        try {
+            // 从组织表中获取所有不同的租户ID（确保租户有组织数据）
+            String sql = """
+                SELECT DISTINCT customer_id 
+                FROM sys_org_units 
+                WHERE is_deleted = 0 
+                  AND customer_id IS NOT NULL 
+                ORDER BY customer_id
+                """;
+            
+            List<Map<String, Object>> results = jdbcTemplate.queryForList(sql);
+            return results.stream()
+                    .map(row -> {
+                        Object customerId = row.get("customer_id");
+                        if (customerId instanceof Number) {
+                            return ((Number) customerId).longValue();
+                        }
+                        return null;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+                    
+        } catch (Exception e) {
+            log.error("获取租户ID列表失败", e);
+            return Collections.emptyList();
         }
     }
 

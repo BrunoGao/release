@@ -98,5 +98,37 @@ public class TUserHealthData extends BaseEntity {
      * 上传方式：wifi、bluetooth、common_event
      */
     private String uploadMethod;
+    
+    // ============== 轨迹功能新增字段 (v1.0.0) ==============
+    
+    /**
+     * 速度(km/h)
+     */
+    private Double speed;
+    
+    /**
+     * 方向角(度，0-360)
+     * 0度表示正北，90度表示正东，180度表示正南，270度表示正西
+     */
+    private Double bearing;
+    
+    /**
+     * 定位精度(米)
+     */
+    private Double accuracy;
+    
+    /**
+     * 定位类型
+     * 1-GPS定位, 2-WiFi定位, 3-基站定位
+     */
+    private Integer locationType;
+    
+    /**
+     * 空间几何对象 (MySQL POINT类型)
+     * 用于地理围栏计算和空间查询，由 longitude + latitude 自动生成
+     * 注意: 此字段由数据库触发器维护，不需要手动设置
+     */
+    @TableField("geom")
+    private String geom;
 
 }
