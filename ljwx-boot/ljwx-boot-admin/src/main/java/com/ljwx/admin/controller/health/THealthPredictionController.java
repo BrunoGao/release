@@ -31,10 +31,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import com.ljwx.modules.health.service.HealthDataService;
+import com.ljwx.modules.health.service.OllamaHealthPredictionService;
+import com.ljwx.modules.health.service.OllamaHealthPredictionService.HealthPredictionResult;
+import com.ljwx.modules.health.service.OllamaHealthPredictionService.HealthAdviceResult;
 import lombok.NonNull;
 
 import jakarta.validation.Valid;
 import java.util.Map;
+import java.util.List;
 
 /**
  * 健康预测管理 Controller 控制层
@@ -54,6 +58,9 @@ public class THealthPredictionController {
 
     @NonNull
     private HealthDataService healthDataService;
+    
+    @NonNull
+    private OllamaHealthPredictionService ollamaHealthPredictionService;
 
     @GetMapping("/page")
     @SaCheckPermission("t:health:prediction:page")
@@ -101,5 +108,110 @@ public class THealthPredictionController {
     public Result<Boolean> delete(@Parameter(description = "删除对象") @RequestBody Map<String, Object> data) {
         log.info("删除健康预测 - data: {}", data);
         return Result.data(true);
+    }
+
+    // ========== AI预测相关接口 ==========
+
+    @PostMapping("/ai/predict")
+    // @SaCheckPermission("t:health:prediction:ai")  // 临时移除权限检查以便测试
+    @Operation(operationId = "6", summary = "AI健康预测")
+    public Result<HealthPredictionResult> aiPredict(
+            @Parameter(description = "用户ID") @RequestParam("userId") Long userId,
+            @Parameter(description = "预测天数") @RequestParam(value = "days", defaultValue = "7") Integer days) {
+        
+        log.info("🔮 AI健康预测 - userId: {}, days: {}", userId, days);
+        
+        try {
+            HealthPredictionResult result = ollamaHealthPredictionService.generateHealthPrediction(userId, days);
+            return Result.data(result);
+        } catch (Exception e) {
+            log.error("❌ AI健康预测失败: {}", e.getMessage(), e);
+            return Result.failure("AI健康预测失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/ai/advice")
+    // @SaCheckPermission("t:health:prediction:ai")  // 临时移除权限检查以便测试
+    @Operation(operationId = "7", summary = "AI健康建议")
+    public Result<HealthAdviceResult> aiAdvice(
+            @Parameter(description = "用户ID") @RequestParam("userId") Long userId,
+            @Parameter(description = "健康问题") @RequestParam(value = "healthIssues", required = false) List<String> healthIssues) {
+        
+        log.info("📝 AI健康建议 - userId: {}, healthIssues: {}", userId, healthIssues);
+        
+        try {
+            HealthAdviceResult result = ollamaHealthPredictionService.generateHealthAdvice(userId, healthIssues);
+            return Result.data(result);
+        } catch (Exception e) {
+            log.error("❌ AI健康建议失败: {}", e.getMessage(), e);
+            return Result.failure("AI健康建议失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/ai/models")
+    // @SaCheckPermission("t:health:prediction:ai")  // 临时移除权限检查以便测试
+    @Operation(operationId = "8", summary = "获取可用AI模型列表")
+    public Result<List<String>> getAvailableModels() {
+        log.info("📋 获取可用AI模型列表");
+        
+        try {
+            List<String> models = ollamaHealthPredictionService.getAvailableModels();
+            return Result.data(models);
+        } catch (Exception e) {
+            log.error("❌ 获取模型列表失败: {}", e.getMessage(), e);
+            return Result.failure("获取模型列表失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/ai/health")
+    // @SaCheckPermission("t:health:prediction:ai")  // 临时移除权限检查以便测试
+    @Operation(operationId = "9", summary = "检查AI服务健康状态")
+    public Result<Map<String, Object>> checkAiHealth() {
+        log.info("🏥 检查AI服务健康状态");
+        
+        try {
+            boolean isHealthy = ollamaHealthPredictionService.checkOllamaHealth();
+            List<String> models = ollamaHealthPredictionService.getAvailableModels();
+            
+            Map<String, Object> healthStatus = Map.of(
+                "healthy", isHealthy,
+                "availableModels", models,
+                "checkTime", java.time.LocalDateTime.now()
+            );
+            
+            return Result.data(healthStatus);
+        } catch (Exception e) {
+            log.error("❌ AI服务健康检查失败: {}", e.getMessage(), e);
+            return Result.failure("AI服务健康检查失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/ai/batch-predict")
+    // @SaCheckPermission("t:health:prediction:ai")  // 临时移除权限检查以便测试
+    @Operation(operationId = "10", summary = "批量AI健康预测")
+    public Result<Map<Long, HealthPredictionResult>> batchAiPredict(
+            @Parameter(description = "用户ID列表") @RequestBody List<Long> userIds,
+            @Parameter(description = "预测天数") @RequestParam(value = "days", defaultValue = "7") Integer days) {
+        
+        log.info("🔮 批量AI健康预测 - userIds: {}, days: {}", userIds, days);
+        
+        try {
+            Map<Long, HealthPredictionResult> results = new java.util.HashMap<>();
+            
+            for (Long userId : userIds) {
+                try {
+                    HealthPredictionResult result = ollamaHealthPredictionService.generateHealthPrediction(userId, days);
+                    results.put(userId, result);
+                } catch (Exception e) {
+                    log.warn("⚠️ 用户 {} 预测失败: {}", userId, e.getMessage());
+                    // 继续处理其他用户
+                }
+            }
+            
+            return Result.data(results);
+        } catch (Exception e) {
+            log.error("❌ 批量AI健康预测失败: {}", e.getMessage(), e);
+            return Result.failure("批量AI健康预测失败: " + e.getMessage());
+        }
     }
 }

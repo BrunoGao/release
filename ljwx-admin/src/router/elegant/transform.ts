@@ -213,6 +213,7 @@ const routeMap: RouteMap = {
   "geofence_alert": "/geofence/alert",
   "health": "/health",
   "health_ai": "/health/ai",
+  "health_ai-models": "/health/ai-models",
   "health_alert-rules": "/health/alert-rules",
   "health_analysis": "/health/analysis",
   "health_baseline": "/health/baseline",

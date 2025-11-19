@@ -14,6 +14,7 @@ import HealthPredictionSearch from './modules/health-prediction-search.vue';
 import HealthPredictionOperateDrawer from './modules/health-prediction-operate-drawer.vue';
 import PredictionModelManager from './modules/prediction-model-manager.vue';
 import PredictionResultViewer from './modules/prediction-result-viewer.vue';
+import AiModelsManagement from '../ai-models/index.vue';
 
 defineOptions({
   name: 'HealthPredictionPage'
@@ -29,6 +30,7 @@ const editingData: Ref<Api.Health.PredictionTask | null> = ref(null);
 const modelManagerVisible = ref(false);
 const resultViewerVisible = ref(false);
 const selectedTaskResult = ref(null);
+const aiPredictionVisible = ref(false);
 
 // 模拟 API 调用函数 - 实际应该从 service/api 导入
 const fetchGetPredictionTaskList = async (params: any) => {
@@ -252,6 +254,10 @@ function openModelManager() {
   modelManagerVisible.value = true;
 }
 
+function openAiPrediction() {
+  aiPredictionVisible.value = true;
+}
+
 async function handleDelete(id: string) {
   const { error, data: result } = await fetchDeletePredictionTask([id]);
   if (!error && result) {
@@ -402,6 +408,12 @@ const taskStats = computed(() => {
               </template>
               模型管理
             </NButton>
+            <NButton type="success" @click="openAiPrediction">
+              <template #icon>
+                <div class="i-mdi:robot" />
+              </template>
+              AI预测
+            </NButton>
           </NSpace>
         </div>
       </template>
@@ -458,6 +470,11 @@ const taskStats = computed(() => {
 
     <!-- 预测结果查看器 -->
     <PredictionResultViewer v-model:visible="resultViewerVisible" :task-data="selectedTaskResult" />
+    
+    <!-- AI预测管理弹窗 -->
+    <NModal v-model:show="aiPredictionVisible" preset="card" style="width: 90vw; max-width: 1200px;" title="AI健康预测管理">
+      <AiModelsManagement />
+    </NModal>
   </div>
 </template>
 

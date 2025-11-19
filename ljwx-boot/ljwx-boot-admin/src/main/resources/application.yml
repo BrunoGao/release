@@ -108,3 +108,16 @@ ljwx:
     file-path: ${LJWX_LICENSE_FILE:./license/ljwx.lic}
     check-interval: ${LJWX_LICENSE_CHECK_INTERVAL:300}
     trial-mode: ${LJWX_LICENSE_TRIAL_MODE:false}
+
+# Ollama 健康预测配置
+ollama:
+  api:
+    url: ${OLLAMA_API_URL:http://192.168.1.83:11434}
+  model:
+    name: ${OLLAMA_MODEL_NAME:ljwx-health-enhanced:latest}
+  prediction:
+    timeout: ${OLLAMA_PREDICTION_TIMEOUT:30000}
+  connection:
+    timeout: ${OLLAMA_CONNECTION_TIMEOUT:30000}
+  read:
+    timeout: ${OLLAMA_READ_TIMEOUT:60000}

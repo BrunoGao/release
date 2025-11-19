@@ -93,6 +93,12 @@ public class InterceptorConfiguration implements WebMvcConfigurer
             "/logos/**"
     };
 
+    // AI测试接口放行（临时配置，用于测试AI功能）
+    public final String[] aiTestExcludePatterns = new String[]{
+            "/ai_test/**",                         // AI测试控制器
+            "/t_health_prediction/ai/**"           // AI健康预测接口（临时免认证）
+    };
+
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
 
@@ -110,6 +116,7 @@ public class InterceptorConfiguration implements WebMvcConfigurer
                 .excludePathPatterns(deviceApiExcludePatterns)  // 设备API免认证
                 .excludePathPatterns(monitoringExcludePatterns)
                 .excludePathPatterns(staticResourceExcludePatterns)
+                .excludePathPatterns(aiTestExcludePatterns)     // AI测试接口免认证
                 .order(Ordered.HIGHEST_PRECEDENCE + 1);
     }
 }

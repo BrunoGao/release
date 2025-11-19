@@ -413,6 +413,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'health_ai-models',
+        path: '/health/ai-models',
+        component: 'view.health_ai-models',
+        meta: {
+          title: 'health_ai-models',
+          i18nKey: 'route.health_ai-models'
+        }
+      },
+      {
         name: 'health_alert-rules',
         path: '/health/alert-rules',
         component: 'view.health_alert-rules',

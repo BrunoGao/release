@@ -48,6 +48,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "function_toggle-auth": () => import("@/views/function/toggle-auth/index.vue"),
   geofence_alert: () => import("@/views/geofence/alert/index.vue"),
   geofence: () => import("@/views/geofence/index.vue"),
+  "health_ai-models": () => import("@/views/health/ai-models/index.vue"),
   health_ai: () => import("@/views/health/ai/index.vue"),
   "health_alert-rules": () => import("@/views/health/alert-rules/index.vue"),
   health_analysis: () => import("@/views/health/analysis/index.vue"),

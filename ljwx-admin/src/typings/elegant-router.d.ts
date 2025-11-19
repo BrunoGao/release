@@ -67,6 +67,7 @@ declare module "@elegant-router/types" {
     "geofence_alert": "/geofence/alert";
     "health": "/health";
     "health_ai": "/health/ai";
+    "health_ai-models": "/health/ai-models";
     "health_alert-rules": "/health/alert-rules";
     "health_analysis": "/health/analysis";
     "health_baseline": "/health/baseline";
@@ -239,6 +240,7 @@ declare module "@elegant-router/types" {
     | "function_toggle-auth"
     | "geofence_alert"
     | "geofence"
+    | "health_ai-models"
     | "health_ai"
     | "health_alert-rules"
     | "health_analysis"
