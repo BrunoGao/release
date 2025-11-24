@@ -108,6 +108,32 @@ app = Flask(__name__, static_folder='../static')
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # =============================================================================
+# Prometheus监控集成
+# =============================================================================
+try:
+    from .prometheus_metrics import (
+        metrics_endpoint, init_app_info,
+        record_health_data_upload, record_api_request,
+        record_alert_generated, record_message_sent
+    )
+
+    # 注册/metrics端点
+    @app.route('/metrics')
+    def prometheus_metrics():
+        return metrics_endpoint()
+
+    # 初始化应用信息
+    init_app_info(version=BIGSCREEN_VERSION, environment='production')
+    system_logger.info("✅ Prometheus监控集成成功")
+except Exception as e:
+    system_logger.warning(f"⚠️  Prometheus监控集成失败: {e}")
+    # 提供空实现避免错误
+    def record_health_data_upload(*args, **kwargs): pass
+    def record_api_request(*args, **kwargs): pass
+    def record_alert_generated(*args, **kwargs): pass
+    def record_message_sent(*args, **kwargs): pass
+
+# =============================================================================
 # 系统初始化和配置
 # =============================================================================
 

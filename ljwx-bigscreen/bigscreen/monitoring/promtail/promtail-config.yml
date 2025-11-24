@@ -1,0 +1,72 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # ljwx-bigscreen应用日志
+  - job_name: bigscreen
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: bigscreen
+          app: ljwx-bigscreen
+          environment: production
+          __path__: /var/log/bigscreen/*.log
+
+    pipeline_stages:
+      # 解析时间戳
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})'
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05,000'
+
+      # 解析日志级别
+      - regex:
+          expression: '\[(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)\]'
+      - labels:
+          level:
+
+      # 解析模块名称
+      - regex:
+          expression: '\] (?P<module>[\w\.]+):'
+      - labels:
+          module:
+
+      # 解析API路径（如果有）
+      - regex:
+          expression: 'api\.(?P<api_endpoint>[\w_]+):'
+      - labels:
+          api_endpoint:
+
+      # 解析错误类型
+      - regex:
+          expression: '(?P<error_type>Error|Exception|Failed|Timeout)'
+      - labels:
+          error_type:
+
+  # 系统日志
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/syslog
+
+  # MySQL慢查询日志（可选）
+  - job_name: mysql-slow
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: mysql
+          log_type: slow_query
+          __path__: /var/log/mysql/mysql-slow.log

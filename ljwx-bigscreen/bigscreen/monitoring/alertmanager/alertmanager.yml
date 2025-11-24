@@ -1,0 +1,121 @@
+global:
+  resolve_timeout: 5m
+  # 企业微信配置（可选）
+  # wechat_api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+  # wechat_api_corp_id: 'your-corp-id'
+
+# 告警路由配置
+route:
+  # 默认接收器
+  receiver: 'default'
+  # 分组等待时间
+  group_wait: 10s
+  # 分组间隔时间
+  group_interval: 10s
+  # 重复告警间隔时间
+  repeat_interval: 1h
+  # 分组标签
+  group_by: ['alertname', 'cluster', 'service']
+
+  # 子路由
+  routes:
+    # 严重告警立即发送
+    - receiver: 'critical'
+      match:
+        severity: critical
+      group_wait: 0s
+      repeat_interval: 30m
+
+    # 警告级别告警
+    - receiver: 'warning'
+      match:
+        severity: warning
+      repeat_interval: 2h
+
+    # bigscreen服务特定告警
+    - receiver: 'bigscreen-team'
+      match:
+        service: bigscreen
+      group_by: ['alertname', 'service']
+
+    # 数据库告警
+    - receiver: 'database-team'
+      match_re:
+        service: (mysql|redis)
+      group_by: ['alertname', 'service']
+
+# 接收器配置
+receivers:
+  # 默认接收器 - Webhook
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5225/api/alerts/webhook'
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+
+  # 严重告警接收器
+  - name: 'critical'
+    webhook_configs:
+      # 发送到bigscreen告警接口
+      - url: 'http://host.docker.internal:5225/api/alerts/webhook'
+        send_resolved: true
+        http_config:
+          follow_redirects: true
+    # 企业微信通知（可选）
+    # wechat_configs:
+    #   - corp_id: 'your-corp-id'
+    #     to_user: '@all'
+    #     agent_id: 'your-agent-id'
+    #     api_secret: 'your-api-secret'
+    #     send_resolved: true
+    # 邮件通知（可选）
+    # email_configs:
+    #   - to: 'alert@example.com'
+    #     from: 'alertmanager@example.com'
+    #     smarthost: 'smtp.example.com:587'
+    #     auth_username: 'alertmanager@example.com'
+    #     auth_password: 'your-password'
+    #     send_resolved: true
+
+  # 警告级别接收器
+  - name: 'warning'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5225/api/alerts/webhook'
+        send_resolved: true
+
+  # bigscreen团队接收器
+  - name: 'bigscreen-team'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5225/api/alerts/webhook'
+        send_resolved: true
+        http_config:
+          headers:
+            X-Alert-Team: 'bigscreen'
+
+  # 数据库团队接收器
+  - name: 'database-team'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5225/api/alerts/webhook'
+        send_resolved: true
+        http_config:
+          headers:
+            X-Alert-Team: 'database'
+
+# 告警抑制规则
+inhibit_rules:
+  # 当服务完全down时，抑制其他所有告警
+  - source_match:
+      severity: 'critical'
+      alertname: 'BigscreenServiceDown'
+    target_match_re:
+      severity: 'warning|info'
+      service: 'bigscreen'
+    equal: ['instance']
+
+  # 当CPU高时，抑制内存告警（避免重复）
+  - source_match:
+      alertname: 'HighCPUUsage'
+    target_match:
+      alertname: 'HighMemoryUsage'
+    equal: ['instance']

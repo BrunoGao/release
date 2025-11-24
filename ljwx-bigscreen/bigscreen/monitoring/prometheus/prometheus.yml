@@ -1,0 +1,57 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'ljwx-bigscreen'
+    environment: 'production'
+
+# Alertmanager配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# 加载告警规则
+rule_files:
+  - "alerts.yml"
+
+# 数据采集配置
+scrape_configs:
+  # Prometheus自监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter - 系统指标
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['node_exporter:9100']
+        labels:
+          instance: 'ljwx-bigscreen-host'
+
+  # ljwx-bigscreen应用指标
+  - job_name: 'ljwx-bigscreen'
+    static_configs:
+      - targets: ['host.docker.internal:5225']
+        labels:
+          service: 'bigscreen'
+          app: 'ljwx-bigscreen'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # MySQL数据库指标（如果有mysql_exporter）
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['host.docker.internal:9104']
+        labels:
+          service: 'mysql'
+    scrape_interval: 30s
+
+  # Redis指标（如果有redis_exporter）
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['host.docker.internal:9121']
+        labels:
+          service: 'redis'
+    scrape_interval: 30s

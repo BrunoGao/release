@@ -1,0 +1,170 @@
+groups:
+  # ljwx-bigscreen应用告警规则
+  - name: bigscreen_alerts
+    interval: 30s
+    rules:
+      # 应用服务不可用
+      - alert: BigscreenServiceDown
+        expr: up{job="ljwx-bigscreen"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: bigscreen
+        annotations:
+          summary: "ljwx-bigscreen服务不可用"
+          description: "ljwx-bigscreen服务已停止响应超过1分钟。实例: {{ $labels.instance }}"
+
+      # 健康数据上传速率异常
+      - alert: HealthDataUploadRateLow
+        expr: rate(bigscreen_health_data_upload_total[5m]) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: bigscreen
+        annotations:
+          summary: "健康数据上传速率过低"
+          description: "过去5分钟健康数据上传速率低于正常水平。当前速率: {{ $value | humanize }}/s"
+
+      # 健康数据上传失败率高
+      - alert: HealthDataUploadFailureRateHigh
+        expr: |
+          rate(bigscreen_health_data_upload_failed_total[5m])
+          /
+          rate(bigscreen_health_data_upload_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: bigscreen
+        annotations:
+          summary: "健康数据上传失败率过高"
+          description: "健康数据上传失败率超过10%。失败率: {{ $value | humanizePercentage }}"
+
+      # API响应时间慢
+      - alert: APIResponseTimeSlow
+        expr: histogram_quantile(0.95, rate(bigscreen_api_request_duration_seconds_bucket[5m])) > 3
+        for: 5m
+        labels:
+          severity: warning
+          service: bigscreen
+        annotations:
+          summary: "API响应时间过慢"
+          description: "95%的API请求响应时间超过3秒。当前P95: {{ $value }}s, 路径: {{ $labels.path }}"
+
+      # 告警生成速率异常高
+      - alert: AlertGenerationRateHigh
+        expr: rate(bigscreen_alerts_generated_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: bigscreen
+        annotations:
+          summary: "告警生成速率异常"
+          description: "告警生成速率异常升高。当前速率: {{ $value | humanize }}/s"
+
+      # 数据库连接池使用率高
+      - alert: DatabaseConnectionPoolHighUsage
+        expr: bigscreen_db_connection_pool_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: bigscreen
+        annotations:
+          summary: "数据库连接池使用率高"
+          description: "数据库连接池使用率超过80%。当前使用率: {{ $value | humanizePercentage }}"
+
+      # Redis连接失败
+      - alert: RedisConnectionFailed
+        expr: bigscreen_redis_connection_errors_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: bigscreen
+        annotations:
+          summary: "Redis连接失败"
+          description: "检测到Redis连接错误。错误计数: {{ $value }}"
+
+  # 系统资源告警规则
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # CPU使用率高
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU使用率过高"
+          description: "实例 {{ $labels.instance }} CPU使用率超过80%。当前: {{ $value | humanize }}%"
+
+      # 内存使用率高
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "内存使用率过高"
+          description: "实例 {{ $labels.instance }} 内存使用率超过85%。当前: {{ $value | humanize }}%"
+
+      # 磁盘空间不足
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "磁盘空间不足"
+          description: "实例 {{ $labels.instance }} 挂载点 {{ $labels.mountpoint }} 磁盘使用率超过80%。当前: {{ $value | humanize }}%"
+
+  # 数据库告警规则
+  - name: mysql_alerts
+    interval: 30s
+    rules:
+      # MySQL服务不可用
+      - alert: MySQLDown
+        expr: up{job="mysql"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: mysql
+        annotations:
+          summary: "MySQL服务不可用"
+          description: "MySQL数据库服务已停止响应超过1分钟"
+
+      # MySQL连接数过高
+      - alert: MySQLConnectionsHigh
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: mysql
+        annotations:
+          summary: "MySQL连接数过高"
+          description: "MySQL连接使用率超过80%。当前: {{ $value | humanizePercentage }}"
+
+  # Redis告警规则
+  - name: redis_alerts
+    interval: 30s
+    rules:
+      # Redis服务不可用
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis服务不可用"
+          description: "Redis服务已停止响应超过1分钟"
+
+      # Redis内存使用率高
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis内存使用率过高"
+          description: "Redis内存使用率超过90%。当前: {{ $value | humanizePercentage }}"
