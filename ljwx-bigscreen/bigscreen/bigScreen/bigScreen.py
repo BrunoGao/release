@@ -1192,27 +1192,27 @@ def handle_health_data():
     
     print(f"🏥 最终提取的设备SN: {device_sn}")
     health_logger.info('健康数据上传开始',extra={'device_sn':device_sn,'data_size':len(str(health_data))})
-    
-    # License验证 - 检查设备许可和并发限制
-    if device_sn:
-        license_check = check_device_license(device_sn)
-        if not license_check.get('allowed', False):
-            error_message = license_check.get('reason', 'License验证失败')
-            error_code = license_check.get('code', 4000)
-            print(f"❌ License验证失败: {error_message}")
-            health_logger.warning('健康数据上传License验证失败', extra={
-                'device_sn': device_sn,
-                'error_code': error_code,
-                'error_message': error_message
-            })
-            return jsonify({
-                "status": "error",
-                "message": error_message,
-                "error_code": error_code
-            }), 403
-        else:
-            print(f"✅ License验证通过: {device_sn}")
-    
+
+    # License验证已禁用 - 不再检查设备许可和并发限制
+    # if device_sn:
+    #     license_check = check_device_license(device_sn)
+    #     if not license_check.get('allowed', False):
+    #         error_message = license_check.get('reason', 'License验证失败')
+    #         error_code = license_check.get('code', 4000)
+    #         print(f"❌ License验证失败: {error_message}")
+    #         health_logger.warning('健康数据上传License验证失败', extra={
+    #             'device_sn': device_sn,
+    #             'error_code': error_code,
+    #             'error_message': error_message
+    #         })
+    #         return jsonify({
+    #             "status": "error",
+    #             "message": error_message,
+    #             "error_code": error_code
+    #         }), 403
+    #     else:
+    #         print(f"✅ License验证通过: {device_sn}")
+
     # Stream处理已禁用，直接使用传统处理
     # try:
     #     use_stream = should_use_stream_processing(device_sn)
@@ -1225,10 +1225,10 @@ def handle_health_data():
     #     print(f"⚠️ Stream切换检查失败，回退到传统处理: {stream_error}")
     
     print(f"🔄 设备 {device_sn} 使用传统处理")
-    
-    print(f"🏥 调用user_upload_health_data处理函数")
-    result = user_upload_health_data(health_data)
-    print(f"🏥 user_upload_health_data处理结果: {result.get_json() if hasattr(result, 'get_json') else result}")
+
+    print(f"🏥 调用upload_health_data处理函数")
+    result = upload_health_data(health_data)
+    print(f"🏥 upload_health_data处理结果: {result.get_json() if hasattr(result, 'get_json') else result}")
     return result
 
 @app.route("/upload_health_data_optimized", methods=['POST'])
@@ -8007,23 +8007,29 @@ def api_license_dashboard():
 
 @app.route('/api/license/device/check', methods=['POST'])
 def api_license_device_check():
-    """检查设备License权限"""
+    """检查设备License权限 - 已禁用，始终返回允许"""
     try:
         data = request.get_json()
         device_sn = data.get('device_sn') or data.get('deviceSn')
         customer_id = data.get('customer_id') or data.get('customerId')
-        
+
         if not device_sn:
             return jsonify({
                 'success': False,
                 'error': '设备SN不能为空'
             }), 400
-        
-        result = check_device_license(device_sn, customer_id)
+
+        # License功能已禁用，始终返回允许
+        # result = check_device_license(device_sn, customer_id)
         return jsonify({
-            'success': result.get('allowed', False),
-            'data': result,
-            'message': result.get('reason', 'License检查完成')
+            'success': True,
+            'data': {
+                'allowed': True,
+                'reason': 'License检查已禁用，所有设备均可使用',
+                'device_sn': device_sn,
+                'customer_id': customer_id
+            },
+            'message': 'License检查已禁用'
         })
     except Exception as e:
         return jsonify({

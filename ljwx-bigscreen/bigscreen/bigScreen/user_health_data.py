@@ -1782,7 +1782,7 @@ def process_single_health_data(data):
     print(f"🏥 数据键: {list(data.keys()) if isinstance(data, dict) else '非字典类型'}")
     
     # 修复数值字段解析问题：使用 is not None 判断而不是 or 操作符，避免0值被误判为空
-    uploadMethod = data.get("upload_method") or data.get("uploadMethod")  # 默认使用wifi作为上传方式
+    uploadMethod = data.get("upload_method") or data.get("uploadMethod") or "wifi"  # 默认使用wifi作为上传方式
     
     # 心率解析 - 优先级: heart_rate > heartRate > xlv
     heartRate = data.get("heart_rate") if data.get("heart_rate") is not None else (
