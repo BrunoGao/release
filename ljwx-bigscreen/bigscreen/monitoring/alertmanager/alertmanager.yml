@@ -87,20 +87,14 @@ receivers:
   # bigscreen团队接收器
   - name: 'bigscreen-team'
     webhook_configs:
-      - url: 'http://host.docker.internal:5225/api/alerts/webhook'
+      - url: 'http://host.docker.internal:5225/api/alerts/webhook?team=bigscreen'
         send_resolved: true
-        http_config:
-          headers:
-            X-Alert-Team: 'bigscreen'
 
   # 数据库团队接收器
   - name: 'database-team'
     webhook_configs:
-      - url: 'http://host.docker.internal:5225/api/alerts/webhook'
+      - url: 'http://host.docker.internal:5225/api/alerts/webhook?team=database'
         send_resolved: true
-        http_config:
-          headers:
-            X-Alert-Team: 'database'
 
 # 告警抑制规则
 inhibit_rules:

@@ -6,12 +6,12 @@
 
 | 组件 | 端口 | 功能 | 访问地址 |
 |------|------|------|----------|
-| Prometheus | 9090 | 指标采集和存储 | http://localhost:9090 |
-| Alertmanager | 9093 | 告警管理和分发 | http://localhost:9093 |
+| Prometheus | 9091 | 指标采集和存储 | http://localhost:9091 |
+| Alertmanager | 9094 | 告警管理和分发 | http://localhost:9094 |
 | Loki | 3100 | 日志聚合 | http://localhost:3100 |
 | Promtail | 9080 | 日志采集 | - |
 | Grafana | 3001 | 可视化面板 | http://localhost:3001 |
-| Node Exporter | 9100 | 系统指标导出 | http://localhost:9100 |
+| Node Exporter | 9101 | 系统指标导出 | http://localhost:9101 |
 
 ## 🚀 快速开始
 
@@ -40,13 +40,13 @@ docker-compose logs -f
 - 默认密码: `admin123`
 
 **Prometheus**
-- URL: http://localhost:9090
-- 查看指标: http://localhost:9090/graph
-- 查看告警: http://localhost:9090/alerts
+- URL: http://localhost:9091
+- 查看指标: http://localhost:9091/graph
+- 查看告警: http://localhost:9091/alerts
 
 **Alertmanager**
-- URL: http://localhost:9093
-- 查看告警: http://localhost:9093/#/alerts
+- URL: http://localhost:9094
+- 查看告警: http://localhost:9094/#/alerts
 
 ## 📊 Grafana 配置
 
@@ -248,10 +248,10 @@ docker-compose logs -f alertmanager
 
 ```bash
 # Prometheus热重载
-curl -X POST http://localhost:9090/-/reload
+curl -X POST http://localhost:9091/-/reload
 
 # Alertmanager热重载
-curl -X POST http://localhost:9093/-/reload
+curl -X POST http://localhost:9094/-/reload
 
 # 其他服务需要重启
 docker-compose restart loki
@@ -272,16 +272,16 @@ docker-compose restart grafana
 
 检查端口是否被占用：
 ```bash
-lsof -i :9090  # Prometheus
+lsof -i :9091  # Prometheus
 lsof -i :3001  # Grafana
-lsof -i :9093  # Alertmanager
+lsof -i :9094  # Alertmanager
 ```
 
 ### 2. Prometheus 无法采集指标
 
 - 检查 ljwx-bigscreen 是否运行: `curl http://localhost:5225/metrics`
 - 检查网络连接: `docker-compose exec prometheus ping host.docker.internal`
-- 查看 Prometheus targets: http://localhost:9090/targets
+- 查看 Prometheus targets: http://localhost:9091/targets
 
 ### 3. Grafana 无法连接数据源
 
@@ -291,9 +291,9 @@ lsof -i :9093  # Alertmanager
 
 ### 4. Alertmanager 未收到告警
 
-- 检查 Prometheus 告警规则: http://localhost:9090/alerts
-- 检查 Alertmanager 配置: http://localhost:9093/#/status
-- 查看路由匹配: http://localhost:9093/#/alerts
+- 检查 Prometheus 告警规则: http://localhost:9091/alerts
+- 检查 Alertmanager 配置: http://localhost:9094/#/status
+- 查看路由匹配: http://localhost:9094/#/alerts
 
 ## 📚 参考文档
 
@@ -325,4 +325,4 @@ A: Loki默认保留30天，可在 `loki/loki-config.yml` 中修改。
 如有问题，请查看:
 - 系统日志: `docker-compose logs`
 - ljwx-bigscreen日志: `/tmp/bigscreen.log`
-- Prometheus状态: http://localhost:9090/status
+- Prometheus状态: http://localhost:9091/status
