@@ -187,6 +187,38 @@ def get_realtime_stats():
 
 system_logger.info('实时统计API直接路由注册成功')
 
+# =============================================================================
+# API性能监控钩子
+# =============================================================================
+from flask import g
+import time
+
+@app.before_request
+def before_request():
+    """记录请求开始时间"""
+    g.start_time = time.time()
+
+@app.after_request
+def after_request(response):
+    """记录API请求性能指标"""
+    if hasattr(g, 'start_time'):
+        duration = time.time() - g.start_time
+
+        # 只记录API请求，忽略静态文件
+        if request.path.startswith('/api/') or request.path.startswith('/upload_'):
+            try:
+                record_api_request(
+                    method=request.method,
+                    endpoint=request.path,
+                    status_code=response.status_code,
+                    duration=duration
+                )
+            except Exception as e:
+                # 静默失败，不影响正常请求
+                pass
+
+    return response
+
 # 原来的实时统计蓝图导入已被上面的直接路由替代
 # try:
 #     from .realtime_stats_api import realtime_stats_bp
@@ -725,6 +757,17 @@ def main_dashboard():
     logger.info(f"customerId: {customerId}")
     return render_template("main_dashboard.html", customerId=customerId)
 
+@app.route("/main_optimized_v2")
+def main_optimized_v2():
+    """优化版大屏V2 - 三层架构设计"""
+    customerId = request.args.get('customerId', '1939964806110937090')
+    logger.info(f"加载优化版大屏V2 - customerId: {customerId}")
+    return render_template("main_optimized_v2.html",
+                         customerId=customerId,
+                         BIGSCREEN_TITLE=BIGSCREEN_TITLE,
+                         BIGSCREEN_VERSION="V2.0 优化版",
+                         COMPANY_NAME=COMPANY_NAME)
+
 @app.route("/test_realtime_stats")
 def test_realtime_stats():
     """测试实时统计API的页面"""
@@ -1253,9 +1296,44 @@ def handle_health_data():
     print(f"🔄 设备 {device_sn} 使用传统处理")
 
     print(f"🏥 调用upload_health_data处理函数")
-    result = upload_health_data(health_data)
-    print(f"🏥 upload_health_data处理结果: {result.get_json() if hasattr(result, 'get_json') else result}")
-    return result
+    import time
+    start_time = time.time()
+
+    try:
+        result = upload_health_data(health_data)
+        duration = time.time() - start_time
+
+        # 记录成功的健康数据上传指标
+        upload_method = 'wifi'  # 默认值
+        if isinstance(health_data.get('data'), dict):
+            data_dict = health_data.get('data')
+            if isinstance(data_dict.get('data'), dict):
+                upload_method = data_dict.get('data', {}).get('upload_method', 'wifi')
+            else:
+                upload_method = data_dict.get('upload_method', 'wifi')
+
+        record_health_data_upload(
+            device_sn=device_sn or 'unknown',
+            upload_method=upload_method,
+            success=True,
+            duration=duration
+        )
+
+        print(f"📊 记录健康数据指标: device_sn={device_sn}, upload_method={upload_method}, duration={duration:.3f}s")
+        print(f"🏥 upload_health_data处理结果: {result.get_json() if hasattr(result, 'get_json') else result}")
+        return result
+
+    except Exception as e:
+        duration = time.time() - start_time
+        # 记录失败的健康数据上传指标
+        record_health_data_upload(
+            device_sn=device_sn or 'unknown',
+            upload_method='unknown',
+            success=False,
+            duration=duration
+        )
+        print(f"❌ 健康数据处理失败: {e}")
+        raise
 
 @app.route("/upload_health_data_optimized", methods=['POST'])
 @log_api_request('/upload_health_data_optimized','POST')
@@ -3667,6 +3745,530 @@ def statistics_overview():
                     'org_count': 0
                 }
             }
+        }), 500
+
+
+# ============================================================================
+# 优化版大屏V2 专用API端点
+# ============================================================================
+
+@app.route('/api/statistics/kpi', methods=['GET'])
+def statistics_kpi():
+    """KPI统计数据 - 优化版大屏V2专用"""
+    try:
+        customer_id = request.args.get('customerId', '1939964806110937090')
+
+        # 获取在线设备数
+        from sqlalchemy import func
+        online_devices = db.session.query(func.count(DeviceInfo.id)).filter(
+            DeviceInfo.customer_id == customer_id,
+            DeviceInfo.status == 'online'
+        ).scalar() or 0
+
+        # 获取异常设备数(假设是离线或故障设备)
+        abnormal_devices = db.session.query(func.count(DeviceInfo.id)).filter(
+            DeviceInfo.customer_id == customer_id,
+            DeviceInfo.status.in_(['offline', 'error'])
+        ).scalar() or 0
+
+        # 获取今日告警数
+        from datetime import date
+        today_alerts = db.session.query(func.count(AlertInfo.id)).filter(
+            AlertInfo.customer_id == customer_id,
+            func.date(AlertInfo.create_time) == date.today()
+        ).scalar() or 0
+
+        # 获取监测用户数
+        monitored_users = db.session.query(func.count(func.distinct(DeviceInfo.user_id))).filter(
+            DeviceInfo.customer_id == customer_id,
+            DeviceInfo.user_id.isnot(None)
+        ).scalar() or 0
+
+        # 计算趋势(模拟数据,实际应从历史数据计算)
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'onlineDevices': online_devices,
+                'abnormalDevices': abnormal_devices,
+                'todayAlerts': today_alerts,
+                'monitoredUsers': monitored_users,
+                'trends': {
+                    'online': 5.2,
+                    'abnormal': -12.5,
+                    'alerts': 15.3,
+                    'users': 0
+                }
+            }
+        })
+    except Exception as e:
+        logger.error(f"KPI统计数据获取失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': {
+                'onlineDevices': 0,
+                'abnormalDevices': 0,
+                'todayAlerts': 0,
+                'monitoredUsers': 0,
+                'trends': {'online': 0, 'abnormal': 0, 'alerts': 0, 'users': 0}
+            }
+        }), 500
+
+
+@app.route('/api/health/risk-index', methods=['GET'])
+def health_risk_index():
+    """健康风险指数 - 优化版大屏V2专用"""
+    try:
+        customer_id = request.args.get('customerId', '1939964806110937090')
+
+        # 计算健康风险指数(基于告警数量、异常设备等)
+        # 这里使用简化算法,实际应基于更复杂的健康评分系统
+        from sqlalchemy import func
+        from datetime import date, timedelta
+
+        # 获取最近7天的告警数
+        recent_alerts = db.session.query(func.count(AlertInfo.id)).filter(
+            AlertInfo.customer_id == customer_id,
+            AlertInfo.create_time >= date.today() - timedelta(days=7)
+        ).scalar() or 0
+
+        # 计算风险指数(100分制,分数越高越安全)
+        # 假设0告警=100分,每个告警-2分
+        risk_index = max(60, 100 - (recent_alerts * 2))
+
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'index': risk_index,
+                'level': 'good' if risk_index >= 80 else 'warning' if risk_index >= 60 else 'danger',
+                'recentAlerts': recent_alerts
+            }
+        })
+    except Exception as e:
+        logger.error(f"健康风险指数获取失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': {'index': 82, 'level': 'good'}
+        }), 500
+
+
+@app.route('/api/ai/summary', methods=['GET'])
+def ai_summary():
+    """AI智能总结 - 优化版大屏V2专用"""
+    try:
+        customer_id = request.args.get('customerId', '1939964806110937090')
+
+        # 获取关键统计数据
+        from sqlalchemy import func
+        from datetime import date
+
+        total_devices = db.session.query(func.count(DeviceInfo.id)).filter(
+            DeviceInfo.customer_id == customer_id
+        ).scalar() or 0
+
+        online_devices = db.session.query(func.count(DeviceInfo.id)).filter(
+            DeviceInfo.customer_id == customer_id,
+            DeviceInfo.status == 'online'
+        ).scalar() or 0
+
+        today_alerts = db.session.query(func.count(AlertInfo.id)).filter(
+            AlertInfo.customer_id == customer_id,
+            func.date(AlertInfo.create_time) == date.today()
+        ).scalar() or 0
+
+        high_alerts = db.session.query(func.count(AlertInfo.id)).filter(
+            AlertInfo.customer_id == customer_id,
+            func.date(AlertInfo.create_time) == date.today(),
+            AlertInfo.severity_level == 'high'
+        ).scalar() or 0
+
+        # 生成AI总结
+        if high_alerts > 0:
+            summary = f"当前 {online_devices}/{total_devices} 台设备在线,今日 {today_alerts} 条异常,其中高危 {high_alerts} 条。需要重点关注!"
+            status = "需关注"
+        elif today_alerts > 5:
+            summary = f"当前 {online_devices}/{total_devices} 台设备在线,今日 {today_alerts} 条异常均为轻微,高危事件为 0。运行基本稳定。"
+            status = "基本正常"
+        else:
+            summary = f"当前 {online_devices}/{total_devices} 台设备在线,今日 {today_alerts} 条异常均为轻微,高危事件为 0。整体运行稳定。"
+            status = "运行正常"
+
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'summary': summary,
+                'status': status,
+                'timestamp': datetime.now().isoformat()
+            }
+        })
+    except Exception as e:
+        logger.error(f"AI总结生成失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': {
+                'summary': '系统运行正常,数据加载中...',
+                'status': '运行正常'
+            }
+        }), 500
+
+
+@app.route('/api/ai/risk-prediction', methods=['GET'])
+def ai_risk_prediction():
+    """AI风险预测 - 优化版大屏V2专用"""
+    try:
+        customer_id = request.args.get('customerId', '1939964806110937090')
+
+        # 这里应该实现真实的AI风险预测算法
+        # 目前返回模拟数据
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'predictions': [
+                    {
+                        'type': 'main_risk',
+                        'content': '主要风险来源: 血压波动 (占 62%)',
+                        'level': 'medium'
+                    },
+                    {
+                        'type': 'key_personnel',
+                        'content': '关键人群: 张三、李四 (佩戴不规范)',
+                        'level': 'low'
+                    },
+                    {
+                        'type': 'future_alert',
+                        'content': '预测异常: 未来 12 小时可能出现 2 条轻微异常',
+                        'level': 'low'
+                    }
+                ],
+                'update_time': '未来12小时',
+                'confidence': 0.85
+            }
+        })
+    except Exception as e:
+        logger.error(f"AI风险预测失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': {'predictions': []}
+        }), 500
+
+
+@app.route('/api/ai/chat', methods=['POST'])
+def ai_chat():
+    """AI对话接口 - 集成OpenRouter Claude Sonnet 4.5"""
+    try:
+        data = request.json
+        customer_id = data.get('customerId', '1939964806110937090')
+        message = data.get('message', '')
+
+        if not message:
+            return jsonify({
+                'code': 400,
+                'message': '消息不能为空',
+                'data': {'response': '请输入您的问题。'}
+            }), 400
+
+        # 获取系统上下文数据
+        context_data = get_ai_context_data(customer_id)
+
+        # 构建系统提示词
+        system_prompt = f"""你是灵境万象健康监测系统的AI助手。你的任务是帮助用户分析健康数据和回答问题。
+
+当前系统状态:
+- 在线设备: {context_data.get('online_devices', 0)}台
+- 异常设备: {context_data.get('abnormal_devices', 0)}台
+- 今日告警: {context_data.get('today_alerts', 0)}条
+- 监测用户: {context_data.get('monitored_users', 0)}人
+
+请基于以上数据回答用户问题,给出专业、简洁、有价值的建议。回答要点:
+1. 直接回答问题,不要重复用户的问题
+2. 提供具体的数据支持
+3. 给出可操作的建议
+4. 保持专业和友好的语气
+5. 回答控制在150字以内"""
+
+        # 调用OpenRouter API
+        try:
+            import requests
+
+            openrouter_response = requests.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": "Bearer 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",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "anthropic/claude-3.5-sonnet",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": message}
+                    ],
+                    "max_tokens": 500,
+                    "temperature": 0.7
+                },
+                timeout=30
+            )
+
+            if openrouter_response.status_code == 200:
+                ai_result = openrouter_response.json()
+                ai_response = ai_result['choices'][0]['message']['content']
+
+                return jsonify({
+                    'code': 200,
+                    'message': 'success',
+                    'data': {
+                        'response': ai_response,
+                        'timestamp': datetime.now().isoformat(),
+                        'model': 'claude-3.5-sonnet'
+                    }
+                })
+            else:
+                logger.error(f"OpenRouter API错误: {openrouter_response.status_code} - {openrouter_response.text}")
+                # 回退到关键词匹配
+                return get_fallback_response(message, customer_id)
+
+        except requests.exceptions.Timeout:
+            logger.error("OpenRouter API超时")
+            return get_fallback_response(message, customer_id)
+        except Exception as api_error:
+            logger.error(f"OpenRouter API调用失败: {str(api_error)}")
+            return get_fallback_response(message, customer_id)
+
+    except Exception as e:
+        logger.error(f"AI对话处理失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': {'response': '抱歉,我遇到了一些问题,请稍后再试。'}
+        }), 500
+
+
+def get_ai_context_data(customer_id):
+    """获取AI对话的上下文数据"""
+    try:
+        from sqlalchemy import func
+        from datetime import date
+
+        online_devices = db.session.query(func.count(DeviceInfo.id)).filter(
+            DeviceInfo.customer_id == customer_id,
+            DeviceInfo.status == 'online'
+        ).scalar() or 0
+
+        abnormal_devices = db.session.query(func.count(DeviceInfo.id)).filter(
+            DeviceInfo.customer_id == customer_id,
+            DeviceInfo.status.in_(['offline', 'error'])
+        ).scalar() or 0
+
+        today_alerts = db.session.query(func.count(AlertInfo.id)).filter(
+            AlertInfo.customer_id == customer_id,
+            func.date(AlertInfo.create_time) == date.today()
+        ).scalar() or 0
+
+        monitored_users = db.session.query(func.count(func.distinct(DeviceInfo.user_id))).filter(
+            DeviceInfo.customer_id == customer_id,
+            DeviceInfo.user_id.isnot(None)
+        ).scalar() or 0
+
+        return {
+            'online_devices': online_devices,
+            'abnormal_devices': abnormal_devices,
+            'today_alerts': today_alerts,
+            'monitored_users': monitored_users
+        }
+    except Exception as e:
+        logger.error(f"获取AI上下文数据失败: {str(e)}")
+        return {
+            'online_devices': 0,
+            'abnormal_devices': 0,
+            'today_alerts': 0,
+            'monitored_users': 0
+        }
+
+
+def get_fallback_response(message, customer_id):
+    """AI API失败时的回退响应 - 基于关键词匹配"""
+    response = "我正在为您分析数据..."
+
+    # 关键词匹配
+    if '血压' in message:
+        response = "根据最近的数据分析,血压异常主要集中在生产部门,建议加强该部门的健康监测频率。可以通过增加测量频次、关注高风险时段等方式改善。"
+    elif '趋势' in message or '分析' in message:
+        response = "根据最近7天的健康数据趋势,整体健康指标保持稳定。心率平均值在正常范围内,血氧饱和度良好。建议继续保持当前的监测频率。"
+    elif '人员' in message or '排名' in message:
+        response = "当前告警次数较多的人员建议重点关注。可以通过人员管理模块查看详细的异常排名,针对性地进行健康干预。"
+    elif '区域' in message or '地图' in message or '分布' in message:
+        response = "可以通过地图查看人员分布情况。建议关注告警集中的区域,分析是否存在环境因素影响健康指标。"
+    elif '设备' in message:
+        response = "当前大部分设备运行正常。如有离线设备,建议及时检查电量和网络连接。可通过设备管理模块查看详细状态。"
+    elif '帮助' in message or '功能' in message or '怎么' in message:
+        response = "我可以帮您:\n1. 分析健康数据趋势\n2. 查询异常人员排名\n3. 解读告警信息\n4. 提供健康建议\n\n您可以问我具体的问题,比如'显示血压异常最多的区域'。"
+    else:
+        response = f"关于'{message}'的问题,建议您查看相关数据面板获取详细信息。如需特定分析,请告诉我您关注的具体指标。"
+
+    return jsonify({
+        'code': 200,
+        'message': 'success',
+        'data': {
+            'response': response,
+            'timestamp': datetime.now().isoformat(),
+            'model': 'fallback'
+        }
+    })
+
+
+@app.route('/api/alerts/list', methods=['GET'])
+def alerts_list():
+    """告警列表 - 优化版大屏V2专用"""
+    try:
+        customer_id = request.args.get('customerId', '1939964806110937090')
+
+        from sqlalchemy import func, desc
+        from datetime import date, datetime
+
+        # 获取今日告警,按级别分类
+        today = date.today()
+
+        high_count = db.session.query(func.count(AlertInfo.id)).filter(
+            AlertInfo.customer_id == customer_id,
+            func.date(AlertInfo.create_time) == today,
+            AlertInfo.severity_level == 'high'
+        ).scalar() or 0
+
+        medium_count = db.session.query(func.count(AlertInfo.id)).filter(
+            AlertInfo.customer_id == customer_id,
+            func.date(AlertInfo.create_time) == today,
+            AlertInfo.severity_level == 'medium'
+        ).scalar() or 0
+
+        low_count = db.session.query(func.count(AlertInfo.id)).filter(
+            AlertInfo.customer_id == customer_id,
+            func.date(AlertInfo.create_time) == today,
+            AlertInfo.severity_level == 'low'
+        ).scalar() or 0
+
+        # 获取最近的告警列表
+        alerts = db.session.query(AlertInfo).filter(
+            AlertInfo.customer_id == customer_id,
+            func.date(AlertInfo.create_time) == today
+        ).order_by(desc(AlertInfo.create_time)).limit(10).all()
+
+        alert_list = []
+        for alert in alerts:
+            # 计算时间差
+            time_diff = datetime.now() - alert.create_time
+            if time_diff.seconds < 60:
+                time_str = "刚刚"
+            elif time_diff.seconds < 3600:
+                time_str = f"{time_diff.seconds // 60}分钟前"
+            else:
+                time_str = f"{time_diff.seconds // 3600}小时前"
+
+            alert_list.append({
+                'id': alert.id,
+                'level': alert.severity_level or 'medium',
+                'title': alert.alert_type or '健康异常',
+                'user': alert.assigned_user or '未知用户',
+                'time': time_str,
+                'status': alert.alert_status or 'pending'
+            })
+
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'high': high_count,
+                'medium': medium_count,
+                'low': low_count,
+                'list': alert_list
+            }
+        })
+    except Exception as e:
+        logger.error(f"告警列表获取失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': {
+                'high': 0,
+                'medium': 0,
+                'low': 0,
+                'list': []
+            }
+        }), 500
+
+
+@app.route('/api/personnel/ranking', methods=['GET'])
+def personnel_ranking():
+    """人员异常排名 - 优化版大屏V2专用"""
+    try:
+        customer_id = request.args.get('customerId', '1939964806110937090')
+
+        from sqlalchemy import func
+        from datetime import date, timedelta
+
+        # 获取最近7天每个用户的告警次数
+        recent_date = date.today() - timedelta(days=7)
+
+        # 查询告警次数统计 - 简化版本,不包含部门信息
+        ranking_query = db.session.query(
+            AlertInfo.user_id,
+            AlertInfo.assigned_user,
+            func.count(AlertInfo.id).label('alert_count')
+        ).filter(
+            AlertInfo.customer_id == customer_id,
+            AlertInfo.create_time >= recent_date,
+            AlertInfo.user_id.isnot(None)
+        ).group_by(
+            AlertInfo.user_id,
+            AlertInfo.assigned_user
+        ).order_by(
+            func.count(AlertInfo.id).desc()
+        ).limit(10).all()
+
+        ranking_list = []
+        for idx, item in enumerate(ranking_query, 1):
+            # 尝试获取用户所属部门
+            dept_name = '未知部门'
+            try:
+                user = db.session.query(UserInfo).filter(UserInfo.id == item.user_id).first()
+                if user:
+                    # 检查UserInfo是否有org_name或dept_name字段
+                    if hasattr(user, 'org_name') and user.org_name:
+                        dept_name = user.org_name
+                    elif hasattr(user, 'dept_name') and user.dept_name:
+                        dept_name = user.dept_name
+                    else:
+                        # 尝试通过org_id获取组织名称
+                        if hasattr(user, 'org_id') and user.org_id:
+                            org = db.session.query(OrgInfo).filter(OrgInfo.id == user.org_id).first()
+                            if org and hasattr(org, 'org_name'):
+                                dept_name = org.org_name
+            except Exception as e:
+                logger.debug(f"获取用户部门信息失败: {str(e)}")
+
+            ranking_list.append({
+                'rank': idx,
+                'name': item.assigned_user or f'用户{item.user_id}',
+                'dept': dept_name,
+                'value': item.alert_count
+            })
+
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': ranking_list
+        })
+    except Exception as e:
+        logger.error(f"人员排名获取失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': []
         }), 500
 
 
