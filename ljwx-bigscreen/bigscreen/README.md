@@ -20,6 +20,55 @@ LJWX BigScreen 是一个专为工业环境设计的实时健康监控大屏系�
 - **🐳 多架构Docker支持**：AMD64/ARM64一键部署
 - **📈 性能监控面板**：实时系统状态和性能指标
 
+## 🔐 快速访问与系统凭证
+
+### 主要服务访问
+
+| 服务 | 访问地址 | 凭证 | 说明 |
+|------|---------|------|------|
+| **ljwx-bigscreen** | http://localhost:5225<br>http://192.168.1.83:5225 | 企业微信登录 | 健康监控大屏主应用 |
+| **Grafana** | http://localhost:3001 | admin / admin123 | 监控可视化面板 |
+| **Prometheus** | http://localhost:9091 | 无需登录 | 指标采集和查询 |
+| **Alertmanager** | http://localhost:9094 | 无需登录 | 告警管理系统 |
+
+### 数据库连接
+
+**MySQL**
+```bash
+Host: 127.0.0.1
+Port: 3306
+Database: test
+Username: root
+Password: 123456
+```
+
+**Redis**
+```bash
+Host: 127.0.0.1 或 192.168.1.6
+Port: 6379
+Password: (无密码)
+```
+
+### 监控系统
+
+完整的监控系统文档和凭证信息，请查看：
+📄 [monitoring/README.md](monitoring/README.md) - 包含所有监控组件的详细配置和访问凭证
+
+**快速启动监控系统：**
+```bash
+cd monitoring
+docker-compose up -d
+```
+
+### 安全提示
+
+⚠️ **生产环境部署前请务必修改所有默认密码！**
+
+- Grafana：首次登录后立即修改 admin 密码
+- MySQL：创建专用应用账户，限制权限范围
+- Redis：启用密码认证，配置强密码
+- 监控服务：仅在内网访问，禁止公网暴露
+
 ## 🆕 最新更新 v1.3.5
 
 ### 🎯 个人大屏UI现代化改造

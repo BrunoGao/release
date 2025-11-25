@@ -13,6 +13,80 @@
 | Grafana | 3001 | 可视化面板 | http://localhost:3001 |
 | Node Exporter | 9101 | 系统指标导出 | http://localhost:9101 |
 
+## 🔐 系统凭证
+
+### 监控系统
+
+**Grafana**
+- URL: http://localhost:3001
+- 用户名: `admin`
+- 密码: `admin123`
+- 说明: 首次登录后可以修改密码
+
+**Prometheus**
+- URL: http://localhost:9091
+- 认证: 无需登录（仅内网访问）
+
+**Alertmanager**
+- URL: http://localhost:9094
+- 认证: 无需登录（仅内网访问）
+
+**Loki**
+- URL: http://localhost:3100
+- 认证: 无需登录（仅内网访问）
+
+### ljwx-bigscreen 应用
+
+**Web界面**
+- URL: http://localhost:5225 或 http://192.168.1.83:5225
+- 认证: 根据组织配置（使用企业微信或用户名密码登录）
+
+**指标端点**
+- URL: http://localhost:5225/metrics
+- 认证: 无需认证（供Prometheus采集）
+
+### 数据库连接信息
+
+**MySQL**
+- 主机: 127.0.0.1
+- 端口: 3306
+- 数据库: test
+- 用户名: root
+- 密码: 123456
+- 说明: ljwx-bigscreen后端数据库
+
+**Redis**
+- 主机: 127.0.0.1 或 192.168.1.6
+- 端口: 6379
+- 密码: (无密码)
+- 说明: 缓存和实时数据
+
+### 企业微信配置
+
+**应用凭证** (配置在环境变量中)
+- AppID: `WECHAT_APP_ID`
+- AppSecret: `WECHAT_APP_SECRET`
+- 说明: 用于告警通知和用户认证
+
+### Docker Registry (如需要)
+
+**Aliyun容器镜像服务**
+- Registry: registry.cn-hangzhou.aliyuncs.com/your-namespace
+- 用户名: 阿里云账号
+- 密码: 访问凭证
+- 说明: 多架构镜像仓库
+
+### 安全建议
+
+⚠️ **重要提示**:
+1. **生产环境**: 务必修改所有默认密码
+2. **Grafana**: 首次登录后立即修改admin密码
+3. **MySQL**: 为生产环境创建独立用户，限制权限
+4. **Redis**: 生产环境启用密码认证
+5. **网络隔离**: 监控服务仅在内网访问，禁止公网暴露
+6. **企业微信**: 妥善保管AppSecret，不要提交到代码仓库
+7. **定期更新**: 定期轮换数据库密码和API密钥
+
 ## 🚀 快速开始
 
 ### 1. 启动监控系统
@@ -36,17 +110,23 @@ docker-compose logs -f
 
 **Grafana 仪表板**
 - URL: http://localhost:3001
-- 默认用户名: `admin`
-- 默认密码: `admin123`
+- 登录凭证: 见上方"系统凭证"章节
+- 功能: 可视化面板、数据源管理、告警配置
 
 **Prometheus**
 - URL: http://localhost:9091
 - 查看指标: http://localhost:9091/graph
 - 查看告警: http://localhost:9091/alerts
+- 查看采集目标: http://localhost:9091/targets
 
 **Alertmanager**
 - URL: http://localhost:9094
 - 查看告警: http://localhost:9094/#/alerts
+- 查看配置: http://localhost:9094/#/status
+
+**Loki**
+- URL: http://localhost:3100
+- 通过Grafana Explore访问: http://localhost:3001/explore
 
 ## 📊 Grafana 配置
 

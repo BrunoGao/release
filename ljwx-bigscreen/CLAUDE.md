@@ -82,6 +82,76 @@ python queue_stress_test.py
 # Navigate to http://localhost:5225/performance_test_report (local) or http://localhost:5001/performance_test_report (Docker)
 ```
 
+## System Access & Credentials
+
+### Application Services
+
+| Service | URL | Credentials | Purpose |
+|---------|-----|-------------|---------|
+| ljwx-bigscreen | http://localhost:5225<br>http://192.168.1.83:5225 | WeChat Enterprise Login | Main health monitoring dashboard |
+| Grafana | http://localhost:3001 | admin / admin123 | Monitoring visualization |
+| Prometheus | http://localhost:9091 | No auth required | Metrics collection |
+| Alertmanager | http://localhost:9094 | No auth required | Alert management |
+
+### Database Credentials
+
+**MySQL**
+```
+Host: 127.0.0.1
+Port: 3306
+Database: test
+Username: root
+Password: 123456
+```
+
+**Redis**
+```
+Host: 127.0.0.1 or 192.168.1.6
+Port: 6379
+Password: (none)
+```
+
+### Monitoring System
+
+The complete monitoring stack is deployed via Docker Compose in the `monitoring/` directory.
+
+**Quick Start:**
+```bash
+cd bigscreen/monitoring
+docker-compose up -d
+```
+
+**Key Endpoints:**
+- Grafana dashboards: http://localhost:3001 (admin/admin123)
+- Prometheus queries: http://localhost:9091/graph
+- Prometheus targets: http://localhost:9091/targets
+- Alertmanager: http://localhost:9094/#/alerts
+- Application metrics: http://localhost:5225/metrics
+
+**Documentation:**
+- Full monitoring setup guide: `bigscreen/monitoring/README.md`
+- Includes Prometheus, Loki, Grafana, Alertmanager
+- Pre-configured dashboards for health data, API performance, alerts
+- 15+ alert rules for application and system monitoring
+
+### Port Mappings (Avoiding Conflicts)
+
+The monitoring system uses non-standard ports to avoid conflicts:
+- Prometheus: 9091 (not 9090 - conflicts with OrbStack)
+- Alertmanager: 9094 (not 9093 - conflicts with ClashX)
+- Node Exporter: 9101 (not 9100 - conflicts with OrbStack)
+- Grafana: 3001 (standard)
+- Loki: 3100 (standard)
+
+### Security Notes
+
+⚠️ **IMPORTANT**: These are development/testing credentials
+- **Production**: Change all default passwords before deployment
+- **Grafana**: Change admin password on first login
+- **MySQL**: Create dedicated app user with limited privileges
+- **Redis**: Enable password authentication for production
+- **Network**: Keep monitoring services on internal network only
+
 ## Core Architecture
 
 ### Main Application Structure
