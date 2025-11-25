@@ -4272,6 +4272,201 @@ def personnel_ranking():
         }), 500
 
 
+@app.route('/api/statistics/area-ranking', methods=['GET'])
+def area_ranking():
+    """区域健康排行API"""
+    try:
+        customer_id = request.args.get('customerId', '1939964806110937090')
+
+        # 查询各组织的健康数据汇总
+        from sqlalchemy import func
+
+        # 获取各组织的设备和告警统计
+        org_stats = db.session.query(
+            OrgInfo.name,
+            OrgInfo.id,
+            func.count(DeviceInfo.id).label('device_count')
+        ).outerjoin(
+            UserInfo, UserInfo.org_id == OrgInfo.id
+        ).outerjoin(
+            DeviceInfo, DeviceInfo.user_id == UserInfo.id
+        ).filter(
+            OrgInfo.customer_id == customer_id
+        ).group_by(
+            OrgInfo.id, OrgInfo.name
+        ).all()
+
+        ranking = []
+        for org in org_stats:
+            # 查询该组织的告警数
+            alert_count = db.session.query(func.count(AlertInfo.id)).join(
+                UserInfo, UserInfo.id == AlertInfo.user_id
+            ).filter(
+                UserInfo.org_id == org.id
+            ).scalar() or 0
+
+            # 查询异常人员数
+            abnormal_count = db.session.query(func.count(func.distinct(AlertInfo.user_id))).join(
+                UserInfo, UserInfo.id == AlertInfo.user_id
+            ).filter(
+                UserInfo.org_id == org.id,
+                AlertInfo.alert_status == 'pending'
+            ).scalar() or 0
+
+            # 计算健康评分（简化算法）
+            score = 100 - min(alert_count * 2 + abnormal_count * 5, 50)
+
+            ranking.append({
+                'name': org.name or f'组织{org.id}',
+                'score': score,
+                'alerts': alert_count,
+                'abnormal': abnormal_count
+            })
+
+        # 按评分排序
+        ranking.sort(key=lambda x: x['score'], reverse=True)
+
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'ranking': ranking
+            }
+        })
+    except Exception as e:
+        logger.error(f"区域排行获取失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': {'ranking': []}
+        }), 500
+
+
+@app.route('/api/personnel/offline', methods=['GET'])
+def personnel_offline():
+    """离线人员列表API"""
+    try:
+        customer_id = request.args.get('customerId', '1939964806110937090')
+
+        from datetime import datetime, timedelta
+
+        # 查询最近24小时无数据上传的设备
+        cutoff_time = datetime.now() - timedelta(hours=24)
+
+        offline_devices = db.session.query(
+            UserInfo.user_name,
+            UserInfo.org_name,
+            DeviceInfo.update_time
+        ).join(
+            DeviceInfo, DeviceInfo.user_id == UserInfo.id
+        ).filter(
+            UserInfo.customer_id == customer_id,
+            DeviceInfo.update_time < cutoff_time
+        ).order_by(
+            DeviceInfo.update_time.desc()
+        ).limit(50).all()
+
+        offline_list = []
+        for device in offline_devices:
+            # 计算离线时长
+            if device.update_time:
+                offline_hours = (datetime.now() - device.update_time).total_seconds() / 3600
+                if offline_hours < 24:
+                    offline_time = f'{int(offline_hours)}小时前'
+                else:
+                    offline_time = f'{int(offline_hours / 24)}天前'
+            else:
+                offline_time = '未知'
+
+            offline_list.append({
+                'name': device.user_name or '未知用户',
+                'dept': device.org_name or '未分配部门',
+                'offlineTime': offline_time
+            })
+
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': offline_list
+        })
+    except Exception as e:
+        logger.error(f"离线人员获取失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': []
+        }), 500
+
+
+@app.route('/api/personnel/wearing-status', methods=['GET'])
+def personnel_wearing_status():
+    """佩戴状态统计API"""
+    try:
+        customer_id = request.args.get('customerId', '1939964806110937090')
+
+        from datetime import datetime, timedelta
+
+        # 总设备数
+        total_devices = db.session.query(func.count(DeviceInfo.id)).join(
+            UserInfo, UserInfo.id == DeviceInfo.user_id
+        ).filter(
+            UserInfo.customer_id == customer_id
+        ).scalar() or 0
+
+        # 在线设备（最近1小时有数据）
+        recent_time = datetime.now() - timedelta(hours=1)
+        online_devices = db.session.query(func.count(DeviceInfo.id)).join(
+            UserInfo, UserInfo.id == DeviceInfo.user_id
+        ).filter(
+            UserInfo.customer_id == customer_id,
+            DeviceInfo.update_time >= recent_time
+        ).scalar() or 0
+
+        # 离线设备（24小时无数据）
+        offline_time = datetime.now() - timedelta(hours=24)
+        offline_devices = db.session.query(func.count(DeviceInfo.id)).join(
+            UserInfo, UserInfo.id == DeviceInfo.user_id
+        ).filter(
+            UserInfo.customer_id == customer_id,
+            DeviceInfo.update_time < offline_time
+        ).scalar() or 0
+
+        # 异常佩戴（有告警的在线设备）
+        abnormal_devices = db.session.query(func.count(func.distinct(AlertInfo.user_id))).join(
+            UserInfo, UserInfo.id == AlertInfo.user_id
+        ).join(
+            DeviceInfo, DeviceInfo.user_id == UserInfo.id
+        ).filter(
+            UserInfo.customer_id == customer_id,
+            AlertInfo.alert_status == 'pending',
+            DeviceInfo.update_time >= recent_time
+        ).scalar() or 0
+
+        # 正常佩戴 = 在线设备 - 异常设备
+        normal_devices = max(online_devices - abnormal_devices, 0)
+
+        return jsonify({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'normal': normal_devices,
+                'abnormal': abnormal_devices,
+                'offline': offline_devices
+            }
+        })
+    except Exception as e:
+        logger.error(f"佩戴状态获取失败: {str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': str(e),
+            'data': {
+                'normal': 0,
+                'abnormal': 0,
+                'offline': 0
+            }
+        }), 500
+
+
 @app.route('/api/baseline/generate', methods=['POST'])  #baseline生成API接口
 def api_generate_baseline():
     """手动触发baseline生成API接口"""

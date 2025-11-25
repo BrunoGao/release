@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>灵境万象 - 智能健康监测大屏 V2.0</title>
+
+    <!-- 外部CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main_optimized_v2.css') }}" />
+
+    <!-- 外部依赖 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='libs/echarts.min.js') }}"></script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=996b44fab992769cdec0b31a7ef9b443"></script>
+</head>
+<body>
+    <!-- 主容器 -->
+    <div class="main-wrapper">
+        <!-- 第一层: 顶部态势栏 -->
+        <div class="top-status-bar">
+            <!-- AI 总结面板 -->
+            <div class="ai-summary-panel">
+                <div class="ai-summary-header">
+                    <div class="ai-icon">🧠</div>
+                    <div class="ai-summary-title">AI 智能分析</div>
+                </div>
+                <div class="ai-summary-content">
+                    <div class="ai-summary-text" id="aiSummaryText">
+                        正在加载AI分析数据...
+                    </div>
+                    <div class="ai-status-indicator" id="aiStatusIndicator">
+                        运行正常
+                    </div>
+                </div>
+            </div>
+
+            <!-- 核心 KPI 横条 -->
+            <div class="kpi-bar">
+                <!-- 在线设备 -->
+                <div class="kpi-card" onclick="showKPIDetail('online')">
+                    <div class="kpi-label">在线设备</div>
+                    <div class="kpi-value">
+                        <span id="onlineDevices">0</span>
+                        <span class="kpi-unit">台</span>
+                    </div>
+                    <div class="kpi-trend" id="onlineTrend">
+                        ↑ <span>+0%</span>
+                    </div>
+                </div>
+
+                <!-- 异常设备 -->
+                <div class="kpi-card" onclick="showKPIDetail('abnormal')">
+                    <div class="kpi-label">异常设备</div>
+                    <div class="kpi-value" style="color: var(--alert-red);">
+                        <span id="abnormalDevices">0</span>
+                        <span class="kpi-unit">台</span>
+                    </div>
+                    <div class="kpi-trend down" id="abnormalTrend">
+                        ↓ <span>-0%</span>
+                    </div>
+                </div>
+
+                <!-- 今日告警 -->
+                <div class="kpi-card" onclick="showKPIDetail('alerts')">
+                    <div class="kpi-label">今日告警</div>
+                    <div class="kpi-value" style="color: var(--alert-orange);">
+                        <span id="todayAlerts">0</span>
+                        <span class="kpi-unit">条</span>
+                    </div>
+                    <div class="kpi-trend" id="alertsTrend">
+                        ↑ <span>+0%</span>
+                    </div>
+                </div>
+
+                <!-- 监测用户 -->
+                <div class="kpi-card" onclick="showKPIDetail('users')">
+                    <div class="kpi-label">监测用户</div>
+                    <div class="kpi-value">
+                        <span id="monitoredUsers">0</span>
+                        <span class="kpi-unit">人</span>
+                    </div>
+                    <div class="kpi-trend" id="usersTrend">
+                        → <span>0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 健康风险指数 -->
+            <div class="risk-gauge">
+                <div class="gauge-container">
+                    <div class="gauge-circle">
+                        <div class="gauge-inner">
+                            <span id="riskIndex">82</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="gauge-label">健康风险指数</div>
+            </div>
+        </div>
+
+        <!-- 第二层: 中间核心业务区 -->
+        <div class="middle-content">
+            <!-- 左侧: 地图区域 60% -->
+            <div class="map-section">
+                <!-- 租户信息条 -->
+                <div class="tenant-info-compact">
+                    <div class="tenant-basic-info">
+                        <div class="tenant-logo" id="tenantLogo">🏢</div>
+                        <div class="tenant-details">
+                            <div class="tenant-name" id="tenantName">{{ COMPANY_NAME }}</div>
+                            <div class="tenant-id">ID: <span id="tenantId"></span></div>
+                        </div>
+                    </div>
+                    <div class="tenant-quick-stats">
+                        <div class="quick-stat">
+                            <div class="quick-stat-value" id="quickOrgCount">0</div>
+                            <div class="quick-stat-label">组织</div>
+                        </div>
+                        <div class="quick-stat">
+                            <div class="quick-stat-value" id="quickUserCount">0</div>
+                            <div class="quick-stat-label">用户</div>
+                        </div>
+                        <div class="quick-stat">
+                            <div class="quick-stat-value" id="quickDeviceCount">0</div>
+                            <div class="quick-stat-label">设备</div>
+                        </div>
+                        <div class="quick-stat">
+                            <div class="quick-stat-value" id="quickHealthCount">0</div>
+                            <div class="quick-stat-label">健康数据</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 地图容器 - 三层信息结构 -->
+                <div class="map-container">
+                    <!-- 第一层: 筛选条 -->
+                    <div class="map-filters">
+                        <select class="filter-select" id="areaFilter" onchange="filterMapByArea(this.value)">
+                            <option value="all">全部区域</option>
+                            <option value="area1">一号厂区</option>
+                            <option value="area2">二号仓储区</option>
+                            <option value="area3">三号高危作业区</option>
+                        </select>
+
+                        <div class="filter-tabs">
+                            <button class="filter-tab active" data-status="all" onclick="filterMapByStatus('all')">全部</button>
+                            <button class="filter-tab" data-status="high" onclick="filterMapByStatus('high')">高危</button>
+                            <button class="filter-tab" data-status="alert" onclick="filterMapByStatus('alert')">告警</button>
+                            <button class="filter-tab" data-status="online" onclick="filterMapByStatus('online')">在线</button>
+                            <button class="filter-tab" data-status="offline" onclick="filterMapByStatus('offline')">离线</button>
+                        </div>
+
+                        <div class="time-range-selector">
+                            <button class="time-btn active" data-range="realtime" onclick="filterMapByTime('realtime')">实时</button>
+                            <button class="time-btn" data-range="10m" onclick="filterMapByTime('10m')">近10分钟</button>
+                            <button class="time-btn" data-range="1h" onclick="filterMapByTime('1h')">近1小时</button>
+                        </div>
+
+                        <!-- 地图图例 -->
+                        <div class="map-legend">
+                            <div class="legend-item">
+                                <span class="legend-dot normal"></span>
+                                <span>正常</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot warning"></span>
+                                <span>告警</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot danger"></span>
+                                <span>高危</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 第二层: 地图主体 -->
+                    <div id="map" class="map-canvas"></div>
+
+                    <!-- 第三层: 选中区域卡片 -->
+                    <div class="selected-area-card" id="selectedAreaCard" style="display: none;">
+                        <div class="card-header">
+                            <span class="area-icon">📍</span>
+                            <span class="area-name" id="selectedAreaName">当前选中: 三号高危作业区</span>
+                            <button class="card-close" onclick="closeAreaCard()">✕</button>
+                        </div>
+                        <div class="card-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">健康评分</span>
+                                <span class="stat-value" id="areaHealthScore">72</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">今日告警</span>
+                                <span class="stat-value alert" id="areaAlertCount">3</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">在线设备</span>
+                                <span class="stat-value" id="areaOnlineDevices">150</span>
+                            </div>
+                        </div>
+                        <button class="detail-btn" onclick="showAreaDetail()">查看详情 →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧: 健康分析区域 40% -->
+            <div class="health-analysis-section">
+                <!-- AI 风险预测卡片 - 顶部固定 -->
+                <div class="ai-risk-card">
+                    <div class="ai-risk-header">
+                        <div class="ai-risk-title">
+                            <span>🔍</span>
+                            <span>AI 风险预测</span>
+                        </div>
+                        <div class="ai-risk-badge" id="riskUpdateTime">未来12小时</div>
+                    </div>
+                    <div class="ai-risk-content" id="aiRiskContent">
+                        <div class="risk-item">
+                            <span class="risk-highlight">主要风险来源:</span> 血压波动 (占 <span class="risk-highlight">62%</span>)
+                        </div>
+                        <div class="risk-item">
+                            <span class="risk-highlight">关键人群:</span> 张三、李四 (佩戴不规范)
+                        </div>
+                        <div class="risk-item">
+                            <span class="risk-highlight">预测异常:</span> 未来 12 小时可能出现 <span class="risk-highlight">2</span> 条轻微异常
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 健康分析Tab切换容器 -->
+                <div class="health-analysis-tabs-container">
+                    <!-- Tab选项卡 -->
+                    <div class="health-analysis-tabs">
+                        <button class="health-tab active" data-tab="vitals">
+                            <span class="tab-icon">💓</span>
+                            <span class="tab-label">体征维度</span>
+                        </button>
+                        <button class="health-tab" data-tab="personnel">
+                            <span class="tab-icon">👥</span>
+                            <span class="tab-label">人员维度</span>
+                        </button>
+                        <button class="health-tab" data-tab="area">
+                            <span class="tab-icon">🗺️</span>
+                            <span class="tab-label">区域维度</span>
+                        </button>
+                    </div>
+
+                    <!-- Tab内容区域 -->
+                    <div class="health-tab-content">
+                        <!-- 体征维度面板 -->
+                        <div class="tab-panel active" id="vitalsPanel">
+                            <!-- 健康雷达图 -->
+                            <div class="health-radar-card">
+                                <div class="radar-header">
+                                    <div class="radar-title">健康指标雷达</div>
+                                    <div class="radar-legend">
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: var(--primary-cyan);"></div>
+                                            <span>当前值</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: var(--success-green);"></div>
+                                            <span>基线值</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="healthRadarChart"></div>
+                            </div>
+
+                            <!-- 健康趋势图 -->
+                            <div class="health-trend-card">
+                                <div class="trend-header">
+                                    <div class="trend-title">健康趋势</div>
+                                    <div class="trend-filters">
+                                        <button class="trend-filter-btn active" data-range="7d">7天</button>
+                                        <button class="trend-filter-btn" data-range="30d">30天</button>
+                                        <button class="trend-filter-btn" data-range="90d">90天</button>
+                                    </div>
+                                </div>
+                                <div id="healthTrendChart"></div>
+                            </div>
+                        </div>
+
+                        <!-- 人员维度面板 -->
+                        <div class="tab-panel" id="personnelPanel">
+                            <!-- 异常人员排行榜 -->
+                            <div class="personnel-ranking-card">
+                                <div class="ranking-header">
+                                    <div class="ranking-title">异常人员排行</div>
+                                    <div class="ranking-date" id="personnelRankingDate">今日</div>
+                                </div>
+                                <div class="ranking-list" id="personnelRankingList">
+                                    <!-- 动态加载 -->
+                                </div>
+                            </div>
+
+                            <!-- 人员体征分布 -->
+                            <div class="personnel-distribution-card">
+                                <div class="distribution-header">
+                                    <div class="distribution-title">体征异常分布</div>
+                                </div>
+                                <div id="personnelDistributionChart"></div>
+                            </div>
+                        </div>
+
+                        <!-- 区域维度面板 -->
+                        <div class="tab-panel" id="areaPanel">
+                            <!-- 区域健康排行 -->
+                            <div class="area-ranking-card">
+                                <div class="ranking-header">
+                                    <div class="ranking-title">区域健康排行</div>
+                                    <div class="ranking-sort">
+                                        <select class="sort-select" id="areaSortSelect">
+                                            <option value="score">健康评分</option>
+                                            <option value="alerts">告警数量</option>
+                                            <option value="abnormal">异常人数</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="area-ranking-list" id="areaRankingList">
+                                    <!-- 动态加载 -->
+                                </div>
+                            </div>
+
+                            <!-- 区域健康热力图 -->
+                            <div class="area-heatmap-card">
+                                <div class="heatmap-header">
+                                    <div class="heatmap-title">区域健康热力</div>
+                                </div>
+                                <div id="areaHeatmapChart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三层: 底部运营管理区 -->
+        <div class="bottom-operations">
+            <!-- 告警信息模块 -->
+            <div class="alert-panel">
+                <div class="alert-header">
+                    <div class="alert-title">
+                        <span>⚠️</span>
+                        <span>告警信息</span>
+                    </div>
+                    <div class="alert-badge">
+                        <span id="alertBadgeCount">0</span> 未处理
+                    </div>
+                </div>
+                <div class="alert-summary">
+                    <div class="alert-level-card high" onclick="filterAlerts('high')">
+                        <div class="alert-level-value" id="highAlertCount" style="color: var(--alert-red);">0</div>
+                        <div class="alert-level-label">高危</div>
+                    </div>
+                    <div class="alert-level-card medium" onclick="filterAlerts('medium')">
+                        <div class="alert-level-value" id="mediumAlertCount" style="color: var(--alert-orange);">0</div>
+                        <div class="alert-level-label">中危</div>
+                    </div>
+                    <div class="alert-level-card low" onclick="filterAlerts('low')">
+                        <div class="alert-level-value" id="lowAlertCount" style="color: var(--alert-yellow);">0</div>
+                        <div class="alert-level-label">低危</div>
+                    </div>
+                </div>
+                <div class="alert-timeline" id="alertTimeline">
+                    <!-- 告警时间线将通过 JavaScript 动态加载 -->
+                </div>
+            </div>
+
+            <!-- 人员管理模块 -->
+            <div class="personnel-panel">
+                <div class="personnel-header">
+                    <div class="personnel-title">👥 人员管理</div>
+                    <div class="personnel-tabs">
+                        <button class="personnel-tab active" data-tab="abnormal">异常排名</button>
+                        <button class="personnel-tab" data-tab="offline">离线人员</button>
+                        <button class="personnel-tab" data-tab="wearing">佩戴状态</button>
+                    </div>
+                </div>
+                <div class="personnel-content">
+                    <!-- 异常排名面板 -->
+                    <div class="personnel-tab-panel active" id="abnormalPanel">
+                        <div class="personnel-ranking-list" id="personnelRanking">
+                            <!-- 人员排名将通过 JavaScript 动态加载 -->
+                        </div>
+                    </div>
+
+                    <!-- 离线人员面板 -->
+                    <div class="personnel-tab-panel" id="offlinePanel">
+                        <div class="offline-personnel-list" id="offlinePersonnelList">
+                            <!-- 离线人员将通过 JavaScript 动态加载 -->
+                        </div>
+                    </div>
+
+                    <!-- 佩戴状态面板 -->
+                    <div class="personnel-tab-panel" id="wearingPanel">
+                        <div class="wearing-status-chart" id="wearingStatusChart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 全局事件流 -->
+            <div class="event-stream-panel">
+                <div class="event-stream-header">
+                    <div class="event-stream-title">
+                        <div class="event-stream-indicator"></div>
+                        <span>事件流</span>
+                    </div>
+                    <div class="event-stream-filters">
+                        <button class="event-filter-btn active" data-type="all" title="全部">📋</button>
+                        <button class="event-filter-btn" data-type="health" title="健康">💗</button>
+                        <button class="event-filter-btn" data-type="device" title="设备">📱</button>
+                        <button class="event-filter-btn" data-type="alert" title="告警">⚠️</button>
+                    </div>
+                </div>
+                <div class="event-stream-list" id="eventStreamList">
+                    <!-- 事件流将通过 JavaScript 动态加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 助手触发按钮 -->
+    <div class="ai-assistant-trigger" onclick="toggleAIAssistant()">
+        🤖
+    </div>
+
+    <!-- AI 助手面板 -->
+    <div class="ai-assistant-panel" id="aiAssistantPanel">
+        <div class="ai-panel-header">
+            <div class="ai-panel-title">
+                <span>🤖</span>
+                <span>AI 总控台</span>
+            </div>
+            <div class="ai-panel-close" onclick="toggleAIAssistant()">✕</div>
+        </div>
+
+        <!-- 推荐问题 Chips -->
+        <div class="ai-recommended-questions" id="aiRecommendedQuestions">
+            <div class="ai-question-chip" onclick="askAIQuestion('显示血压异常最多的区域')">🗺️ 异常区域</div>
+            <div class="ai-question-chip" onclick="askAIQuestion('分析最近的健康趋势')">📈 健康趋势</div>
+            <div class="ai-question-chip" onclick="askAIQuestion('推荐高危人员')">⚠️ 高危人员</div>
+            <div class="ai-question-chip" onclick="askAIQuestion('今天有哪些告警')">🔔 今日告警</div>
+            <div class="ai-question-chip" onclick="askAIQuestion('设备运行状态如何')">📱 设备状态</div>
+        </div>
+
+        <div class="ai-chat-container" id="aiChatContainer">
+            <div class="ai-message assistant">
+                👋 您好!我是灵境万象AI助手。点击上方快捷问题或输入"@"使用快捷键。
+            </div>
+        </div>
+
+        <!-- @ 快捷键下拉菜单 -->
+        <div class="ai-shortcut-menu" id="aiShortcutMenu">
+            <div class="ai-shortcut-category">
+                <div class="ai-shortcut-category-title">📍 区域</div>
+                <div class="ai-shortcut-item" data-type="area" data-value="东区车间">
+                    <span class="ai-shortcut-icon">🏭</span>
+                    <span>东区车间</span>
+                </div>
+                <div class="ai-shortcut-item" data-type="area" data-value="西区车间">
+                    <span class="ai-shortcut-icon">🏭</span>
+                    <span>西区车间</span>
+                </div>
+                <div class="ai-shortcut-item" data-type="area" data-value="南区车间">
+                    <span class="ai-shortcut-icon">🏭</span>
+                    <span>南区车间</span>
+                </div>
+            </div>
+            <div class="ai-shortcut-category">
+                <div class="ai-shortcut-category-title">👥 人员</div>
+                <div class="ai-shortcut-item" data-type="person" data-value="高危人员">
+                    <span class="ai-shortcut-icon">⚠️</span>
+                    <span>高危人员</span>
+                </div>
+                <div class="ai-shortcut-item" data-type="person" data-value="异常人员">
+                    <span class="ai-shortcut-icon">🔴</span>
+                    <span>异常人员</span>
+                </div>
+                <div class="ai-shortcut-item" data-type="person" data-value="离线人员">
+                    <span class="ai-shortcut-icon">📵</span>
+                    <span>离线人员</span>
+                </div>
+            </div>
+            <div class="ai-shortcut-category">
+                <div class="ai-shortcut-category-title">⏰ 时间</div>
+                <div class="ai-shortcut-item" data-type="time" data-value="今天">
+                    <span class="ai-shortcut-icon">📅</span>
+                    <span>今天</span>
+                </div>
+                <div class="ai-shortcut-item" data-type="time" data-value="最近7天">
+                    <span class="ai-shortcut-icon">📅</span>
+                    <span>最近7天</span>
+                </div>
+                <div class="ai-shortcut-item" data-type="time" data-value="本月">
+                    <span class="ai-shortcut-icon">📅</span>
+                    <span>本月</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="ai-input-container">
+            <input type="text" class="ai-input" id="aiInput" placeholder="输入您的问题（输入@使用快捷键）..." />
+            <button class="ai-send-btn" onclick="sendAIMessage()">▶</button>
+        </div>
+    </div>
+
+
+    <!-- 外部JavaScript -->
+    <script src="{{ url_for('static', filename='js/main_optimized_v2.js') }}"></script>
+</body>
+</html>
