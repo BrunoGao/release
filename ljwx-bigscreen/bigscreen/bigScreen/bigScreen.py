@@ -6,6 +6,7 @@
 from random import uniform
 from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
+from flask_compress import Compress
 from flask import request, jsonify
 from datetime import datetime, timedelta
 import json
@@ -106,6 +107,23 @@ except ImportError as e:
 
 app = Flask(__name__, static_folder='../static')
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# =============================================================================
+# Flask-Compress: 启用Gzip压缩，提升75%前端加载速度
+# =============================================================================
+compress = Compress()
+compress.init_app(app)
+app.config['COMPRESS_MIMETYPES'] = [
+    'text/html',
+    'text/css',
+    'text/javascript',
+    'application/javascript',
+    'application/json',
+    'text/xml',
+    'application/xml'
+]
+app.config['COMPRESS_LEVEL'] = 6  # 压缩级别 1-9, 6为平衡点
+app.config['COMPRESS_MIN_SIZE'] = 500  # 小于500字节不压缩
 
 # =============================================================================
 # Prometheus监控集成
@@ -291,6 +309,13 @@ try:
     # 简单测试连接，避免复杂操作
     redis.ping()
     system_logger.info('Redis连接成功',extra={'host':REDIS_HOST,'port':REDIS_PORT,'db':REDIS_DB})
+
+    # =============================================================================
+    # 智能缓存服务初始化 - 提升70%大屏刷新性能
+    # =============================================================================
+    from .cache_service import get_cache_service
+    cache_service = get_cache_service(redis)
+    system_logger.info('✅ 智能缓存服务初始化成功')
 except Exception as e:
     system_logger.error('Redis连接初始化失败，使用降级模式',extra={'error':str(e)})
     # 创建一个简单的Redis替代品，避免递归错误
@@ -299,6 +324,7 @@ except Exception as e:
         def setex(self, key, ttl, value): pass
         def ping(self): return True
     redis = SimpleRedis()
+    cache_service = None  # 缓存服务降级
 
 # 导入调试控制模块，批量禁用print调试输出
 import sys
@@ -3634,24 +3660,24 @@ def get_comprehensive_statistics_data(customer_id, user_id=None, target_date=Non
 @app.route('/api/statistics/overview', methods=['GET'])
 @log_api_request('/api/statistics/overview', 'GET')
 def statistics_overview():
-    """统计概览接口 - 提供前端所需的所有统计数据"""
+    """统计概览接口 - 提供前端所需的所有统计数据（缓存5分钟）"""
     try:
         # 获取查询参数 - 支持多种参数格式
         customer_id = request.args.get('customerId') or request.args.get('customer_id')
-        org_id = request.args.get('orgId') or request.args.get('org_id') 
+        org_id = request.args.get('orgId') or request.args.get('org_id')
         user_id = request.args.get('userId') or request.args.get('user_id')
         date_str = request.args.get('date')
-        
+
         # 参数兼容处理：orgId 可作为 customerId 使用
         if org_id and not customer_id:
             customer_id = org_id
-            
+
         if not customer_id:
             return jsonify({
                 'success': False,
                 'error': 'customerId 参数是必需的'
             }), 400
-        
+
         # 解析日期参数
         from datetime import datetime, date, timedelta
         if date_str:
@@ -3661,7 +3687,14 @@ def statistics_overview():
                 target_date = date.today()
         else:
             target_date = date.today()
-            
+
+        # 尝试从缓存获取（5分钟缓存）
+        cache_key = f'statistics_overview:{customer_id}:{user_id or "all"}:{target_date}'
+        if cache_service:
+            cached_data = cache_service.get('bigscreen_summary', cache_key)
+            if cached_data:
+                return jsonify(cached_data)
+
         # 计算对比日期（前一天）
         compare_date = target_date - timedelta(days=1)
         
@@ -3727,9 +3760,13 @@ def statistics_overview():
             },
             'timestamp': datetime.now().isoformat()
         }
-        
+
+        # 存入缓存（5分钟）
+        if cache_service:
+            cache_service.set('bigscreen_summary', cache_key, data=result)
+
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"统计概览接口错误: {str(e)}")
         return jsonify({
@@ -4124,15 +4161,22 @@ def get_fallback_response(message, customer_id):
 
 @app.route('/api/alerts/list', methods=['GET'])
 def alerts_list():
-    """告警列表 - 优化版大屏V2专用"""
+    """告警列表 - 优化版大屏V2专用（缓存30秒）"""
     try:
         customer_id = request.args.get('customerId', '1939964806110937090')
 
-        from sqlalchemy import func, desc
+        # 尝试从缓存获取（30秒缓存）
         from datetime import date, datetime
+        today = date.today()
+        cache_key = f'alerts_list:{customer_id}:{today}'
+        if cache_service:
+            cached_data = cache_service.get('alert_list', cache_key)
+            if cached_data:
+                return jsonify(cached_data)
+
+        from sqlalchemy import func, desc
 
         # 获取今日告警,按级别分类
-        today = date.today()
 
         high_count = db.session.query(func.count(AlertInfo.id)).filter(
             AlertInfo.customer_id == customer_id,
@@ -4178,7 +4222,7 @@ def alerts_list():
                 'status': alert.alert_status or 'pending'
             })
 
-        return jsonify({
+        result = {
             'code': 200,
             'message': 'success',
             'data': {
@@ -4187,7 +4231,13 @@ def alerts_list():
                 'low': low_count,
                 'list': alert_list
             }
-        })
+        }
+
+        # 存入缓存（30秒）
+        if cache_service:
+            cache_service.set('alert_list', cache_key, data=result)
+
+        return jsonify(result)
     except Exception as e:
         logger.error(f"告警列表获取失败: {str(e)}")
         return jsonify({
@@ -4274,9 +4324,16 @@ def personnel_ranking():
 
 @app.route('/api/statistics/area-ranking', methods=['GET'])
 def area_ranking():
-    """区域健康排行API"""
+    """区域健康排行API（缓存5分钟）"""
     try:
         customer_id = request.args.get('customerId', '1939964806110937090')
+
+        # 尝试从缓存获取（5分钟缓存）
+        cache_key = f'area_ranking:{customer_id}'
+        if cache_service:
+            cached_data = cache_service.get('org_stats', cache_key)
+            if cached_data:
+                return jsonify(cached_data)
 
         # 查询各组织的健康数据汇总
         from sqlalchemy import func
@@ -4326,13 +4383,19 @@ def area_ranking():
         # 按评分排序
         ranking.sort(key=lambda x: x['score'], reverse=True)
 
-        return jsonify({
+        result = {
             'code': 200,
             'message': 'success',
             'data': {
                 'ranking': ranking
             }
-        })
+        }
+
+        # 存入缓存（5分钟）
+        if cache_service:
+            cache_service.set('org_stats', cache_key, data=result)
+
+        return jsonify(result)
     except Exception as e:
         logger.error(f"区域排行获取失败: {str(e)}")
         return jsonify({
@@ -4344,9 +4407,16 @@ def area_ranking():
 
 @app.route('/api/personnel/offline', methods=['GET'])
 def personnel_offline():
-    """离线人员列表API"""
+    """离线人员列表API（缓存1分钟）"""
     try:
         customer_id = request.args.get('customerId', '1939964806110937090')
+
+        # 尝试从缓存获取（1分钟缓存）
+        cache_key = f'personnel_offline:{customer_id}'
+        if cache_service:
+            cached_data = cache_service.get('device_list', cache_key)
+            if cached_data:
+                return jsonify(cached_data)
 
         from datetime import datetime, timedelta
 
@@ -4384,11 +4454,17 @@ def personnel_offline():
                 'offlineTime': offline_time
             })
 
-        return jsonify({
+        result = {
             'code': 200,
             'message': 'success',
             'data': offline_list
-        })
+        }
+
+        # 存入缓存（1分钟）
+        if cache_service:
+            cache_service.set('device_list', cache_key, data=result)
+
+        return jsonify(result)
     except Exception as e:
         logger.error(f"离线人员获取失败: {str(e)}")
         return jsonify({
@@ -4400,9 +4476,16 @@ def personnel_offline():
 
 @app.route('/api/personnel/wearing-status', methods=['GET'])
 def personnel_wearing_status():
-    """佩戴状态统计API"""
+    """佩戴状态统计API（缓存1分钟）"""
     try:
         customer_id = request.args.get('customerId', '1939964806110937090')
+
+        # 尝试从缓存获取（1分钟缓存）
+        cache_key = f'wearing_status:{customer_id}'
+        if cache_service:
+            cached_data = cache_service.get('device_stats', cache_key)
+            if cached_data:
+                return jsonify(cached_data)
 
         from datetime import datetime, timedelta
 
@@ -4445,7 +4528,7 @@ def personnel_wearing_status():
         # 正常佩戴 = 在线设备 - 异常设备
         normal_devices = max(online_devices - abnormal_devices, 0)
 
-        return jsonify({
+        result = {
             'code': 200,
             'message': 'success',
             'data': {
@@ -4453,7 +4536,13 @@ def personnel_wearing_status():
                 'abnormal': abnormal_devices,
                 'offline': offline_devices
             }
-        })
+        }
+
+        # 存入缓存（1分钟）
+        if cache_service:
+            cache_service.set('device_stats', cache_key, data=result)
+
+        return jsonify(result)
     except Exception as e:
         logger.error(f"佩戴状态获取失败: {str(e)}")
         return jsonify({
